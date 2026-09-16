@@ -3,8 +3,10 @@ const TOKEN_KEY = 'calidad-software.access-token'
 
 export interface User {
   readonly id: number
+  readonly identification: string
   readonly name: string
   readonly email: string
+  readonly role: string
   readonly email_verified_at: string | null
   readonly has_two_factor: boolean
 }
@@ -90,6 +92,7 @@ export const api = {
   },
 
   async register(input: {
+    identification: string
     name: string
     email: string
     password: string

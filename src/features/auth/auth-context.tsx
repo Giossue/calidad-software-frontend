@@ -9,7 +9,7 @@ interface AuthContextValue {
   readonly status: AuthStatus
   readonly user: User | null
   readonly login: (email: string, password: string) => Promise<void>
-  readonly register: (input: { name: string; email: string; password: string; password_confirmation: string }) => Promise<void>
+  readonly register: (input: { identification: string; name: string; email: string; password: string; password_confirmation: string }) => Promise<void>
   readonly completeTwoFactor: (input: { code?: string; recovery_code?: string }) => Promise<void>
   readonly logout: () => Promise<void>
 }

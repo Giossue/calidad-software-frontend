@@ -4,8 +4,10 @@ import { api, ApiError, challengeStore, tokenStore } from './api'
 
 const user = {
   id: 1,
+  identification: '0201234567',
   name: 'Ana Torres',
   email: 'ana@example.com',
+  role: 'estudiante',
   email_verified_at: null,
   has_two_factor: false,
 }

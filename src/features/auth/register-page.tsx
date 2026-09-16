@@ -13,7 +13,7 @@ import { useAuth } from './auth-context'
 export function RegisterPage() {
   const { register } = useAuth()
   const navigate = useNavigate()
-  const [values, setValues] = useState({ name: '', email: '', password: '', password_confirmation: '' })
+  const [values, setValues] = useState({ identification: '', name: '', email: '', password: '', password_confirmation: '' })
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -40,6 +40,10 @@ export function RegisterPage() {
       <AuthFeedback error={error} />
       <form onSubmit={submit} noValidate>
         <FieldGroup>
+          <Field data-invalid={Boolean(error)}>
+            <FieldLabel htmlFor="identification">Cédula</FieldLabel>
+            <Input id="identification" inputMode="numeric" autoComplete="off" maxLength={20} value={values.identification} onChange={(event) => update('identification', event.target.value)} aria-invalid={Boolean(error)} required />
+          </Field>
           <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor="name">Nombre completo</FieldLabel>
             <Input id="name" autoComplete="name" value={values.name} onChange={(event) => update('name', event.target.value)} aria-invalid={Boolean(error)} required />
