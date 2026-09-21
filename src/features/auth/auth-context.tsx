@@ -9,7 +9,6 @@ interface AuthContextValue {
   readonly status: AuthStatus
   readonly user: User | null
   readonly login: (email: string, password: string) => Promise<void>
-  readonly register: (input: { identification: string; name: string; email: string; password: string; password_confirmation: string }) => Promise<void>
   readonly completeTwoFactor: (input: { code?: string; recovery_code?: string }) => Promise<void>
   readonly logout: () => Promise<void>
 }
@@ -50,12 +49,6 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
         }
         throw error
       }
-      tokenStore.set(session.access_token)
-      setUser(session.user)
-      setStatus('authenticated')
-    },
-    async register(input) {
-      const session = await api.register(input)
       tokenStore.set(session.access_token)
       setUser(session.user)
       setStatus('authenticated')
