@@ -91,20 +91,6 @@ export const api = {
     return response.data
   },
 
-  async register(input: {
-    identification: string
-    name: string
-    email: string
-    password: string
-    password_confirmation: string
-  }): Promise<LoginData> {
-    const response = await request<Resource<LoginData>>('/api/v1/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ ...input, device_name: 'frontend-web' }),
-    })
-    return response.data
-  },
-
   async completeTwoFactor(input: { code?: string; recovery_code?: string }): Promise<LoginData> {
     const challengeToken = challengeStore.get()
     if (!challengeToken) throw new Error('El desafío de autenticación expiró.')
