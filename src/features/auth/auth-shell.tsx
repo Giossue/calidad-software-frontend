@@ -6,11 +6,11 @@ interface AuthShellProps {
 
 export function AuthShell({ title, description, children }: AuthShellProps) {
   return (
-    <main className="min-h-svh bg-slate-100 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
-      <div className="mx-auto grid min-h-[calc(100svh-2rem)] max-w-[1600px] overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.1fr_0.9fr] 2xl:max-w-[1800px]">
+    <main className="flex min-h-svh items-center justify-center bg-slate-100 p-4 sm:p-6 lg:p-10 dark:bg-slate-950">
+      <div className="grid w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.1fr_0.9fr]">
 
         {/* Panel Azul Oscuro (Izquierda) */}
-        <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#0A1224] via-[#0F1E2E] to-[#18283B] p-8 text-white lg:flex lg:min-h-[720px] lg:flex-col lg:items-start lg:justify-between xl:p-14">
+        <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#0A1224] via-[#0F1E2E] to-[#18283B] p-8 text-white lg:flex lg:flex-col lg:items-start lg:justify-between xl:p-14">
           {/* Luz ambiental radial de fondo */}
           <div
             className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(220,38,38,0.18),transparent_50%)] pointer-events-none"
@@ -68,7 +68,7 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
         </aside>
 
         {/* Sección del Formulario (Derecha) */}
-        <section className="flex items-center justify-center px-6 py-10 sm:px-12 lg:px-14 xl:px-20" aria-label="Formulario de autenticación">
+        <section className="flex items-center justify-center px-6 py-8 sm:px-10 lg:px-12 xl:px-16" aria-label="Formulario de autenticación">
           <div className="w-full max-w-md">
 
             {/* Encabezado del Formulario */}
