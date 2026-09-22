@@ -1,23 +1,31 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Building2Icon, RefreshCwIcon, ShieldAlertIcon } from 'lucide-react'
+import {
+  Building2Icon,
+  CheckCircle2Icon,
+  Edit2Icon,
+  PlusIcon,
+  RefreshCwIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  Trash2Icon,
+  XCircleIcon,
+} from 'lucide-react'
 
-import { AdminCrudLayout } from '@/components/admin/admin-crud-layout'
-import { AdminFormCard } from '@/components/admin/admin-form-card'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
-import { CatalogFormActions } from '@/components/admin/catalog-form-actions'
-import { CatalogList } from '@/components/admin/catalog-list'
-import { CatalogRow } from '@/components/admin/catalog-row'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Card } from '@/components/ui/card'
+import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { showToast } from '@/components/ui/toast-system'
 import { ApiError, api, type Faculty } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 type FacultyFormErrors = { name?: string }
 type PendingAction = 'loading' | 'faculty' | 'deactivate-faculty' | null
-
-
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
@@ -36,12 +44,17 @@ export function FacultiesPage() {
   const [pageError, setPageError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
-  const [pendingFacultyId, setPendingFacultyId] = useState<number | null>(null)
+
+  // Modales
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [facultyToDeactivate, setFacultyToDeactivate] = useState<Faculty | null>(null)
+
+  // Búsqueda
+  const [searchQuery, setSearchQuery] = useState('')
 
   async function loadFaculties() {
     setPageError(null)
     setPending('loading')
-    setPendingFacultyId(null)
     try {
       const facultyData = await api.listFaculties()
       setFaculties(facultyData)
@@ -63,14 +76,24 @@ export function FacultiesPage() {
     setFormError(null)
   }
 
-  function startFacultyEdit(faculty: Faculty) {
+  function openCreateModal() {
+    setEditingFaculty(null)
+    setName('')
+    setNameError(undefined)
+    setFormError(null)
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(faculty: Faculty) {
     setEditingFaculty(faculty)
     setName(faculty.name)
     setNameError(undefined)
     setFormError(null)
+    setIsModalOpen(true)
   }
 
-  function resetFacultyForm() {
+  function closeModal() {
+    setIsModalOpen(false)
     setEditingFaculty(null)
     setName('')
     setNameError(undefined)
@@ -95,63 +118,317 @@ export function FacultiesPage() {
     setFormError(null)
     setPending('faculty')
     try {
-      if (editingFaculty) await api.updateFaculty(editingFaculty.id, { name: normalizedName })
-      else await api.createFaculty({ name: normalizedName })
-      resetFacultyForm()
+      if (editingFaculty) {
+        await api.updateFaculty(editingFaculty.id, { name: normalizedName })
+        showToast('success', 'Facultad actualizada', `La facultad "${normalizedName}" fue modificada.`)
+      } else {
+        await api.createFaculty({ name: normalizedName })
+        showToast('success', 'Facultad creada', `La facultad "${normalizedName}" ha sido agregada.`)
+      }
+      closeModal()
       await loadFaculties()
     } catch (error: unknown) {
       setFormError(getErrorMessage(error))
     } finally {
       setPending(null)
-      setPendingFacultyId(null)
     }
   }
 
-  async function deactivateFaculty(faculty: Faculty) {
-    if (!window.confirm(`¿Desactivar la facultad “${faculty.name}”?`)) return
+  async function handleConfirmDeactivate() {
+    if (!facultyToDeactivate || pending !== null) return
 
     setPageError(null)
     setPending('deactivate-faculty')
-    setPendingFacultyId(faculty.id)
     try {
-      await api.deactivateFaculty(faculty.id)
+      await api.deactivateFaculty(facultyToDeactivate.id)
+      showToast('info', 'Facultad deshabilitada', `Se desactivó la facultad "${facultyToDeactivate.name}".`)
+      setFacultyToDeactivate(null)
       await loadFaculties()
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
     } finally {
       setPending(null)
-      setPendingFacultyId(null)
     }
   }
 
   const formDisabled = pending !== null
 
+  // Métricas KPI
+  const totalFaculties = faculties.length
+  const activeFaculties = faculties.filter((f) => f.status).length
+  const inactiveFaculties = totalFaculties - activeFaculties
+
+  // Filtro de búsqueda
+  const filteredFaculties = faculties.filter((faculty) => {
+    const query = searchQuery.toLowerCase().trim()
+    return (
+      !query ||
+      faculty.name.toLowerCase().includes(query) ||
+      String(faculty.id).includes(query)
+    )
+  })
+
   return (
     <section className="flex flex-col gap-8">
-      <AdminSectionHeader title="Facultades" description="Organiza las facultades que sirven como base para el catálogo académico." actions={<Button variant="outline" onClick={() => void loadFaculties()} disabled={formDisabled}>
-        {pending === 'loading' ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-        Actualizar
-      </Button>} />
+      <AdminSectionHeader
+        title="Estructura de Facultades"
+        description="Gestiona las unidades académicas principales de la universidad."
+        eyebrow="Catálogo Institucional"
+        actions={
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => void loadFaculties()}
+              disabled={formDisabled}
+            >
+              {pending === 'loading' ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RefreshCwIcon data-icon="inline-start" />
+              )}
+              Actualizar
+            </Button>
+            <Button onClick={openCreateModal} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+              <PlusIcon data-icon="inline-start" />
+              Nueva facultad
+            </Button>
+          </div>
+        }
+      />
 
-      {pageError && <Alert variant="destructive"><ShieldAlertIcon /><AlertTitle>No se pudieron cargar las facultades</AlertTitle><AlertDescription>{pageError}</AlertDescription></Alert>}
+      {pageError && (
+        <Alert variant="destructive">
+          <ShieldAlertIcon />
+          <AlertTitle>No se pudieron cargar las facultades</AlertTitle>
+          <AlertDescription>{pageError}</AlertDescription>
+        </Alert>
+      )}
 
-      <AdminCrudLayout>
-        <AdminFormCard title={editingFaculty ? 'Editar facultad' : 'Registrar facultad'} description={editingFaculty ? 'Actualiza el nombre de la facultad seleccionada.' : 'Añade una facultad al catálogo institucional.'} onSubmit={submitFaculty} labelledBy="faculty-form-title">
+      {/* Tarjetas KPI de Estadísticas */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            <Building2Icon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Total Facultades
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {totalFaculties}
+            </span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+            <CheckCircle2Icon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Facultades Activas
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {activeFaculties}
+            </span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            <XCircleIcon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Inactivas
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {inactiveFaculties}
+            </span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Contenedor Principal: Filtro + Tabla Moderna */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+        {/* Barra de Búsqueda */}
+        <div className="flex items-center justify-between">
+          <div className="relative flex flex-1 items-center max-w-md">
+            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar facultad por nombre o código…"
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Tabla de Facultades */}
+        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+              <tr>
+                <th className="px-5 py-3.5">Nombre de la Facultad</th>
+                <th className="px-5 py-3.5">Código Institucional</th>
+                <th className="px-5 py-3.5">Estado</th>
+                <th className="px-5 py-3.5 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {pending === 'loading' ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
+                    <td className="px-5 py-4"><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
+                    <td className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></td>
+                    <td className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
+                  </tr>
+                ))
+              ) : filteredFaculties.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <Building2Icon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <span className="font-medium">
+                        {searchQuery
+                          ? 'No se encontraron facultades con el término buscado.'
+                          : 'Todavía no hay facultades registradas.'}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredFaculties.map((faculty) => {
+                  const active = isFacultyActive(faculty)
+
+                  return (
+                    <tr
+                      key={faculty.id}
+                      className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                    >
+                      {/* Nombre con icono */}
+                      <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0F1E2E] text-white shadow-2xs">
+                            <Building2Icon className="size-4" />
+                          </div>
+                          <span>{faculty.name}</span>
+                        </div>
+                      </td>
+
+                      {/* Código */}
+                      <td className="px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        Facultad #{faculty.id}
+                      </td>
+
+                      {/* Estado Pulsante */}
+                      <td className="px-5 py-4">
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                            active
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'size-1.5 rounded-full',
+                              active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400',
+                            )}
+                          />
+                          {active ? 'Activa' : 'Inactiva'}
+                        </span>
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(faculty)}
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                            title="Editar facultad"
+                          >
+                            <Edit2Icon className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFacultyToDeactivate(faculty)}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                            title="Desactivar facultad"
+                          >
+                            <Trash2Icon className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal Dialog para Crear / Editar Facultad */}
+      <Dialog
+        open={isModalOpen}
+        onClose={closeModal}
+        title={editingFaculty ? 'Editar Facultad' : 'Registrar Facultad'}
+        description={
+          editingFaculty
+            ? 'Modifica el nombre de la facultad seleccionada.'
+            : 'Ingresa el nombre de la nueva facultad para añadirla al catálogo.'
+        }
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={submitFaculty}>
           <FieldGroup className="gap-5">
             <Field data-invalid={Boolean(nameError)}>
               <FieldLabel htmlFor="faculty-name">Nombre de la facultad</FieldLabel>
-              <Input id="faculty-name" name="name" value={name} onChange={(event) => updateName(event.target.value)} maxLength={150} placeholder="Facultad de Ingeniería" aria-invalid={Boolean(nameError)} aria-describedby={nameError ? 'faculty-name-error' : undefined} disabled={formDisabled} required />
-              <FieldError id="faculty-name-error">{nameError}</FieldError>
+              <Input
+                id="faculty-name"
+                name="name"
+                value={name}
+                onChange={(e) => updateName(e.target.value)}
+                maxLength={150}
+                placeholder="Ej. Facultad de Jurisprudencia"
+                disabled={formDisabled}
+                required
+              />
+              <FieldDescription>Hasta 150 caracteres.</FieldDescription>
+              <FieldError>{nameError}</FieldError>
             </Field>
-            <FieldError id="faculty-form-error">{formError}</FieldError>
-            <CatalogFormActions editing={Boolean(editingFaculty)} pending={pending === 'faculty'} onCancel={resetFacultyForm} createLabel="Registrar facultad" />
-          </FieldGroup>
-        </AdminFormCard>
 
-        <CatalogList title={`Facultades registradas · ${faculties.length}`} icon={<Building2Icon />} loading={pending === 'loading'} loadingMessage="Cargando facultades…" emptyMessage="Todavía no hay facultades registradas.">
-          {faculties.map((faculty) => <CatalogRow key={faculty.id} title={faculty.name} detail={`Facultad #${faculty.id}`} active={isFacultyActive(faculty)} activeLabel="Activa" inactiveLabel="Inactiva" disabled={formDisabled} deactivating={pending === 'deactivate-faculty' && pendingFacultyId === faculty.id} onEdit={() => startFacultyEdit(faculty)} onDeactivate={() => void deactivateFaculty(faculty)} />)}
-        </CatalogList>
-      </AdminCrudLayout>
+            <FieldError>{formError}</FieldError>
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
+                Cancelar
+              </DialogCancelButton>
+              <Button type="submit" disabled={formDisabled} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+                {pending === 'faculty' && <Spinner data-icon="inline-start" />}
+                {editingFaculty ? 'Guardar Cambios' : 'Registrar Facultad'}
+              </Button>
+            </div>
+          </FieldGroup>
+        </form>
+      </Dialog>
+
+      {/* ConfirmModal para Desactivar Facultad */}
+      <ConfirmModal
+        open={Boolean(facultyToDeactivate)}
+        onClose={() => setFacultyToDeactivate(null)}
+        onConfirm={() => void handleConfirmDeactivate()}
+        title="¿Desactivar facultad?"
+        description={`¿Estás seguro de desactivar la "${facultyToDeactivate?.name}"? Se marcará como inactiva en el sistema.`}
+        confirmLabel="Desactivar facultad"
+        cancelLabel="Cancelar"
+        variant="destructive"
+        pending={pending === 'deactivate-faculty'}
+      />
     </section>
   )
 }

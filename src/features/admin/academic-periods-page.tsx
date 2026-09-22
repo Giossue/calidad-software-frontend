@@ -1,19 +1,30 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarDaysIcon, RefreshCwIcon, ShieldAlertIcon } from 'lucide-react'
+import {
+  CalendarCheck2Icon,
+  CalendarDaysIcon,
+  CalendarIcon,
+  CalendarOffIcon,
+  Edit2Icon,
+  PlusIcon,
+  RefreshCwIcon,
+  SearchIcon,
+  ShieldAlertIcon,
+  Trash2Icon,
+} from 'lucide-react'
 
-import { AdminCrudLayout } from '@/components/admin/admin-crud-layout'
-import { AdminFormCard } from '@/components/admin/admin-form-card'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
-import { CatalogFormActions } from '@/components/admin/catalog-form-actions'
-import { CatalogList } from '@/components/admin/catalog-list'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { CatalogRow } from '@/components/admin/catalog-row'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { showToast } from '@/components/ui/toast-system'
 import { ApiError, api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 type AcademicPeriodForm = {
   name: string
@@ -70,9 +81,15 @@ export function AcademicPeriodsPage() {
   const [pageError, setPageError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [pending, setPending] = useState<PendingAction>(null)
-  const [pendingPeriodId, setPendingPeriodId] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [lastPage, setLastPage] = useState(1)
+
+  // Modales
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [periodToDeactivate, setPeriodToDeactivate] = useState<AcademicPeriod | null>(null)
+
+  // Búsqueda
+  const [searchQuery, setSearchQuery] = useState('')
 
   async function loadPeriods(nextPage = 1) {
     setPageError(null)
@@ -105,7 +122,15 @@ export function AcademicPeriodsPage() {
     setFormError(null)
   }
 
-  function startEdit(period: AcademicPeriod) {
+  function openCreateModal() {
+    setEditingPeriod(null)
+    setForm(INITIAL_FORM)
+    setFormErrors({})
+    setFormError(null)
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(period: AcademicPeriod) {
     setEditingPeriod(period)
     setForm({
       name: period.name,
@@ -114,9 +139,11 @@ export function AcademicPeriodsPage() {
     })
     setFormErrors({})
     setFormError(null)
+    setIsModalOpen(true)
   }
 
-  function resetForm() {
+  function closeModal() {
+    setIsModalOpen(false)
     setEditingPeriod(null)
     setForm(INITIAL_FORM)
     setFormErrors({})
@@ -143,88 +170,360 @@ export function AcademicPeriodsPage() {
         end_date: form.endDate,
       }
 
-      if (editingPeriod) await api.updateAcademicPeriod(editingPeriod.id, input)
-      else await api.createAcademicPeriod(input)
+      if (editingPeriod) {
+        await api.updateAcademicPeriod(editingPeriod.id, input)
+        showToast('success', 'Período actualizado', `El período "${input.name}" fue modificado exitosamente.`)
+      } else {
+        await api.createAcademicPeriod(input)
+        showToast('success', 'Período creado', `El período "${input.name}" ha sido registrado en el catálogo.`)
+      }
 
-      resetForm()
+      closeModal()
       await loadPeriods(page)
     } catch (error: unknown) {
       setFormError(getErrorMessage(error))
     } finally {
       setPending(null)
-      setPendingPeriodId(null)
     }
   }
 
-  async function deactivatePeriod(period: AcademicPeriod) {
-    if (pending !== null || isLoading) return
-    if (!window.confirm(`¿Desactivar el período “${period.name}”?`)) return
+  async function handleConfirmDeactivate() {
+    if (!periodToDeactivate || pending !== null || isLoading) return
 
     setPageError(null)
     setPending('deactivate-period')
-    setPendingPeriodId(period.id)
     try {
-      await api.deactivateAcademicPeriod(period.id)
+      await api.deactivateAcademicPeriod(periodToDeactivate.id)
+      showToast('info', 'Período deshabilitado', `Se desactivó el período "${periodToDeactivate.name}".`)
+      setPeriodToDeactivate(null)
       await loadPeriods(page)
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
     } finally {
       setPending(null)
-      setPendingPeriodId(null)
     }
   }
 
   const busy = isLoading || pending !== null
-  const formDisabled = busy
+
+  // Métricas KPI
+  const totalPeriods = periods.length
+  const activePeriods = periods.filter((p) => p.is_active).length
+  const inactivePeriods = totalPeriods - activePeriods
+
+  // Períodos filtrados por búsqueda
+  const filteredPeriods = periods.filter((period) => {
+    const query = searchQuery.toLowerCase().trim()
+    return (
+      !query ||
+      period.name.toLowerCase().includes(query) ||
+      period.start_date.includes(query) ||
+      period.end_date.includes(query)
+    )
+  })
 
   return (
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
-      <AdminSectionHeader title="Períodos académicos" description="Define los períodos en los que se organizan las actividades del sistema de calidad." titleId="academic-periods-title" actions={<Button variant="outline" onClick={() => void loadPeriods(1)} disabled={busy}>
-        {isLoading ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-        Actualizar
-      </Button>} />
+      <AdminSectionHeader
+        title="Períodos Académicos"
+        description="Configura los lapsos académicos en los que se organizan las materias, tutorías y titulaciones."
+        eyebrow="Calendario Institucional"
+        titleId="academic-periods-title"
+        actions={
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={() => void loadPeriods(1)} disabled={busy}>
+              {isLoading ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
+              Actualizar
+            </Button>
+            <Button onClick={openCreateModal} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+              <PlusIcon data-icon="inline-start" />
+              Nuevo período
+            </Button>
+          </div>
+        }
+      />
 
-      {pageError && <Alert variant="destructive"><ShieldAlertIcon /><AlertTitle>No se pudieron cargar los períodos</AlertTitle><AlertDescription>{pageError}</AlertDescription></Alert>}
+      {pageError && (
+        <Alert variant="destructive">
+          <ShieldAlertIcon />
+          <AlertTitle>No se pudieron cargar los períodos</AlertTitle>
+          <AlertDescription>{pageError}</AlertDescription>
+        </Alert>
+      )}
 
-      <AdminCrudLayout>
-        <AdminFormCard title={editingPeriod ? 'Editar período' : 'Registrar período'} description={editingPeriod ? 'Actualiza las fechas del período seleccionado.' : 'Agrega un período académico al catálogo.'} onSubmit={submitPeriod} labelledBy="period-form-title">
+      {/* Tarjetas KPI de Estadísticas */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            <CalendarDaysIcon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Total Registrados
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {totalPeriods}
+            </span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+            <CalendarCheck2Icon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Períodos Activos
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {activePeriods}
+            </span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            <CalendarOffIcon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Períodos Concluidos
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {inactivePeriods}
+            </span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Contenedor Principal: Filtro + Tabla Moderna */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+        {/* Barra de Búsqueda */}
+        <div className="flex items-center justify-between">
+          <div className="relative flex flex-1 items-center max-w-md">
+            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar período por nombre o fecha…"
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Tabla de Períodos */}
+        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+              <tr>
+                <th className="px-5 py-3.5">Nombre del Período</th>
+                <th className="px-5 py-3.5">Fecha Inicio</th>
+                <th className="px-5 py-3.5">Fecha Finalización</th>
+                <th className="px-5 py-3.5">Estado</th>
+                <th className="px-5 py-3.5 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-5 py-4"><div className="h-5 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
+                    <td className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
+                    <td className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
+                    <td className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></td>
+                    <td className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
+                  </tr>
+                ))
+              ) : filteredPeriods.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <CalendarDaysIcon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <span className="font-medium">
+                        {searchQuery
+                          ? 'No se encontraron períodos con el término buscado.'
+                          : 'Todavía no hay períodos registrados.'}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredPeriods.map((period) => {
+                  const active = isPeriodActive(period)
+
+                  return (
+                    <tr
+                      key={period.id}
+                      className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                    >
+                      {/* Nombre con icono */}
+                      <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+                            <CalendarIcon className="size-4" />
+                          </div>
+                          <span>{period.name}</span>
+                        </div>
+                      </td>
+
+                      {/* Fecha Inicio */}
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                        {formatDate(period.start_date)}
+                      </td>
+
+                      {/* Fecha Fin */}
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                        {formatDate(period.end_date)}
+                      </td>
+
+                      {/* Estado Pulsante */}
+                      <td className="px-5 py-4">
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                            active
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'size-1.5 rounded-full',
+                              active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400',
+                            )}
+                          />
+                          {active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(period)}
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                            title="Editar período"
+                          >
+                            <Edit2Icon className="size-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPeriodToDeactivate(period)}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                            title="Desactivar período"
+                          >
+                            <Trash2Icon className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginación */}
+        <CatalogPagination
+          label="períodos"
+          page={page}
+          lastPage={lastPage}
+          disabled={busy}
+          onChange={(nextPage) => void loadPeriods(nextPage)}
+        />
+      </div>
+
+      {/* Modal Dialog para Crear / Editar Período */}
+      <Dialog
+        open={isModalOpen}
+        onClose={closeModal}
+        title={editingPeriod ? 'Editar Período Académico' : 'Registrar Período Académico'}
+        description={
+          editingPeriod
+            ? 'Modifica las fechas o el nombre del período seleccionado.'
+            : 'Ingresa el nombre y el rango de fechas para el nuevo período académico.'
+        }
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={submitPeriod}>
           <FieldGroup className="gap-5">
             <Field data-invalid={Boolean(formErrors.name)}>
               <FieldLabel htmlFor="academic-period-name">Nombre del período</FieldLabel>
-              <Input id="academic-period-name" name="name" value={form.name} onChange={(event) => updateField('name', event.target.value)} placeholder="2026-1" maxLength={100} autoComplete="off" aria-invalid={Boolean(formErrors.name)} aria-describedby={formErrors.name ? 'academic-period-name-error' : undefined} disabled={formDisabled} required />
-              <FieldDescription>Hasta 100 caracteres.</FieldDescription>
-              <FieldError id="academic-period-name-error">{formErrors.name}</FieldError>
+              <Input
+                id="academic-period-name"
+                name="name"
+                value={form.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                placeholder="Ej. PAO II 2026 o 2026-1"
+                maxLength={100}
+                autoComplete="off"
+                disabled={busy}
+                required
+              />
+              <FieldDescription>Ejemplo: PAO I 2026, PAO II 2026.</FieldDescription>
+              <FieldError>{formErrors.name}</FieldError>
             </Field>
 
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               <Field data-invalid={Boolean(formErrors.startDate)}>
                 <FieldLabel htmlFor="academic-period-start-date">Fecha de inicio</FieldLabel>
-                <Input id="academic-period-start-date" name="start_date" type="date" value={form.startDate} onChange={(event) => updateField('startDate', event.target.value)} aria-invalid={Boolean(formErrors.startDate)} aria-describedby={formErrors.startDate ? 'academic-period-start-date-error' : undefined} disabled={formDisabled} required />
-                <FieldError id="academic-period-start-date-error">{formErrors.startDate}</FieldError>
+                <Input
+                  id="academic-period-start-date"
+                  name="start_date"
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => updateField('startDate', e.target.value)}
+                  disabled={busy}
+                  required
+                />
+                <FieldError>{formErrors.startDate}</FieldError>
               </Field>
+
               <Field data-invalid={Boolean(formErrors.endDate)}>
                 <FieldLabel htmlFor="academic-period-end-date">Fecha de finalización</FieldLabel>
-                <Input id="academic-period-end-date" name="end_date" type="date" value={form.endDate} min={form.startDate || undefined} onChange={(event) => updateField('endDate', event.target.value)} aria-invalid={Boolean(formErrors.endDate)} aria-describedby={formErrors.endDate ? 'academic-period-end-date-error' : undefined} disabled={formDisabled} required />
-                <FieldError id="academic-period-end-date-error">{formErrors.endDate}</FieldError>
+                <Input
+                  id="academic-period-end-date"
+                  name="end_date"
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate || undefined}
+                  onChange={(e) => updateField('endDate', e.target.value)}
+                  disabled={busy}
+                  required
+                />
+                <FieldError>{formErrors.endDate}</FieldError>
               </Field>
             </div>
 
             <FieldError>{formError}</FieldError>
-            <CatalogFormActions editing={Boolean(editingPeriod)} pending={pending === 'period'} onCancel={resetForm} />
-          </FieldGroup>
-        </AdminFormCard>
 
-        <div className="flex flex-col gap-3">
-          <CatalogList title="Períodos registrados" icon={<CalendarDaysIcon />} loading={isLoading} loadingMessage="Cargando períodos…" emptyMessage="Todavía no hay períodos registrados.">
-            {periods.map((period) => {
-              const active = isPeriodActive(period)
-              const deactivating = pending === 'deactivate-period' && pendingPeriodId === period.id
-              return <CatalogRow key={period.id} title={period.name} detail={`${formatDate(period.start_date)} — ${formatDate(period.end_date)}`} active={active} deactivating={deactivating} disabled={busy} onEdit={() => startEdit(period)} onDeactivate={() => void deactivatePeriod(period)} />
-            })}
-          </CatalogList>
-          <CatalogPagination label="períodos" page={page} lastPage={lastPage} disabled={busy} onChange={(nextPage) => void loadPeriods(nextPage)} />
-        </div>
-      </AdminCrudLayout>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <DialogCancelButton onClick={closeModal} disabled={busy}>
+                Cancelar
+              </DialogCancelButton>
+              <Button type="submit" disabled={busy} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+                {pending === 'period' && <Spinner data-icon="inline-start" />}
+                {editingPeriod ? 'Guardar Cambios' : 'Registrar Período'}
+              </Button>
+            </div>
+          </FieldGroup>
+        </form>
+      </Dialog>
+
+      {/* ConfirmModal para Desactivar Período */}
+      <ConfirmModal
+        open={Boolean(periodToDeactivate)}
+        onClose={() => setPeriodToDeactivate(null)}
+        onConfirm={() => void handleConfirmDeactivate()}
+        title="¿Desactivar período académico?"
+        description={`¿Estás seguro de desactivar el período "${periodToDeactivate?.name}"? Se marcará como inactivo en el sistema.`}
+        confirmLabel="Desactivar período"
+        cancelLabel="Cancelar"
+        variant="destructive"
+        pending={pending === 'deactivate-period'}
+      />
     </section>
   )
 }

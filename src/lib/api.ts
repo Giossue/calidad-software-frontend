@@ -92,8 +92,8 @@ export type CreateUserInput = {
   readonly email: string
   readonly phone: string
   readonly role: string
-  readonly password: string
-  readonly password_confirmation: string
+  readonly password?: string
+  readonly password_confirmation?: string
 }
 
 export type UpdateUserInput = {
@@ -362,7 +362,14 @@ export const api = {
   async createAcademicPeriod(input: AcademicPeriodInput): Promise<AcademicPeriod> {
     const response = await request<Resource<AcademicPeriod>>('/api/v1/admin/academic-periods', {
       method: 'POST',
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        nombre: input.name,
+        fecha_inicio: input.start_date,
+        fecha_fin: input.end_date,
+        name: input.name,
+        start_date: input.start_date,
+        end_date: input.end_date,
+      }),
     })
     return response.data
   },
@@ -370,7 +377,14 @@ export const api = {
   async updateAcademicPeriod(id: number, input: AcademicPeriodInput): Promise<AcademicPeriod> {
     const response = await request<Resource<AcademicPeriod>>(`/api/v1/admin/academic-periods/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        nombre: input.name,
+        fecha_inicio: input.start_date,
+        fecha_fin: input.end_date,
+        name: input.name,
+        start_date: input.start_date,
+        end_date: input.end_date,
+      }),
     })
     return response.data
   },
@@ -390,7 +404,10 @@ export const api = {
   async createModality(input: ModalityInput): Promise<Modality> {
     const response = await request<Resource<Modality>>('/api/v1/admin/modalities', {
       method: 'POST',
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        nombre: input.name,
+        name: input.name,
+      }),
     })
     return response.data
   },
@@ -398,7 +415,10 @@ export const api = {
   async updateModality(id: number, input: ModalityInput): Promise<Modality> {
     const response = await request<Resource<Modality>>(`/api/v1/admin/modalities/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        nombre: input.name,
+        name: input.name,
+      }),
     })
     return response.data
   },
