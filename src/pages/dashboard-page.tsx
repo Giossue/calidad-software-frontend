@@ -3,6 +3,7 @@ import { CheckCircle2Icon, LogOutIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { AcademicPage } from '@/features/academic/academic-page'
 import { useAuth } from '@/features/auth/auth-context'
 
 export function DashboardPage() {
@@ -15,7 +16,7 @@ export function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-5xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex min-h-svh w-full max-w-7xl flex-col gap-10 px-6 py-8 sm:px-8 lg:px-10">
       <header className="flex items-center justify-between gap-4 border-b pb-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold">Panel principal</h1>
@@ -36,6 +37,7 @@ export function DashboardPage() {
           <p className="mt-4 text-sm font-medium">{user?.email}</p>
         </div>
       </section>
+      {user?.role === 'administrador' ? <AcademicPage /> : <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm"><p className="text-sm text-muted-foreground">Tu cuenta no tiene permisos para administrar el catálogo académico.</p></section>}
     </main>
   )
 }
