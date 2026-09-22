@@ -51,9 +51,14 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
   const [editingCycle, setEditingCycle] = useState<Cycle | null>(null)
   const [careerFacultyId, setCareerFacultyId] = useState('')
   const [careerName, setCareerName] = useState('')
+  const [initialCareerFacultyId, setInitialCareerFacultyId] = useState('')
+  const [initialCareerName, setInitialCareerName] = useState('')
   const [cycleCareerId, setCycleCareerId] = useState('')
   const [cycleName, setCycleName] = useState('')
   const [cycleNumber, setCycleNumber] = useState('')
+  const [initialCycleCareerId, setInitialCycleCareerId] = useState('')
+  const [initialCycleName, setInitialCycleName] = useState('')
+  const [initialCycleNumber, setInitialCycleNumber] = useState('')
 
   // Modales
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false)
@@ -95,6 +100,8 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     setEditingCareer(null)
     setCareerFacultyId('')
     setCareerName('')
+    setInitialCareerFacultyId('')
+    setInitialCareerName('')
     setFormError(null)
     setIsCareerModalOpen(true)
   }
@@ -103,6 +110,8 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     setEditingCareer(career)
     setCareerFacultyId(String(career.faculty_id))
     setCareerName(career.name)
+    setInitialCareerFacultyId(String(career.faculty_id))
+    setInitialCareerName(career.name)
     setFormError(null)
     setIsCareerModalOpen(true)
   }
@@ -120,6 +129,9 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     setCycleCareerId('')
     setCycleName('')
     setCycleNumber('')
+    setInitialCycleCareerId('')
+    setInitialCycleName('')
+    setInitialCycleNumber('')
     setFormError(null)
     setIsCycleModalOpen(true)
   }
@@ -129,6 +141,9 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     setCycleCareerId(String(cycle.career_id))
     setCycleName(cycle.name)
     setCycleNumber(String(cycle.number))
+    setInitialCycleCareerId(String(cycle.career_id))
+    setInitialCycleName(cycle.name)
+    setInitialCycleNumber(String(cycle.number))
     setFormError(null)
     setIsCycleModalOpen(true)
   }
@@ -234,6 +249,9 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
   const isCareersSection = section === 'careers'
   const isCyclesSection = section === 'cycles'
   const formPending = pending === 'career' || pending === 'cycle'
+  const isCareerFormDirty = careerFacultyId !== initialCareerFacultyId || careerName !== initialCareerName
+  const isCycleFormDirty =
+    cycleCareerId !== initialCycleCareerId || cycleName !== initialCycleName || cycleNumber !== initialCycleNumber
 
   const title = isCareersSection ? 'Oferta de Carreras' : isCyclesSection ? 'Niveles y Ciclos' : 'Carreras y Ciclos'
   const description = isCareersSection
@@ -628,6 +646,7 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
         title={editingCareer ? 'Editar Carrera' : 'Registrar Carrera'}
         description={editingCareer ? 'Modifica los datos de la carrera seleccionada.' : 'Asigna la nueva carrera a una facultad activa.'}
         maxWidth="max-w-md"
+        confirmClose={isCareerFormDirty}
       >
         <form onSubmit={submitCareer}>
           <FieldGroup className="gap-5">
@@ -685,6 +704,7 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
         title={editingCycle ? 'Editar Ciclo Académico' : 'Registrar Ciclo Académico'}
         description={editingCycle ? 'Actualiza los datos del ciclo académico.' : 'Asigna el nuevo ciclo a una carrera profesional activa.'}
         maxWidth="max-w-md"
+        confirmClose={isCycleFormDirty}
       >
         <form onSubmit={submitCycle}>
           <FieldGroup className="gap-5">

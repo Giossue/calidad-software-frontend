@@ -42,6 +42,7 @@ export function FacultiesPage() {
   const [faculties, setFaculties] = useState<readonly Faculty[]>([])
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null)
   const [name, setName] = useState('')
+  const [initialName, setInitialName] = useState('')
   const [nameError, setNameError] = useState<string | undefined>()
   const [pageError, setPageError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -84,6 +85,7 @@ export function FacultiesPage() {
   function openCreateModal() {
     setEditingFaculty(null)
     setName('')
+    setInitialName('')
     setNameError(undefined)
     setFormError(null)
     setIsModalOpen(true)
@@ -92,6 +94,7 @@ export function FacultiesPage() {
   function openEditModal(faculty: Faculty) {
     setEditingFaculty(faculty)
     setName(faculty.name)
+    setInitialName(faculty.name)
     setNameError(undefined)
     setFormError(null)
     setIsModalOpen(true)
@@ -163,6 +166,7 @@ export function FacultiesPage() {
   }
 
   const formDisabled = pending !== null
+  const isFormDirty = name.trim() !== initialName.trim()
 
   // Métricas KPI
   const totalFaculties = faculties.length
@@ -405,6 +409,7 @@ export function FacultiesPage() {
             : 'Ingresa el nombre de la nueva facultad para añadirla al catálogo.'
         }
         maxWidth="max-w-md"
+        confirmClose={isFormDirty}
       >
         <form onSubmit={submitFaculty}>
           <FieldGroup className="gap-5">

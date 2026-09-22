@@ -42,6 +42,7 @@ export function ModalitiesPage() {
   const [modalities, setModalities] = useState<readonly Modality[]>([])
   const [editingModality, setEditingModality] = useState<Modality | null>(null)
   const [name, setName] = useState('')
+  const [initialName, setInitialName] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [pageError, setPageError] = useState<string | null>(null)
@@ -89,6 +90,7 @@ export function ModalitiesPage() {
   function openCreateModal() {
     setEditingModality(null)
     setName('')
+    setInitialName('')
     setNameError(null)
     setFormError(null)
     setIsModalOpen(true)
@@ -97,6 +99,7 @@ export function ModalitiesPage() {
   function openEditModal(modality: Modality) {
     setEditingModality(modality)
     setName(modality.name)
+    setInitialName(modality.name)
     setNameError(null)
     setFormError(null)
     setIsModalOpen(true)
@@ -172,6 +175,7 @@ export function ModalitiesPage() {
   }
 
   const busy = isLoading || pending !== null
+  const isFormDirty = name.trim() !== initialName.trim()
 
   // Métricas KPI
   const totalModalities = modalities.length
@@ -416,6 +420,7 @@ export function ModalitiesPage() {
             : 'Ingresa el nombre de la nueva modalidad de estudio.'
         }
         maxWidth="max-w-md"
+        confirmClose={isFormDirty}
       >
         <form onSubmit={submitModality}>
           <FieldGroup className="gap-5">

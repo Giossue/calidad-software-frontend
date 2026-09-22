@@ -78,6 +78,7 @@ export function AcademicPeriodsPage() {
   const [periods, setPeriods] = useState<readonly AcademicPeriod[]>([])
   const [editingPeriod, setEditingPeriod] = useState<AcademicPeriod | null>(null)
   const [form, setForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
+  const [initialForm, setInitialForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
   const [formErrors, setFormErrors] = useState<AcademicPeriodFormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [pageError, setPageError] = useState<string | null>(null)
@@ -130,6 +131,7 @@ export function AcademicPeriodsPage() {
   function openCreateModal() {
     setEditingPeriod(null)
     setForm(INITIAL_FORM)
+    setInitialForm(INITIAL_FORM)
     setFormErrors({})
     setFormError(null)
     setIsModalOpen(true)
@@ -137,11 +139,13 @@ export function AcademicPeriodsPage() {
 
   function openEditModal(period: AcademicPeriod) {
     setEditingPeriod(period)
-    setForm({
+    const initial: AcademicPeriodForm = {
       name: period.name,
       startDate: period.start_date.slice(0, 10),
       endDate: period.end_date.slice(0, 10),
-    })
+    }
+    setForm(initial)
+    setInitialForm(initial)
     setFormErrors({})
     setFormError(null)
     setIsModalOpen(true)
@@ -216,6 +220,7 @@ export function AcademicPeriodsPage() {
   }
 
   const busy = isLoading || pending !== null
+  const isFormDirty = form.name !== initialForm.name || form.startDate !== initialForm.startDate || form.endDate !== initialForm.endDate
 
   // Métricas KPI
   const totalPeriods = periods.length
@@ -468,6 +473,7 @@ export function AcademicPeriodsPage() {
             : 'Ingresa el nombre y el rango de fechas para el nuevo período académico.'
         }
         maxWidth="max-w-lg"
+        confirmClose={isFormDirty}
       >
         <form onSubmit={submitPeriod}>
           <FieldGroup className="gap-5">

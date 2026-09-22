@@ -141,6 +141,7 @@ export function UsersPage() {
   const [users, setUsers] = useState<readonly User[]>([])
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [userForm, setUserForm] = useState<UserForm>(INITIAL_USER_FORM)
+  const [initialUserForm, setInitialUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [userErrors, setUserErrors] = useState<UserFormErrors>({})
   const [pageError, setPageError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -189,6 +190,7 @@ export function UsersPage() {
   function openCreateModal() {
     setEditingUser(null)
     setUserForm(INITIAL_USER_FORM)
+    setInitialUserForm(INITIAL_USER_FORM)
     setUserErrors({})
     setFormError(null)
     setIsModalOpen(true)
@@ -196,7 +198,7 @@ export function UsersPage() {
 
   function openEditModal(user: User) {
     setEditingUser(user)
-    setUserForm({
+    const initial: UserForm = {
       identification: user.identification,
       name: user.name,
       email: user.email,
@@ -204,7 +206,9 @@ export function UsersPage() {
       role: user.role,
       password: '',
       password_confirmation: '',
-    })
+    }
+    setUserForm(initial)
+    setInitialUserForm(initial)
     setUserErrors({})
     setFormError(null)
     setIsModalOpen(true)
@@ -288,6 +292,9 @@ export function UsersPage() {
   }
 
   const formDisabled = pending !== null
+  const isUserFormDirty = (Object.keys(userForm) as (keyof UserForm)[]).some(
+    (key) => userForm[key] !== initialUserForm[key],
+  )
 
   // Métricas calculadas para las tarjetas KPI
   const totalUsers = users.length
@@ -593,6 +600,7 @@ export function UsersPage() {
             : 'Ingresa los datos personales del usuario. La contraseña provisional será enviada por correo electrónico.'
         }
         maxWidth="max-w-2xl"
+        confirmClose={isUserFormDirty}
       >
         <form onSubmit={submitUser}>
           <FieldGroup className="gap-5">
@@ -619,6 +627,7 @@ export function UsersPage() {
                   onChange={(e) => updateUserField('identification', e.target.value)}
                   maxLength={20}
                   autoComplete="off"
+                  placeholder="Ej. 0102030405"
                   disabled={formDisabled}
                   required
                 />
@@ -634,6 +643,7 @@ export function UsersPage() {
                   onChange={(e) => updateUserField('name', e.target.value)}
                   maxLength={150}
                   autoComplete="name"
+                  placeholder="Ej. Ana Torres"
                   disabled={formDisabled}
                   required
                 />
@@ -669,6 +679,7 @@ export function UsersPage() {
                   value={userForm.phone}
                   onChange={(e) => updateUserField('phone', e.target.value)}
                   maxLength={20}
+                  placeholder="Ej. 0991234567"
                   disabled={formDisabled}
                 />
                 <FieldError>{userErrors.phone}</FieldError>
@@ -707,6 +718,7 @@ export function UsersPage() {
                     value={userForm.password}
                     onChange={(e) => updateUserField('password', e.target.value)}
                     autoComplete="new-password"
+                    placeholder="Mínimo 8 caracteres"
                     disabled={formDisabled}
                   />
                   <FieldDescription>
@@ -724,6 +736,7 @@ export function UsersPage() {
                     value={userForm.password_confirmation}
                     onChange={(e) => updateUserField('password_confirmation', e.target.value)}
                     autoComplete="new-password"
+                    placeholder="Repite la contraseña"
                     disabled={formDisabled}
                     required={Boolean(userForm.password)}
                   />
