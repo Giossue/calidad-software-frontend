@@ -3,7 +3,7 @@ import { CheckCircle2Icon, LogOutIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { AcademicPage } from '@/features/academic/academic-page'
+import { AdminPage } from '@/features/admin/admin-page'
 import { useAuth } from '@/features/auth/auth-context'
 
 export function DashboardPage() {
@@ -37,7 +37,7 @@ export function DashboardPage() {
           <p className="mt-4 text-sm font-medium">{user?.email}</p>
         </div>
       </section>
-      {user?.role === 'administrador' ? <AcademicPage /> : <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm"><p className="text-sm text-muted-foreground">Tu cuenta no tiene permisos para administrar el catálogo académico.</p></section>}
+      {user?.role === 'administrador' ? <AdminPage /> : <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm"><p className="text-sm text-muted-foreground">Tu cuenta no tiene permisos para administrar el catálogo académico.</p></section>}
     </main>
   )
 }

@@ -6,7 +6,9 @@ export interface User {
   readonly identification: string
   readonly name: string
   readonly email: string
+  readonly phone: string | null
   readonly role: string
+  readonly is_active: boolean
   readonly email_verified_at: string | null
   readonly has_two_factor: boolean
 }
@@ -15,6 +17,7 @@ export interface Faculty {
   readonly id: number
   readonly name: string
   readonly status: boolean
+  readonly is_active: boolean
 }
 
 export interface Career {
@@ -34,6 +37,40 @@ export interface Cycle {
   readonly status: boolean
 }
 
+export interface AcademicPeriod {
+  readonly id: number
+  readonly name: string
+  readonly start_date: string
+  readonly end_date: string
+  readonly is_active: boolean
+}
+
+export interface Modality {
+  readonly id: number
+  readonly name: string
+  readonly is_active: boolean
+}
+
+export interface PaginationMeta {
+  readonly current_page: number
+  readonly from: number | null
+  readonly last_page: number
+  readonly per_page: number
+  readonly to: number | null
+  readonly total: number
+}
+
+export interface PaginatedResourceCollection<T> {
+  readonly data: readonly T[]
+  readonly links?: {
+    readonly first?: string | null
+    readonly last?: string | null
+    readonly prev?: string | null
+    readonly next?: string | null
+  }
+  readonly meta?: PaginationMeta
+}
+
 interface Resource<T> {
   readonly data: T
 }
@@ -47,6 +84,51 @@ interface LoginData {
   readonly token_type: 'Bearer'
   readonly expires_at: string | null
   readonly user: User
+}
+
+export type CreateUserInput = {
+  readonly identification: string
+  readonly name: string
+  readonly email: string
+  readonly phone: string
+  readonly role: string
+  readonly password: string
+  readonly password_confirmation: string
+}
+
+export type UpdateUserInput = {
+  readonly identification?: string
+  readonly name?: string
+  readonly email?: string
+  readonly phone?: string
+  readonly role?: string
+  readonly password?: string
+  readonly password_confirmation?: string
+}
+
+export type FacultyInput = {
+  readonly name: string
+}
+
+export type CareerInput = {
+  readonly faculty_id: number
+  readonly name: string
+}
+
+export type CycleInput = {
+  readonly career_id: number
+  readonly name: string
+  readonly number: number
+}
+
+export type AcademicPeriodInput = {
+  readonly name: string
+  readonly start_date: string
+  readonly end_date: string
+}
+
+export type ModalityInput = {
+  readonly name: string
 }
 
 interface ErrorPayload {
@@ -160,8 +242,59 @@ export const api = {
 
   logout: () => request<void>('/api/v1/auth/logout', { method: 'DELETE' }),
 
+  async listUsers(): Promise<readonly User[]> {
+    const response = await request<ResourceCollection<User>>('/api/v1/users')
+    return response.data
+  },
+
+  async createUser(input: CreateUserInput): Promise<User> {
+    const response = await request<Resource<User>>('/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async updateUser(id: number, input: UpdateUserInput): Promise<User> {
+    const response = await request<Resource<User>>(`/api/v1/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async deactivateUser(id: number): Promise<User> {
+    const response = await request<Resource<User>>(`/api/v1/users/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
   async listFaculties(): Promise<readonly Faculty[]> {
     const response = await request<ResourceCollection<Faculty>>('/api/v1/admin/faculties')
+    return response.data
+  },
+
+  async createFaculty(input: FacultyInput): Promise<Faculty> {
+    const response = await request<Resource<Faculty>>('/api/v1/faculties', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async updateFaculty(id: number, input: FacultyInput): Promise<Faculty> {
+    const response = await request<Resource<Faculty>>(`/api/v1/faculties/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async deactivateFaculty(id: number): Promise<Faculty> {
+    const response = await request<Resource<Faculty>>(`/api/v1/faculties/${id}/deactivate`, {
+      method: 'PATCH',
+    })
     return response.data
   },
 
@@ -170,12 +303,7 @@ export const api = {
     return response.data
   },
 
-  async listCycles(): Promise<readonly Cycle[]> {
-    const response = await request<ResourceCollection<Cycle>>('/api/v1/admin/cycles')
-    return response.data
-  },
-
-  async createCareer(input: { faculty_id: number; name: string }): Promise<Career> {
+  async createCareer(input: CareerInput): Promise<Career> {
     const response = await request<Resource<Career>>('/api/v1/admin/careers', {
       method: 'POST',
       body: JSON.stringify(input),
@@ -183,7 +311,7 @@ export const api = {
     return response.data
   },
 
-  async updateCareer(id: number, input: { faculty_id: number; name: string }): Promise<Career> {
+  async updateCareer(id: number, input: CareerInput): Promise<Career> {
     const response = await request<Resource<Career>>(`/api/v1/admin/careers/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
@@ -198,7 +326,12 @@ export const api = {
     return response.data
   },
 
-  async createCycle(input: { career_id: number; name: string; number: number }): Promise<Cycle> {
+  async listCycles(): Promise<readonly Cycle[]> {
+    const response = await request<ResourceCollection<Cycle>>('/api/v1/admin/cycles')
+    return response.data
+  },
+
+  async createCycle(input: CycleInput): Promise<Cycle> {
     const response = await request<Resource<Cycle>>('/api/v1/admin/cycles', {
       method: 'POST',
       body: JSON.stringify(input),
@@ -206,7 +339,7 @@ export const api = {
     return response.data
   },
 
-  async updateCycle(id: number, input: { career_id: number; name: string; number: number }): Promise<Cycle> {
+  async updateCycle(id: number, input: CycleInput): Promise<Cycle> {
     const response = await request<Resource<Cycle>>(`/api/v1/admin/cycles/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
@@ -216,6 +349,62 @@ export const api = {
 
   async deactivateCycle(id: number): Promise<Cycle> {
     const response = await request<Resource<Cycle>>(`/api/v1/admin/cycles/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async listAcademicPeriods(page = 1): Promise<PaginatedResourceCollection<AcademicPeriod>> {
+    const query = page > 1 ? `?page=${page}` : ''
+    return request<PaginatedResourceCollection<AcademicPeriod>>(`/api/v1/admin/academic-periods${query}`)
+  },
+
+  async createAcademicPeriod(input: AcademicPeriodInput): Promise<AcademicPeriod> {
+    const response = await request<Resource<AcademicPeriod>>('/api/v1/admin/academic-periods', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async updateAcademicPeriod(id: number, input: AcademicPeriodInput): Promise<AcademicPeriod> {
+    const response = await request<Resource<AcademicPeriod>>(`/api/v1/admin/academic-periods/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async deactivateAcademicPeriod(id: number): Promise<AcademicPeriod> {
+    const response = await request<Resource<AcademicPeriod>>(`/api/v1/admin/academic-periods/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async listModalities(page = 1): Promise<PaginatedResourceCollection<Modality>> {
+    const query = page > 1 ? `?page=${page}` : ''
+    return request<PaginatedResourceCollection<Modality>>(`/api/v1/admin/modalities${query}`)
+  },
+
+  async createModality(input: ModalityInput): Promise<Modality> {
+    const response = await request<Resource<Modality>>('/api/v1/admin/modalities', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async updateModality(id: number, input: ModalityInput): Promise<Modality> {
+    const response = await request<Resource<Modality>>(`/api/v1/admin/modalities/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async deactivateModality(id: number): Promise<Modality> {
+    const response = await request<Resource<Modality>>(`/api/v1/admin/modalities/${id}/deactivate`, {
       method: 'PATCH',
     })
     return response.data

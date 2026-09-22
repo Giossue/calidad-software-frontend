@@ -17,7 +17,9 @@ function getErrorMessage(error: unknown): string {
   return 'No fue posible conectar con el servidor.'
 }
 
-export function AcademicPage() {
+export type AcademicSection = 'all' | 'careers' | 'cycles'
+
+export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicSection }>) {
   const [faculties, setFaculties] = useState<readonly Faculty[]>([])
   const [careers, setCareers] = useState<readonly Career[]>([])
   const [cycles, setCycles] = useState<readonly Cycle[]>([])
@@ -132,14 +134,22 @@ export function AcademicPage() {
 
   const activeCareers = careers.filter((career) => career.status)
   const formPending = pending === 'career' || pending === 'cycle'
+  const showCareers = section === 'all' || section === 'careers'
+  const showCycles = section === 'all' || section === 'cycles'
+  const title = section === 'careers' ? 'Carreras' : section === 'cycles' ? 'Ciclos' : 'Carreras y ciclos'
+  const description = section === 'careers'
+    ? 'Organiza las carreras dentro de las facultades activas.'
+    : section === 'cycles'
+      ? 'Define los ciclos académicos dentro de las carreras activas.'
+      : 'Gestiona el catálogo académico que utilizará el sistema de calidad.'
 
   return (
     <section className="flex flex-col gap-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold tracking-[0.16em] text-brand-red uppercase">Administración académica</p>
-          <h2 className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">Carreras y ciclos</h2>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Gestiona el catálogo académico que utilizará el sistema de calidad.</p>
+          <h2 className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{title}</h2>
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
         <Button variant="outline" onClick={() => void loadCatalogs()} disabled={pending !== null}>
           {pending === 'loading' ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
@@ -150,7 +160,7 @@ export function AcademicPage() {
       {pageError && <Alert variant="destructive"><ShieldAlertIcon /><AlertTitle>No se pudo cargar el catálogo</AlertTitle><AlertDescription>{pageError}</AlertDescription></Alert>}
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <CatalogForm title={editingCareer ? 'Editar carrera' : 'Registrar carrera'} description="Asigna una carrera a una facultad activa." onSubmit={submitCareer}>
+        {showCareers && <CatalogForm title={editingCareer ? 'Editar carrera' : 'Registrar carrera'} description="Asigna una carrera a una facultad activa." onSubmit={submitCareer}>
           <FieldGroup className="gap-5">
             <Field>
               <FieldLabel htmlFor="career-faculty">Facultad</FieldLabel>
@@ -167,9 +177,9 @@ export function AcademicPage() {
             <FieldError>{formError}</FieldError>
             <FormActions editing={Boolean(editingCareer)} pending={pending === 'career'} onCancel={resetCareerForm} />
           </FieldGroup>
-        </CatalogForm>
+        </CatalogForm>}
 
-        <CatalogForm title={editingCycle ? 'Editar ciclo' : 'Registrar ciclo'} description="Define el ciclo académico dentro de una carrera activa." onSubmit={submitCycle}>
+        {showCycles && <CatalogForm title={editingCycle ? 'Editar ciclo' : 'Registrar ciclo'} description="Define el ciclo académico dentro de una carrera activa." onSubmit={submitCycle}>
           <FieldGroup className="gap-5">
             <Field>
               <FieldLabel htmlFor="cycle-career">Carrera</FieldLabel>
@@ -191,16 +201,16 @@ export function AcademicPage() {
             <FieldError>{formError}</FieldError>
             <FormActions editing={Boolean(editingCycle)} pending={pending === 'cycle'} onCancel={resetCycleForm} />
           </FieldGroup>
-        </CatalogForm>
+        </CatalogForm>}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <CatalogList title="Carreras registradas" icon={<BookOpenIcon />} emptyMessage="Todavía no hay carreras registradas.">
+        {showCareers && <CatalogList title="Carreras registradas" icon={<BookOpenIcon />} emptyMessage="Todavía no hay carreras registradas.">
           {careers.map((career) => <CatalogRow key={career.id} title={career.name} detail={career.faculty_name ?? `Facultad #${career.faculty_id}`} active={career.status} onEdit={() => startCareerEdit(career)} onDeactivate={() => void deactivateCareer(career)} disabled={pending !== null} />)}
-        </CatalogList>
-        <CatalogList title="Ciclos registrados" icon={<BookOpenIcon />} emptyMessage="Todavía no hay ciclos registrados.">
+        </CatalogList>}
+        {showCycles && <CatalogList title="Ciclos registrados" icon={<BookOpenIcon />} emptyMessage="Todavía no hay ciclos registrados.">
           {cycles.map((cycle) => <CatalogRow key={cycle.id} title={`${cycle.number}. ${cycle.name}`} detail={cycle.career_name ?? `Carrera #${cycle.career_id}`} active={cycle.status} onEdit={() => startCycleEdit(cycle)} onDeactivate={() => void deactivateCycle(cycle)} disabled={pending !== null} />)}
-        </CatalogList>
+        </CatalogList>}
       </div>
     </section>
   )
