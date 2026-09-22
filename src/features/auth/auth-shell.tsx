@@ -14,20 +14,21 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
           <div className="absolute -bottom-56 -left-36 size-[32rem] rounded-full border border-brand-red/25" aria-hidden="true" />
 
           <div className="relative z-10 max-w-xl border-l-4 border-brand-red pl-7 xl:pl-9">
-            <h2 className="max-w-lg font-display text-5xl leading-[0.98] tracking-[-0.045em] xl:text-7xl">
-              Cada avance cuenta.
-            </h2>
+            <p className="mb-3 text-xs font-semibold tracking-[0.18em] text-brand-red uppercase">Acceso seguro</p>
+            <h1 className="max-w-lg font-display text-5xl leading-[0.98] tracking-[-0.045em] xl:text-7xl">
+              {title}
+            </h1>
             <p className="mt-6 max-w-md text-base leading-7 text-white/70">
-              Accede al espacio donde tutorías, actividades y resultados mantienen su trazabilidad.
+              {description}
             </p>
           </div>
         </aside>
 
-        <section className="flex items-center px-6 py-10 sm:px-12 lg:px-14 xl:px-20" aria-labelledby="auth-title">
+        <section className="flex items-center px-6 py-10 sm:px-12 lg:px-14 xl:px-20" aria-label="Formulario de autenticación">
           <div className="mx-auto w-full max-w-md">
-            <header className="mb-8 flex flex-col gap-2">
+            <header className="mb-8 flex flex-col gap-2 lg:hidden">
               <p className="text-xs font-semibold tracking-[0.18em] text-brand-red uppercase">Acceso seguro</p>
-              <h1 id="auth-title" className="font-display text-4xl leading-tight tracking-[-0.035em] sm:text-5xl">{title}</h1>
+              <h1 className="font-display text-4xl leading-tight tracking-[-0.035em] sm:text-5xl">{title}</h1>
               <p className="max-w-sm text-sm leading-6 text-muted-foreground">{description}</p>
             </header>
             {children}
