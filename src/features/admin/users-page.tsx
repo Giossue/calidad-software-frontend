@@ -1,18 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import {
-  PencilIcon,
-  PlusIcon,
-  RefreshCwIcon,
-  ShieldAlertIcon,
-  UserXIcon,
-  UsersIcon,
-  XIcon,
-} from 'lucide-react'
+import { RefreshCwIcon, ShieldAlertIcon, UsersIcon } from 'lucide-react'
 
+import { AdminCrudLayout } from '@/components/admin/admin-crud-layout'
+import { AdminFormCard } from '@/components/admin/admin-form-card'
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { CatalogFormActions } from '@/components/admin/catalog-form-actions'
+import { CatalogList } from '@/components/admin/catalog-list'
+import { CatalogRow } from '@/components/admin/catalog-row'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError, api, type User } from '@/lib/api'
 
@@ -235,27 +234,15 @@ export function UsersPage() {
 
   return (
     <section className="flex flex-col gap-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold tracking-[0.16em] text-brand-red uppercase">Administración del sistema</p>
-          <h2 className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">Usuarios</h2>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Crea y mantiene las cuentas que participan en el sistema de calidad.</p>
-        </div>
-        <Button variant="outline" onClick={() => void loadUsers()} disabled={formDisabled}>
-          {pending === 'loading' ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-          Actualizar
-        </Button>
-      </div>
+      <AdminSectionHeader title="Usuarios" description="Crea y mantiene las cuentas que participan en el sistema de calidad." eyebrow="Administración del sistema" actions={<Button variant="outline" onClick={() => void loadUsers()} disabled={formDisabled}>
+        {pending === 'loading' ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
+        Actualizar
+      </Button>} />
 
       {pageError && <Alert variant="destructive"><ShieldAlertIcon /><AlertTitle>No se pudieron cargar los usuarios</AlertTitle><AlertDescription>{pageError}</AlertDescription></Alert>}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.35fr)]">
-        <form onSubmit={submitUser} noValidate className="flex flex-col gap-6 rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6" aria-labelledby="user-form-title">
-          <div className="flex flex-col gap-1">
-            <h3 id="user-form-title" className="text-lg font-semibold">{editingUser ? 'Editar usuario' : 'Registrar usuario'}</h3>
-            <p className="text-sm text-muted-foreground">{editingUser ? 'Actualiza los datos de la cuenta seleccionada.' : 'Asigna una cuenta con el rol que corresponda.'}</p>
-          </div>
-
+      <AdminCrudLayout>
+        <AdminFormCard title={editingUser ? 'Editar usuario' : 'Registrar usuario'} description={editingUser ? 'Actualiza los datos de la cuenta seleccionada.' : 'Asigna una cuenta con el rol que corresponda.'} onSubmit={submitUser} labelledBy="user-form-title">
           <FieldGroup className="gap-5">
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <Field data-invalid={Boolean(userErrors.identification)}>
@@ -284,10 +271,10 @@ export function UsersPage() {
               </Field>
               <Field data-invalid={Boolean(userErrors.role)}>
                 <FieldLabel htmlFor="user-role">Rol</FieldLabel>
-                <select id="user-role" name="role" className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50" value={userForm.role} onChange={(event) => updateUserField('role', event.target.value)} aria-invalid={Boolean(userErrors.role)} aria-describedby={userErrors.role ? 'user-role-error' : undefined} disabled={formDisabled} required>
+                <NativeSelect id="user-role" name="role" value={userForm.role} onChange={(event) => updateUserField('role', event.target.value)} aria-invalid={Boolean(userErrors.role)} aria-describedby={userErrors.role ? 'user-role-error' : undefined} disabled={formDisabled} required>
                   <option value="">Selecciona un rol</option>
                   {ROLE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
+                </NativeSelect>
                 <FieldError id="user-role-error">{userErrors.role}</FieldError>
               </Field>
             </div>
@@ -307,48 +294,14 @@ export function UsersPage() {
             </div>
 
             <FieldError id="user-form-error">{formError}</FieldError>
-            <UserFormActions editing={Boolean(editingUser)} pending={pending === 'user'} onCancel={resetUserForm} />
+            <CatalogFormActions editing={Boolean(editingUser)} pending={pending === 'user'} onCancel={resetUserForm} createLabel="Registrar usuario" />
           </FieldGroup>
-        </form>
+        </AdminFormCard>
 
-        <div className="rounded-2xl border border-border/70 bg-card shadow-sm" aria-labelledby="users-list-title">
-          <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-4">
-            <div className="flex items-center gap-3">
-              <UsersIcon className="size-5 text-brand-red" aria-hidden="true" />
-              <h3 id="users-list-title" className="font-semibold">Usuarios registrados</h3>
-            </div>
-            <span className="text-xs text-muted-foreground">{users.length} {users.length === 1 ? 'cuenta' : 'cuentas'}</span>
-          </div>
-          <div className="flex flex-col" role="list" aria-busy={pending === 'loading'}>
-            {pending === 'loading' ? <div className="flex items-center gap-2 px-5 py-8 text-sm text-muted-foreground" role="status"><Spinner />Cargando usuarios…</div> : users.length === 0 ? <p className="px-5 py-8 text-sm text-muted-foreground">Todavía no hay usuarios registrados.</p> : users.map((user) => <UserRow key={user.id} user={user} disabled={formDisabled} deactivating={pending === 'deactivate-user' && pendingUserId === user.id} onEdit={() => startUserEdit(user)} onDeactivate={() => void deactivateUser(user)} />)}
-          </div>
-        </div>
-      </div>
+        <CatalogList title={`Usuarios registrados · ${users.length}`} icon={<UsersIcon />} loading={pending === 'loading'} loadingMessage="Cargando usuarios…" emptyMessage="Todavía no hay usuarios registrados.">
+          {users.map((user) => <CatalogRow key={user.id} title={user.name} detail={`${user.email} · ${getRoleLabel(user.role)} · Cédula ${user.identification}${user.phone ? ` · ${user.phone}` : ' · Sin teléfono'}`} active={isUserActive(user)} disabled={formDisabled} deactivating={pending === 'deactivate-user' && pendingUserId === user.id} onEdit={() => startUserEdit(user)} onDeactivate={() => void deactivateUser(user)} />)}
+        </CatalogList>
+      </AdminCrudLayout>
     </section>
   )
-}
-
-function UserFormActions({ editing, pending, onCancel }: Readonly<{ editing: boolean; pending: boolean; onCancel: () => void }>) {
-  return <div className="flex flex-wrap justify-end gap-3"><Button type="submit" disabled={pending}>{pending ? <Spinner data-icon="inline-start" /> : editing ? <PencilIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}{pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar usuario'}</Button>{editing && <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}><XIcon data-icon="inline-start" />Cancelar</Button>}</div>
-}
-
-function UserRow({ user, disabled, deactivating, onEdit, onDeactivate }: Readonly<{ user: User; disabled: boolean; deactivating: boolean; onEdit: () => void; onDeactivate: () => void }>) {
-  const active = isUserActive(user)
-
-  return <div role="listitem" className="flex flex-col gap-4 border-b border-border/60 px-5 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
-    <div className="min-w-0">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="truncate text-sm font-medium">{user.name}</p>
-        <span className={`rounded-full px-2 py-1 text-[0.68rem] font-semibold ${active ? 'bg-emerald-100 text-emerald-800' : 'bg-muted text-muted-foreground'}`}>{active ? 'Activo' : 'Inactivo'}</span>
-      </div>
-      <p className="truncate text-xs text-muted-foreground">{user.email} · {getRoleLabel(user.role)}</p>
-      <p className="truncate text-xs text-muted-foreground">Cédula {user.identification}{user.phone ? ` · ${user.phone}` : ' · Sin teléfono'}</p>
-    </div>
-    {active && <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Editar usuario ${user.name}`} onClick={onEdit} disabled={disabled}><PencilIcon /></Button>
-      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Desactivar usuario ${user.name}`} onClick={onDeactivate} disabled={disabled}>
-        {deactivating ? <Spinner /> : <UserXIcon />}
-      </Button>
-    </div>}
-  </div>
 }

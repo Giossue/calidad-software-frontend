@@ -1,6 +1,13 @@
-import { Children, useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, PencilIcon, PlusIcon, RefreshCwIcon, ShieldAlertIcon, XIcon } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { CheckCircle2Icon, RefreshCwIcon, ShieldAlertIcon } from 'lucide-react'
 
+import { AdminCrudLayout } from '@/components/admin/admin-crud-layout'
+import { AdminFormCard } from '@/components/admin/admin-form-card'
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { CatalogFormActions } from '@/components/admin/catalog-form-actions'
+import { CatalogList } from '@/components/admin/catalog-list'
+import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { CatalogRow } from '@/components/admin/catalog-row'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -128,27 +135,15 @@ export function ModalitiesPage() {
 
   return (
     <section className="flex flex-col gap-8" aria-labelledby="modalities-title">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold tracking-[0.16em] text-brand-red uppercase">Administración académica</p>
-          <h2 id="modalities-title" className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">Modalidades</h2>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Administra las modalidades disponibles para registrar actividades académicas.</p>
-        </div>
-        <Button variant="outline" onClick={() => void loadModalities(1)} disabled={busy}>
-          {isLoading ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-          Actualizar
-        </Button>
-      </div>
+      <AdminSectionHeader title="Modalidades" description="Administra las modalidades disponibles para registrar actividades académicas." titleId="modalities-title" actions={<Button variant="outline" onClick={() => void loadModalities(1)} disabled={busy}>
+        {isLoading ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
+        Actualizar
+      </Button>} />
 
       {pageError && <Alert variant="destructive"><ShieldAlertIcon /><AlertTitle>No se pudieron cargar las modalidades</AlertTitle><AlertDescription>{pageError}</AlertDescription></Alert>}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.35fr)]">
-        <form onSubmit={submitModality} noValidate className="flex flex-col gap-6 rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6" aria-labelledby="modality-form-title">
-          <div className="flex flex-col gap-1">
-            <h3 id="modality-form-title" className="text-lg font-semibold">{editingModality ? 'Editar modalidad' : 'Registrar modalidad'}</h3>
-            <p className="text-sm text-muted-foreground">{editingModality ? 'Actualiza el nombre de la modalidad seleccionada.' : 'Agrega una modalidad al catálogo institucional.'}</p>
-          </div>
-
+      <AdminCrudLayout>
+        <AdminFormCard title={editingModality ? 'Editar modalidad' : 'Registrar modalidad'} description={editingModality ? 'Actualiza el nombre de la modalidad seleccionada.' : 'Agrega una modalidad al catálogo institucional.'} onSubmit={submitModality} labelledBy="modality-form-title">
           <FieldGroup className="gap-5">
             <Field data-invalid={Boolean(nameError)}>
               <FieldLabel htmlFor="modality-name">Nombre de la modalidad</FieldLabel>
@@ -158,43 +153,21 @@ export function ModalitiesPage() {
             </Field>
 
             <FieldError>{formError}</FieldError>
-            <FormActions editing={Boolean(editingModality)} pending={pending === 'modality'} onCancel={resetForm} disabled={busy} />
+            <CatalogFormActions editing={Boolean(editingModality)} pending={pending === 'modality'} onCancel={resetForm} />
           </FieldGroup>
-        </form>
+        </AdminFormCard>
 
         <div className="flex flex-col gap-3">
-          <CatalogList title="Modalidades registradas" icon={<CheckCircle2Icon />} loading={isLoading} emptyMessage="Todavía no hay modalidades registradas.">
+          <CatalogList title="Modalidades registradas" icon={<CheckCircle2Icon />} loading={isLoading} loadingMessage="Cargando modalidades…" emptyMessage="Todavía no hay modalidades registradas.">
             {modalities.map((modality) => {
               const active = isModalityActive(modality)
               const deactivating = pending === 'deactivate-modality' && pendingModalityId === modality.id
-              return <CatalogRow key={modality.id} modality={modality} active={active} deactivating={deactivating} disabled={busy} onEdit={() => startEdit(modality)} onDeactivate={() => void deactivateModality(modality)} />
+              return <CatalogRow key={modality.id} title={modality.name} detail="Modalidad de actividad académica" active={active} deactivating={deactivating} disabled={busy} onEdit={() => startEdit(modality)} onDeactivate={() => void deactivateModality(modality)} />
             })}
           </CatalogList>
-          <PaginationControls page={page} lastPage={lastPage} disabled={busy} onChange={(nextPage) => void loadModalities(nextPage)} />
+          <CatalogPagination label="modalidades" page={page} lastPage={lastPage} disabled={busy} onChange={(nextPage) => void loadModalities(nextPage)} />
         </div>
-      </div>
+      </AdminCrudLayout>
     </section>
   )
-}
-
-function FormActions({ editing, pending, onCancel, disabled }: Readonly<{ editing: boolean; pending: boolean; onCancel: () => void; disabled: boolean }>) {
-  return <div className="flex flex-wrap justify-end gap-3"><Button type="submit" disabled={disabled}>{pending ? <Spinner data-icon="inline-start" /> : editing ? <PencilIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}{pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar'}</Button>{editing && <Button type="button" variant="ghost" onClick={onCancel} disabled={disabled}><XIcon data-icon="inline-start" />Cancelar</Button>}</div>
-}
-
-function CatalogList({ title, icon, loading, emptyMessage, children }: Readonly<{ title: string; icon: ReactNode; loading: boolean; emptyMessage: string; children: ReactNode }>) {
-  return <div className="rounded-2xl border border-border/70 bg-card shadow-sm"><div className="flex items-center gap-3 border-b border-border/70 px-5 py-4"><span className="text-brand-red">{icon}</span><h3 className="font-semibold">{title}</h3></div><div className="flex flex-col" aria-live="polite">{loading && Children.count(children) === 0 ? <p className="px-5 py-8 text-sm text-muted-foreground">Cargando modalidades…</p> : Children.count(children) > 0 ? children : <p className="px-5 py-8 text-sm text-muted-foreground">{emptyMessage}</p>}</div></div>
-}
-
-function PaginationControls({ page, lastPage, disabled, onChange }: Readonly<{ page: number; lastPage: number; disabled: boolean; onChange: (page: number) => void }>) {
-  if (lastPage <= 1) return null
-
-  return <nav className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3" aria-label="Paginación de modalidades">
-    <Button variant="ghost" size="sm" onClick={() => onChange(page - 1)} disabled={disabled || page <= 1}><ChevronLeftIcon />Anterior</Button>
-    <span className="text-xs text-muted-foreground">Página {page} de {lastPage}</span>
-    <Button variant="ghost" size="sm" onClick={() => onChange(page + 1)} disabled={disabled || page >= lastPage}>Siguiente<ChevronRightIcon /></Button>
-  </nav>
-}
-
-function CatalogRow({ modality, active, deactivating, disabled, onEdit, onDeactivate }: Readonly<{ modality: Modality; active: boolean; deactivating: boolean; disabled: boolean; onEdit: () => void; onDeactivate: () => void }>) {
-  return <div className="flex items-center justify-between gap-4 border-b border-border/60 px-5 py-4 last:border-b-0"><div className="min-w-0"><p className="truncate text-sm font-medium">{modality.name}</p><p className="text-xs text-muted-foreground">Modalidad de actividad académica</p></div><div className="flex shrink-0 items-center gap-2"><span className={`rounded-full px-2 py-1 text-[0.68rem] font-semibold ${active ? 'bg-emerald-100 text-emerald-800' : 'bg-muted text-muted-foreground'}`}>{active ? 'Activo' : 'Inactivo'}</span>{active && <><Button variant="ghost" size="icon-sm" aria-label={`Editar ${modality.name}`} onClick={onEdit} disabled={disabled}><PencilIcon /></Button><Button variant="ghost" size="icon-sm" aria-label={`Desactivar ${modality.name}`} onClick={onDeactivate} disabled={disabled}>{deactivating ? <Spinner /> : <XIcon />}</Button></>}</div></div>
 }

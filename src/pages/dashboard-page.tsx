@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle2Icon, LogOutIcon } from 'lucide-react'
 
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { AdminPage } from '@/features/admin/admin-page'
@@ -28,16 +29,16 @@ export function DashboardPage() {
         </Button>
       </header>
       <section className="grid gap-4 sm:grid-cols-2" aria-label="Estado de la sesión">
-        <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
+        <Card className="p-5">
           <p className="text-xs font-semibold tracking-[0.15em] text-muted-foreground uppercase">Sesión activa</p>
           <div className="mt-4 flex items-center gap-2 text-sm font-medium"><CheckCircle2Icon className="size-4 text-primary" /> Acceso verificado</div>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
+        </Card>
+        <Card className="p-5">
           <p className="text-xs font-semibold tracking-[0.15em] text-muted-foreground uppercase">Cuenta</p>
           <p className="mt-4 text-sm font-medium">{user?.email}</p>
-        </div>
+        </Card>
       </section>
-      {user?.role === 'administrador' ? <AdminPage /> : <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm"><p className="text-sm text-muted-foreground">Tu cuenta no tiene permisos para administrar el catálogo académico.</p></section>}
+      {user?.role === 'administrador' ? <AdminPage /> : <Card className="p-6"><p className="text-sm text-muted-foreground">Tu cuenta no tiene permisos para administrar el catálogo académico.</p></Card>}
     </main>
   )
 }

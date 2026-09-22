@@ -1,16 +1,22 @@
-import { Children, useEffect, useState, type FormEvent } from 'react'
-import { BookOpenIcon, PencilIcon, PlusIcon, RefreshCwIcon, ShieldAlertIcon, XIcon } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { BookOpenIcon, RefreshCwIcon, ShieldAlertIcon } from 'lucide-react'
 
+import { AdminCrudLayout } from '@/components/admin/admin-crud-layout'
+import { AdminFormCard } from '@/components/admin/admin-form-card'
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { CatalogFormActions } from '@/components/admin/catalog-form-actions'
+import { CatalogList } from '@/components/admin/catalog-list'
+import { CatalogRow } from '@/components/admin/catalog-row'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError, api, type Career, type Cycle, type Faculty } from '@/lib/api'
 
 type PendingAction = 'loading' | 'career' | 'cycle' | 'deactivate-career' | 'deactivate-cycle' | null
 
-const selectClassName = 'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50'
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
@@ -145,29 +151,22 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
 
   return (
     <section className="flex flex-col gap-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold tracking-[0.16em] text-brand-red uppercase">Administración académica</p>
-          <h2 className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{title}</h2>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
-        </div>
-        <Button variant="outline" onClick={() => void loadCatalogs()} disabled={pending !== null}>
-          {pending === 'loading' ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-          Actualizar
-        </Button>
-      </div>
+      <AdminSectionHeader title={title} description={description} actions={<Button variant="outline" onClick={() => void loadCatalogs()} disabled={pending !== null}>
+        {pending === 'loading' ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
+        Actualizar
+      </Button>} />
 
       {pageError && <Alert variant="destructive"><ShieldAlertIcon /><AlertTitle>No se pudo cargar el catálogo</AlertTitle><AlertDescription>{pageError}</AlertDescription></Alert>}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        {showCareers && <CatalogForm title={editingCareer ? 'Editar carrera' : 'Registrar carrera'} description="Asigna una carrera a una facultad activa." onSubmit={submitCareer}>
+      <AdminCrudLayout>
+        {showCareers && <AdminFormCard title={editingCareer ? 'Editar carrera' : 'Registrar carrera'} description="Asigna una carrera a una facultad activa." onSubmit={submitCareer} labelledBy="career-form-title">
           <FieldGroup className="gap-5">
             <Field>
               <FieldLabel htmlFor="career-faculty">Facultad</FieldLabel>
-              <select id="career-faculty" className={selectClassName} value={careerFacultyId} onChange={(event) => setCareerFacultyId(event.target.value)} disabled={formPending} required>
+              <NativeSelect id="career-faculty" value={careerFacultyId} onChange={(event) => setCareerFacultyId(event.target.value)} disabled={formPending} required>
                 <option value="">Selecciona una facultad</option>
                 {faculties.filter((faculty) => faculty.status).map((faculty) => <option key={faculty.id} value={faculty.id}>{faculty.name}</option>)}
-              </select>
+              </NativeSelect>
             </Field>
             <Field>
               <FieldLabel htmlFor="career-name">Nombre de la carrera</FieldLabel>
@@ -175,18 +174,18 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
               <FieldDescription>Hasta 150 caracteres.</FieldDescription>
             </Field>
             <FieldError>{formError}</FieldError>
-            <FormActions editing={Boolean(editingCareer)} pending={pending === 'career'} onCancel={resetCareerForm} />
+            <CatalogFormActions editing={Boolean(editingCareer)} pending={pending === 'career'} onCancel={resetCareerForm} />
           </FieldGroup>
-        </CatalogForm>}
+        </AdminFormCard>}
 
-        {showCycles && <CatalogForm title={editingCycle ? 'Editar ciclo' : 'Registrar ciclo'} description="Define el ciclo académico dentro de una carrera activa." onSubmit={submitCycle}>
+        {showCycles && <AdminFormCard title={editingCycle ? 'Editar ciclo' : 'Registrar ciclo'} description="Define el ciclo académico dentro de una carrera activa." onSubmit={submitCycle} labelledBy="cycle-form-title">
           <FieldGroup className="gap-5">
             <Field>
               <FieldLabel htmlFor="cycle-career">Carrera</FieldLabel>
-              <select id="cycle-career" className={selectClassName} value={cycleCareerId} onChange={(event) => setCycleCareerId(event.target.value)} disabled={formPending} required>
+              <NativeSelect id="cycle-career" value={cycleCareerId} onChange={(event) => setCycleCareerId(event.target.value)} disabled={formPending} required>
                 <option value="">Selecciona una carrera</option>
                 {activeCareers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}
-              </select>
+              </NativeSelect>
             </Field>
             <div className="grid gap-5 sm:grid-cols-[1fr_8rem]">
               <Field>
@@ -199,35 +198,19 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
               </Field>
             </div>
             <FieldError>{formError}</FieldError>
-            <FormActions editing={Boolean(editingCycle)} pending={pending === 'cycle'} onCancel={resetCycleForm} />
+            <CatalogFormActions editing={Boolean(editingCycle)} pending={pending === 'cycle'} onCancel={resetCycleForm} />
           </FieldGroup>
-        </CatalogForm>}
-      </div>
+        </AdminFormCard>}
+      </AdminCrudLayout>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        {showCareers && <CatalogList title="Carreras registradas" icon={<BookOpenIcon />} emptyMessage="Todavía no hay carreras registradas.">
+      <AdminCrudLayout>
+        {showCareers && <CatalogList title="Carreras registradas" icon={<BookOpenIcon />} loading={pending === 'loading'} loadingMessage="Cargando carreras…" emptyMessage="Todavía no hay carreras registradas.">
           {careers.map((career) => <CatalogRow key={career.id} title={career.name} detail={career.faculty_name ?? `Facultad #${career.faculty_id}`} active={career.status} onEdit={() => startCareerEdit(career)} onDeactivate={() => void deactivateCareer(career)} disabled={pending !== null} />)}
         </CatalogList>}
-        {showCycles && <CatalogList title="Ciclos registrados" icon={<BookOpenIcon />} emptyMessage="Todavía no hay ciclos registrados.">
+        {showCycles && <CatalogList title="Ciclos registrados" icon={<BookOpenIcon />} loading={pending === 'loading'} loadingMessage="Cargando ciclos…" emptyMessage="Todavía no hay ciclos registrados.">
           {cycles.map((cycle) => <CatalogRow key={cycle.id} title={`${cycle.number}. ${cycle.name}`} detail={cycle.career_name ?? `Carrera #${cycle.career_id}`} active={cycle.status} onEdit={() => startCycleEdit(cycle)} onDeactivate={() => void deactivateCycle(cycle)} disabled={pending !== null} />)}
         </CatalogList>}
-      </div>
+      </AdminCrudLayout>
     </section>
   )
-}
-
-function CatalogForm({ title, description, onSubmit, children }: Readonly<{ title: string; description: string; onSubmit: (event: FormEvent<HTMLFormElement>) => void; children: React.ReactNode }>) {
-  return <form onSubmit={onSubmit} className="flex flex-col gap-6 rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6"><div className="flex flex-col gap-1"><h3 className="text-lg font-semibold">{title}</h3><p className="text-sm text-muted-foreground">{description}</p></div>{children}</form>
-}
-
-function FormActions({ editing, pending, onCancel }: Readonly<{ editing: boolean; pending: boolean; onCancel: () => void }>) {
-  return <div className="flex flex-wrap justify-end gap-3"><Button type="submit" disabled={pending}>{pending ? <Spinner data-icon="inline-start" /> : editing ? <PencilIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}{pending ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar'}</Button>{editing && <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}><XIcon data-icon="inline-start" />Cancelar</Button>}</div>
-}
-
-function CatalogList({ title, icon, emptyMessage, children }: Readonly<{ title: string; icon: React.ReactNode; emptyMessage: string; children: React.ReactNode }>) {
-  return <div className="rounded-2xl border border-border/70 bg-card shadow-sm"><div className="flex items-center gap-3 border-b border-border/70 px-5 py-4"><span className="text-brand-red">{icon}</span><h3 className="font-semibold">{title}</h3></div><div className="flex flex-col">{Children.count(children) > 0 ? children : <p className="px-5 py-8 text-sm text-muted-foreground">{emptyMessage}</p>}</div></div>
-}
-
-function CatalogRow({ title, detail, active, onEdit, onDeactivate, disabled }: Readonly<{ title: string; detail: string; active: boolean; onEdit: () => void; onDeactivate: () => void; disabled: boolean }>) {
-  return <div className="flex items-center justify-between gap-4 border-b border-border/60 px-5 py-4 last:border-b-0"><div className="min-w-0"><p className="truncate text-sm font-medium">{title}</p><p className="truncate text-xs text-muted-foreground">{detail}</p></div><div className="flex shrink-0 items-center gap-2"><span className={`rounded-full px-2 py-1 text-[0.68rem] font-semibold ${active ? 'bg-emerald-100 text-emerald-800' : 'bg-muted text-muted-foreground'}`}>{active ? 'Activo' : 'Inactivo'}</span>{active && <><Button variant="ghost" size="icon-sm" aria-label={`Editar ${title}`} onClick={onEdit} disabled={disabled}><PencilIcon /></Button><Button variant="ghost" size="icon-sm" aria-label={`Desactivar ${title}`} onClick={onDeactivate} disabled={disabled}><XIcon /></Button></>}</div></div>
 }

@@ -9,6 +9,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { Card } from '@/components/ui/card'
 import { AcademicPage } from '@/features/academic/academic-page'
 import { cn } from '@/lib/utils'
 import { AcademicPeriodsPage } from './academic-periods-page'
@@ -39,15 +41,11 @@ export function AdminPage() {
 
   return (
     <section className="flex flex-col gap-8" aria-labelledby="admin-title">
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-[0.16em] text-brand-red uppercase">Catálogo institucional</p>
-        <h2 id="admin-title" className="font-display text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">Administración</h2>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">Configura las cuentas y catálogos que sostienen la operación académica del sistema.</p>
-      </div>
+      <AdminSectionHeader title="Administración" description="Configura las cuentas y catálogos que sostienen la operación académica del sistema." eyebrow="Catálogo institucional" titleId="admin-title" />
 
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/70 bg-card p-2 shadow-sm sm:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Secciones de administración">
+      <Card className="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Secciones de administración">
         {ADMIN_TABS.map((tab) => <AdminTabButton key={tab.id} tab={tab} active={activeSection === tab.id} onSelect={setActiveSection} />)}
-      </div>
+      </Card>
 
       <div id={`admin-panel-${activeSection}`} role="tabpanel" aria-labelledby={`admin-tab-${activeSection}`} tabIndex={0}>
         <AdminSectionContent section={activeSection} />

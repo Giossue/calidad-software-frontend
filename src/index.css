@@ -11,6 +11,8 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+  --radius-shell: var(--radius-shell);
+  --shadow-shell: var(--shadow-shell);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -26,6 +28,9 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -49,10 +54,15 @@
   --accent: var(--brand-red);
   --accent-foreground: #FFFFFF;
   --destructive: var(--brand-red);
+  --destructive-foreground: #FFFFFF;
+  --success: #17854E;
+  --success-foreground: #12663C;
   --border: #CBD5DC;
   --input: #B9C6CF;
   --ring: var(--brand-red);
   --radius: 0.75rem;
+  --radius-shell: 2rem;
+  --shadow-shell: 0 24px 80px -32px oklch(0.2 0.06 170 / 0.45);
 }
 
 .dark {
@@ -71,9 +81,14 @@
   --accent: var(--brand-red);
   --accent-foreground: #FFFFFF;
   --destructive: #D85B56;
+  --destructive-foreground: #FFFFFF;
+  --success: #6FE0A4;
+  --success-foreground: #A9F2C7;
   --border: #28475D;
   --input: #36576D;
   --ring: #E06C67;
+  --radius-shell: 2rem;
+  --shadow-shell: 0 24px 80px -32px oklch(0.02 0.03 220 / 0.7);
 }
 
 @layer base {
