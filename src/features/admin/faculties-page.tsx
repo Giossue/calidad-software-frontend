@@ -159,6 +159,7 @@ export function FacultiesPage() {
       setFacultyToToggle(null)
       await loadFaculties()
     } catch (error: unknown) {
+      setFacultyToToggle(null)
       setPageError(getErrorMessage(error))
     } finally {
       setPending(null)
@@ -316,6 +317,7 @@ export function FacultiesPage() {
               ) : (
                 filteredFaculties.map((faculty) => {
                   const active = isFacultyActive(faculty)
+                  const hasActiveCareers = faculty.active_careers_count > 0
 
                   return (
                     <tr
@@ -334,7 +336,14 @@ export function FacultiesPage() {
 
                       {/* Código */}
                       <td className="px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400">
-                        Facultad #{faculty.id}
+                        <div className="flex flex-col gap-0.5">
+                          <span>Facultad #{faculty.id}</span>
+                          <span>
+                            {faculty.careers_count === 0
+                              ? 'Sin carreras'
+                              : `${faculty.active_careers_count} de ${faculty.careers_count} carrera${faculty.careers_count === 1 ? '' : 's'} activa${faculty.active_careers_count === 1 ? '' : 's'}`}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Estado Pulsante */}
@@ -372,8 +381,13 @@ export function FacultiesPage() {
                             <button
                               type="button"
                               onClick={() => setFacultyToToggle({ faculty, action: 'deactivate' })}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                              title="Desactivar facultad"
+                              disabled={hasActiveCareers}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              title={
+                                hasActiveCareers
+                                  ? `No puedes desactivar: tiene ${faculty.active_careers_count} carrera(s) activa(s). Desactívalas primero.`
+                                  : 'Desactivar facultad'
+                              }
                             >
                               <PowerOffIcon className="size-4" />
                             </button>

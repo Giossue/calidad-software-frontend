@@ -18,6 +18,8 @@ export interface Faculty {
   readonly name: string
   readonly status: boolean
   readonly is_active: boolean
+  readonly careers_count: number
+  readonly active_careers_count: number
 }
 
 export interface Career {
