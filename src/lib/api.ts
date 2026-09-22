@@ -11,8 +11,35 @@ export interface User {
   readonly has_two_factor: boolean
 }
 
+export interface Faculty {
+  readonly id: number
+  readonly name: string
+  readonly status: boolean
+}
+
+export interface Career {
+  readonly id: number
+  readonly faculty_id: number
+  readonly faculty_name?: string
+  readonly name: string
+  readonly status: boolean
+}
+
+export interface Cycle {
+  readonly id: number
+  readonly career_id: number
+  readonly career_name?: string
+  readonly name: string
+  readonly number: number
+  readonly status: boolean
+}
+
 interface Resource<T> {
   readonly data: T
+}
+
+interface ResourceCollection<T> {
+  readonly data: readonly T[]
 }
 
 interface LoginData {
@@ -132,4 +159,65 @@ export const api = {
   },
 
   logout: () => request<void>('/api/v1/auth/logout', { method: 'DELETE' }),
+
+  async listFaculties(): Promise<readonly Faculty[]> {
+    const response = await request<ResourceCollection<Faculty>>('/api/v1/admin/faculties')
+    return response.data
+  },
+
+  async listCareers(): Promise<readonly Career[]> {
+    const response = await request<ResourceCollection<Career>>('/api/v1/admin/careers')
+    return response.data
+  },
+
+  async listCycles(): Promise<readonly Cycle[]> {
+    const response = await request<ResourceCollection<Cycle>>('/api/v1/admin/cycles')
+    return response.data
+  },
+
+  async createCareer(input: { faculty_id: number; name: string }): Promise<Career> {
+    const response = await request<Resource<Career>>('/api/v1/admin/careers', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async updateCareer(id: number, input: { faculty_id: number; name: string }): Promise<Career> {
+    const response = await request<Resource<Career>>(`/api/v1/admin/careers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async deactivateCareer(id: number): Promise<Career> {
+    const response = await request<Resource<Career>>(`/api/v1/admin/careers/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async createCycle(input: { career_id: number; name: string; number: number }): Promise<Cycle> {
+    const response = await request<Resource<Cycle>>('/api/v1/admin/cycles', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async updateCycle(id: number, input: { career_id: number; name: string; number: number }): Promise<Cycle> {
+    const response = await request<Resource<Cycle>>(`/api/v1/admin/cycles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
+
+  async deactivateCycle(id: number): Promise<Cycle> {
+    const response = await request<Resource<Cycle>>(`/api/v1/admin/cycles/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
 }
