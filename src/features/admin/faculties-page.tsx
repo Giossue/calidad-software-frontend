@@ -22,6 +22,7 @@ import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ApiError, api, type Faculty } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -51,6 +52,9 @@ export function FacultiesPage() {
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [facultyToToggle, setFacultyToToggle] = useState<ToggleTarget | null>(null)
+
+  // Tooltip del botón de desactivar bloqueado (hover en escritorio, tap en móvil)
+  const [blockedTooltipFacultyId, setBlockedTooltipFacultyId] = useState<number | null>(null)
 
   // Búsqueda
   const [searchQuery, setSearchQuery] = useState('')
@@ -378,19 +382,41 @@ export function FacultiesPage() {
                             <Edit2Icon className="size-4" />
                           </button>
                           {active ? (
-                            <button
-                              type="button"
-                              onClick={() => setFacultyToToggle({ faculty, action: 'deactivate' })}
-                              disabled={hasActiveCareers}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                              title={
-                                hasActiveCareers
-                                  ? `No puedes desactivar: tiene ${faculty.active_careers_count} carrera(s) activa(s). Desactívalas primero.`
-                                  : 'Desactivar facultad'
-                              }
+                            <Tooltip
+                              open={hasActiveCareers ? blockedTooltipFacultyId === faculty.id : undefined}
+                              onOpenChange={(open) => {
+                                if (hasActiveCareers) setBlockedTooltipFacultyId(open ? faculty.id : null)
+                              }}
                             >
-                              <PowerOffIcon className="size-4" />
-                            </button>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-disabled={hasActiveCareers}
+                                  onMouseEnter={() => hasActiveCareers && setBlockedTooltipFacultyId(faculty.id)}
+                                  onMouseLeave={() => hasActiveCareers && setBlockedTooltipFacultyId(null)}
+                                  onFocus={() => hasActiveCareers && setBlockedTooltipFacultyId(faculty.id)}
+                                  onBlur={() => hasActiveCareers && setBlockedTooltipFacultyId(null)}
+                                  onClick={() => {
+                                    if (hasActiveCareers) {
+                                      setBlockedTooltipFacultyId(faculty.id)
+                                      return
+                                    }
+                                    setFacultyToToggle({ faculty, action: 'deactivate' })
+                                  }}
+                                  className={cn(
+                                    'rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400',
+                                    hasActiveCareers && 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-slate-400',
+                                  )}
+                                >
+                                  <PowerOffIcon className="size-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {hasActiveCareers
+                                  ? `No puedes desactivar: tiene ${faculty.active_careers_count} carrera(s) activa(s). Desactívalas primero.`
+                                  : 'Desactivar facultad'}
+                              </TooltipContent>
+                            </Tooltip>
                           ) : (
                             <button
                               type="button"

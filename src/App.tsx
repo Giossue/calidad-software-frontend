@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page'
 import { LoginPage } from '@/features/auth/login-page'
@@ -31,16 +32,18 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/two-factor" element={<GuestRoute><TwoFactorPage /></GuestRoute>} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/" element={<ProtectedDashboard />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <Toaster position="top-center" richColors closeButton />
+        <TooltipProvider>
+          <Routes>
+            <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/two-factor" element={<GuestRoute><TwoFactorPage /></GuestRoute>} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/" element={<ProtectedDashboard />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <Toaster position="top-center" richColors closeButton />
+        </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>
   )
