@@ -13,39 +13,28 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
           <div className="absolute -right-40 -top-40 size-[34rem] rounded-full border border-white/10" aria-hidden="true" />
           <div className="absolute -bottom-56 -left-36 size-[32rem] rounded-full border border-brand-red/25" aria-hidden="true" />
 
-          <div className="relative z-10 flex w-full max-w-xl flex-col gap-12">
-            <div className="flex size-36 items-center justify-center rounded-3xl bg-white p-3 shadow-2xl shadow-black/20">
-              <img
-                src="/ueb-logo.png"
-                alt="Escudo de la Universidad Estatal de Bolívar"
-                className="h-full w-full object-contain"
-                width="160"
-                height="160"
-                loading="eager"
-              />
-            </div>
-            <div className="border-l-4 border-brand-red pl-7 xl:pl-9">
-              <p className="mb-3 text-xs font-semibold tracking-[0.18em] text-brand-red uppercase">Acceso seguro</p>
-              <h1 className="max-w-lg font-display text-5xl leading-[0.98] tracking-[-0.045em] xl:text-7xl">
-                {title}
-              </h1>
-              <p className="mt-6 max-w-md text-base leading-7 text-white/70">
-                {description}
-              </p>
-            </div>
+          <div className="relative z-10 max-w-xl border-l-4 border-brand-red pl-7 xl:pl-9">
+            <p className="mb-3 text-xs font-semibold tracking-[0.18em] text-brand-red uppercase">Acceso seguro</p>
+            <h1 className="max-w-lg font-display text-5xl leading-[0.98] tracking-[-0.045em] xl:text-7xl">
+              {title}
+            </h1>
+            <p className="mt-6 max-w-md text-base leading-7 text-white/70">
+              {description}
+            </p>
           </div>
         </aside>
 
         <section className="flex items-center px-6 py-10 sm:px-12 lg:px-14 xl:px-20" aria-label="Formulario de autenticación">
           <div className="mx-auto w-full max-w-md">
+            <img
+              src="/ueb-logo.png"
+              alt="Escudo de la Universidad Estatal de Bolívar"
+              className="mx-auto mb-8 size-28 object-contain sm:size-32 lg:size-36"
+              width="160"
+              height="160"
+              loading="eager"
+            />
             <header className="mb-8 flex flex-col gap-2 lg:hidden">
-              <img
-                src="/ueb-logo.png"
-                alt="Escudo de la Universidad Estatal de Bolívar"
-                className="mb-4 size-20 object-contain object-left"
-                width="96"
-                height="96"
-              />
               <p className="text-xs font-semibold tracking-[0.18em] text-brand-red uppercase">Acceso seguro</p>
               <h1 className="font-display text-4xl leading-tight tracking-[-0.035em] sm:text-5xl">{title}</h1>
               <p className="max-w-sm text-sm leading-6 text-muted-foreground">{description}</p>
