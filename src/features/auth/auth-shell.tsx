@@ -7,7 +7,7 @@ interface AuthShellProps {
 export function AuthShell({ title, description, children }: AuthShellProps) {
   return (
     <main className="min-h-svh bg-slate-100 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
-      <div className="mx-auto grid min-h-[calc(100svh-2rem)] max-w-7xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="mx-auto grid min-h-[calc(100svh-2rem)] max-w-[1600px] overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.1fr_0.9fr] 2xl:max-w-[1800px]">
 
         {/* Panel Azul Oscuro (Izquierda) */}
         <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#0A1224] via-[#0F1E2E] to-[#18283B] p-8 text-white lg:flex lg:min-h-[720px] lg:flex-col lg:items-start lg:justify-between xl:p-14">

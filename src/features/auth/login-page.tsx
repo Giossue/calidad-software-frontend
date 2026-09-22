@@ -83,6 +83,7 @@ export function LoginPage() {
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
+                placeholder="Ingresa tu contraseña"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 aria-invalid={Boolean(error)}
