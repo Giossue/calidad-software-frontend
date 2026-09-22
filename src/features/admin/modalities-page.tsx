@@ -3,11 +3,12 @@ import {
   CheckCircle2Icon,
   Edit2Icon,
   PlusIcon,
+  PowerIcon,
+  PowerOffIcon,
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
   SlidersIcon,
-  Trash2Icon,
   XCircleIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,7 +26,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { ApiError, api, type Modality, type ModalityInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-type PendingAction = 'modality' | 'deactivate-modality' | null
+type PendingAction = 'modality' | 'toggle-modality' | null
+type ToggleTarget = { modality: Modality; action: 'activate' | 'deactivate' }
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
@@ -50,12 +52,12 @@ export function ModalitiesPage() {
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalityToDeactivate, setModalityToDeactivate] = useState<Modality | null>(null)
+  const [modalityToToggle, setModalityToToggle] = useState<ToggleTarget | null>(null)
 
   // Búsqueda
   const [searchQuery, setSearchQuery] = useState('')
 
-  async function loadModalities(nextPage = 1) {
+  async function loadModalities(nextPage = 1, options?: { notify?: boolean }) {
     setPageError(null)
     setIsLoading(true)
     try {
@@ -63,6 +65,9 @@ export function ModalitiesPage() {
       setModalities(response.data)
       setPage(response.meta?.current_page ?? nextPage)
       setLastPage(response.meta?.last_page ?? nextPage)
+      if (options?.notify) {
+        toast.success('Modalidades actualizadas', { description: 'El listado se actualizó correctamente.' })
+      }
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
     } finally {
@@ -143,15 +148,21 @@ export function ModalitiesPage() {
     }
   }
 
-  async function handleConfirmDeactivate() {
-    if (!modalityToDeactivate || pending !== null || isLoading) return
+  async function handleConfirmToggle() {
+    if (!modalityToToggle || pending !== null || isLoading) return
 
+    const { modality, action } = modalityToToggle
     setPageError(null)
-    setPending('deactivate-modality')
+    setPending('toggle-modality')
     try {
-      await api.deactivateModality(modalityToDeactivate.id)
-      toast.info('Modalidad deshabilitada', { description: `Se desactivó la modalidad "${modalityToDeactivate.name}".` })
-      setModalityToDeactivate(null)
+      if (action === 'activate') {
+        await api.activateModality(modality.id)
+        toast.success('Modalidad habilitada', { description: `La modalidad "${modality.name}" fue habilitada.` })
+      } else {
+        await api.deactivateModality(modality.id)
+        toast.info('Modalidad deshabilitada', { description: `Se desactivó la modalidad "${modality.name}".` })
+      }
+      setModalityToToggle(null)
       await loadModalities(page)
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
@@ -186,7 +197,7 @@ export function ModalitiesPage() {
         titleId="modalities-title"
         actions={
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => void loadModalities(1)} disabled={busy}>
+            <Button variant="outline" onClick={() => void loadModalities(1, { notify: true })} disabled={busy}>
               {isLoading ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
@@ -355,14 +366,25 @@ export function ModalitiesPage() {
                           >
                             <Edit2Icon className="size-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setModalityToDeactivate(modality)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                            title="Desactivar modalidad"
-                          >
-                            <Trash2Icon className="size-4" />
-                          </button>
+                          {active ? (
+                            <button
+                              type="button"
+                              onClick={() => setModalityToToggle({ modality, action: 'deactivate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              title="Desactivar modalidad"
+                            >
+                              <PowerOffIcon className="size-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setModalityToToggle({ modality, action: 'activate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              title="Habilitar modalidad"
+                            >
+                              <PowerIcon className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -429,17 +451,21 @@ export function ModalitiesPage() {
         </form>
       </Dialog>
 
-      {/* ConfirmModal para Desactivar Modalidad */}
+      {/* ConfirmModal para Habilitar / Desactivar Modalidad */}
       <ConfirmModal
-        open={Boolean(modalityToDeactivate)}
-        onClose={() => setModalityToDeactivate(null)}
-        onConfirm={() => void handleConfirmDeactivate()}
-        title="¿Desactivar modalidad?"
-        description={`¿Estás seguro de desactivar la modalidad "${modalityToDeactivate?.name}"? Se marcará como inactiva en el sistema.`}
-        confirmLabel="Desactivar modalidad"
+        open={Boolean(modalityToToggle)}
+        onClose={() => setModalityToToggle(null)}
+        onConfirm={() => void handleConfirmToggle()}
+        title={modalityToToggle?.action === 'activate' ? '¿Habilitar modalidad?' : '¿Desactivar modalidad?'}
+        description={
+          modalityToToggle?.action === 'activate'
+            ? `¿Deseas habilitar la modalidad "${modalityToToggle?.modality.name}"? Volverá a estar disponible en el sistema.`
+            : `¿Estás seguro de desactivar la modalidad "${modalityToToggle?.modality.name}"? Se marcará como inactiva en el sistema.`
+        }
+        confirmLabel={modalityToToggle?.action === 'activate' ? 'Habilitar modalidad' : 'Desactivar modalidad'}
         cancelLabel="Cancelar"
-        variant="destructive"
-        pending={pending === 'deactivate-modality'}
+        variant={modalityToToggle?.action === 'activate' ? 'default' : 'destructive'}
+        pending={pending === 'toggle-modality'}
       />
     </section>
   )

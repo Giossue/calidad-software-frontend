@@ -38,7 +38,8 @@ type UserForm = {
 }
 
 type UserFormErrors = Partial<Record<keyof UserForm, string>>
-type PendingAction = 'loading' | 'user' | 'deactivate-user' | null
+type PendingAction = 'loading' | 'user' | 'toggle-user' | null
+type ToggleTarget = { user: User; action: 'activate' | 'deactivate' }
 
 type UserFormInput = {
   identification: string
@@ -147,18 +148,21 @@ export function UsersPage() {
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null)
+  const [userToToggle, setUserToToggle] = useState<ToggleTarget | null>(null)
 
   // Filtros de búsqueda
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
 
-  async function loadUsers() {
+  async function loadUsers(options?: { notify?: boolean }) {
     setPageError(null)
     setPending('loading')
     try {
       const userData = await api.listUsers()
       setUsers(userData)
+      if (options?.notify) {
+        toast.success('Usuarios actualizados', { description: 'El listado se actualizó correctamente.' })
+      }
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
     } finally {
@@ -260,15 +264,21 @@ export function UsersPage() {
     }
   }
 
-  async function handleConfirmDeactivate() {
-    if (!userToDeactivate) return
+  async function handleConfirmToggle() {
+    if (!userToToggle) return
 
+    const { user, action } = userToToggle
     setPageError(null)
-    setPending('deactivate-user')
+    setPending('toggle-user')
     try {
-      await api.deactivateUser(userToDeactivate.id)
-      toast.info('Usuario deshabilitado', { description: `Se desactivó la cuenta de ${userToDeactivate.name}.` })
-      setUserToDeactivate(null)
+      if (action === 'activate') {
+        await api.activateUser(user.id)
+        toast.success('Usuario habilitado', { description: `Se habilitó la cuenta de ${user.name}.` })
+      } else {
+        await api.deactivateUser(user.id)
+        toast.info('Usuario deshabilitado', { description: `Se desactivó la cuenta de ${user.name}.` })
+      }
+      setUserToToggle(null)
       await loadUsers()
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
@@ -307,7 +317,7 @@ export function UsersPage() {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => void loadUsers()}
+              onClick={() => void loadUsers({ notify: true })}
               disabled={formDisabled}
             >
               {pending === 'loading' ? (
@@ -542,14 +552,25 @@ export function UsersPage() {
                           >
                             <Edit2Icon className="size-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setUserToDeactivate(user)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                            title="Desactivar usuario"
-                          >
-                            <UserXIcon className="size-4" />
-                          </button>
+                          {active ? (
+                            <button
+                              type="button"
+                              onClick={() => setUserToToggle({ user, action: 'deactivate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              title="Desactivar usuario"
+                            >
+                              <UserXIcon className="size-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setUserToToggle({ user, action: 'activate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              title="Habilitar usuario"
+                            >
+                              <UserCheckIcon className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -726,17 +747,21 @@ export function UsersPage() {
         </form>
       </Dialog>
 
-      {/* ConfirmModal para Desactivar Usuario */}
+      {/* ConfirmModal para Habilitar / Desactivar Usuario */}
       <ConfirmModal
-        open={Boolean(userToDeactivate)}
-        onClose={() => setUserToDeactivate(null)}
-        onConfirm={() => void handleConfirmDeactivate()}
-        title="¿Desactivar cuenta de usuario?"
-        description={`¿Estás seguro de desactivar a "${userToDeactivate?.name}"? Esta persona no podrá acceder al sistema hasta que su cuenta sea reactivada.`}
-        confirmLabel="Desactivar cuenta"
+        open={Boolean(userToToggle)}
+        onClose={() => setUserToToggle(null)}
+        onConfirm={() => void handleConfirmToggle()}
+        title={userToToggle?.action === 'activate' ? '¿Habilitar cuenta de usuario?' : '¿Desactivar cuenta de usuario?'}
+        description={
+          userToToggle?.action === 'activate'
+            ? `¿Deseas habilitar la cuenta de "${userToToggle?.user.name}"? Podrá volver a acceder al sistema.`
+            : `¿Estás seguro de desactivar a "${userToToggle?.user.name}"? Esta persona no podrá acceder al sistema hasta que su cuenta sea reactivada.`
+        }
+        confirmLabel={userToToggle?.action === 'activate' ? 'Habilitar cuenta' : 'Desactivar cuenta'}
         cancelLabel="Cancelar"
-        variant="destructive"
-        pending={pending === 'deactivate-user'}
+        variant={userToToggle?.action === 'activate' ? 'default' : 'destructive'}
+        pending={pending === 'toggle-user'}
       />
     </section>
   )

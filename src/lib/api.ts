@@ -270,6 +270,13 @@ export const api = {
     return response.data
   },
 
+  async activateUser(id: number): Promise<User> {
+    const response = await request<Resource<User>>(`/api/v1/users/${id}/activate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
   async listFaculties(): Promise<readonly Faculty[]> {
     const response = await request<ResourceCollection<Faculty>>('/api/v1/admin/faculties')
     return response.data
@@ -293,6 +300,13 @@ export const api = {
 
   async deactivateFaculty(id: number): Promise<Faculty> {
     const response = await request<Resource<Faculty>>(`/api/v1/faculties/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async activateFaculty(id: number): Promise<Faculty> {
+    const response = await request<Resource<Faculty>>(`/api/v1/faculties/${id}/activate`, {
       method: 'PATCH',
     })
     return response.data
@@ -326,6 +340,13 @@ export const api = {
     return response.data
   },
 
+  async activateCareer(id: number): Promise<Career> {
+    const response = await request<Resource<Career>>(`/api/v1/admin/careers/${id}/activate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
   async listCycles(): Promise<readonly Cycle[]> {
     const response = await request<ResourceCollection<Cycle>>('/api/v1/admin/cycles')
     return response.data
@@ -349,6 +370,13 @@ export const api = {
 
   async deactivateCycle(id: number): Promise<Cycle> {
     const response = await request<Resource<Cycle>>(`/api/v1/admin/cycles/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async activateCycle(id: number): Promise<Cycle> {
+    const response = await request<Resource<Cycle>>(`/api/v1/admin/cycles/${id}/activate`, {
       method: 'PATCH',
     })
     return response.data
@@ -396,6 +424,13 @@ export const api = {
     return response.data
   },
 
+  async activateAcademicPeriod(id: number): Promise<AcademicPeriod> {
+    const response = await request<Resource<AcademicPeriod>>(`/api/v1/admin/academic-periods/${id}/activate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
   async listModalities(page = 1): Promise<PaginatedResourceCollection<Modality>> {
     const query = page > 1 ? `?page=${page}` : ''
     return request<PaginatedResourceCollection<Modality>>(`/api/v1/admin/modalities${query}`)
@@ -425,6 +460,13 @@ export const api = {
 
   async deactivateModality(id: number): Promise<Modality> {
     const response = await request<Resource<Modality>>(`/api/v1/admin/modalities/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async activateModality(id: number): Promise<Modality> {
+    const response = await request<Resource<Modality>>(`/api/v1/admin/modalities/${id}/activate`, {
       method: 'PATCH',
     })
     return response.data

@@ -6,10 +6,11 @@ import {
   CalendarOffIcon,
   Edit2Icon,
   PlusIcon,
+  PowerIcon,
+  PowerOffIcon,
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
-  Trash2Icon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,7 +34,8 @@ type AcademicPeriodForm = {
 }
 
 type AcademicPeriodFormErrors = Partial<Record<keyof AcademicPeriodForm, string>>
-type PendingAction = 'period' | 'deactivate-period' | null
+type PendingAction = 'period' | 'toggle-period' | null
+type ToggleTarget = { period: AcademicPeriod; action: 'activate' | 'deactivate' }
 
 const INITIAL_FORM: AcademicPeriodForm = {
   name: '',
@@ -86,12 +88,12 @@ export function AcademicPeriodsPage() {
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [periodToDeactivate, setPeriodToDeactivate] = useState<AcademicPeriod | null>(null)
+  const [periodToToggle, setPeriodToToggle] = useState<ToggleTarget | null>(null)
 
   // Búsqueda
   const [searchQuery, setSearchQuery] = useState('')
 
-  async function loadPeriods(nextPage = 1) {
+  async function loadPeriods(nextPage = 1, options?: { notify?: boolean }) {
     setPageError(null)
     setIsLoading(true)
     try {
@@ -99,6 +101,9 @@ export function AcademicPeriodsPage() {
       setPeriods(response.data)
       setPage(response.meta?.current_page ?? nextPage)
       setLastPage(response.meta?.last_page ?? nextPage)
+      if (options?.notify) {
+        toast.success('Períodos actualizados', { description: 'El listado se actualizó correctamente.' })
+      }
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
     } finally {
@@ -187,15 +192,21 @@ export function AcademicPeriodsPage() {
     }
   }
 
-  async function handleConfirmDeactivate() {
-    if (!periodToDeactivate || pending !== null || isLoading) return
+  async function handleConfirmToggle() {
+    if (!periodToToggle || pending !== null || isLoading) return
 
+    const { period, action } = periodToToggle
     setPageError(null)
-    setPending('deactivate-period')
+    setPending('toggle-period')
     try {
-      await api.deactivateAcademicPeriod(periodToDeactivate.id)
-      toast.info('Período deshabilitado', { description: `Se desactivó el período "${periodToDeactivate.name}".` })
-      setPeriodToDeactivate(null)
+      if (action === 'activate') {
+        await api.activateAcademicPeriod(period.id)
+        toast.success('Período habilitado', { description: `El período "${period.name}" fue habilitado.` })
+      } else {
+        await api.deactivateAcademicPeriod(period.id)
+        toast.info('Período deshabilitado', { description: `Se desactivó el período "${period.name}".` })
+      }
+      setPeriodToToggle(null)
       await loadPeriods(page)
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
@@ -231,7 +242,7 @@ export function AcademicPeriodsPage() {
         titleId="academic-periods-title"
         actions={
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => void loadPeriods(1)} disabled={busy}>
+            <Button variant="outline" onClick={() => void loadPeriods(1, { notify: true })} disabled={busy}>
               {isLoading ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
@@ -407,14 +418,25 @@ export function AcademicPeriodsPage() {
                           >
                             <Edit2Icon className="size-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setPeriodToDeactivate(period)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                            title="Desactivar período"
-                          >
-                            <Trash2Icon className="size-4" />
-                          </button>
+                          {active ? (
+                            <button
+                              type="button"
+                              onClick={() => setPeriodToToggle({ period, action: 'deactivate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              title="Desactivar período"
+                            >
+                              <PowerOffIcon className="size-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setPeriodToToggle({ period, action: 'activate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              title="Habilitar período"
+                            >
+                              <PowerIcon className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -512,17 +534,21 @@ export function AcademicPeriodsPage() {
         </form>
       </Dialog>
 
-      {/* ConfirmModal para Desactivar Período */}
+      {/* ConfirmModal para Habilitar / Desactivar Período */}
       <ConfirmModal
-        open={Boolean(periodToDeactivate)}
-        onClose={() => setPeriodToDeactivate(null)}
-        onConfirm={() => void handleConfirmDeactivate()}
-        title="¿Desactivar período académico?"
-        description={`¿Estás seguro de desactivar el período "${periodToDeactivate?.name}"? Se marcará como inactivo en el sistema.`}
-        confirmLabel="Desactivar período"
+        open={Boolean(periodToToggle)}
+        onClose={() => setPeriodToToggle(null)}
+        onConfirm={() => void handleConfirmToggle()}
+        title={periodToToggle?.action === 'activate' ? '¿Habilitar período académico?' : '¿Desactivar período académico?'}
+        description={
+          periodToToggle?.action === 'activate'
+            ? `¿Deseas habilitar el período "${periodToToggle?.period.name}"? Volverá a estar disponible en el sistema.`
+            : `¿Estás seguro de desactivar el período "${periodToToggle?.period.name}"? Se marcará como inactivo en el sistema.`
+        }
+        confirmLabel={periodToToggle?.action === 'activate' ? 'Habilitar período' : 'Desactivar período'}
         cancelLabel="Cancelar"
-        variant="destructive"
-        pending={pending === 'deactivate-period'}
+        variant={periodToToggle?.action === 'activate' ? 'default' : 'destructive'}
+        pending={pending === 'toggle-period'}
       />
     </section>
   )

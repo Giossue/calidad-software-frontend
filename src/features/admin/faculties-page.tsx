@@ -4,10 +4,11 @@ import {
   CheckCircle2Icon,
   Edit2Icon,
   PlusIcon,
+  PowerIcon,
+  PowerOffIcon,
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
-  Trash2Icon,
   XCircleIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,7 +26,8 @@ import { ApiError, api, type Faculty } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 type FacultyFormErrors = { name?: string }
-type PendingAction = 'loading' | 'faculty' | 'deactivate-faculty' | null
+type PendingAction = 'loading' | 'faculty' | 'toggle-faculty' | null
+type ToggleTarget = { faculty: Faculty; action: 'activate' | 'deactivate' }
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
@@ -47,17 +49,20 @@ export function FacultiesPage() {
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [facultyToDeactivate, setFacultyToDeactivate] = useState<Faculty | null>(null)
+  const [facultyToToggle, setFacultyToToggle] = useState<ToggleTarget | null>(null)
 
   // Búsqueda
   const [searchQuery, setSearchQuery] = useState('')
 
-  async function loadFaculties() {
+  async function loadFaculties(options?: { notify?: boolean }) {
     setPageError(null)
     setPending('loading')
     try {
       const facultyData = await api.listFaculties()
       setFaculties(facultyData)
+      if (options?.notify) {
+        toast.success('Facultades actualizadas', { description: 'El listado se actualizó correctamente.' })
+      }
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
     } finally {
@@ -134,15 +139,21 @@ export function FacultiesPage() {
     }
   }
 
-  async function handleConfirmDeactivate() {
-    if (!facultyToDeactivate || pending !== null) return
+  async function handleConfirmToggle() {
+    if (!facultyToToggle || pending !== null) return
 
+    const { faculty, action } = facultyToToggle
     setPageError(null)
-    setPending('deactivate-faculty')
+    setPending('toggle-faculty')
     try {
-      await api.deactivateFaculty(facultyToDeactivate.id)
-      toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${facultyToDeactivate.name}".` })
-      setFacultyToDeactivate(null)
+      if (action === 'activate') {
+        await api.activateFaculty(faculty.id)
+        toast.success('Facultad habilitada', { description: `La facultad "${faculty.name}" fue habilitada.` })
+      } else {
+        await api.deactivateFaculty(faculty.id)
+        toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${faculty.name}".` })
+      }
+      setFacultyToToggle(null)
       await loadFaculties()
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
@@ -178,7 +189,7 @@ export function FacultiesPage() {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => void loadFaculties()}
+              onClick={() => void loadFaculties({ notify: true })}
               disabled={formDisabled}
             >
               {pending === 'loading' ? (
@@ -353,14 +364,25 @@ export function FacultiesPage() {
                           >
                             <Edit2Icon className="size-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setFacultyToDeactivate(faculty)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                            title="Desactivar facultad"
-                          >
-                            <Trash2Icon className="size-4" />
-                          </button>
+                          {active ? (
+                            <button
+                              type="button"
+                              onClick={() => setFacultyToToggle({ faculty, action: 'deactivate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              title="Desactivar facultad"
+                            >
+                              <PowerOffIcon className="size-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setFacultyToToggle({ faculty, action: 'activate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              title="Habilitar facultad"
+                            >
+                              <PowerIcon className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -417,17 +439,21 @@ export function FacultiesPage() {
         </form>
       </Dialog>
 
-      {/* ConfirmModal para Desactivar Facultad */}
+      {/* ConfirmModal para Habilitar / Desactivar Facultad */}
       <ConfirmModal
-        open={Boolean(facultyToDeactivate)}
-        onClose={() => setFacultyToDeactivate(null)}
-        onConfirm={() => void handleConfirmDeactivate()}
-        title="¿Desactivar facultad?"
-        description={`¿Estás seguro de desactivar la "${facultyToDeactivate?.name}"? Se marcará como inactiva en el sistema.`}
-        confirmLabel="Desactivar facultad"
+        open={Boolean(facultyToToggle)}
+        onClose={() => setFacultyToToggle(null)}
+        onConfirm={() => void handleConfirmToggle()}
+        title={facultyToToggle?.action === 'activate' ? '¿Habilitar facultad?' : '¿Desactivar facultad?'}
+        description={
+          facultyToToggle?.action === 'activate'
+            ? `¿Deseas habilitar la facultad "${facultyToToggle?.faculty.name}"? Volverá a estar disponible en el sistema.`
+            : `¿Estás seguro de desactivar la "${facultyToToggle?.faculty.name}"? Se marcará como inactiva en el sistema.`
+        }
+        confirmLabel={facultyToToggle?.action === 'activate' ? 'Habilitar facultad' : 'Desactivar facultad'}
         cancelLabel="Cancelar"
-        variant="destructive"
-        pending={pending === 'deactivate-faculty'}
+        variant={facultyToToggle?.action === 'activate' ? 'default' : 'destructive'}
+        pending={pending === 'toggle-faculty'}
       />
     </section>
   )

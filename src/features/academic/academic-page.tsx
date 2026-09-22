@@ -5,10 +5,11 @@ import {
   Edit2Icon,
   Layers3Icon,
   PlusIcon,
+  PowerIcon,
+  PowerOffIcon,
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
-  Trash2Icon,
   XCircleIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,7 +27,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { ApiError, api, type Career, type Cycle, type Faculty } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-type PendingAction = 'loading' | 'career' | 'cycle' | 'deactivate-career' | 'deactivate-cycle' | null
+type PendingAction = 'loading' | 'career' | 'cycle' | 'toggle-career' | 'toggle-cycle' | null
+type CareerToggleTarget = { career: Career; action: 'activate' | 'deactivate' }
+type CycleToggleTarget = { cycle: Cycle; action: 'activate' | 'deactivate' }
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
@@ -55,13 +58,13 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
   // Modales
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false)
   const [isCycleModalOpen, setIsCycleModalOpen] = useState(false)
-  const [careerToDeactivate, setCareerToDeactivate] = useState<Career | null>(null)
-  const [cycleToDeactivate, setCycleToDeactivate] = useState<Cycle | null>(null)
+  const [careerToToggle, setCareerToToggle] = useState<CareerToggleTarget | null>(null)
+  const [cycleToToggle, setCycleToToggle] = useState<CycleToggleTarget | null>(null)
 
   // Búsqueda
   const [searchQuery, setSearchQuery] = useState('')
 
-  async function loadCatalogs() {
+  async function loadCatalogs(options?: { notify?: boolean }) {
     setPageError(null)
     setPending('loading')
     try {
@@ -73,6 +76,9 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
       setFaculties(facultyData)
       setCareers(careerData)
       setCycles(cycleData)
+      if (options?.notify) {
+        toast.success('Catálogo actualizado', { description: 'El listado se actualizó correctamente.' })
+      }
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
     } finally {
@@ -180,14 +186,20 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     }
   }
 
-  async function handleConfirmDeactivateCareer() {
-    if (!careerToDeactivate) return
-    setPending('deactivate-career')
+  async function handleConfirmToggleCareer() {
+    if (!careerToToggle) return
+    const { career, action } = careerToToggle
+    setPending('toggle-career')
     setPageError(null)
     try {
-      await api.deactivateCareer(careerToDeactivate.id)
-      toast.info('Carrera deshabilitada', { description: `Se desactivó la carrera "${careerToDeactivate.name}".` })
-      setCareerToDeactivate(null)
+      if (action === 'activate') {
+        await api.activateCareer(career.id)
+        toast.success('Carrera habilitada', { description: `La carrera "${career.name}" fue habilitada.` })
+      } else {
+        await api.deactivateCareer(career.id)
+        toast.info('Carrera deshabilitada', { description: `Se desactivó la carrera "${career.name}".` })
+      }
+      setCareerToToggle(null)
       await loadCatalogs()
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
@@ -196,14 +208,20 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     }
   }
 
-  async function handleConfirmDeactivateCycle() {
-    if (!cycleToDeactivate) return
-    setPending('deactivate-cycle')
+  async function handleConfirmToggleCycle() {
+    if (!cycleToToggle) return
+    const { cycle, action } = cycleToToggle
+    setPending('toggle-cycle')
     setPageError(null)
     try {
-      await api.deactivateCycle(cycleToDeactivate.id)
-      toast.info('Ciclo deshabilitado', { description: `Se desactivó el ciclo "${cycleToDeactivate.name}".` })
-      setCycleToDeactivate(null)
+      if (action === 'activate') {
+        await api.activateCycle(cycle.id)
+        toast.success('Ciclo habilitado', { description: `El ciclo "${cycle.name}" fue habilitado.` })
+      } else {
+        await api.deactivateCycle(cycle.id)
+        toast.info('Ciclo deshabilitado', { description: `Se desactivó el ciclo "${cycle.name}".` })
+      }
+      setCycleToToggle(null)
       await loadCatalogs()
     } catch (error: unknown) {
       setPageError(getErrorMessage(error))
@@ -251,7 +269,7 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
         eyebrow="Estructura Académica"
         actions={
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => void loadCatalogs()} disabled={pending !== null}>
+            <Button variant="outline" onClick={() => void loadCatalogs({ notify: true })} disabled={pending !== null}>
               {pending === 'loading' ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
@@ -455,14 +473,25 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
                           >
                             <Edit2Icon className="size-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setCareerToDeactivate(career)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                            title="Desactivar carrera"
-                          >
-                            <Trash2Icon className="size-4" />
-                          </button>
+                          {career.status ? (
+                            <button
+                              type="button"
+                              onClick={() => setCareerToToggle({ career, action: 'deactivate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              title="Desactivar carrera"
+                            >
+                              <PowerOffIcon className="size-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setCareerToToggle({ career, action: 'activate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              title="Habilitar carrera"
+                            >
+                              <PowerIcon className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -562,14 +591,25 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
                           >
                             <Edit2Icon className="size-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setCycleToDeactivate(cycle)}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                            title="Desactivar ciclo"
-                          >
-                            <Trash2Icon className="size-4" />
-                          </button>
+                          {cycle.status ? (
+                            <button
+                              type="button"
+                              onClick={() => setCycleToToggle({ cycle, action: 'deactivate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              title="Desactivar ciclo"
+                            >
+                              <PowerOffIcon className="size-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setCycleToToggle({ cycle, action: 'activate' })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              title="Habilitar ciclo"
+                            >
+                              <PowerIcon className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -709,29 +749,37 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
         </form>
       </Dialog>
 
-      {/* ConfirmModals para Desactivar Carrera / Ciclo */}
+      {/* ConfirmModals para Habilitar / Desactivar Carrera / Ciclo */}
       <ConfirmModal
-        open={Boolean(careerToDeactivate)}
-        onClose={() => setCareerToDeactivate(null)}
-        onConfirm={() => void handleConfirmDeactivateCareer()}
-        title="¿Desactivar carrera?"
-        description={`¿Estás seguro de desactivar la carrera "${careerToDeactivate?.name}"?`}
-        confirmLabel="Desactivar carrera"
+        open={Boolean(careerToToggle)}
+        onClose={() => setCareerToToggle(null)}
+        onConfirm={() => void handleConfirmToggleCareer()}
+        title={careerToToggle?.action === 'activate' ? '¿Habilitar carrera?' : '¿Desactivar carrera?'}
+        description={
+          careerToToggle?.action === 'activate'
+            ? `¿Deseas habilitar la carrera "${careerToToggle?.career.name}"? Volverá a estar disponible en el sistema.`
+            : `¿Estás seguro de desactivar la carrera "${careerToToggle?.career.name}"?`
+        }
+        confirmLabel={careerToToggle?.action === 'activate' ? 'Habilitar carrera' : 'Desactivar carrera'}
         cancelLabel="Cancelar"
-        variant="destructive"
-        pending={pending === 'deactivate-career'}
+        variant={careerToToggle?.action === 'activate' ? 'default' : 'destructive'}
+        pending={pending === 'toggle-career'}
       />
 
       <ConfirmModal
-        open={Boolean(cycleToDeactivate)}
-        onClose={() => setCycleToDeactivate(null)}
-        onConfirm={() => void handleConfirmDeactivateCycle()}
-        title="¿Desactivar ciclo?"
-        description={`¿Estás seguro de desactivar el ciclo "${cycleToDeactivate?.name}"?`}
-        confirmLabel="Desactivar ciclo"
+        open={Boolean(cycleToToggle)}
+        onClose={() => setCycleToToggle(null)}
+        onConfirm={() => void handleConfirmToggleCycle()}
+        title={cycleToToggle?.action === 'activate' ? '¿Habilitar ciclo?' : '¿Desactivar ciclo?'}
+        description={
+          cycleToToggle?.action === 'activate'
+            ? `¿Deseas habilitar el ciclo "${cycleToToggle?.cycle.name}"? Volverá a estar disponible en el sistema.`
+            : `¿Estás seguro de desactivar el ciclo "${cycleToToggle?.cycle.name}"?`
+        }
+        confirmLabel={cycleToToggle?.action === 'activate' ? 'Habilitar ciclo' : 'Desactivar ciclo'}
         cancelLabel="Cancelar"
-        variant="destructive"
-        pending={pending === 'deactivate-cycle'}
+        variant={cycleToToggle?.action === 'activate' ? 'default' : 'destructive'}
+        pending={pending === 'toggle-cycle'}
       />
     </section>
   )
