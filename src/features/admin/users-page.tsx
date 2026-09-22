@@ -12,6 +12,7 @@ import {
   UsersIcon,
   UserXIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -23,7 +24,6 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
-import { showToast } from '@/components/ui/toast-system'
 import { ApiError, api, type User } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -243,14 +243,12 @@ export function UsersPage() {
           input.password_confirmation = userForm.password_confirmation
         }
         await api.updateUser(editingUser.id, input)
-        showToast('success', 'Usuario actualizado', `Los datos de ${baseInput.name} fueron modificados.`)
+        toast.success('Usuario actualizado', { description: `Los datos de ${baseInput.name} fueron modificados.` })
       } else {
         await api.createUser(baseInput)
-        showToast(
-          'success',
-          'Usuario registrado',
-          `Se creó la cuenta de ${baseInput.name} y se le envió su contraseña provisional por correo.`,
-        )
+        toast.success('Usuario registrado', {
+          description: `Se creó la cuenta de ${baseInput.name} y se le envió su contraseña provisional por correo.`,
+        })
       }
 
       closeModal()
@@ -269,7 +267,7 @@ export function UsersPage() {
     setPending('deactivate-user')
     try {
       await api.deactivateUser(userToDeactivate.id)
-      showToast('info', 'Usuario deshabilitado', `Se desactivó la cuenta de ${userToDeactivate.name}.`)
+      toast.info('Usuario deshabilitado', { description: `Se desactivó la cuenta de ${userToDeactivate.name}.` })
       setUserToDeactivate(null)
       await loadUsers()
     } catch (error: unknown) {
@@ -631,7 +629,7 @@ export function UsersPage() {
                 value={userForm.email}
                 onChange={(e) => updateUserField('email', e.target.value)}
                 maxLength={150}
-                placeholder="nombre@universidad.edu.ec"
+                placeholder="nombre@ueb.edu.ec"
                 disabled={formDisabled}
                 required
               />

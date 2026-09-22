@@ -62,7 +62,7 @@ export function LoginPage() {
                 name="email"
                 type="email"
                 autoComplete="email"
-                placeholder="nombre@universidad.edu.ec"
+                placeholder="nombre@ueb.edu.ec"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 aria-invalid={Boolean(error)}

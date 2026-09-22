@@ -11,6 +11,7 @@ import {
   Trash2Icon,
   XCircleIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -22,7 +23,6 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
-import { showToast } from '@/components/ui/toast-system'
 import { ApiError, api, type Career, type Cycle, type Faculty } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -144,10 +144,10 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
       const input = { faculty_id: Number(careerFacultyId), name: careerName.trim() }
       if (editingCareer) {
         await api.updateCareer(editingCareer.id, input)
-        showToast('success', 'Carrera actualizada', `La carrera "${input.name}" fue modificada.`)
+        toast.success('Carrera actualizada', { description: `La carrera "${input.name}" fue modificada.` })
       } else {
         await api.createCareer(input)
-        showToast('success', 'Carrera creada', `La carrera "${input.name}" ha sido agregada.`)
+        toast.success('Carrera creada', { description: `La carrera "${input.name}" ha sido agregada.` })
       }
       closeCareerModal()
       await loadCatalogs()
@@ -166,10 +166,10 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
       const input = { career_id: Number(cycleCareerId), name: cycleName.trim(), number: Number(cycleNumber) }
       if (editingCycle) {
         await api.updateCycle(editingCycle.id, input)
-        showToast('success', 'Ciclo actualizado', `El ciclo "${input.name}" fue modificado.`)
+        toast.success('Ciclo actualizado', { description: `El ciclo "${input.name}" fue modificado.` })
       } else {
         await api.createCycle(input)
-        showToast('success', 'Ciclo creado', `El ciclo "${input.name}" fue registrado.`)
+        toast.success('Ciclo creado', { description: `El ciclo "${input.name}" fue registrado.` })
       }
       closeCycleModal()
       await loadCatalogs()
@@ -186,7 +186,7 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     setPageError(null)
     try {
       await api.deactivateCareer(careerToDeactivate.id)
-      showToast('info', 'Carrera deshabilitada', `Se desactivó la carrera "${careerToDeactivate.name}".`)
+      toast.info('Carrera deshabilitada', { description: `Se desactivó la carrera "${careerToDeactivate.name}".` })
       setCareerToDeactivate(null)
       await loadCatalogs()
     } catch (error: unknown) {
@@ -202,7 +202,7 @@ export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicS
     setPageError(null)
     try {
       await api.deactivateCycle(cycleToDeactivate.id)
-      showToast('info', 'Ciclo deshabilitado', `Se desactivó el ciclo "${cycleToDeactivate.name}".`)
+      toast.info('Ciclo deshabilitado', { description: `Se desactivó el ciclo "${cycleToDeactivate.name}".` })
       setCycleToDeactivate(null)
       await loadCatalogs()
     } catch (error: unknown) {

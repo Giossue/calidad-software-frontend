@@ -11,6 +11,7 @@ import {
   ShieldAlertIcon,
   Trash2Icon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -22,7 +23,6 @@ import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { showToast } from '@/components/ui/toast-system'
 import { ApiError, api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -172,10 +172,10 @@ export function AcademicPeriodsPage() {
 
       if (editingPeriod) {
         await api.updateAcademicPeriod(editingPeriod.id, input)
-        showToast('success', 'Período actualizado', `El período "${input.name}" fue modificado exitosamente.`)
+        toast.success('Período actualizado', { description: `El período "${input.name}" fue modificado exitosamente.` })
       } else {
         await api.createAcademicPeriod(input)
-        showToast('success', 'Período creado', `El período "${input.name}" ha sido registrado en el catálogo.`)
+        toast.success('Período creado', { description: `El período "${input.name}" ha sido registrado en el catálogo.` })
       }
 
       closeModal()
@@ -194,7 +194,7 @@ export function AcademicPeriodsPage() {
     setPending('deactivate-period')
     try {
       await api.deactivateAcademicPeriod(periodToDeactivate.id)
-      showToast('info', 'Período deshabilitado', `Se desactivó el período "${periodToDeactivate.name}".`)
+      toast.info('Período deshabilitado', { description: `Se desactivó el período "${periodToDeactivate.name}".` })
       setPeriodToDeactivate(null)
       await loadPeriods(page)
     } catch (error: unknown) {

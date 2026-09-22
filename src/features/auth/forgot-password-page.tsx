@@ -36,7 +36,7 @@ export function ForgotPasswordPage() {
         <FieldGroup>
           <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
-            <Input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error)} required />
+            <Input id="email" type="email" autoComplete="email" placeholder="nombre@ueb.edu.ec" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={Boolean(error)} required />
           </Field>
           <Button type="submit" disabled={pending} className="w-full">
             {pending && <Spinner data-icon="inline-start" />}

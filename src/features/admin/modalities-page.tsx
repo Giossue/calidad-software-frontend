@@ -10,6 +10,7 @@ import {
   Trash2Icon,
   XCircleIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -21,7 +22,6 @@ import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { showToast } from '@/components/ui/toast-system'
 import { ApiError, api, type Modality, type ModalityInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -128,10 +128,10 @@ export function ModalitiesPage() {
       const input: ModalityInput = { name: trimmedName }
       if (editingModality) {
         await api.updateModality(editingModality.id, input)
-        showToast('success', 'Modalidad actualizada', `La modalidad "${trimmedName}" fue modificada.`)
+        toast.success('Modalidad actualizada', { description: `La modalidad "${trimmedName}" fue modificada.` })
       } else {
         await api.createModality(input)
-        showToast('success', 'Modalidad creada', `La modalidad "${trimmedName}" ha sido registrada.`)
+        toast.success('Modalidad creada', { description: `La modalidad "${trimmedName}" ha sido registrada.` })
       }
 
       closeModal()
@@ -150,7 +150,7 @@ export function ModalitiesPage() {
     setPending('deactivate-modality')
     try {
       await api.deactivateModality(modalityToDeactivate.id)
-      showToast('info', 'Modalidad deshabilitada', `Se desactivó la modalidad "${modalityToDeactivate.name}".`)
+      toast.info('Modalidad deshabilitada', { description: `Se desactivó la modalidad "${modalityToDeactivate.name}".` })
       setModalityToDeactivate(null)
       await loadModalities(page)
     } catch (error: unknown) {

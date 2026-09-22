@@ -6,10 +6,10 @@ import {
   TypeIcon,
   ZapIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { showToast } from '@/components/ui/toast-system'
 import {
   applyAccessibilitySettings,
   getStoredAccessibility,
@@ -47,7 +47,9 @@ export function AccessibilityModal({
 
   function handleSave() {
     saveAccessibilitySettings(settings)
-    showToast('success', 'Preferencias guardadas', 'Se actualizaron y guardaron los ajustes de accesibilidad del sistema.')
+    toast.success('Preferencias guardadas', {
+      description: 'Se actualizaron y guardaron los ajustes de accesibilidad del sistema.',
+    })
     onClose()
   }
 

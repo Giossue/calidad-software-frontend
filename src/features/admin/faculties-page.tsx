@@ -10,6 +10,7 @@ import {
   Trash2Icon,
   XCircleIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -20,7 +21,6 @@ import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { showToast } from '@/components/ui/toast-system'
 import { ApiError, api, type Faculty } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -120,10 +120,10 @@ export function FacultiesPage() {
     try {
       if (editingFaculty) {
         await api.updateFaculty(editingFaculty.id, { name: normalizedName })
-        showToast('success', 'Facultad actualizada', `La facultad "${normalizedName}" fue modificada.`)
+        toast.success('Facultad actualizada', { description: `La facultad "${normalizedName}" fue modificada.` })
       } else {
         await api.createFaculty({ name: normalizedName })
-        showToast('success', 'Facultad creada', `La facultad "${normalizedName}" ha sido agregada.`)
+        toast.success('Facultad creada', { description: `La facultad "${normalizedName}" ha sido agregada.` })
       }
       closeModal()
       await loadFaculties()
@@ -141,7 +141,7 @@ export function FacultiesPage() {
     setPending('deactivate-faculty')
     try {
       await api.deactivateFaculty(facultyToDeactivate.id)
-      showToast('info', 'Facultad deshabilitada', `Se desactivó la facultad "${facultyToDeactivate.name}".`)
+      toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${facultyToDeactivate.name}".` })
       setFacultyToDeactivate(null)
       await loadFaculties()
     } catch (error: unknown) {
