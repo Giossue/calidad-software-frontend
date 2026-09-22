@@ -6,39 +6,85 @@ interface AuthShellProps {
 
 export function AuthShell({ title, description, children }: AuthShellProps) {
   return (
-    <main className="min-h-svh bg-background p-3 sm:p-5 lg:p-8">
-      <div className="mx-auto grid min-h-[calc(100svh-2rem)] max-w-7xl overflow-hidden rounded-shell border border-border/70 bg-card shadow-shell lg:grid-cols-[1.05fr_0.95fr]">
-        <aside className="relative hidden overflow-hidden bg-brand-blue p-8 text-primary-foreground lg:flex lg:min-h-[720px] lg:flex-col lg:items-start lg:justify-center xl:p-12">
-          <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgb(255_255_255_/_0.08)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_0.08)_1px,transparent_1px)] [background-size:48px_48px]" aria-hidden="true" />
-          <div className="absolute -right-40 -top-40 size-[34rem] rounded-full border border-primary-foreground/10" aria-hidden="true" />
-          <div className="absolute -bottom-56 -left-36 size-[32rem] rounded-full border border-brand-red/25" aria-hidden="true" />
+    <main className="min-h-svh bg-slate-100 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+      <div className="mx-auto grid min-h-[calc(100svh-2rem)] max-w-7xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.1fr_0.9fr]">
 
-          <div className="relative z-10 max-w-xl border-l-4 border-brand-red pl-7 xl:pl-9">
-            <p className="mb-3 text-xs font-semibold tracking-[0.18em] text-brand-red uppercase">Acceso seguro</p>
-            <h1 className="max-w-lg font-display text-5xl leading-[0.98] tracking-[-0.045em] xl:text-7xl">
+        {/* Panel Azul Oscuro (Izquierda) */}
+        <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#0A1224] via-[#0F1E2E] to-[#18283B] p-8 text-white lg:flex lg:min-h-[720px] lg:flex-col lg:items-start lg:justify-between xl:p-14">
+          {/* Luz ambiental radial de fondo */}
+          <div
+            className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(220,38,38,0.18),transparent_50%)] pointer-events-none"
+            aria-hidden="true"
+          />
+          <div
+            className="absolute inset-0 opacity-15 [background-image:linear-gradient(rgb(255_255_255_/_0.1)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255_/_0.1)_1px,transparent_1px)] [background-size:40px_40px] pointer-events-none"
+            aria-hidden="true"
+          />
+          <div
+            className="absolute -right-32 -top-32 size-[32rem] rounded-full border border-white/5 pointer-events-none"
+            aria-hidden="true"
+          />
+
+          {/* Escudo Flotante sin cajas blancas ni fondos cuadrados */}
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-red-600/20 blur-xl pointer-events-none" />
+              <img
+                src="/ueb-logo.png"
+                alt="Escudo de la Universidad Estatal de Bolívar"
+                className="relative z-10 size-24 object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] sm:size-28"
+                width="112"
+                height="112"
+                loading="eager"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold tracking-widest text-slate-300 uppercase">
+                UNIVERSIDAD ESTATAL DE BOLÍVAR
+              </span>
+              <span className="text-[11px] font-medium text-slate-400">
+                Calidad del Software &bull; Grupo 2
+              </span>
+            </div>
+          </div>
+
+          {/* Mensaje Principal de Bienvenida */}
+          <div className="relative z-10 my-auto flex flex-col gap-4 max-w-lg border-l-4 border-red-600 pl-7 xl:pl-9">
+            <span className="text-xs font-bold tracking-[0.2em] text-red-400 uppercase">
+              Plataforma Institucional
+            </span>
+            <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-white xl:text-6xl">
               {title}
             </h1>
-            <p className="mt-6 max-w-md text-base leading-7 text-primary-foreground/70">
+            <p className="text-base leading-relaxed text-slate-300">
               {description}
             </p>
           </div>
+
+          {/* Footer del Panel */}
+          <div className="relative z-10 text-xs text-slate-400 font-medium">
+            &copy; {new Date().getFullYear()} Universidad Estatal de Bolívar. Todos los derechos reservados.
+          </div>
         </aside>
 
-        <section className="flex items-center px-6 py-10 sm:px-12 lg:px-14 xl:px-20" aria-label="Formulario de autenticación">
-          <div className="mx-auto w-full max-w-md">
-            <img
-              src="/ueb-logo.png"
-              alt="Escudo de la Universidad Estatal de Bolívar"
-              className="mx-auto mb-8 size-28 object-contain sm:size-32 lg:size-36"
-              width="160"
-              height="160"
-              loading="eager"
-            />
-            <header className="mb-8 flex flex-col gap-2 lg:hidden">
-              <p className="text-xs font-semibold tracking-[0.18em] text-brand-red uppercase">Acceso seguro</p>
-              <h1 className="font-display text-4xl leading-tight tracking-[-0.035em] sm:text-5xl">{title}</h1>
-              <p className="max-w-sm text-sm leading-6 text-muted-foreground">{description}</p>
+        {/* Sección del Formulario (Derecha) */}
+        <section className="flex items-center justify-center px-6 py-10 sm:px-12 lg:px-14 xl:px-20" aria-label="Formulario de autenticación">
+          <div className="w-full max-w-md">
+
+            {/* Encabezado del Formulario */}
+            <header className="mb-8 flex flex-col gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/60 dark:text-red-300 w-fit">
+                <span className="size-1.5 rounded-full bg-red-600 animate-pulse" />
+                <span>Acceso Institucional</span>
+              </div>
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl leading-tight">
+                Sistema para el seguimiento de Tutorías y Titulación
+              </h2>
+              <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                UNIVERSIDAD ESTATAL DE BOLÍVAR
+              </p>
             </header>
+
             {children}
           </div>
         </section>

@@ -1,11 +1,14 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
+import { ToastContainer } from '@/components/ui/toast-system'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page'
 import { LoginPage } from '@/features/auth/login-page'
 import { ResetPasswordPage } from '@/features/auth/reset-password-page'
 import { TwoFactorPage } from '@/features/auth/two-factor-page'
 import { VerifyEmailPage } from '@/features/auth/verify-email-page'
+import { applyAccessibilitySettings, getStoredAccessibility } from '@/lib/accessibility'
 import { DashboardPage } from '@/pages/dashboard-page'
 
 function ProtectedDashboard() {
@@ -21,6 +24,10 @@ function GuestRoute({ children }: Readonly<{ children: React.ReactNode }>) {
 }
 
 export default function App() {
+  useEffect(() => {
+    applyAccessibilitySettings(getStoredAccessibility())
+  }, [])
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -33,7 +40,9 @@ export default function App() {
           <Route path="/" element={<ProtectedDashboard />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ToastContainer />
       </AuthProvider>
     </BrowserRouter>
   )
 }
+

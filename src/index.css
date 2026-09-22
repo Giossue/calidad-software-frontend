@@ -101,3 +101,31 @@
     font-family: Arial, Helvetica, sans-serif;
   }
 }
+
+/* Accessibility Utility Styles */
+html.text-scale-large {
+  font-size: 118% !important;
+}
+
+html.high-contrast {
+  filter: contrast(130%) saturate(110%);
+}
+
+html.high-contrast button,
+html.high-contrast input,
+html.high-contrast select,
+html.high-contrast textarea,
+html.high-contrast a {
+  font-weight: 600 !important;
+  outline: 2px solid currentColor !important;
+  outline-offset: 1px;
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
