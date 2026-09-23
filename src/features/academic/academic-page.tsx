@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import {
+  ArrowLeftIcon,
   BookOpenIcon,
   CheckCircle2Icon,
   Edit2Icon,
@@ -35,16 +36,20 @@ function getErrorMessage(error: unknown): string {
   return 'No fue posible conectar con el servidor.'
 }
 
-export type AcademicSection = 'all' | 'careers' | 'cycles'
+export function AcademicPage() {
+  const [selectedCareer, setSelectedCareer] = useState<Career | null>(null)
 
-export function AcademicPage({ section = 'all' }: Readonly<{ section?: AcademicSection }>) {
-  return section === 'cycles' ? <CyclesPage /> : <CareersPage />
+  return selectedCareer ? (
+    <CareerCyclesSection career={selectedCareer} onBack={() => setSelectedCareer(null)} />
+  ) : (
+    <CareersPage onSelectCareer={setSelectedCareer} />
+  )
 }
 
 type CareerPendingAction = 'career' | 'toggle-career' | null
 type CareerToggleTarget = { career: Career; action: 'activate' | 'deactivate' }
 
-function CareersPage() {
+function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Career) => void }>) {
   const fetchCareers = useCallback((page: number, search: string) => api.listCareers({ page, search }), [])
   const {
     data: careers,
@@ -169,7 +174,7 @@ function CareersPage() {
     <section className="flex flex-col gap-8">
       <AdminSectionHeader
         title="Oferta de Carreras"
-        description="Gestiona las carreras profesionales ofertadas por cada facultad."
+        description="Gestiona las carreras profesionales ofertadas por cada facultad. Entra a una carrera para administrar sus ciclos."
         eyebrow="Estructura Académica"
         actions={
           <div className="flex items-center gap-3">
@@ -284,7 +289,14 @@ function CareersPage() {
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                           <BookOpenIcon className="size-4" />
                         </div>
-                        <span>{career.name}</span>
+                        <div className="flex flex-col">
+                          <span>{career.name}</span>
+                          <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                            {career.cycles_count === 0
+                              ? 'Sin ciclos'
+                              : `${career.active_cycles_count} de ${career.cycles_count} ciclo${career.cycles_count === 1 ? '' : 's'} activo${career.active_cycles_count === 1 ? '' : 's'}`}
+                          </span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
@@ -305,6 +317,14 @@ function CareersPage() {
                     </TableCell>
                     <TableCell className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onSelectCareer(career)}
+                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                          title="Ver ciclos de esta carrera"
+                        >
+                          <Layers3Icon className="size-4" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => startCareerEdit(career)}
@@ -425,8 +445,11 @@ function CareersPage() {
 type CyclePendingAction = 'cycle' | 'toggle-cycle' | null
 type CycleToggleTarget = { cycle: Cycle; action: 'activate' | 'deactivate' }
 
-function CyclesPage() {
-  const fetchCycles = useCallback((page: number, search: string) => api.listCycles({ page, search }), [])
+function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBack: () => void }>) {
+  const fetchCycles = useCallback(
+    (page: number, search: string) => api.listCycles({ page, search, careerId: career.id }),
+    [career.id],
+  )
   const {
     data: cycles,
     meta,
@@ -440,20 +463,12 @@ function CyclesPage() {
     reload,
   } = usePaginatedCatalog(fetchCycles)
 
-  const [activeCareers, setActiveCareers] = useState<readonly Career[]>([])
-
-  useEffect(() => {
-    void api.listActiveCareers().then(setActiveCareers)
-  }, [])
-
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState<CyclePendingAction>(null)
 
   const [editingCycle, setEditingCycle] = useState<Cycle | null>(null)
-  const [cycleCareerId, setCycleCareerId] = useState('')
   const [cycleName, setCycleName] = useState('')
   const [cycleNumber, setCycleNumber] = useState('')
-  const [initialCycleCareerId, setInitialCycleCareerId] = useState('')
   const [initialCycleName, setInitialCycleName] = useState('')
   const [initialCycleNumber, setInitialCycleNumber] = useState('')
 
@@ -467,34 +482,27 @@ function CyclesPage() {
 
   function openCreateCycleModal() {
     setEditingCycle(null)
-    setCycleCareerId('')
     setCycleName('')
     setCycleNumber('')
-    setInitialCycleCareerId('')
     setInitialCycleName('')
     setInitialCycleNumber('')
     setFormError(null)
-    void api.listActiveCareers().then(setActiveCareers)
     setIsCycleModalOpen(true)
   }
 
   function startCycleEdit(cycle: Cycle) {
     setEditingCycle(cycle)
-    setCycleCareerId(String(cycle.career_id))
     setCycleName(cycle.name)
     setCycleNumber(String(cycle.number))
-    setInitialCycleCareerId(String(cycle.career_id))
     setInitialCycleName(cycle.name)
     setInitialCycleNumber(String(cycle.number))
     setFormError(null)
-    void api.listActiveCareers().then(setActiveCareers)
     setIsCycleModalOpen(true)
   }
 
   function closeCycleModal() {
     setIsCycleModalOpen(false)
     setEditingCycle(null)
-    setCycleCareerId('')
     setCycleName('')
     setCycleNumber('')
     setFormError(null)
@@ -506,7 +514,7 @@ function CyclesPage() {
     setFormError(null)
     setPending('cycle')
     try {
-      const input = { career_id: Number(cycleCareerId), name: cycleName.trim(), number: Number(cycleNumber) }
+      const input = { career_id: career.id, name: cycleName.trim(), number: Number(cycleNumber) }
       if (editingCycle) {
         await api.updateCycle(editingCycle.id, input)
         toast.success('Ciclo actualizado', { description: `El ciclo "${input.name}" fue modificado.` })
@@ -546,19 +554,27 @@ function CyclesPage() {
   }
 
   const formPending = pending === 'cycle'
-  const isCycleFormDirty =
-    cycleCareerId !== initialCycleCareerId || cycleName !== initialCycleName || cycleNumber !== initialCycleNumber
+  const isCycleFormDirty = cycleName !== initialCycleName || cycleNumber !== initialCycleNumber
 
-  // Métricas KPI (independientes de la página actual y de la búsqueda)
+  // Métricas KPI de esta carrera (independientes de la página actual y de la búsqueda)
   const activeCyclesCount = meta?.active_count ?? 0
   const inactiveCyclesCount = meta?.inactive_count ?? 0
   const totalCycles = activeCyclesCount + inactiveCyclesCount
 
   return (
     <section className="flex flex-col gap-8">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-brand-red dark:text-slate-400"
+      >
+        <ArrowLeftIcon className="size-4" />
+        Volver a Carreras
+      </button>
+
       <AdminSectionHeader
-        title="Niveles y Ciclos"
-        description="Define la estructura de ciclos y semestres dentro de cada carrera."
+        title={`Ciclos de ${career.name}`}
+        description="Define la estructura de ciclos y niveles dentro de esta carrera."
         eyebrow="Estructura Académica"
         actions={
           <div className="flex items-center gap-3">
@@ -623,7 +639,7 @@ function CyclesPage() {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Buscar ciclo por nombre o carrera…"
+              placeholder="Buscar ciclo por nombre…"
               className="pl-10"
             />
           </div>
@@ -639,7 +655,6 @@ function CyclesPage() {
             <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Ciclo Académico</TableHead>
-                <TableHead className="px-5 py-3.5 whitespace-normal">Carrera Asignada</TableHead>
                 <TableHead className="px-5 py-3.5">Orden / Nivel</TableHead>
                 <TableHead className="px-5 py-3.5">Estado</TableHead>
                 <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
@@ -650,7 +665,6 @@ function CyclesPage() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
                     <TableCell className="px-5 py-4"><div className="h-5 w-40 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4"><div className="h-4 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
@@ -658,11 +672,11 @@ function CyclesPage() {
                 ))
               ) : cycles.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
                       <Layers3Icon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
-                        {searchInput ? 'No se encontraron ciclos con el término buscado.' : 'Todavía no hay ciclos registrados.'}
+                        {searchInput ? 'No se encontraron ciclos con el término buscado.' : 'Todavía no hay ciclos registrados para esta carrera.'}
                       </span>
                     </div>
                   </TableCell>
@@ -677,9 +691,6 @@ function CyclesPage() {
                         </div>
                         <span>{cycle.name}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
-                      {cycle.career_name ?? `Carrera #${cycle.career_id}`}
                     </TableCell>
                     <TableCell className="px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200">
                       Nivel {cycle.number}
@@ -743,28 +754,17 @@ function CyclesPage() {
         open={isCycleModalOpen}
         onClose={closeCycleModal}
         title={editingCycle ? 'Editar Ciclo Académico' : 'Registrar Ciclo Académico'}
-        description={editingCycle ? 'Actualiza los datos del ciclo académico.' : 'Asigna el nuevo ciclo a una carrera profesional activa.'}
+        description={editingCycle ? 'Actualiza los datos del ciclo académico.' : `Se asignará a la carrera "${career.name}".`}
         maxWidth="max-w-md"
         confirmClose={isCycleFormDirty}
       >
         <form onSubmit={submitCycle}>
           <FieldGroup className="gap-5">
             <Field>
-              <FieldLabel htmlFor="cycle-career">Carrera Profesional</FieldLabel>
-              <NativeSelect
-                id="cycle-career"
-                value={cycleCareerId}
-                onChange={(e) => setCycleCareerId(e.target.value)}
-                disabled={formPending}
-                required
-              >
-                <option value="">Selecciona una carrera</option>
-                {activeCareers.map((career) => (
-                  <option key={career.id} value={career.id}>
-                    {career.name}
-                  </option>
-                ))}
-              </NativeSelect>
+              <FieldLabel>Carrera Profesional</FieldLabel>
+              <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                {career.name}
+              </div>
             </Field>
 
             <div className="grid gap-5 sm:grid-cols-[1fr_7rem]">

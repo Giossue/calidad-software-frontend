@@ -28,6 +28,8 @@ export interface Career {
   readonly faculty_name?: string
   readonly name: string
   readonly status: boolean
+  readonly cycles_count: number
+  readonly active_cycles_count: number
 }
 
 export interface Cycle {
@@ -343,11 +345,6 @@ export const api = {
     return request<PaginatedResourceCollection<Career>>(`/api/v1/admin/careers${query}`)
   },
 
-  async listActiveCareers(): Promise<readonly Career[]> {
-    const response = await request<ResourceCollection<Career>>('/api/v1/admin/careers?all=1')
-    return response.data
-  },
-
   async createCareer(input: CareerInput): Promise<Career> {
     const response = await request<Resource<Career>>('/api/v1/admin/careers', {
       method: 'POST',
@@ -378,8 +375,8 @@ export const api = {
     return response.data
   },
 
-  async listCycles(params?: ListParams): Promise<PaginatedResourceCollection<Cycle>> {
-    const query = buildQuery({ page: params?.page, search: params?.search })
+  async listCycles(params?: ListParams & { careerId?: number }): Promise<PaginatedResourceCollection<Cycle>> {
+    const query = buildQuery({ page: params?.page, search: params?.search, career_id: params?.careerId })
     return request<PaginatedResourceCollection<Cycle>>(`/api/v1/admin/cycles${query}`)
   },
 

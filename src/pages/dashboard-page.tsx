@@ -33,7 +33,6 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'periods', label: 'Períodos Académicos', icon: CalendarDaysIcon },
   { id: 'faculties', label: 'Facultades', icon: Building2Icon },
   { id: 'careers', label: 'Carreras', icon: BookOpenIcon },
-  { id: 'cycles', label: 'Ciclos', icon: Layers3Icon },
   { id: 'modalities', label: 'Modalidades', icon: SlidersIcon },
 ]
 

@@ -4,7 +4,6 @@ import {
   Building2Icon,
   CalendarDaysIcon,
   CheckCircle2Icon,
-  Layers3Icon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react'
@@ -18,7 +17,7 @@ import { FacultiesPage } from './faculties-page'
 import { ModalitiesPage } from './modalities-page'
 import { UsersPage } from './users-page'
 
-export type AdminSection = 'users' | 'periods' | 'faculties' | 'careers' | 'cycles' | 'modalities'
+export type AdminSection = 'users' | 'periods' | 'faculties' | 'careers' | 'modalities'
 
 export type AdminTab = {
   readonly id: AdminSection
@@ -31,8 +30,7 @@ export const ADMIN_TABS: readonly AdminTab[] = [
   { id: 'users', label: 'Usuarios', description: 'Cuentas y roles', icon: UsersIcon },
   { id: 'periods', label: 'Períodos Académicos', description: 'Calendario académico', icon: CalendarDaysIcon },
   { id: 'faculties', label: 'Facultades', description: 'Estructura institucional', icon: Building2Icon },
-  { id: 'careers', label: 'Carreras', description: 'Oferta académica', icon: BookOpenIcon },
-  { id: 'cycles', label: 'Ciclos', description: 'Niveles por carrera', icon: Layers3Icon },
+  { id: 'careers', label: 'Carreras', description: 'Oferta académica y ciclos', icon: BookOpenIcon },
   { id: 'modalities', label: 'Modalidades', description: 'Formas de estudio', icon: CheckCircle2Icon },
 ]
 
@@ -93,9 +91,7 @@ export function AdminSectionContent({ section }: Readonly<{ section: AdminSectio
     case 'faculties':
       return <FacultiesPage />
     case 'careers':
-      return <AcademicPage section="careers" />
-    case 'cycles':
-      return <AcademicPage section="cycles" />
+      return <AcademicPage />
     case 'periods':
       return <AcademicPeriodsPage />
     case 'modalities':
