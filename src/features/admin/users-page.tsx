@@ -92,6 +92,14 @@ function sanitizeName(value: string, maxLength: number): string {
   return value.replace(/[^\p{L}\s]/gu, '').slice(0, maxLength)
 }
 
+function getPasswordRequirementHint(password: string): string | null {
+  if (password.length < 8) return 'Debe tener al menos 8 caracteres.'
+  if (!/[a-z]/.test(password)) return 'Debe incluir al menos una minúscula.'
+  if (!/[A-Z]/.test(password)) return 'Debe incluir al menos una mayúscula.'
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Debe incluir al menos un carácter especial.'
+  return null
+}
+
 function getRoleLabel(role: string): string {
   return ROLE_OPTIONS.find((option) => option.value === role)?.label ?? role
 }
@@ -146,7 +154,8 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
   if (!isRole(form.role)) errors.role = 'Selecciona un rol válido.'
 
   if (editing && form.password) {
-    if (form.password.length < 8) errors.password = 'La contraseña debe tener al menos 8 caracteres.'
+    const passwordHint = getPasswordRequirementHint(form.password)
+    if (passwordHint) errors.password = passwordHint
     if (form.password !== form.password_confirmation) {
       errors.password_confirmation = 'Las contraseñas no coinciden.'
     }
@@ -757,9 +766,11 @@ export function UsersPage() {
                     placeholder="Mínimo 8 caracteres"
                     disabled={formDisabled}
                   />
-                  <FieldDescription>
-                    Déjala vacía si no deseas modificar la contraseña del usuario.
-                  </FieldDescription>
+                  {userForm.password && getPasswordRequirementHint(userForm.password) && (
+                    <FieldDescription className="text-xs">
+                      {getPasswordRequirementHint(userForm.password)}
+                    </FieldDescription>
+                  )}
                   <FieldError>{userErrors.password}</FieldError>
                 </Field>
 
