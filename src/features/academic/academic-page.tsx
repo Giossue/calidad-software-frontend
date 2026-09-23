@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import {
   ArrowLeftIcon,
   BookOpenIcon,
-  CheckCircle2Icon,
   Edit2Icon,
   Layers3Icon,
   PlusIcon,
@@ -11,7 +10,6 @@ import {
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
-  XCircleIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -19,21 +17,48 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { ApiError, api, type Career, type Cycle, type Faculty, type Modality } from '@/lib/api'
+import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
   return 'No fue posible conectar con el servidor.'
+}
+
+type CareerFormErrors = { facultyId?: string; name?: string }
+
+function validateCareerForm(facultyId: string, name: string): CareerFormErrors {
+  const errors: CareerFormErrors = {}
+  if (!facultyId) errors.facultyId = 'Selecciona una facultad.'
+
+  const trimmedName = name.trim()
+  if (!trimmedName) errors.name = 'El nombre de la carrera es obligatorio.'
+  else if (trimmedName.length > 150) errors.name = 'El nombre no puede superar 150 caracteres.'
+
+  return errors
+}
+
+type CycleFormErrors = { name?: string; number?: string }
+
+function validateCycleForm(name: string, number: string): CycleFormErrors {
+  const errors: CycleFormErrors = {}
+  const trimmedName = name.trim()
+  if (!trimmedName) errors.name = 'El nombre del ciclo es obligatorio.'
+  else if (trimmedName.length > 100) errors.name = 'El nombre no puede superar 100 caracteres.'
+
+  if (!number) errors.number = 'El número del ciclo es obligatorio.'
+  else if (Number(number) < 1) errors.number = 'El número debe ser mayor o igual a 1.'
+
+  return errors
 }
 
 export function AcademicPage() {
@@ -78,6 +103,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   }, [])
 
   const [formError, setFormError] = useState<string | null>(null)
+  const [careerErrors, setCareerErrors] = useState<CareerFormErrors>({})
   const [pending, setPending] = useState<CareerPendingAction>(null)
 
   const [editingCareer, setEditingCareer] = useState<Career | null>(null)
@@ -90,6 +116,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
 
   const [isAddingModality, setIsAddingModality] = useState(false)
   const [newModalityName, setNewModalityName] = useState('')
+  const [modalityNameError, setModalityNameError] = useState<string | null>(null)
   const [creatingModality, setCreatingModality] = useState(false)
 
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false)
@@ -110,7 +137,9 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setInitialCareerModalityId('')
     setIsAddingModality(false)
     setNewModalityName('')
+    setModalityNameError(null)
     setFormError(null)
+    setCareerErrors({})
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
     setIsCareerModalOpen(true)
@@ -126,7 +155,9 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setInitialCareerModalityId(career.modality_id ? String(career.modality_id) : '')
     setIsAddingModality(false)
     setNewModalityName('')
+    setModalityNameError(null)
     setFormError(null)
+    setCareerErrors({})
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
     setIsCareerModalOpen(true)
@@ -140,12 +171,20 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setCareerModalityId('')
     setIsAddingModality(false)
     setNewModalityName('')
+    setModalityNameError(null)
     setFormError(null)
+    setCareerErrors({})
   }
 
   async function handleCreateModality() {
     const trimmedName = newModalityName.trim()
-    if (!trimmedName || creatingModality) return
+    if (!trimmedName) {
+      setModalityNameError('El nombre de la modalidad es obligatorio.')
+      return
+    }
+    if (creatingModality) return
+
+    setModalityNameError(null)
     setCreatingModality(true)
     try {
       const created = await api.createModality({ name: trimmedName })
@@ -155,7 +194,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       setNewModalityName('')
       toast.success('Modalidad creada', { description: `Se agregó "${created.name}" al catálogo de modalidades.` })
     } catch (error: unknown) {
-      toast.error('No se pudo crear la modalidad', { description: getErrorMessage(error) })
+      setModalityNameError(getErrorMessage(error))
     } finally {
       setCreatingModality(false)
     }
@@ -164,6 +203,14 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   async function submitCareer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (pending !== null) return
+
+    const errors = validateCareerForm(careerFacultyId, careerName)
+    setCareerErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      setFormError('Revisa los campos marcados antes de guardar.')
+      return
+    }
+
     setFormError(null)
     setPending('career')
     try {
@@ -216,11 +263,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     || careerName !== initialCareerName
     || careerModalityId !== initialCareerModalityId
 
-  // Métricas KPI (independientes de la página actual y de la búsqueda)
-  const activeCareersCount = meta?.active_count ?? 0
-  const inactiveCareersCount = meta?.inactive_count ?? 0
-  const totalCareers = activeCareersCount + inactiveCareersCount
-
   return (
     <section className="flex flex-col gap-8">
       <AdminSectionHeader
@@ -249,39 +291,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         </Alert>
       )}
 
-      {/* Tarjetas KPI de Estadísticas */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <BookOpenIcon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Carreras</span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{totalCareers}</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-            <CheckCircle2Icon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Carreras Activas</span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{activeCareersCount}</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-            <XCircleIcon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Inactivas</span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{inactiveCareersCount}</span>
-          </div>
-        </Card>
-      </div>
-
       {/* Tabla de Carreras */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between">
@@ -295,6 +304,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
             />
           </div>
         </div>
+
+        <p className="text-sm text-muted-foreground">
+          Mostrando {careers.length} de {meta?.total ?? 0} carreras
+        </p>
 
         <div
           className={cn(
@@ -431,12 +444,15 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       >
         <form onSubmit={submitCareer}>
           <FieldGroup className="gap-5">
-            <Field>
+            <Field data-invalid={Boolean(careerErrors.facultyId)}>
               <FieldLabel htmlFor="career-faculty">Facultad Perteneciente</FieldLabel>
               <NativeSelect
                 id="career-faculty"
                 value={careerFacultyId}
-                onChange={(e) => setCareerFacultyId(e.target.value)}
+                onChange={(e) => {
+                  setCareerFacultyId(e.target.value)
+                  setCareerErrors((current) => ({ ...current, facultyId: undefined }))
+                }}
                 disabled={formPending}
                 required
               >
@@ -447,16 +463,24 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                   </option>
                 ))}
               </NativeSelect>
+              <FieldError>{careerErrors.facultyId}</FieldError>
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="career-modality">Modalidad</FieldLabel>
+            <Field data-invalid={Boolean(modalityNameError)}>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="career-modality">Modalidad</FieldLabel>
+                {isAddingModality && <FieldCounter current={newModalityName.length} max={100} />}
+              </div>
               {isAddingModality ? (
                 <div className="flex items-center gap-2">
                   <Input
                     value={newModalityName}
-                    onChange={(e) => setNewModalityName(e.target.value)}
+                    onChange={(e) => {
+                      setNewModalityName(sanitizeLetters(e.target.value, 100))
+                      setModalityNameError(null)
+                    }}
                     placeholder="Ej. Semipresencial"
+                    maxLength={100}
                     disabled={creatingModality}
                     autoFocus
                   />
@@ -475,6 +499,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                     onClick={() => {
                       setIsAddingModality(false)
                       setNewModalityName('')
+                      setModalityNameError(null)
                     }}
                     disabled={creatingModality}
                     className="shrink-0"
@@ -510,21 +535,31 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                   </Button>
                 </div>
               )}
-              <FieldDescription className="text-xs">Si no existe, créala con el botón "+".</FieldDescription>
+              {modalityNameError ? (
+                <FieldError>{modalityNameError}</FieldError>
+              ) : (
+                !isAddingModality && <FieldDescription className="text-xs">Si no existe, créala con el botón "+".</FieldDescription>
+              )}
             </Field>
 
-            <Field>
-              <FieldLabel htmlFor="career-name">Nombre de la carrera</FieldLabel>
+            <Field data-invalid={Boolean(careerErrors.name)}>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="career-name">Nombre de la carrera</FieldLabel>
+                <FieldCounter current={careerName.length} max={150} />
+              </div>
               <Input
                 id="career-name"
                 value={careerName}
-                onChange={(e) => setCareerName(e.target.value)}
+                onChange={(e) => {
+                  setCareerName(sanitizeLetters(e.target.value, 150))
+                  setCareerErrors((current) => ({ ...current, name: undefined }))
+                }}
                 placeholder="Ej. Ingeniería en Software"
                 disabled={formPending}
                 maxLength={150}
                 required
               />
-              <FieldDescription>Hasta 150 caracteres.</FieldDescription>
+              <FieldError>{careerErrors.name}</FieldError>
             </Field>
 
             <FieldError>{formError}</FieldError>
@@ -584,6 +619,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   } = usePaginatedCatalog(fetchCycles)
 
   const [formError, setFormError] = useState<string | null>(null)
+  const [cycleErrors, setCycleErrors] = useState<CycleFormErrors>({})
   const [pending, setPending] = useState<CyclePendingAction>(null)
 
   const [editingCycle, setEditingCycle] = useState<Cycle | null>(null)
@@ -607,6 +643,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setInitialCycleName('')
     setInitialCycleNumber('')
     setFormError(null)
+    setCycleErrors({})
     setIsCycleModalOpen(true)
   }
 
@@ -617,6 +654,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setInitialCycleName(cycle.name)
     setInitialCycleNumber(String(cycle.number))
     setFormError(null)
+    setCycleErrors({})
     setIsCycleModalOpen(true)
   }
 
@@ -626,11 +664,20 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setCycleName('')
     setCycleNumber('')
     setFormError(null)
+    setCycleErrors({})
   }
 
   async function submitCycle(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (pending !== null) return
+
+    const errors = validateCycleForm(cycleName, cycleNumber)
+    setCycleErrors(errors)
+    if (Object.keys(errors).length > 0) {
+      setFormError('Revisa los campos marcados antes de guardar.')
+      return
+    }
+
     setFormError(null)
     setPending('cycle')
     try {
@@ -676,11 +723,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const formPending = pending === 'cycle'
   const isCycleFormDirty = cycleName !== initialCycleName || cycleNumber !== initialCycleNumber
 
-  // Métricas KPI de esta carrera (independientes de la página actual y de la búsqueda)
-  const activeCyclesCount = meta?.active_count ?? 0
-  const inactiveCyclesCount = meta?.inactive_count ?? 0
-  const totalCycles = activeCyclesCount + inactiveCyclesCount
-
   return (
     <section className="flex flex-col gap-8">
       <button
@@ -718,39 +760,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         </Alert>
       )}
 
-      {/* Tarjetas KPI de Estadísticas */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <Layers3Icon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Ciclos</span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{totalCycles}</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-            <CheckCircle2Icon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ciclos Activos</span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{activeCyclesCount}</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-            <XCircleIcon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Inactivos</span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{inactiveCyclesCount}</span>
-          </div>
-        </Card>
-      </div>
-
       {/* Tabla de Ciclos */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between">
@@ -764,6 +773,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
             />
           </div>
         </div>
+
+        <p className="text-sm text-muted-foreground">
+          Mostrando {cycles.length} de {meta?.total ?? 0} ciclos
+        </p>
 
         <div
           className={cn(
@@ -888,30 +901,42 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
             </Field>
 
             <div className="grid gap-5 sm:grid-cols-[1fr_7rem]">
-              <Field>
-                <FieldLabel htmlFor="cycle-name">Nombre del ciclo</FieldLabel>
+              <Field data-invalid={Boolean(cycleErrors.name)}>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="cycle-name">Nombre del ciclo</FieldLabel>
+                  <FieldCounter current={cycleName.length} max={100} />
+                </div>
                 <Input
                   id="cycle-name"
                   value={cycleName}
-                  onChange={(e) => setCycleName(e.target.value)}
+                  onChange={(e) => {
+                    setCycleName(sanitizeLetters(e.target.value, 100))
+                    setCycleErrors((current) => ({ ...current, name: undefined }))
+                  }}
                   placeholder="Ej. Primer Ciclo"
                   disabled={formPending}
                   maxLength={100}
                   required
                 />
+                <FieldError>{cycleErrors.name}</FieldError>
               </Field>
-              <Field>
+              <Field data-invalid={Boolean(cycleErrors.number)}>
                 <FieldLabel htmlFor="cycle-number">Número</FieldLabel>
                 <Input
                   id="cycle-number"
                   type="number"
+                  inputMode="numeric"
                   min="1"
                   step="1"
                   value={cycleNumber}
-                  onChange={(e) => setCycleNumber(e.target.value)}
+                  onChange={(e) => {
+                    setCycleNumber(sanitizeDigits(e.target.value, 4))
+                    setCycleErrors((current) => ({ ...current, number: undefined }))
+                  }}
                   disabled={formPending}
                   required
                 />
+                <FieldError>{cycleErrors.number}</FieldError>
               </Field>
             </div>
 

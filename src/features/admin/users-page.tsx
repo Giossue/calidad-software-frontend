@@ -31,6 +31,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { ApiError, api, type User, type UserPaginationMeta } from '@/lib/api'
 import { isValidEcuadorianCedula } from '@/lib/cedula'
+import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
 type UserForm = {
@@ -82,14 +83,6 @@ function getErrorMessage(error: unknown): string {
 
 function isRole(value: string): boolean {
   return ROLE_OPTIONS.some((option) => option.value === value)
-}
-
-function sanitizeDigits(value: string, maxLength: number): string {
-  return value.replace(/\D/g, '').slice(0, maxLength)
-}
-
-function sanitizeName(value: string, maxLength: number): string {
-  return value.replace(/[^\p{L}\s]/gu, '').slice(0, maxLength)
 }
 
 function getPasswordRequirementHint(password: string): string | null {
@@ -679,7 +672,7 @@ export function UsersPage() {
                   id="user-name"
                   name="name"
                   value={userForm.name}
-                  onChange={(e) => updateUserField('name', sanitizeName(e.target.value, 150))}
+                  onChange={(e) => updateUserField('name', sanitizeLetters(e.target.value, 150))}
                   maxLength={150}
                   autoComplete="name"
                   placeholder="Ej. Ana Torres"

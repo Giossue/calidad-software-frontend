@@ -1,9 +1,7 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import {
-  CalendarCheck2Icon,
   CalendarDaysIcon,
   CalendarIcon,
-  CalendarOffIcon,
   Edit2Icon,
   PlusIcon,
   PowerIcon,
@@ -18,10 +16,9 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -48,6 +45,10 @@ const INITIAL_FORM: AcademicPeriodForm = {
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
   return 'No fue posible conectar con el servidor.'
+}
+
+function sanitizePeriodName(value: string, maxLength: number): string {
+  return value.replace(/[^\p{L}\p{N}\s-]/gu, '').slice(0, maxLength)
 }
 
 function validatePeriodForm(form: AcademicPeriodForm): AcademicPeriodFormErrors {
@@ -208,11 +209,6 @@ export function AcademicPeriodsPage() {
   const formDisabled = pending !== null
   const isFormDirty = form.name !== initialForm.name || form.startDate !== initialForm.startDate || form.endDate !== initialForm.endDate
 
-  // Métricas KPI (independientes de la página actual y de la búsqueda)
-  const activePeriods = meta?.active_count ?? 0
-  const inactivePeriods = meta?.inactive_count ?? 0
-  const totalPeriods = activePeriods + inactivePeriods
-
   return (
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
       <AdminSectionHeader
@@ -242,51 +238,6 @@ export function AcademicPeriodsPage() {
         </Alert>
       )}
 
-      {/* Tarjetas KPI de Estadísticas */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <CalendarDaysIcon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total Registrados
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalPeriods}
-            </span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-            <CalendarCheck2Icon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Períodos Activos
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {activePeriods}
-            </span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-            <CalendarOffIcon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Períodos Concluidos
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {inactivePeriods}
-            </span>
-          </div>
-        </Card>
-      </div>
-
       {/* Contenedor Principal: Filtro + Tabla */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda */}
@@ -301,6 +252,10 @@ export function AcademicPeriodsPage() {
             />
           </div>
         </div>
+
+        <p className="text-sm text-muted-foreground">
+          Mostrando {periods.length} de {meta?.total ?? 0} períodos
+        </p>
 
         {/* Tabla de Períodos */}
         <div
@@ -455,12 +410,15 @@ export function AcademicPeriodsPage() {
         <form onSubmit={submitPeriod}>
           <FieldGroup className="gap-5">
             <Field data-invalid={Boolean(formErrors.name)}>
-              <FieldLabel htmlFor="academic-period-name">Nombre del período</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="academic-period-name">Nombre del período</FieldLabel>
+                <FieldCounter current={form.name.length} max={100} />
+              </div>
               <Input
                 id="academic-period-name"
                 name="name"
                 value={form.name}
-                onChange={(e) => updateField('name', e.target.value)}
+                onChange={(e) => updateField('name', sanitizePeriodName(e.target.value, 100))}
                 placeholder="Ej. PAO II 2026 o 2026-1"
                 maxLength={100}
                 autoComplete="off"

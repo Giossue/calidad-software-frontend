@@ -1,7 +1,6 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import {
   Building2Icon,
-  CheckCircle2Icon,
   Edit2Icon,
   PlusIcon,
   PowerIcon,
@@ -9,7 +8,6 @@ import {
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
-  XCircleIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -17,16 +15,16 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { ApiError, api, type Faculty } from '@/lib/api'
+import { sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
 type FacultyFormErrors = { name?: string }
@@ -73,7 +71,7 @@ export function FacultiesPage() {
   }
 
   function updateName(value: string) {
-    setName(value)
+    setName(sanitizeLetters(value, 150))
     setNameError(undefined)
     setFormError(null)
   }
@@ -164,11 +162,6 @@ export function FacultiesPage() {
   const formDisabled = pending !== null
   const isFormDirty = name.trim() !== initialName.trim()
 
-  // Métricas KPI (independientes de la página actual y de la búsqueda)
-  const activeFaculties = meta?.active_count ?? 0
-  const inactiveFaculties = meta?.inactive_count ?? 0
-  const totalFaculties = activeFaculties + inactiveFaculties
-
   return (
     <section className="flex flex-col gap-8">
       <AdminSectionHeader
@@ -197,51 +190,6 @@ export function FacultiesPage() {
         </Alert>
       )}
 
-      {/* Tarjetas KPI de Estadísticas */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <Building2Icon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total Facultades
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalFaculties}
-            </span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-            <CheckCircle2Icon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Facultades Activas
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {activeFaculties}
-            </span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-            <XCircleIcon className="size-6" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Inactivas
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {inactiveFaculties}
-            </span>
-          </div>
-        </Card>
-      </div>
-
       {/* Contenedor Principal: Filtro + Tabla */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda */}
@@ -256,6 +204,10 @@ export function FacultiesPage() {
             />
           </div>
         </div>
+
+        <p className="text-sm text-muted-foreground">
+          Mostrando {faculties.length} de {meta?.total ?? 0} facultades
+        </p>
 
         {/* Tabla de Facultades */}
         <div
@@ -438,7 +390,10 @@ export function FacultiesPage() {
         <form onSubmit={submitFaculty}>
           <FieldGroup className="gap-5">
             <Field data-invalid={Boolean(nameError)}>
-              <FieldLabel htmlFor="faculty-name">Nombre de la facultad</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="faculty-name">Nombre de la facultad</FieldLabel>
+                <FieldCounter current={name.length} max={150} />
+              </div>
               <Input
                 id="faculty-name"
                 name="name"
@@ -449,7 +404,6 @@ export function FacultiesPage() {
                 disabled={formDisabled}
                 required
               />
-              <FieldDescription>Hasta 150 caracteres.</FieldDescription>
               <FieldError>{nameError}</FieldError>
             </Field>
 
