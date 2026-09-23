@@ -787,6 +787,20 @@ export function UsersPage() {
                     disabled={formDisabled}
                     required={Boolean(userForm.password)}
                   />
+                  {userForm.password_confirmation && (
+                    <FieldDescription
+                      className={cn(
+                        'text-xs',
+                        userForm.password === userForm.password_confirmation
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-destructive',
+                      )}
+                    >
+                      {userForm.password === userForm.password_confirmation
+                        ? 'Las contraseñas coinciden.'
+                        : 'Las contraseñas no coinciden.'}
+                    </FieldDescription>
+                  )}
                   <FieldError>{userErrors.password_confirmation}</FieldError>
                 </Field>
               </div>
