@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import {
   Building2Icon,
   CheckCircle2Icon,
@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -22,12 +23,14 @@ import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { ApiError, api, type Faculty } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 type FacultyFormErrors = { name?: string }
-type PendingAction = 'loading' | 'faculty' | 'toggle-faculty' | null
+type PendingAction = 'faculty' | 'toggle-faculty' | null
 type ToggleTarget = { faculty: Faculty; action: 'activate' | 'deactivate' }
 
 function getErrorMessage(error: unknown): string {
@@ -35,17 +38,25 @@ function getErrorMessage(error: unknown): string {
   return 'No fue posible conectar con el servidor.'
 }
 
-function isFacultyActive(faculty: Faculty): boolean {
-  return faculty.status
-}
-
 export function FacultiesPage() {
-  const [faculties, setFaculties] = useState<readonly Faculty[]>([])
+  const fetchFaculties = useCallback((page: number, search: string) => api.listFaculties({ page, search }), [])
+  const {
+    data: faculties,
+    meta,
+    page,
+    setPage,
+    searchInput,
+    setSearchInput,
+    isInitialLoading,
+    isFetching,
+    error: pageError,
+    reload,
+  } = usePaginatedCatalog(fetchFaculties)
+
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null)
   const [name, setName] = useState('')
   const [initialName, setInitialName] = useState('')
   const [nameError, setNameError] = useState<string | undefined>()
-  const [pageError, setPageError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
 
@@ -56,29 +67,10 @@ export function FacultiesPage() {
   // Tooltip del botón de desactivar bloqueado (hover en escritorio, tap en móvil)
   const [blockedTooltipFacultyId, setBlockedTooltipFacultyId] = useState<number | null>(null)
 
-  // Búsqueda
-  const [searchQuery, setSearchQuery] = useState('')
-
-  async function loadFaculties(options?: { notify?: boolean }) {
-    setPageError(null)
-    setPending('loading')
-    try {
-      const facultyData = await api.listFaculties()
-      setFaculties(facultyData)
-      if (options?.notify) {
-        toast.success('Facultades actualizadas', { description: 'El listado se actualizó correctamente.' })
-      }
-    } catch (error: unknown) {
-      setPageError(getErrorMessage(error))
-    } finally {
-      setPending(null)
-    }
+  async function handleRefresh() {
+    const ok = await reload()
+    if (ok) toast.success('Facultades actualizadas', { description: 'El listado se actualizó correctamente.' })
   }
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void loadFaculties() }, 0)
-    return () => window.clearTimeout(timer)
-  }, [])
 
   function updateName(value: string) {
     setName(value)
@@ -138,7 +130,7 @@ export function FacultiesPage() {
         toast.success('Facultad creada', { description: `La facultad "${normalizedName}" ha sido agregada.` })
       }
       closeModal()
-      await loadFaculties()
+      await reload()
     } catch (error: unknown) {
       setFormError(getErrorMessage(error))
     } finally {
@@ -150,7 +142,6 @@ export function FacultiesPage() {
     if (!facultyToToggle || pending !== null) return
 
     const { faculty, action } = facultyToToggle
-    setPageError(null)
     setPending('toggle-faculty')
     try {
       if (action === 'activate') {
@@ -161,10 +152,10 @@ export function FacultiesPage() {
         toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${faculty.name}".` })
       }
       setFacultyToToggle(null)
-      await loadFaculties()
+      await reload()
     } catch (error: unknown) {
       setFacultyToToggle(null)
-      setPageError(getErrorMessage(error))
+      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
     } finally {
       setPending(null)
     }
@@ -173,20 +164,10 @@ export function FacultiesPage() {
   const formDisabled = pending !== null
   const isFormDirty = name.trim() !== initialName.trim()
 
-  // Métricas KPI
-  const totalFaculties = faculties.length
-  const activeFaculties = faculties.filter((f) => f.status).length
-  const inactiveFaculties = totalFaculties - activeFaculties
-
-  // Filtro de búsqueda
-  const filteredFaculties = faculties.filter((faculty) => {
-    const query = searchQuery.toLowerCase().trim()
-    return (
-      !query ||
-      faculty.name.toLowerCase().includes(query) ||
-      String(faculty.id).includes(query)
-    )
-  })
+  // Métricas KPI (independientes de la página actual y de la búsqueda)
+  const activeFaculties = meta?.active_count ?? 0
+  const inactiveFaculties = meta?.inactive_count ?? 0
+  const totalFaculties = activeFaculties + inactiveFaculties
 
   return (
     <section className="flex flex-col gap-8">
@@ -196,19 +177,11 @@ export function FacultiesPage() {
         eyebrow="Catálogo Institucional"
         actions={
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => void loadFaculties({ notify: true })}
-              disabled={formDisabled}
-            >
-              {pending === 'loading' ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <RefreshCwIcon data-icon="inline-start" />
-              )}
+            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
+              {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
-            <Button onClick={openCreateModal} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+            <Button onClick={openCreateModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nueva facultad
             </Button>
@@ -269,77 +242,79 @@ export function FacultiesPage() {
         </Card>
       </div>
 
-      {/* Contenedor Principal: Filtro + Tabla Moderna */}
+      {/* Contenedor Principal: Filtro + Tabla */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda */}
         <div className="flex items-center justify-between">
           <div className="relative flex flex-1 items-center max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar facultad por nombre o código…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Buscar facultad por nombre…"
               className="pl-10"
             />
           </div>
         </div>
 
         {/* Tabla de Facultades */}
-        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-              <tr>
-                <th className="px-5 py-3.5">Nombre de la Facultad</th>
-                <th className="px-5 py-3.5">Código Institucional</th>
-                <th className="px-5 py-3.5">Estado</th>
-                <th className="px-5 py-3.5 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {pending === 'loading' ? (
+        <div
+          className={cn(
+            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            isFetching && !isInitialLoading && 'opacity-60',
+          )}
+        >
+          <Table>
+            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="px-5 py-3.5 whitespace-normal">Nombre de la Facultad</TableHead>
+                <TableHead className="px-5 py-3.5 whitespace-normal">Código Institucional</TableHead>
+                <TableHead className="px-5 py-3.5">Estado</TableHead>
+                <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                  </tr>
+                  <TableRow key={i} className="animate-pulse">
+                    <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                  </TableRow>
                 ))
-              ) : filteredFaculties.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400">
+              ) : faculties.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
                       <Building2Icon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
-                        {searchQuery
+                        {searchInput
                           ? 'No se encontraron facultades con el término buscado.'
                           : 'Todavía no hay facultades registradas.'}
                       </span>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                filteredFaculties.map((faculty) => {
-                  const active = isFacultyActive(faculty)
+                faculties.map((faculty) => {
+                  const active = faculty.status
                   const hasActiveCareers = faculty.active_careers_count > 0
 
                   return (
-                    <tr
-                      key={faculty.id}
-                      className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
-                    >
+                    <TableRow key={faculty.id}>
                       {/* Nombre con icono */}
-                      <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">
+                      <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
                         <div className="flex items-center gap-3">
-                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0F1E2E] text-white shadow-2xs">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                             <Building2Icon className="size-4" />
                           </div>
                           <span>{faculty.name}</span>
                         </div>
-                      </td>
+                      </TableCell>
 
                       {/* Código */}
-                      <td className="px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      <TableCell className="px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-normal">
                         <div className="flex flex-col gap-0.5">
                           <span>Facultad #{faculty.id}</span>
                           <span>
@@ -348,10 +323,10 @@ export function FacultiesPage() {
                               : `${faculty.active_careers_count} de ${faculty.careers_count} carrera${faculty.careers_count === 1 ? '' : 's'} activa${faculty.active_careers_count === 1 ? '' : 's'}`}
                           </span>
                         </div>
-                      </td>
+                      </TableCell>
 
                       {/* Estado Pulsante */}
-                      <td className="px-5 py-4">
+                      <TableCell className="px-5 py-4">
                         <span
                           className={cn(
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -368,10 +343,10 @@ export function FacultiesPage() {
                           />
                           {active ? 'Activa' : 'Inactiva'}
                         </span>
-                      </td>
+                      </TableCell>
 
                       {/* Acciones */}
-                      <td className="px-5 py-4 text-right">
+                      <TableCell className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
@@ -428,14 +403,23 @@ export function FacultiesPage() {
                             </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
+
+        {/* Paginación */}
+        <CatalogPagination
+          label="facultades"
+          page={page}
+          lastPage={meta?.last_page ?? 1}
+          disabled={isFetching}
+          onChange={setPage}
+        />
       </div>
 
       {/* Modal Dialog para Crear / Editar Facultad */}
@@ -475,7 +459,7 @@ export function FacultiesPage() {
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+              <Button type="submit" disabled={formDisabled} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
                 {pending === 'faculty' && <Spinner data-icon="inline-start" />}
                 {editingFaculty ? 'Guardar Cambios' : 'Registrar Facultad'}
               </Button>

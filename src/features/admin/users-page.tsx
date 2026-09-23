@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import {
   Edit2Icon,
   GraduationCapIcon,
@@ -15,6 +15,7 @@ import {
 import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -24,7 +25,9 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
-import { ApiError, api, type User } from '@/lib/api'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
+import { ApiError, api, type User, type UserPaginationMeta } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 type UserForm = {
@@ -38,7 +41,7 @@ type UserForm = {
 }
 
 type UserFormErrors = Partial<Record<keyof UserForm, string>>
-type PendingAction = 'loading' | 'user' | 'toggle-user' | null
+type PendingAction = 'user' | 'toggle-user' | null
 type ToggleTarget = { user: User; action: 'activate' | 'deactivate' }
 
 type UserFormInput = {
@@ -138,12 +141,28 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
 }
 
 export function UsersPage() {
-  const [users, setUsers] = useState<readonly User[]>([])
+  const [roleFilter, setRoleFilter] = useState('all')
+  const fetchUsers = useCallback(
+    (page: number, search: string) => api.listUsers({ page, search, role: roleFilter === 'all' ? undefined : roleFilter }),
+    [roleFilter],
+  )
+  const {
+    data: users,
+    meta,
+    page,
+    setPage,
+    searchInput,
+    setSearchInput,
+    isInitialLoading,
+    isFetching,
+    error: pageError,
+    reload,
+  } = usePaginatedCatalog<User, UserPaginationMeta>(fetchUsers, roleFilter)
+
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [userForm, setUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [initialUserForm, setInitialUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [userErrors, setUserErrors] = useState<UserFormErrors>({})
-  const [pageError, setPageError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
 
@@ -151,30 +170,10 @@ export function UsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userToToggle, setUserToToggle] = useState<ToggleTarget | null>(null)
 
-  // Filtros de búsqueda
-  const [searchQuery, setSearchQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
-
-  async function loadUsers(options?: { notify?: boolean }) {
-    setPageError(null)
-    setPending('loading')
-    try {
-      const userData = await api.listUsers()
-      setUsers(userData)
-      if (options?.notify) {
-        toast.success('Usuarios actualizados', { description: 'El listado se actualizó correctamente.' })
-      }
-    } catch (error: unknown) {
-      setPageError(getErrorMessage(error))
-    } finally {
-      setPending(null)
-    }
+  async function handleRefresh() {
+    const ok = await reload()
+    if (ok) toast.success('Usuarios actualizados', { description: 'El listado se actualizó correctamente.' })
   }
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void loadUsers() }, 0)
-    return () => window.clearTimeout(timer)
-  }, [])
 
   function updateUserField(field: keyof UserForm, value: string) {
     setUserForm((current) => ({ ...current, [field]: value }))
@@ -260,7 +259,7 @@ export function UsersPage() {
       }
 
       closeModal()
-      await loadUsers()
+      await reload()
     } catch (error: unknown) {
       setFormError(getErrorMessage(error))
     } finally {
@@ -272,7 +271,6 @@ export function UsersPage() {
     if (!userToToggle) return
 
     const { user, action } = userToToggle
-    setPageError(null)
     setPending('toggle-user')
     try {
       if (action === 'activate') {
@@ -283,9 +281,10 @@ export function UsersPage() {
         toast.info('Usuario deshabilitado', { description: `Se desactivó la cuenta de ${user.name}.` })
       }
       setUserToToggle(null)
-      await loadUsers()
+      await reload()
     } catch (error: unknown) {
-      setPageError(getErrorMessage(error))
+      setUserToToggle(null)
+      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
     } finally {
       setPending(null)
     }
@@ -296,23 +295,11 @@ export function UsersPage() {
     (key) => userForm[key] !== initialUserForm[key],
   )
 
-  // Métricas calculadas para las tarjetas KPI
-  const totalUsers = users.length
-  const totalAdmins = users.filter((u) => u.role === 'administrador').length
-  const totalDocentes = users.filter((u) => u.role === 'docente').length
-  const totalEstudiantes = users.filter((u) => u.role === 'estudiante').length
-
-  // Usuarios filtrados
-  const filteredUsers = users.filter((user) => {
-    const query = searchQuery.toLowerCase().trim()
-    const matchesSearch =
-      !query ||
-      user.name.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      user.identification.includes(query)
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter
-    return matchesSearch && matchesRole
-  })
+  // Métricas KPI (independientes de la página actual, la búsqueda y el filtro de rol)
+  const totalUsers = (meta?.active_count ?? 0) + (meta?.inactive_count ?? 0)
+  const totalAdmins = meta?.admin_count ?? 0
+  const totalDocentes = meta?.teacher_count ?? 0
+  const totalEstudiantes = meta?.student_count ?? 0
 
   return (
     <section className="flex flex-col gap-8">
@@ -324,17 +311,17 @@ export function UsersPage() {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={() => void loadUsers({ notify: true })}
-              disabled={formDisabled}
+              onClick={() => void handleRefresh()}
+              disabled={isFetching}
             >
-              {pending === 'loading' ? (
+              {isFetching ? (
                 <Spinner data-icon="inline-start" />
               ) : (
                 <RefreshCwIcon data-icon="inline-start" />
               )}
               Actualizar
             </Button>
-            <Button onClick={openCreateModal} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+            <Button onClick={openCreateModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nuevo usuario
             </Button>
@@ -409,15 +396,15 @@ export function UsersPage() {
         </Card>
       </div>
 
-      {/* Contenedor Principal: Filtros + Tabla Moderna */}
+      {/* Contenedor Principal: Filtros + Tabla */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda y Filtro */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex flex-1 items-center max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Buscar usuario por nombre, correo o cédula…"
               className="pl-10"
             />
@@ -437,23 +424,28 @@ export function UsersPage() {
           </div>
         </div>
 
-        {/* Tabla de Usuarios Moderna */}
-        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-              <tr>
-                <th className="px-5 py-3.5">Usuario</th>
-                <th className="px-5 py-3.5">Rol</th>
-                <th className="px-5 py-3.5">Cédula / Teléfono</th>
-                <th className="px-5 py-3.5">Estado</th>
-                <th className="px-5 py-3.5 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {pending === 'loading' ? (
+        {/* Tabla de Usuarios */}
+        <div
+          className={cn(
+            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            isFetching && !isInitialLoading && 'opacity-60',
+          )}
+        >
+          <Table>
+            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="px-5 py-3.5 whitespace-normal">Usuario</TableHead>
+                <TableHead className="px-5 py-3.5">Rol</TableHead>
+                <TableHead className="px-5 py-3.5 whitespace-normal">Cédula / Teléfono</TableHead>
+                <TableHead className="px-5 py-3.5">Estado</TableHead>
+                <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {isInitialLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-5 py-4">
+                  <TableRow key={i} className="animate-pulse">
+                    <TableCell className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-full bg-slate-200 dark:bg-slate-800" />
                         <div className="flex flex-col gap-1.5">
@@ -461,40 +453,37 @@ export function UsersPage() {
                           <div className="h-3 w-44 rounded-md bg-slate-100 dark:bg-slate-800/60" />
                         </div>
                       </div>
-                    </td>
-                    <td className="px-5 py-4"><div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                  </TableRow>
                 ))
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400">
+              ) : users.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
                       <UsersIcon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
-                        {searchQuery || roleFilter !== 'all'
+                        {searchInput || roleFilter !== 'all'
                           ? 'No se encontraron usuarios coincidentes.'
                           : 'Todavía no hay usuarios registrados.'}
                       </span>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                filteredUsers.map((user) => {
+                users.map((user) => {
                   const active = user.is_active
                   const badgeStyle = getRoleBadgeStyle(user.role)
                   const initials = getInitials(user.name)
 
                   return (
-                    <tr
-                      key={user.id}
-                      className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
-                    >
-                      <td className="px-5 py-4">
+                    <TableRow key={user.id}>
+                      <TableCell className="px-5 py-4 whitespace-normal">
                         <div className="flex items-center gap-3">
-                          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#0F1E2E] text-xs font-bold text-white shadow-2xs">
+                          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-bold text-white shadow-2xs">
                             {initials}
                           </div>
                           <div className="flex flex-col">
@@ -506,9 +495,9 @@ export function UsersPage() {
                             </span>
                           </div>
                         </div>
-                      </td>
+                      </TableCell>
 
-                      <td className="px-5 py-4">
+                      <TableCell className="px-5 py-4">
                         <span
                           className={cn(
                             'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold',
@@ -517,9 +506,9 @@ export function UsersPage() {
                         >
                           {getRoleLabel(user.role)}
                         </span>
-                      </td>
+                      </TableCell>
 
-                      <td className="px-5 py-4">
+                      <TableCell className="px-5 py-4 whitespace-normal">
                         <div className="flex flex-col text-xs">
                           <span className="font-medium text-slate-800 dark:text-slate-200">
                             Cédula: {user.identification}
@@ -528,9 +517,9 @@ export function UsersPage() {
                             {user.phone ? `Tel: ${user.phone}` : 'Sin teléfono'}
                           </span>
                         </div>
-                      </td>
+                      </TableCell>
 
-                      <td className="px-5 py-4">
+                      <TableCell className="px-5 py-4">
                         <span
                           className={cn(
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -547,9 +536,9 @@ export function UsersPage() {
                           />
                           {active ? 'Activo' : 'Inactivo'}
                         </span>
-                      </td>
+                      </TableCell>
 
-                      <td className="px-5 py-4 text-right">
+                      <TableCell className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
@@ -579,14 +568,23 @@ export function UsersPage() {
                             </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
+
+        {/* Paginación */}
+        <CatalogPagination
+          label="usuarios"
+          page={page}
+          lastPage={meta?.last_page ?? 1}
+          disabled={isFetching}
+          onChange={setPage}
+        />
       </div>
 
       {/* Modal Dialog para Crear / Editar Usuario */}
@@ -751,7 +749,7 @@ export function UsersPage() {
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+              <Button type="submit" disabled={formDisabled} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
                 {pending === 'user' && <Spinner data-icon="inline-start" />}
                 {editingUser ? 'Guardar Cambios' : 'Registrar Usuario'}
               </Button>

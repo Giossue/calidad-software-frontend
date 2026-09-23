@@ -37,8 +37,8 @@
 }
 
 :root {
-  --brand-red: #B4201C;
-  --brand-blue: #0F2A3F;
+  --brand-red: #A51C1C;
+  --brand-blue: #0A283F;
   --background: #F5F7F9;
   --foreground: var(--brand-blue);
   --card: #FFFFFF;

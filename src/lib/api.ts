@@ -60,9 +60,22 @@ export interface PaginationMeta {
   readonly per_page: number
   readonly to: number | null
   readonly total: number
+  readonly active_count: number
+  readonly inactive_count: number
 }
 
-export interface PaginatedResourceCollection<T> {
+export interface UserPaginationMeta extends PaginationMeta {
+  readonly admin_count: number
+  readonly teacher_count: number
+  readonly student_count: number
+}
+
+export type ListParams = {
+  readonly page?: number
+  readonly search?: string
+}
+
+export interface PaginatedResourceCollection<T, M extends PaginationMeta = PaginationMeta> {
   readonly data: readonly T[]
   readonly links?: {
     readonly first?: string | null
@@ -70,7 +83,7 @@ export interface PaginatedResourceCollection<T> {
     readonly prev?: string | null
     readonly next?: string | null
   }
-  readonly meta?: PaginationMeta
+  readonly meta?: M
 }
 
 interface Resource<T> {
@@ -172,6 +185,12 @@ export const challengeStore = {
   clear: () => sessionStorage.removeItem(CHALLENGE_KEY),
 }
 
+function buildQuery(params: Record<string, string | number | undefined>): string {
+  const entries = Object.entries(params).filter((entry): entry is [string, string | number] => entry[1] !== undefined && entry[1] !== '')
+  if (entries.length === 0) return ''
+  return `?${new URLSearchParams(entries.map(([key, value]) => [key, String(value)])).toString()}`
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = tokenStore.get()
   const response = await fetch(`${API_URL}${path}`, {
@@ -244,9 +263,9 @@ export const api = {
 
   logout: () => request<void>('/api/v1/auth/logout', { method: 'DELETE' }),
 
-  async listUsers(): Promise<readonly User[]> {
-    const response = await request<ResourceCollection<User>>('/api/v1/users')
-    return response.data
+  async listUsers(params?: ListParams & { role?: string }): Promise<PaginatedResourceCollection<User, UserPaginationMeta>> {
+    const query = buildQuery({ page: params?.page, search: params?.search, role: params?.role })
+    return request<PaginatedResourceCollection<User, UserPaginationMeta>>(`/api/v1/users${query}`)
   },
 
   async createUser(input: CreateUserInput): Promise<User> {
@@ -279,8 +298,13 @@ export const api = {
     return response.data
   },
 
-  async listFaculties(): Promise<readonly Faculty[]> {
-    const response = await request<ResourceCollection<Faculty>>('/api/v1/admin/faculties')
+  async listFaculties(params?: ListParams): Promise<PaginatedResourceCollection<Faculty>> {
+    const query = buildQuery({ page: params?.page, search: params?.search })
+    return request<PaginatedResourceCollection<Faculty>>(`/api/v1/admin/faculties${query}`)
+  },
+
+  async listActiveFaculties(): Promise<readonly Faculty[]> {
+    const response = await request<ResourceCollection<Faculty>>('/api/v1/admin/faculties?all=1')
     return response.data
   },
 
@@ -314,8 +338,13 @@ export const api = {
     return response.data
   },
 
-  async listCareers(): Promise<readonly Career[]> {
-    const response = await request<ResourceCollection<Career>>('/api/v1/admin/careers')
+  async listCareers(params?: ListParams): Promise<PaginatedResourceCollection<Career>> {
+    const query = buildQuery({ page: params?.page, search: params?.search })
+    return request<PaginatedResourceCollection<Career>>(`/api/v1/admin/careers${query}`)
+  },
+
+  async listActiveCareers(): Promise<readonly Career[]> {
+    const response = await request<ResourceCollection<Career>>('/api/v1/admin/careers?all=1')
     return response.data
   },
 
@@ -349,9 +378,9 @@ export const api = {
     return response.data
   },
 
-  async listCycles(): Promise<readonly Cycle[]> {
-    const response = await request<ResourceCollection<Cycle>>('/api/v1/admin/cycles')
-    return response.data
+  async listCycles(params?: ListParams): Promise<PaginatedResourceCollection<Cycle>> {
+    const query = buildQuery({ page: params?.page, search: params?.search })
+    return request<PaginatedResourceCollection<Cycle>>(`/api/v1/admin/cycles${query}`)
   },
 
   async createCycle(input: CycleInput): Promise<Cycle> {
@@ -384,8 +413,8 @@ export const api = {
     return response.data
   },
 
-  async listAcademicPeriods(page = 1): Promise<PaginatedResourceCollection<AcademicPeriod>> {
-    const query = page > 1 ? `?page=${page}` : ''
+  async listAcademicPeriods(params?: ListParams): Promise<PaginatedResourceCollection<AcademicPeriod>> {
+    const query = buildQuery({ page: params?.page, search: params?.search })
     return request<PaginatedResourceCollection<AcademicPeriod>>(`/api/v1/admin/academic-periods${query}`)
   },
 

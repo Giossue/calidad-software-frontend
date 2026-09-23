@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import {
   CalendarCheck2Icon,
   CalendarDaysIcon,
@@ -24,6 +24,8 @@ import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { ApiError, api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -46,10 +48,6 @@ const INITIAL_FORM: AcademicPeriodForm = {
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
   return 'No fue posible conectar con el servidor.'
-}
-
-function isPeriodActive(period: AcademicPeriod): boolean {
-  return period.is_active
 }
 
 function validatePeriodForm(form: AcademicPeriodForm): AcademicPeriodFormErrors {
@@ -75,47 +73,35 @@ function formatDate(value: string): string {
 }
 
 export function AcademicPeriodsPage() {
-  const [periods, setPeriods] = useState<readonly AcademicPeriod[]>([])
+  const fetchPeriods = useCallback((page: number, search: string) => api.listAcademicPeriods({ page, search }), [])
+  const {
+    data: periods,
+    meta,
+    page,
+    setPage,
+    searchInput,
+    setSearchInput,
+    isInitialLoading,
+    isFetching,
+    error: pageError,
+    reload,
+  } = usePaginatedCatalog(fetchPeriods)
+
   const [editingPeriod, setEditingPeriod] = useState<AcademicPeriod | null>(null)
   const [form, setForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
   const [initialForm, setInitialForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
   const [formErrors, setFormErrors] = useState<AcademicPeriodFormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
-  const [pageError, setPageError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
   const [pending, setPending] = useState<PendingAction>(null)
-  const [page, setPage] = useState(1)
-  const [lastPage, setLastPage] = useState(1)
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [periodToToggle, setPeriodToToggle] = useState<ToggleTarget | null>(null)
 
-  // Búsqueda
-  const [searchQuery, setSearchQuery] = useState('')
-
-  async function loadPeriods(nextPage = 1, options?: { notify?: boolean }) {
-    setPageError(null)
-    setIsLoading(true)
-    try {
-      const response = await api.listAcademicPeriods(nextPage)
-      setPeriods(response.data)
-      setPage(response.meta?.current_page ?? nextPage)
-      setLastPage(response.meta?.last_page ?? nextPage)
-      if (options?.notify) {
-        toast.success('Períodos actualizados', { description: 'El listado se actualizó correctamente.' })
-      }
-    } catch (error: unknown) {
-      setPageError(getErrorMessage(error))
-    } finally {
-      setIsLoading(false)
-    }
+  async function handleRefresh() {
+    const ok = await reload()
+    if (ok) toast.success('Períodos actualizados', { description: 'El listado se actualizó correctamente.' })
   }
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void loadPeriods(1) }, 0)
-    return () => window.clearTimeout(timer)
-  }, [])
 
   function updateField(field: keyof AcademicPeriodForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -161,7 +147,7 @@ export function AcademicPeriodsPage() {
 
   async function submitPeriod(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (pending !== null || isLoading) return
+    if (pending !== null) return
 
     const errors = validatePeriodForm(form)
     setFormErrors(errors)
@@ -188,7 +174,7 @@ export function AcademicPeriodsPage() {
       }
 
       closeModal()
-      await loadPeriods(page)
+      await reload()
     } catch (error: unknown) {
       setFormError(getErrorMessage(error))
     } finally {
@@ -197,10 +183,9 @@ export function AcademicPeriodsPage() {
   }
 
   async function handleConfirmToggle() {
-    if (!periodToToggle || pending !== null || isLoading) return
+    if (!periodToToggle || pending !== null) return
 
     const { period, action } = periodToToggle
-    setPageError(null)
     setPending('toggle-period')
     try {
       if (action === 'activate') {
@@ -211,32 +196,22 @@ export function AcademicPeriodsPage() {
         toast.info('Período deshabilitado', { description: `Se desactivó el período "${period.name}".` })
       }
       setPeriodToToggle(null)
-      await loadPeriods(page)
+      await reload()
     } catch (error: unknown) {
-      setPageError(getErrorMessage(error))
+      setPeriodToToggle(null)
+      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
     } finally {
       setPending(null)
     }
   }
 
-  const busy = isLoading || pending !== null
+  const formDisabled = pending !== null
   const isFormDirty = form.name !== initialForm.name || form.startDate !== initialForm.startDate || form.endDate !== initialForm.endDate
 
-  // Métricas KPI
-  const totalPeriods = periods.length
-  const activePeriods = periods.filter((p) => p.is_active).length
-  const inactivePeriods = totalPeriods - activePeriods
-
-  // Períodos filtrados por búsqueda
-  const filteredPeriods = periods.filter((period) => {
-    const query = searchQuery.toLowerCase().trim()
-    return (
-      !query ||
-      period.name.toLowerCase().includes(query) ||
-      period.start_date.includes(query) ||
-      period.end_date.includes(query)
-    )
-  })
+  // Métricas KPI (independientes de la página actual y de la búsqueda)
+  const activePeriods = meta?.active_count ?? 0
+  const inactivePeriods = meta?.inactive_count ?? 0
+  const totalPeriods = activePeriods + inactivePeriods
 
   return (
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
@@ -247,11 +222,11 @@ export function AcademicPeriodsPage() {
         titleId="academic-periods-title"
         actions={
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => void loadPeriods(1, { notify: true })} disabled={busy}>
-              {isLoading ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
+            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
+              {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
-            <Button onClick={openCreateModal} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+            <Button onClick={openCreateModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nuevo período
             </Button>
@@ -312,88 +287,90 @@ export function AcademicPeriodsPage() {
         </Card>
       </div>
 
-      {/* Contenedor Principal: Filtro + Tabla Moderna */}
+      {/* Contenedor Principal: Filtro + Tabla */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda */}
         <div className="flex items-center justify-between">
           <div className="relative flex flex-1 items-center max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar período por nombre o fecha…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Buscar período por nombre…"
               className="pl-10"
             />
           </div>
         </div>
 
         {/* Tabla de Períodos */}
-        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-              <tr>
-                <th className="px-5 py-3.5">Nombre del Período</th>
-                <th className="px-5 py-3.5">Fecha Inicio</th>
-                <th className="px-5 py-3.5">Fecha Finalización</th>
-                <th className="px-5 py-3.5">Estado</th>
-                <th className="px-5 py-3.5 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {isLoading ? (
+        <div
+          className={cn(
+            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            isFetching && !isInitialLoading && 'opacity-60',
+          )}
+        >
+          <Table>
+            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="px-5 py-3.5 whitespace-normal">Nombre del Período</TableHead>
+                <TableHead className="px-5 py-3.5">Fecha Inicio</TableHead>
+                <TableHead className="px-5 py-3.5">Fecha Finalización</TableHead>
+                <TableHead className="px-5 py-3.5">Estado</TableHead>
+                <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-5 py-4"><div className="h-5 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></td>
-                    <td className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></td>
-                  </tr>
+                  <TableRow key={i} className="animate-pulse">
+                    <TableCell className="px-5 py-4"><div className="h-5 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                  </TableRow>
                 ))
-              ) : filteredPeriods.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400">
+              ) : periods.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
                       <CalendarDaysIcon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
-                        {searchQuery
+                        {searchInput
                           ? 'No se encontraron períodos con el término buscado.'
                           : 'Todavía no hay períodos registrados.'}
                       </span>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                filteredPeriods.map((period) => {
-                  const active = isPeriodActive(period)
+                periods.map((period) => {
+                  const active = period.is_active
 
                   return (
-                    <tr
-                      key={period.id}
-                      className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
-                    >
+                    <TableRow key={period.id}>
                       {/* Nombre con icono */}
-                      <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">
+                      <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
                         <div className="flex items-center gap-3">
-                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-red/10 text-brand-red dark:bg-brand-red/20">
                             <CalendarIcon className="size-4" />
                           </div>
                           <span>{period.name}</span>
                         </div>
-                      </td>
+                      </TableCell>
 
                       {/* Fecha Inicio */}
-                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                      <TableCell className="px-5 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(period.start_date)}
-                      </td>
+                      </TableCell>
 
                       {/* Fecha Fin */}
-                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                      <TableCell className="px-5 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(period.end_date)}
-                      </td>
+                      </TableCell>
 
                       {/* Estado Pulsante */}
-                      <td className="px-5 py-4">
+                      <TableCell className="px-5 py-4">
                         <span
                           className={cn(
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -410,10 +387,10 @@ export function AcademicPeriodsPage() {
                           />
                           {active ? 'Activo' : 'Inactivo'}
                         </span>
-                      </td>
+                      </TableCell>
 
                       {/* Acciones */}
-                      <td className="px-5 py-4 text-right">
+                      <TableCell className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
@@ -443,22 +420,22 @@ export function AcademicPeriodsPage() {
                             </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {/* Paginación */}
         <CatalogPagination
           label="períodos"
           page={page}
-          lastPage={lastPage}
-          disabled={busy}
-          onChange={(nextPage) => void loadPeriods(nextPage)}
+          lastPage={meta?.last_page ?? 1}
+          disabled={isFetching}
+          onChange={setPage}
         />
       </div>
 
@@ -487,7 +464,7 @@ export function AcademicPeriodsPage() {
                 placeholder="Ej. PAO II 2026 o 2026-1"
                 maxLength={100}
                 autoComplete="off"
-                disabled={busy}
+                disabled={formDisabled}
                 required
               />
               <FieldDescription>Ejemplo: PAO I 2026, PAO II 2026.</FieldDescription>
@@ -503,7 +480,7 @@ export function AcademicPeriodsPage() {
                   type="date"
                   value={form.startDate}
                   onChange={(e) => updateField('startDate', e.target.value)}
-                  disabled={busy}
+                  disabled={formDisabled}
                   required
                 />
                 <FieldError>{formErrors.startDate}</FieldError>
@@ -518,7 +495,7 @@ export function AcademicPeriodsPage() {
                   value={form.endDate}
                   min={form.startDate || undefined}
                   onChange={(e) => updateField('endDate', e.target.value)}
-                  disabled={busy}
+                  disabled={formDisabled}
                   required
                 />
                 <FieldError>{formErrors.endDate}</FieldError>
@@ -528,10 +505,10 @@ export function AcademicPeriodsPage() {
             <FieldError>{formError}</FieldError>
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-              <DialogCancelButton onClick={closeModal} disabled={busy}>
+              <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={busy} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+              <Button type="submit" disabled={formDisabled} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
                 {pending === 'period' && <Spinner data-icon="inline-start" />}
                 {editingPeriod ? 'Guardar Cambios' : 'Registrar Período'}
               </Button>

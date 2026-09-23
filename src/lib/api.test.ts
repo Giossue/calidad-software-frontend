@@ -145,13 +145,13 @@ describe('API de administración', () => {
   it('consulta períodos paginados y ejecuta sus mutaciones', async () => {
     const period = { id: 3, name: '2026-1', start_date: '2026-04-01', end_date: '2026-08-31', is_active: true }
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ data: [period], meta: { current_page: 2, last_page: 3, per_page: 15, total: 45 } }))
+      .mockResolvedValueOnce(jsonResponse({ data: [period], meta: { current_page: 2, last_page: 3, per_page: 15, total: 45, active_count: 40, inactive_count: 5 } }))
       .mockResolvedValueOnce(jsonResponse({ data: period }, 201))
       .mockResolvedValueOnce(jsonResponse({ data: period }))
       .mockResolvedValueOnce(jsonResponse({ data: { ...period, is_active: false } }))
     vi.stubGlobal('fetch', fetchMock)
 
-    const response = await api.listAcademicPeriods(2)
+    const response = await api.listAcademicPeriods({ page: 2 })
     await api.createAcademicPeriod({ name: period.name, start_date: period.start_date, end_date: period.end_date })
     await api.updateAcademicPeriod(3, { name: period.name, start_date: period.start_date, end_date: period.end_date })
     await api.deactivateAcademicPeriod(3)
