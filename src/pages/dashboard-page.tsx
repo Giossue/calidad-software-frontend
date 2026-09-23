@@ -116,7 +116,7 @@ export function DashboardPage() {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col justify-between bg-[#0F1E2E] text-slate-100 shadow-2xl transition-all duration-300 ease-in-out',
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col justify-between bg-brand-blue text-slate-100 shadow-2xl transition-all duration-300 ease-in-out',
           isExpanded
             ? 'translate-x-0'
             : '-translate-x-[calc(100%-14px)] opacity-95 hover:opacity-100',
@@ -124,7 +124,7 @@ export function DashboardPage() {
       >
         {/* Indicador cuando está contraído */}
         {!isExpanded && (
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-full bg-red-600 text-white shadow-md">
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-full bg-brand-red text-white shadow-md">
             <ChevronRightIcon className="size-4 animate-pulse" />
           </div>
         )}
@@ -133,7 +133,7 @@ export function DashboardPage() {
           {/* Header del Sidebar */}
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-5">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white shadow-md">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-red text-white shadow-md">
                 <Layers3Icon className="size-6" />
               </div>
               <div className="flex flex-col">
@@ -185,11 +185,11 @@ export function DashboardPage() {
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-medium transition-all duration-150',
                     active
-                      ? 'bg-[#1E293B] font-semibold text-white shadow-sm border-l-4 border-red-500'
+                      ? 'bg-white/10 font-semibold text-white shadow-sm border-l-4 border-brand-red'
                       : 'text-slate-300 hover:bg-slate-800/60 hover:text-white',
                   )}
                 >
-                  <Icon className={cn('size-5 shrink-0', active ? 'text-red-400' : 'text-slate-400')} />
+                  <Icon className={cn('size-5 shrink-0', active ? 'text-brand-red-contrast' : 'text-slate-400')} />
                   <span>{item.label}</span>
                 </button>
               )
@@ -203,7 +203,7 @@ export function DashboardPage() {
             type="button"
             onClick={() => void signOut()}
             disabled={pending}
-            className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-red-400 disabled:opacity-50"
+            className="flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-brand-red-contrast disabled:opacity-50"
           >
             {pending ? (
               <Spinner className="size-4 shrink-0" />
@@ -258,7 +258,7 @@ export function DashboardPage() {
 
             {/* Tarjeta con Nombre Completo (1er Texto) y Correo Electrónico (2do Texto) */}
             <div className="flex items-center gap-3 rounded-full border border-slate-200/80 bg-white p-1.5 pr-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0F1E2E] font-bold text-xs text-white">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white">
                 {initials}
               </div>
               <div className="flex flex-col text-left">

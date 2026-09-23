@@ -66,7 +66,7 @@ export function LoginPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 aria-invalid={Boolean(error)}
-                className="pl-10 h-11 border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                className="pl-10 h-11 border-slate-200 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
                 required
               />
             </div>
@@ -87,7 +87,7 @@ export function LoginPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 aria-invalid={Boolean(error)}
-                className="pl-10 pr-10 h-11 border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                className="pl-10 pr-10 h-11 border-slate-200 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
                 required
               />
               <button
@@ -110,7 +110,7 @@ export function LoginPage() {
             type="submit"
             disabled={pending}
             size="lg"
-            className="h-12 w-full bg-[#0F1E2E] hover:bg-[#1E293B] text-white font-semibold text-base shadow-md transition-all duration-150"
+            className="h-12 w-full bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold text-base shadow-md transition-all duration-150"
           >
             {pending && <Spinner data-icon="inline-start" />}
             {pending ? 'Iniciando sesión…' : 'Ingresar'}
@@ -122,7 +122,7 @@ export function LoginPage() {
         <span className="text-xs text-slate-500 dark:text-slate-400">
           ¿No recuerdas tu contraseña?
         </span>
-        <Button variant="link" size="sm" asChild className="text-red-600 hover:text-red-700 font-semibold p-0">
+        <Button variant="link" size="sm" asChild className="text-brand-red hover:text-brand-red/80 font-semibold p-0">
           <Link to="/forgot-password">Recupérala aquí</Link>
         </Button>
       </div>

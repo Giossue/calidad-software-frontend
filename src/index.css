@@ -7,6 +7,7 @@
   --font-sans: Arial, Helvetica, sans-serif;
   --font-display: Arial, Helvetica, sans-serif;
   --color-brand-red: var(--brand-red);
+  --color-brand-red-contrast: var(--brand-red-contrast);
   --color-brand-blue: var(--brand-blue);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -38,6 +39,7 @@
 
 :root {
   --brand-red: #A51C1C;
+  --brand-red-contrast: #D85B56;
   --brand-blue: #0A283F;
   --background: #F5F7F9;
   --foreground: var(--brand-blue);

@@ -109,7 +109,7 @@ export function AccessibilityModal({
               onClick={() => updateSetting('fontSize', 'normal')}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition-all ${
                 settings.fontSize === 'normal'
-                  ? 'bg-red-600 text-white shadow-xs'
+                  ? 'bg-brand-red text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
               }`}
             >
@@ -120,7 +120,7 @@ export function AccessibilityModal({
               onClick={() => updateSetting('fontSize', 'large')}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition-all ${
                 settings.fontSize === 'large'
-                  ? 'bg-red-600 text-white shadow-xs'
+                  ? 'bg-brand-red text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
               }`}
             >
@@ -188,7 +188,7 @@ export function AccessibilityModal({
           <DialogCancelButton onClick={handleCancel}>
             Cancelar
           </DialogCancelButton>
-          <Button onClick={handleSave} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+          <Button onClick={handleSave} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
             Guardar Ajustes
           </Button>
         </div>

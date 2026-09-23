@@ -10,10 +10,10 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
       <div className="grid w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.1fr_0.9fr]">
 
         {/* Panel Azul Oscuro (Izquierda) */}
-        <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#0A1224] via-[#0F1E2E] to-[#18283B] p-8 text-white lg:flex lg:flex-col lg:items-start lg:justify-between xl:p-14">
+        <aside className="relative hidden overflow-hidden bg-gradient-to-br from-brand-blue via-brand-blue to-slate-950 p-8 text-white lg:flex lg:flex-col lg:items-start lg:justify-between xl:p-14">
           {/* Luz ambiental radial de fondo */}
           <div
-            className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(220,38,38,0.18),transparent_50%)] pointer-events-none"
+            className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(165,28,28,0.18),transparent_50%)] pointer-events-none"
             aria-hidden="true"
           />
           <div
@@ -28,7 +28,7 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
           {/* Escudo Flotante sin cajas blancas ni fondos cuadrados */}
           <div className="relative z-10 flex items-center gap-4">
             <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-red-600/20 blur-xl pointer-events-none" />
+              <div className="absolute inset-0 rounded-full bg-brand-red/20 blur-xl pointer-events-none" />
               <img
                 src="/ueb-logo.png"
                 alt="Escudo de la Universidad Estatal de Bolívar"
@@ -49,8 +49,8 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
           </div>
 
           {/* Mensaje Principal de Bienvenida */}
-          <div className="relative z-10 my-auto flex flex-col gap-4 max-w-lg border-l-4 border-red-600 pl-7 xl:pl-9">
-            <span className="text-xs font-bold tracking-[0.2em] text-red-400 uppercase">
+          <div className="relative z-10 my-auto flex flex-col gap-4 max-w-lg border-l-4 border-brand-red pl-7 xl:pl-9">
+            <span className="text-xs font-bold tracking-[0.2em] text-brand-red-contrast uppercase">
               Plataforma Institucional
             </span>
             <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-white xl:text-6xl">
@@ -73,8 +73,8 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
 
             {/* Encabezado del Formulario */}
             <header className="mb-8 flex flex-col gap-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/60 dark:text-red-300 w-fit">
-                <span className="size-1.5 rounded-full bg-red-600 animate-pulse" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-brand-red/10 px-3 py-1 text-xs font-semibold text-brand-red dark:bg-brand-red/20 dark:text-brand-red-contrast w-fit">
+                <span className="size-1.5 rounded-full bg-brand-red animate-pulse" />
                 <span>Acceso Institucional</span>
               </div>
               <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl leading-tight">

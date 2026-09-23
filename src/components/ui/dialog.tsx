@@ -180,7 +180,7 @@ export function Dialog({
                     type="button"
                     variant="destructive"
                     onClick={handleConfirmDiscard}
-                    className="bg-red-600 hover:bg-red-700 font-semibold text-white"
+                    className="font-semibold"
                   >
                     Sí, descartar y salir
                   </Button>
