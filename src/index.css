@@ -53,8 +53,8 @@
   --secondary-foreground: var(--brand-blue);
   --muted: #EEF2F5;
   --muted-foreground: #5D6B75;
-  --accent: var(--brand-red);
-  --accent-foreground: #FFFFFF;
+  --accent: var(--secondary);
+  --accent-foreground: var(--secondary-foreground);
   --destructive: var(--brand-red);
   --destructive-foreground: #FFFFFF;
   --success: #17854E;
@@ -80,8 +80,8 @@
   --secondary-foreground: #F5F7F9;
   --muted: #17364D;
   --muted-foreground: #B9C6CF;
-  --accent: var(--brand-red);
-  --accent-foreground: #FFFFFF;
+  --accent: var(--secondary);
+  --accent-foreground: var(--secondary-foreground);
   --destructive: #D85B56;
   --destructive-foreground: #FFFFFF;
   --success: #6FE0A4;
