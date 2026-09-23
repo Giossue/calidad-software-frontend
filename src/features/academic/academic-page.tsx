@@ -28,7 +28,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { ApiError, api, type Career, type Cycle, type Faculty } from '@/lib/api'
+import { ApiError, api, type Career, type Cycle, type Faculty, type Modality } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 function getErrorMessage(error: unknown): string {
@@ -65,9 +65,16 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   } = usePaginatedCatalog(fetchCareers)
 
   const [activeFaculties, setActiveFaculties] = useState<readonly Faculty[]>([])
+  const [modalities, setModalities] = useState<readonly Modality[]>([])
+
+  async function refreshModalities() {
+    const response = await api.listModalities()
+    setModalities(response.data.filter((modality) => modality.is_active))
+  }
 
   useEffect(() => {
     void api.listActiveFaculties().then(setActiveFaculties)
+    void refreshModalities()
   }, [])
 
   const [formError, setFormError] = useState<string | null>(null)
@@ -76,8 +83,14 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   const [editingCareer, setEditingCareer] = useState<Career | null>(null)
   const [careerFacultyId, setCareerFacultyId] = useState('')
   const [careerName, setCareerName] = useState('')
+  const [careerModalityId, setCareerModalityId] = useState('')
   const [initialCareerFacultyId, setInitialCareerFacultyId] = useState('')
   const [initialCareerName, setInitialCareerName] = useState('')
+  const [initialCareerModalityId, setInitialCareerModalityId] = useState('')
+
+  const [isAddingModality, setIsAddingModality] = useState(false)
+  const [newModalityName, setNewModalityName] = useState('')
+  const [creatingModality, setCreatingModality] = useState(false)
 
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false)
   const [careerToToggle, setCareerToToggle] = useState<CareerToggleTarget | null>(null)
@@ -91,10 +104,15 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setEditingCareer(null)
     setCareerFacultyId('')
     setCareerName('')
+    setCareerModalityId('')
     setInitialCareerFacultyId('')
     setInitialCareerName('')
+    setInitialCareerModalityId('')
+    setIsAddingModality(false)
+    setNewModalityName('')
     setFormError(null)
     void api.listActiveFaculties().then(setActiveFaculties)
+    void refreshModalities()
     setIsCareerModalOpen(true)
   }
 
@@ -102,10 +120,15 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setEditingCareer(career)
     setCareerFacultyId(String(career.faculty_id))
     setCareerName(career.name)
+    setCareerModalityId(career.modality_id ? String(career.modality_id) : '')
     setInitialCareerFacultyId(String(career.faculty_id))
     setInitialCareerName(career.name)
+    setInitialCareerModalityId(career.modality_id ? String(career.modality_id) : '')
+    setIsAddingModality(false)
+    setNewModalityName('')
     setFormError(null)
     void api.listActiveFaculties().then(setActiveFaculties)
+    void refreshModalities()
     setIsCareerModalOpen(true)
   }
 
@@ -114,7 +137,28 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setEditingCareer(null)
     setCareerFacultyId('')
     setCareerName('')
+    setCareerModalityId('')
+    setIsAddingModality(false)
+    setNewModalityName('')
     setFormError(null)
+  }
+
+  async function handleCreateModality() {
+    const trimmedName = newModalityName.trim()
+    if (!trimmedName || creatingModality) return
+    setCreatingModality(true)
+    try {
+      const created = await api.createModality({ name: trimmedName })
+      await refreshModalities()
+      setCareerModalityId(String(created.id))
+      setIsAddingModality(false)
+      setNewModalityName('')
+      toast.success('Modalidad creada', { description: `Se agregó "${created.name}" al catálogo de modalidades.` })
+    } catch (error: unknown) {
+      toast.error('No se pudo crear la modalidad', { description: getErrorMessage(error) })
+    } finally {
+      setCreatingModality(false)
+    }
   }
 
   async function submitCareer(event: FormEvent<HTMLFormElement>) {
@@ -123,7 +167,11 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setFormError(null)
     setPending('career')
     try {
-      const input = { faculty_id: Number(careerFacultyId), name: careerName.trim() }
+      const input = {
+        faculty_id: Number(careerFacultyId),
+        name: careerName.trim(),
+        modality_id: careerModalityId ? Number(careerModalityId) : null,
+      }
       if (editingCareer) {
         await api.updateCareer(editingCareer.id, input)
         toast.success('Carrera actualizada', { description: `La carrera "${input.name}" fue modificada.` })
@@ -163,7 +211,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   }
 
   const formPending = pending === 'career'
-  const isCareerFormDirty = careerFacultyId !== initialCareerFacultyId || careerName !== initialCareerName
+  const isCareerFormDirty =
+    careerFacultyId !== initialCareerFacultyId
+    || careerName !== initialCareerName
+    || careerModalityId !== initialCareerModalityId
 
   // Métricas KPI (independientes de la página actual y de la búsqueda)
   const activeCareersCount = meta?.active_count ?? 0
@@ -256,6 +307,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Carrera Universitaria</TableHead>
                 <TableHead className="px-5 py-3.5 whitespace-normal">Facultad Perteneciente</TableHead>
+                <TableHead className="px-5 py-3.5 whitespace-normal">Modalidad</TableHead>
                 <TableHead className="px-5 py-3.5">Estado</TableHead>
                 <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
               </TableRow>
@@ -266,13 +318,14 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                   <TableRow key={i} className="animate-pulse">
                     <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4"><div className="h-4 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : careers.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
                       <BookOpenIcon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
@@ -301,6 +354,9 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                     </TableCell>
                     <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
                       {career.faculty_name ?? `Facultad #${career.faculty_id}`}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
+                      {career.modality_name ?? 'Sin modalidad'}
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <span
@@ -391,6 +447,71 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                   </option>
                 ))}
               </NativeSelect>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="career-modality">Modalidad</FieldLabel>
+              {isAddingModality ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newModalityName}
+                    onChange={(e) => setNewModalityName(e.target.value)}
+                    placeholder="Ej. Semipresencial"
+                    maxLength={100}
+                    disabled={creatingModality}
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void handleCreateModality()}
+                    disabled={creatingModality || !newModalityName.trim()}
+                    className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold shrink-0"
+                  >
+                    {creatingModality && <Spinner data-icon="inline-start" />}
+                    Guardar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsAddingModality(false)
+                      setNewModalityName('')
+                    }}
+                    disabled={creatingModality}
+                    className="shrink-0"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <NativeSelect
+                    id="career-modality"
+                    value={careerModalityId}
+                    onChange={(e) => setCareerModalityId(e.target.value)}
+                    disabled={formPending}
+                  >
+                    <option value="">Sin modalidad</option>
+                    {modalities.map((modality) => (
+                      <option key={modality.id} value={modality.id}>
+                        {modality.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsAddingModality(true)}
+                    disabled={formPending}
+                    title="Crear nueva modalidad"
+                    className="shrink-0"
+                  >
+                    <PlusIcon />
+                  </Button>
+                </div>
+              )}
+              <FieldDescription>Si la modalidad que necesitas no existe, créala con el botón "+".</FieldDescription>
             </Field>
 
             <Field>

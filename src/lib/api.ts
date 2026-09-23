@@ -26,6 +26,8 @@ export interface Career {
   readonly id: number
   readonly faculty_id: number
   readonly faculty_name?: string
+  readonly modality_id: number | null
+  readonly modality_name?: string
   readonly name: string
   readonly status: boolean
   readonly cycles_count: number
@@ -130,6 +132,7 @@ export type FacultyInput = {
 export type CareerInput = {
   readonly faculty_id: number
   readonly name: string
+  readonly modality_id?: number | null
 }
 
 export type CycleInput = {
