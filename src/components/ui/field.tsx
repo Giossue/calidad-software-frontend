@@ -153,6 +153,25 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   )
 }
 
+function FieldCounter({
+  current,
+  max,
+  className,
+}: {
+  current: number
+  max: number
+  className?: string
+}) {
+  return (
+    <span
+      data-slot="field-counter"
+      className={cn("shrink-0 text-xs font-normal tabular-nums text-muted-foreground/70", className)}
+    >
+      {current}/{max}
+    </span>
+  )
+}
+
 function FieldSeparator({
   children,
   className,
@@ -237,6 +256,7 @@ function FieldError({
 export {
   Field,
   FieldLabel,
+  FieldCounter,
   FieldDescription,
   FieldError,
   FieldGroup,

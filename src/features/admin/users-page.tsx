@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
@@ -81,6 +81,14 @@ function isRole(value: string): boolean {
   return ROLE_OPTIONS.some((option) => option.value === value)
 }
 
+function sanitizeDigits(value: string, maxLength: number): string {
+  return value.replace(/\D/g, '').slice(0, maxLength)
+}
+
+function sanitizeName(value: string, maxLength: number): string {
+  return value.replace(/[^\p{L}\s]/gu, '').slice(0, maxLength)
+}
+
 function getRoleLabel(role: string): string {
   return ROLE_OPTIONS.find((option) => option.value === role)?.label ?? role
 }
@@ -118,16 +126,19 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
   const phone = form.phone.trim()
 
   if (!identification) errors.identification = 'La cédula es obligatoria.'
-  else if (identification.length > 20) errors.identification = 'La cédula no puede superar 20 caracteres.'
+  else if (!/^\d{10}$/.test(identification)) errors.identification = 'La cédula debe tener 10 dígitos numéricos.'
 
   if (!name) errors.name = 'El nombre es obligatorio.'
   else if (name.length > 150) errors.name = 'El nombre no puede superar 150 caracteres.'
+  else if (!/^[\p{L}\s]+$/u.test(name)) errors.name = 'El nombre solo puede contener letras y espacios.'
 
   if (!email) errors.email = 'El correo electrónico es obligatorio.'
   else if (email.length > 150) errors.email = 'El correo electrónico no puede superar 150 caracteres.'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Escribe un correo electrónico válido.'
 
-  if (phone.length > 20) errors.phone = 'El teléfono no puede superar 20 caracteres.'
+  if (!phone) errors.phone = 'El teléfono es obligatorio.'
+  else if (!/^\d{10}$/.test(phone)) errors.phone = 'El teléfono debe tener 10 dígitos numéricos.'
+
   if (!isRole(form.role)) errors.role = 'Selecciona un rol válido.'
 
   if (editing && form.password) {
@@ -617,15 +628,19 @@ export function UsersPage() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <Field data-invalid={Boolean(userErrors.identification)}>
-                <FieldLabel htmlFor="user-identification">Cédula</FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="user-identification">Cédula</FieldLabel>
+                  <FieldCounter current={userForm.identification.length} max={10} />
+                </div>
                 <Input
                   id="user-identification"
                   name="identification"
+                  inputMode="numeric"
                   value={userForm.identification}
-                  onChange={(e) => updateUserField('identification', e.target.value)}
-                  maxLength={20}
+                  onChange={(e) => updateUserField('identification', sanitizeDigits(e.target.value, 10))}
+                  maxLength={10}
                   autoComplete="off"
-                  placeholder="Ej. 0102030405"
+                  placeholder="Ej. 1710034065"
                   disabled={formDisabled}
                   required
                 />
@@ -633,12 +648,15 @@ export function UsersPage() {
               </Field>
 
               <Field data-invalid={Boolean(userErrors.name)}>
-                <FieldLabel htmlFor="user-name">Nombre completo</FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="user-name">Nombre completo</FieldLabel>
+                  <FieldCounter current={userForm.name.length} max={150} />
+                </div>
                 <Input
                   id="user-name"
                   name="name"
                   value={userForm.name}
-                  onChange={(e) => updateUserField('name', e.target.value)}
+                  onChange={(e) => updateUserField('name', sanitizeName(e.target.value, 150))}
                   maxLength={150}
                   autoComplete="name"
                   placeholder="Ej. Ana Torres"
@@ -650,13 +668,16 @@ export function UsersPage() {
             </div>
 
             <Field data-invalid={Boolean(userErrors.email)}>
-              <FieldLabel htmlFor="user-email">Correo electrónico institucional</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="user-email">Correo electrónico institucional</FieldLabel>
+                <FieldCounter current={userForm.email.length} max={150} />
+              </div>
               <Input
                 id="user-email"
                 name="email"
                 type="email"
                 value={userForm.email}
-                onChange={(e) => updateUserField('email', e.target.value)}
+                onChange={(e) => updateUserField('email', e.target.value.slice(0, 150))}
                 maxLength={150}
                 placeholder="nombre@ueb.edu.ec"
                 disabled={formDisabled}
@@ -667,18 +688,21 @@ export function UsersPage() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <Field data-invalid={Boolean(userErrors.phone)}>
-                <FieldLabel htmlFor="user-phone">
-                  Teléfono <span className="font-normal text-muted-foreground">(opcional)</span>
-                </FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="user-phone">Teléfono</FieldLabel>
+                  <FieldCounter current={userForm.phone.length} max={10} />
+                </div>
                 <Input
                   id="user-phone"
                   name="phone"
                   type="tel"
+                  inputMode="numeric"
                   value={userForm.phone}
-                  onChange={(e) => updateUserField('phone', e.target.value)}
-                  maxLength={20}
-                  placeholder="Ej. 0991234567"
+                  onChange={(e) => updateUserField('phone', sanitizeDigits(e.target.value, 10))}
+                  maxLength={10}
+                  placeholder="Ej. 0989938432"
                   disabled={formDisabled}
+                  required
                 />
                 <FieldError>{userErrors.phone}</FieldError>
               </Field>
