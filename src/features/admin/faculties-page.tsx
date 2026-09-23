@@ -167,7 +167,6 @@ export function FacultiesPage() {
       <AdminSectionHeader
         title="Estructura de Facultades"
         description="Gestiona las unidades académicas principales de la universidad."
-        eyebrow="Catálogo Institucional"
         actions={
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
@@ -193,7 +192,7 @@ export function FacultiesPage() {
       {/* Contenedor Principal: Filtro + Tabla */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="relative flex flex-1 items-center max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
@@ -203,11 +202,10 @@ export function FacultiesPage() {
               className="pl-10"
             />
           </div>
+          <p className="shrink-0 text-sm text-muted-foreground">
+            Mostrando {faculties.length} de {meta?.total ?? 0} facultades
+          </p>
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          Mostrando {faculties.length} de {meta?.total ?? 0} facultades
-        </p>
 
         {/* Tabla de Facultades */}
         <div

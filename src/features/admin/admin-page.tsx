@@ -43,7 +43,7 @@ export function AdminPage({
     <section className="flex flex-col gap-8" aria-labelledby="admin-title">
       {!section && (
         <>
-          <AdminSectionHeader title="Administración" description="Configura las cuentas y catálogos que sostienen la operación académica del sistema." eyebrow="Catálogo institucional" titleId="admin-title" />
+          <AdminSectionHeader title="Administración" description="Configura las cuentas y catálogos que sostienen la operación académica del sistema." titleId="admin-title" />
 
           <Card className="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3 xl:grid-cols-6" role="tablist" aria-label="Secciones de administración">
             {ADMIN_TABS.map((tab) => <AdminTabButton key={tab.id} tab={tab} active={activeSection === tab.id} onSelect={setInternalSection} />)}

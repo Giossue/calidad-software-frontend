@@ -268,7 +268,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       <AdminSectionHeader
         title="Oferta de Carreras"
         description="Gestiona las carreras profesionales ofertadas por cada facultad. Entra a una carrera para administrar sus ciclos."
-        eyebrow="Estructura Académica"
         actions={
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
@@ -293,7 +292,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
 
       {/* Tabla de Carreras */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="relative flex flex-1 items-center max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
@@ -303,11 +302,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               className="pl-10"
             />
           </div>
+          <p className="shrink-0 text-sm text-muted-foreground">
+            Mostrando {careers.length} de {meta?.total ?? 0} carreras
+          </p>
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          Mostrando {careers.length} de {meta?.total ?? 0} carreras
-        </p>
 
         <div
           className={cn(
@@ -737,7 +735,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       <AdminSectionHeader
         title={`Ciclos de ${career.name}`}
         description="Define la estructura de ciclos y niveles dentro de esta carrera."
-        eyebrow="Estructura Académica"
         actions={
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
@@ -762,7 +759,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
 
       {/* Tabla de Ciclos */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="relative flex flex-1 items-center max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
@@ -772,11 +769,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               className="pl-10"
             />
           </div>
+          <p className="shrink-0 text-sm text-muted-foreground">
+            Mostrando {cycles.length} de {meta?.total ?? 0} ciclos
+          </p>
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          Mostrando {cycles.length} de {meta?.total ?? 0} ciclos
-        </p>
 
         <div
           className={cn(

@@ -214,7 +214,6 @@ export function AcademicPeriodsPage() {
       <AdminSectionHeader
         title="Períodos Académicos"
         description="Configura los lapsos académicos en los que se organizan las materias, tutorías y titulaciones."
-        eyebrow="Calendario Institucional"
         titleId="academic-periods-title"
         actions={
           <div className="flex items-center gap-3">
@@ -241,7 +240,7 @@ export function AcademicPeriodsPage() {
       {/* Contenedor Principal: Filtro + Tabla */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="relative flex flex-1 items-center max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
@@ -251,11 +250,10 @@ export function AcademicPeriodsPage() {
               className="pl-10"
             />
           </div>
+          <p className="shrink-0 text-sm text-muted-foreground">
+            Mostrando {periods.length} de {meta?.total ?? 0} períodos
+          </p>
         </div>
-
-        <p className="text-sm text-muted-foreground">
-          Mostrando {periods.length} de {meta?.total ?? 0} períodos
-        </p>
 
         {/* Tabla de Períodos */}
         <div

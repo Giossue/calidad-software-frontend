@@ -323,7 +323,6 @@ export function UsersPage() {
       <AdminSectionHeader
         title="Gestión de Usuarios"
         description="Administra los permisos, roles y cuentas del personal administrativo y académico."
-        eyebrow="Administración del Sistema"
         actions={
           <div className="flex items-center gap-3">
             <Button
