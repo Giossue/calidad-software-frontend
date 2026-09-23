@@ -3,7 +3,6 @@ import {
   BookOpenIcon,
   Building2Icon,
   CalendarDaysIcon,
-  CheckCircle2Icon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react'
@@ -14,10 +13,9 @@ import { AcademicPage } from '@/features/academic/academic-page'
 import { cn } from '@/lib/utils'
 import { AcademicPeriodsPage } from './academic-periods-page'
 import { FacultiesPage } from './faculties-page'
-import { ModalitiesPage } from './modalities-page'
 import { UsersPage } from './users-page'
 
-export type AdminSection = 'users' | 'periods' | 'faculties' | 'careers' | 'modalities'
+export type AdminSection = 'users' | 'periods' | 'faculties' | 'careers'
 
 export type AdminTab = {
   readonly id: AdminSection
@@ -31,7 +29,6 @@ export const ADMIN_TABS: readonly AdminTab[] = [
   { id: 'periods', label: 'Períodos Académicos', description: 'Calendario académico', icon: CalendarDaysIcon },
   { id: 'faculties', label: 'Facultades', description: 'Estructura institucional', icon: Building2Icon },
   { id: 'careers', label: 'Carreras', description: 'Oferta académica y ciclos', icon: BookOpenIcon },
-  { id: 'modalities', label: 'Modalidades', description: 'Formas de estudio', icon: CheckCircle2Icon },
 ]
 
 export function AdminPage({
@@ -94,8 +91,6 @@ export function AdminSectionContent({ section }: Readonly<{ section: AdminSectio
       return <AcademicPage />
     case 'periods':
       return <AcademicPeriodsPage />
-    case 'modalities':
-      return <ModalitiesPage />
   }
 }
 

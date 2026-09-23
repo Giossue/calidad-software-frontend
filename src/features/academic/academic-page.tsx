@@ -457,7 +457,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                     value={newModalityName}
                     onChange={(e) => setNewModalityName(e.target.value)}
                     placeholder="Ej. Semipresencial"
-                    maxLength={100}
                     disabled={creatingModality}
                     autoFocus
                   />
@@ -511,7 +510,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                   </Button>
                 </div>
               )}
-              <FieldDescription>Si la modalidad que necesitas no existe, créala con el botón "+".</FieldDescription>
+              <FieldDescription className="text-xs">Si no existe, créala con el botón "+".</FieldDescription>
             </Field>
 
             <Field>

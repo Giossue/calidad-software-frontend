@@ -10,7 +10,6 @@ import {
   PinIcon,
   PinOffIcon,
   Settings2Icon,
-  SlidersIcon,
   UsersIcon,
   XIcon,
 } from 'lucide-react'
@@ -33,7 +32,6 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'periods', label: 'Períodos Académicos', icon: CalendarDaysIcon },
   { id: 'faculties', label: 'Facultades', icon: Building2Icon },
   { id: 'careers', label: 'Carreras', icon: BookOpenIcon },
-  { id: 'modalities', label: 'Modalidades', icon: SlidersIcon },
 ]
 
 function getRoleLabel(role?: string): string {
