@@ -1,5 +1,6 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import {
+  CheckCircle2Icon,
   Edit2Icon,
   GraduationCapIcon,
   MailIcon,
@@ -11,6 +12,7 @@ import {
   UserCheckIcon,
   UsersIcon,
   UserXIcon,
+  XCircleIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -28,6 +30,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { ApiError, api, type User, type UserPaginationMeta } from '@/lib/api'
+import { isValidEcuadorianCedula } from '@/lib/cedula'
 import { cn } from '@/lib/utils'
 
 type UserForm = {
@@ -127,6 +130,7 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
 
   if (!identification) errors.identification = 'La cédula es obligatoria.'
   else if (!/^\d{10}$/.test(identification)) errors.identification = 'La cédula debe tener 10 dígitos numéricos.'
+  else if (!isValidEcuadorianCedula(identification)) errors.identification = 'La cédula ingresada no es válida.'
 
   if (!name) errors.name = 'El nombre es obligatorio.'
   else if (name.length > 150) errors.name = 'El nombre no puede superar 150 caracteres.'
@@ -632,18 +636,28 @@ export function UsersPage() {
                   <FieldLabel htmlFor="user-identification">Cédula</FieldLabel>
                   <FieldCounter current={userForm.identification.length} max={10} />
                 </div>
-                <Input
-                  id="user-identification"
-                  name="identification"
-                  inputMode="numeric"
-                  value={userForm.identification}
-                  onChange={(e) => updateUserField('identification', sanitizeDigits(e.target.value, 10))}
-                  maxLength={10}
-                  autoComplete="off"
-                  placeholder="Ej. 1710034065"
-                  disabled={formDisabled}
-                  required
-                />
+                <div className="relative flex items-center">
+                  <Input
+                    id="user-identification"
+                    name="identification"
+                    inputMode="numeric"
+                    value={userForm.identification}
+                    onChange={(e) => updateUserField('identification', sanitizeDigits(e.target.value, 10))}
+                    maxLength={10}
+                    autoComplete="off"
+                    placeholder="Ej. 1710034065"
+                    disabled={formDisabled}
+                    required
+                    className={cn(userForm.identification.length === 10 && 'pr-9')}
+                  />
+                  {userForm.identification.length === 10 && (
+                    isValidEcuadorianCedula(userForm.identification) ? (
+                      <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Cédula válida" />
+                    ) : (
+                      <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Cédula inválida" />
+                    )
+                  )}
+                </div>
                 <FieldError>{userErrors.identification}</FieldError>
               </Field>
 
