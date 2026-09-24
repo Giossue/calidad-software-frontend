@@ -156,6 +156,24 @@ html.reduce-motion *::after {
   mix-blend-mode: normal;
 }
 
+/* La capa vieja va encima de la nueva (al revés del orden por defecto):
+   así el círculo encoge la capa vieja para revelar la nueva debajo, en
+   vez de esperar a que la nueva termine de capturarse para crecer. */
+::view-transition-old(root) {
+  z-index: 2;
+}
+::view-transition-new(root) {
+  z-index: 1;
+}
+
+/* Mientras dura el efecto, ninguna transición normal del sitio
+   (transition-colors, etc.) debe correr al mismo tiempo. */
+html.vt-active *,
+html.vt-active *::before,
+html.vt-active *::after {
+  transition: none !important;
+}
+
 @theme inline {
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

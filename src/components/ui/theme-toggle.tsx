@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from 'react'
+import { flushSync } from 'react-dom'
 import { MoonIcon, SunIcon } from 'lucide-react'
 
 import { getStoredAccessibility, saveAccessibilitySettings } from '@/lib/accessibility'
@@ -29,13 +30,28 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
       Math.max(y, window.innerHeight - y),
     )
 
-    const transition = document.startViewTransition(() => applyTheme())
+    const root = document.documentElement
+    // Evita que las transiciones normales del sitio (transition-colors, etc.)
+    // corran al mismo tiempo que el efecto.
+    root.classList.add('vt-active')
+
+    // Sin flushSync, el cambio de estado de React puede quedar fuera de la
+    // ventana síncrona que espera la API, causando el parpadeo.
+    const transition = document.startViewTransition(() => flushSync(() => applyTheme()))
 
     void transition.ready.then(() => {
-      document.documentElement.animate(
-        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
-        { duration: 500, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
+      // Se anima la capa VIEJA encogiéndose (no la nueva creciendo). La vieja
+      // ya está lista desde antes de hacer clic, así que no hay espera de
+      // por medio: en el peor caso se ve el estado anterior un instante más,
+      // nunca el salto brusco al nuevo antes de que arranque el círculo.
+      root.animate(
+        { clipPath: [`circle(${endRadius}px at ${x}px ${y}px)`, `circle(0px at ${x}px ${y}px)`] },
+        { duration: 500, easing: 'ease-in-out', pseudoElement: '::view-transition-old(root)' },
       )
+    })
+
+    void transition.finished.finally(() => {
+      root.classList.remove('vt-active')
     })
   }
 
