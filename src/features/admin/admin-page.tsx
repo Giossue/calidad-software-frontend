@@ -31,6 +31,14 @@ export const ADMIN_TABS: readonly AdminTab[] = [
   { id: 'careers', label: 'Carreras', description: 'Oferta académica y ciclos', icon: BookOpenIcon },
 ]
 
+const ADMIN_SECTION_IDS: readonly AdminSection[] = ADMIN_TABS.map((tab) => tab.id)
+
+export const DEFAULT_ADMIN_SECTION: AdminSection = ADMIN_SECTION_IDS[0]
+
+export function isAdminSection(value: string | undefined): value is AdminSection {
+  return value !== undefined && (ADMIN_SECTION_IDS as readonly string[]).includes(value)
+}
+
 export function AdminPage({
   section,
 }: Readonly<{

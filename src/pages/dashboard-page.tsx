@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   BookOpenIcon,
   Building2Icon,
@@ -17,7 +18,12 @@ import {
 import { AccessibilityModal } from '@/components/ui/accessibility-modal'
 import { Card } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
-import { AdminSectionContent, type AdminSection } from '@/features/admin/admin-page'
+import {
+  AdminSectionContent,
+  DEFAULT_ADMIN_SECTION,
+  isAdminSection,
+  type AdminSection,
+} from '@/features/admin/admin-page'
 import { useAuth } from '@/features/auth/auth-context'
 import { cn } from '@/lib/utils'
 
@@ -62,8 +68,9 @@ function getInitials(name?: string): string {
 
 export function DashboardPage() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const { section } = useParams<{ section: string }>()
   const [pending, setPending] = useState(false)
-  const [activeSection, setActiveSection] = useState<AdminSection>('users')
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // Estado para la barra lateral emergente al pasar el cursor (Hover)
@@ -73,9 +80,24 @@ export function DashboardPage() {
   // Estado para el modal de Accesibilidad
   const [accessibilityOpen, setAccessibilityOpen] = useState(false)
 
+  const activeSection: AdminSection = isAdminSection(section) ? section : DEFAULT_ADMIN_SECTION
+
+  useEffect(() => {
+    if (section !== activeSection) {
+      navigate(`/panel/${activeSection}`, { replace: true })
+    }
+  }, [section, activeSection, navigate])
+
   async function signOut() {
     setPending(true)
     await logout()
+  }
+
+  function goToSection(next: AdminSection) {
+    setMobileOpen(false)
+    if (next !== activeSection) {
+      navigate(`/panel/${next}`)
+    }
   }
 
   const activeNavItem = NAV_ITEMS.find((item) => item.id === activeSection) ?? NAV_ITEMS[0]
@@ -175,10 +197,7 @@ export function DashboardPage() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    setActiveSection(item.id)
-                    setMobileOpen(false)
-                  }}
+                  onClick={() => goToSection(item.id)}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-medium transition-all duration-150',
                     active

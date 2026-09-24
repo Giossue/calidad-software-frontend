@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { DEFAULT_ADMIN_SECTION } from '@/features/admin/admin-page'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page'
 import { LoginPage } from '@/features/auth/login-page'
@@ -39,7 +40,8 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/two-factor" element={<GuestRoute><TwoFactorPage /></GuestRoute>} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route path="/" element={<ProtectedDashboard />} />
+            <Route path="/panel/:section" element={<ProtectedDashboard />} />
+            <Route path="/" element={<Navigate to={`/panel/${DEFAULT_ADMIN_SECTION}`} replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster position="top-center" richColors closeButton />
