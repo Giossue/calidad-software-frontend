@@ -147,6 +147,15 @@ html.reduce-motion *::after {
   transition-duration: 0.001ms !important;
 }
 
+/* Transición circular del cambio de tema (ver ThemeToggle): se apaga el
+   fundido por defecto de la View Transition API para que solo se anime
+   el clip-path circular que arma el propio componente. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 @theme inline {
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

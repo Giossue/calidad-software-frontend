@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { MoonIcon, SunIcon } from 'lucide-react'
 
 import { getStoredAccessibility, saveAccessibilitySettings } from '@/lib/accessibility'
@@ -7,11 +7,36 @@ import { cn } from '@/lib/utils'
 export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
   const [isDark, setIsDark] = useState(() => getStoredAccessibility().darkMode)
 
-  function toggle() {
+  function applyTheme() {
     const current = getStoredAccessibility()
     const next = { ...current, darkMode: !current.darkMode }
     saveAccessibilitySettings(next)
     setIsDark(next.darkMode)
+  }
+
+  function toggle(event: MouseEvent<HTMLButtonElement>) {
+    const reduceMotion = getStoredAccessibility().reduceMotion
+    if (reduceMotion || !document.startViewTransition) {
+      applyTheme()
+      return
+    }
+
+    const { left, top, width, height } = event.currentTarget.getBoundingClientRect()
+    const x = left + width / 2
+    const y = top + height / 2
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    )
+
+    const transition = document.startViewTransition(() => applyTheme())
+
+    void transition.ready.then(() => {
+      document.documentElement.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
+        { duration: 500, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
+      )
+    })
   }
 
   return (
