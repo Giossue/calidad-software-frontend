@@ -97,7 +97,6 @@ export function DashboardPage() {
     await logout()
   }
 
-  const activeNavItem = NAV_ITEMS.find((item) => item.id === activeSection) ?? NAV_ITEMS[0]
   const userRoleText = getRoleLabel(user?.role)
   const initials = getInitials(user?.name)
 
@@ -141,20 +140,6 @@ export function DashboardPage() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-
-          <SidebarGroup>
-            <SidebarGroupLabel>Configuración</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton tooltip="Accesibilidad" onClick={() => setAccessibilityOpen(true)}>
-                    <Settings2Icon />
-                    <span>Accesibilidad</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
         </SidebarContent>
 
         <SidebarSeparator />
@@ -181,27 +166,33 @@ export function DashboardPage() {
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-xs md:px-6">
           <div className="flex items-center gap-3">
             <SidebarTrigger className="md:hidden" />
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground">
-                {userRoleText} &rsaquo; Tutorías y Titulación
-              </span>
-              <h1 className="text-lg font-bold tracking-tight text-foreground md:text-xl">
-                {activeNavItem.label}
-              </h1>
-            </div>
+            <span className="text-xs font-medium text-muted-foreground md:text-sm">
+              {userRoleText} &rsaquo; Tutorías y Titulación
+            </span>
           </div>
 
-          <div className="flex items-center gap-3 rounded-full border border-border bg-card p-1.5 pr-4 shadow-2xs">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white">
-              {initials}
-            </div>
-            <div className="hidden flex-col text-left sm:flex">
-              <span className="text-xs font-bold leading-tight text-foreground">
-                {user?.name ?? 'Usuario'}
-              </span>
-              <span className="text-[11px] font-medium text-muted-foreground">
-                {user?.email ?? ''}
-              </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setAccessibilityOpen(true)}
+              className="flex items-center gap-2 rounded-full border border-border bg-card p-2 px-3 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted"
+              title="Configuración de Accesibilidad"
+            >
+              <Settings2Icon className="size-4 text-muted-foreground" />
+            </button>
+
+            <div className="flex items-center gap-3 rounded-full border border-border bg-card p-1.5 pr-4 shadow-2xs">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white">
+                {initials}
+              </div>
+              <div className="hidden flex-col text-left sm:flex">
+                <span className="text-xs font-bold leading-tight text-foreground">
+                  {user?.name ?? 'Usuario'}
+                </span>
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {user?.email ?? ''}
+                </span>
+              </div>
             </div>
           </div>
         </header>
