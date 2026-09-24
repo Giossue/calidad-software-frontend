@@ -31,10 +31,6 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
     )
 
     const root = document.documentElement
-    // Evita que las transiciones normales del sitio (transition-colors, etc.)
-    // corran al mismo tiempo que el efecto.
-    root.classList.add('vt-active')
-
     // Sin flushSync, el cambio de estado de React puede quedar fuera de la
     // ventana síncrona que espera la API, causando el parpadeo.
     const transition = document.startViewTransition(() => flushSync(() => applyTheme()))
@@ -49,10 +45,6 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
         { duration: 500, easing: 'ease-in-out', pseudoElement: '::view-transition-old(root)' },
       )
     })
-
-    void transition.finished.finally(() => {
-      root.classList.remove('vt-active')
-    })
   }
 
   return (
@@ -62,6 +54,10 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
       aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       title={isDark ? 'Modo claro' : 'Modo oscuro'}
       className={cn(
+        // view-transition-name propio: así el botón no queda atrapado dentro
+        // de la foto congelada que usa el círculo del fondo (::view-transition-*(root))
+        // y su propio giro de íconos no se ve interrumpido por ese efecto.
+        '[view-transition-name:theme-toggle-btn]',
         'relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card text-muted-foreground shadow-2xs transition-colors hover:bg-muted',
         className,
       )}

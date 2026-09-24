@@ -166,12 +166,10 @@ html.reduce-motion *::after {
   z-index: 1;
 }
 
-/* Mientras dura el efecto, ninguna transición normal del sitio
-   (transition-colors, etc.) debe correr al mismo tiempo. */
-html.vt-active *,
-html.vt-active *::before,
-html.vt-active *::after {
-  transition: none !important;
+/* El botón del toggle (view-transition-name propio) no debe hacer el
+   fundido por defecto: sus íconos ya tienen su propia transición CSS. */
+::view-transition-group(theme-toggle-btn) {
+  animation-duration: 0s;
 }
 
 @theme inline {
