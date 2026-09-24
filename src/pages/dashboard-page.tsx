@@ -4,12 +4,12 @@ import {
   BookOpenIcon,
   Building2Icon,
   CalendarDaysIcon,
-  Layers3Icon,
   LogOutIcon,
   Settings2Icon,
   UsersIcon,
 } from 'lucide-react'
 
+import uebLogo from '@/assets/ueb-logo.png'
 import { AccessibilityModal } from '@/components/ui/accessibility-modal'
 import { Card } from '@/components/ui/card'
 import {
@@ -26,6 +26,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
+  SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { Spinner } from '@/components/ui/spinner'
@@ -102,23 +103,19 @@ export function DashboardPage() {
 
   return (
     <SidebarProvider>
-      <Sidebar variant="floating" collapsible="icon">
+      <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-1 py-1">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <Layers3Icon className="size-4" />
-            </div>
-            <div className="flex min-w-0 flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
-              <span className="truncate text-sm font-bold leading-snug text-sidebar-foreground">
-                Tutorías y Titulación
-              </span>
-              <span className="truncate text-[9px] font-bold tracking-widest text-sidebar-foreground/60 uppercase">
-                Universidad Estatal de Bolívar
-              </span>
-            </div>
+            <img
+              src={uebLogo}
+              alt="Universidad Estatal de Bolívar"
+              className="h-7 w-auto shrink-0 group-data-[collapsible=icon]:hidden"
+            />
             <SidebarTrigger className="ml-auto hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:flex" />
           </div>
         </SidebarHeader>
+
+        <SidebarSeparator />
 
         <SidebarContent>
           <SidebarGroup>
@@ -160,6 +157,8 @@ export function DashboardPage() {
           </SidebarGroup>
         </SidebarContent>
 
+        <SidebarSeparator />
+
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -184,7 +183,7 @@ export function DashboardPage() {
             <SidebarTrigger className="md:hidden" />
             <div className="flex flex-col">
               <span className="text-xs font-medium text-muted-foreground">
-                {userRoleText} &rsaquo; {activeNavItem.label}
+                {userRoleText} &rsaquo; Tutorías y Titulación
               </span>
               <h1 className="text-lg font-bold tracking-tight text-foreground md:text-xl">
                 {activeNavItem.label}
