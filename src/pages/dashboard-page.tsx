@@ -103,14 +103,14 @@ export function DashboardPage() {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">
-        <SidebarHeader>
-          <div className="flex items-center gap-2 px-1 py-1">
+        <SidebarHeader className="bg-brand-blue p-3">
+          <div className="flex items-center gap-2">
             <img
               src={uebLogo}
               alt="Universidad Estatal de Bolívar"
               className="h-7 w-auto shrink-0 group-data-[collapsible=icon]:hidden"
             />
-            <SidebarTrigger className="ml-auto hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:flex" />
+            <SidebarTrigger className="ml-auto hidden text-white hover:bg-white/10 hover:text-white md:flex" />
           </div>
         </SidebarHeader>
 
