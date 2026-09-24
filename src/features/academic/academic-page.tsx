@@ -25,7 +25,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { ApiError, api, type Career, type Cycle, type Faculty, type Modality } from '@/lib/api'
+import { ApiError, api, type Career, type Cycle, type Faculty, type Modality, type Section } from '@/lib/api'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
@@ -623,11 +623,24 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const [editingCycle, setEditingCycle] = useState<Cycle | null>(null)
   const [cycleName, setCycleName] = useState('')
   const [cycleNumber, setCycleNumber] = useState('')
+  const [cycleParaleloId, setCycleParaleloId] = useState('')
   const [initialCycleName, setInitialCycleName] = useState('')
   const [initialCycleNumber, setInitialCycleNumber] = useState('')
+  const [initialCycleParaleloId, setInitialCycleParaleloId] = useState('')
+
+  const [sections, setSections] = useState<readonly Section[]>([])
+  const [isAddingSection, setIsAddingSection] = useState(false)
+  const [newSectionName, setNewSectionName] = useState('')
+  const [sectionNameError, setSectionNameError] = useState<string | null>(null)
+  const [creatingSection, setCreatingSection] = useState(false)
 
   const [isCycleModalOpen, setIsCycleModalOpen] = useState(false)
   const [cycleToToggle, setCycleToToggle] = useState<CycleToggleTarget | null>(null)
+
+  async function refreshSections() {
+    const response = await api.listSections()
+    setSections(response.data.filter((section) => section.is_active))
+  }
 
   async function handleRefresh() {
     const ok = await reload()
@@ -638,10 +651,16 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setEditingCycle(null)
     setCycleName('')
     setCycleNumber('')
+    setCycleParaleloId('')
     setInitialCycleName('')
     setInitialCycleNumber('')
+    setInitialCycleParaleloId('')
+    setIsAddingSection(false)
+    setNewSectionName('')
+    setSectionNameError(null)
     setFormError(null)
     setCycleErrors({})
+    void refreshSections()
     setIsCycleModalOpen(true)
   }
 
@@ -649,10 +668,16 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setEditingCycle(cycle)
     setCycleName(cycle.name)
     setCycleNumber(String(cycle.number))
+    setCycleParaleloId(cycle.paralelo_id ? String(cycle.paralelo_id) : '')
     setInitialCycleName(cycle.name)
     setInitialCycleNumber(String(cycle.number))
+    setInitialCycleParaleloId(cycle.paralelo_id ? String(cycle.paralelo_id) : '')
+    setIsAddingSection(false)
+    setNewSectionName('')
+    setSectionNameError(null)
     setFormError(null)
     setCycleErrors({})
+    void refreshSections()
     setIsCycleModalOpen(true)
   }
 
@@ -661,8 +686,36 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setEditingCycle(null)
     setCycleName('')
     setCycleNumber('')
+    setCycleParaleloId('')
+    setIsAddingSection(false)
+    setNewSectionName('')
+    setSectionNameError(null)
     setFormError(null)
     setCycleErrors({})
+  }
+
+  async function handleCreateSection() {
+    const trimmedName = newSectionName.trim()
+    if (!trimmedName) {
+      setSectionNameError('El nombre del paralelo es obligatorio.')
+      return
+    }
+    if (creatingSection) return
+
+    setSectionNameError(null)
+    setCreatingSection(true)
+    try {
+      const created = await api.createSection({ name: trimmedName })
+      await refreshSections()
+      setCycleParaleloId(String(created.id))
+      setIsAddingSection(false)
+      setNewSectionName('')
+      toast.success('Paralelo creado', { description: `Se agregó "${created.name}" al catálogo de paralelos.` })
+    } catch (error: unknown) {
+      setSectionNameError(getErrorMessage(error))
+    } finally {
+      setCreatingSection(false)
+    }
   }
 
   async function submitCycle(event: FormEvent<HTMLFormElement>) {
@@ -679,7 +732,12 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setFormError(null)
     setPending('cycle')
     try {
-      const input = { career_id: career.id, name: cycleName.trim(), number: Number(cycleNumber) }
+      const input = {
+        career_id: career.id,
+        name: cycleName.trim(),
+        number: Number(cycleNumber),
+        paralelo_id: cycleParaleloId ? Number(cycleParaleloId) : null,
+      }
       if (editingCycle) {
         await api.updateCycle(editingCycle.id, input)
         toast.success('Ciclo actualizado', { description: `El ciclo "${input.name}" fue modificado.` })
@@ -719,7 +777,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   }
 
   const formPending = pending === 'cycle'
-  const isCycleFormDirty = cycleName !== initialCycleName || cycleNumber !== initialCycleNumber
+  const isCycleFormDirty =
+    cycleName !== initialCycleName
+    || cycleNumber !== initialCycleNumber
+    || cycleParaleloId !== initialCycleParaleloId
 
   return (
     <section className="flex flex-col gap-8">
@@ -823,6 +884,9 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                     </TableCell>
                     <TableCell className="px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200">
                       Nivel {cycle.number}
+                      {cycle.paralelo_name && (
+                        <span className="ml-1 font-medium text-slate-500 dark:text-slate-400">· Paralelo {cycle.paralelo_name}</span>
+                      )}
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <span
@@ -935,6 +999,86 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                 <FieldError>{cycleErrors.number}</FieldError>
               </Field>
             </div>
+
+            <Field data-invalid={Boolean(sectionNameError)}>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="cycle-paralelo">Paralelo</FieldLabel>
+                {isAddingSection && <FieldCounter current={newSectionName.length} max={50} />}
+              </div>
+              {isAddingSection ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newSectionName}
+                    onChange={(e) => {
+                      setNewSectionName(sanitizeLetters(e.target.value, 50))
+                      setSectionNameError(null)
+                    }}
+                    placeholder="Ej. Paralelo A"
+                    maxLength={50}
+                    disabled={creatingSection}
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void handleCreateSection()}
+                    disabled={creatingSection || !newSectionName.trim()}
+                    className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold shrink-0"
+                  >
+                    {creatingSection && <Spinner data-icon="inline-start" />}
+                    Guardar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsAddingSection(false)
+                      setNewSectionName('')
+                      setSectionNameError(null)
+                    }}
+                    disabled={creatingSection}
+                    className="shrink-0"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <NativeSelect
+                    id="cycle-paralelo"
+                    value={cycleParaleloId}
+                    onChange={(e) => setCycleParaleloId(e.target.value)}
+                    disabled={formPending}
+                  >
+                    <option value="">Sin paralelo</option>
+                    {sections.map((section) => (
+                      <option key={section.id} value={section.id}>
+                        {section.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsAddingSection(true)}
+                    disabled={formPending}
+                    title="Crear nuevo paralelo"
+                    className="shrink-0"
+                  >
+                    <PlusIcon />
+                  </Button>
+                </div>
+              )}
+              {sectionNameError ? (
+                <FieldError>{sectionNameError}</FieldError>
+              ) : (
+                !isAddingSection && (
+                  <FieldDescription className="text-xs">
+                    Solo hace falta si hay más de un grupo con el mismo número (ej. Paralelo A y B).
+                  </FieldDescription>
+                )
+              )}
+            </Field>
 
             <FieldError>{formError}</FieldError>
 

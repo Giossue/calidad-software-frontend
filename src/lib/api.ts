@@ -40,7 +40,15 @@ export interface Cycle {
   readonly career_name?: string
   readonly name: string
   readonly number: number
+  readonly paralelo_id: number | null
+  readonly paralelo_name?: string | null
   readonly status: boolean
+}
+
+export interface Section {
+  readonly id: number
+  readonly name: string
+  readonly is_active: boolean
 }
 
 export interface AcademicPeriod {
@@ -139,6 +147,7 @@ export type CycleInput = {
   readonly career_id: number
   readonly name: string
   readonly number: number
+  readonly paralelo_id?: number | null
 }
 
 export type AcademicPeriodInput = {
@@ -148,6 +157,10 @@ export type AcademicPeriodInput = {
 }
 
 export type ModalityInput = {
+  readonly name: string
+}
+
+export type SectionInput = {
   readonly name: string
 }
 
@@ -498,6 +511,47 @@ export const api = {
 
   async activateModality(id: number): Promise<Modality> {
     const response = await request<Resource<Modality>>(`/api/v1/admin/modalities/${id}/activate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async listSections(page = 1): Promise<PaginatedResourceCollection<Section>> {
+    const query = page > 1 ? `?page=${page}` : ''
+    return request<PaginatedResourceCollection<Section>>(`/api/v1/admin/sections${query}`)
+  },
+
+  async createSection(input: SectionInput): Promise<Section> {
+    const response = await request<Resource<Section>>('/api/v1/admin/sections', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre: input.name,
+        name: input.name,
+      }),
+    })
+    return response.data
+  },
+
+  async updateSection(id: number, input: SectionInput): Promise<Section> {
+    const response = await request<Resource<Section>>(`/api/v1/admin/sections/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        nombre: input.name,
+        name: input.name,
+      }),
+    })
+    return response.data
+  },
+
+  async deactivateSection(id: number): Promise<Section> {
+    const response = await request<Resource<Section>>(`/api/v1/admin/sections/${id}/deactivate`, {
+      method: 'PATCH',
+    })
+    return response.data
+  },
+
+  async activateSection(id: number): Promise<Section> {
+    const response = await request<Resource<Section>>(`/api/v1/admin/sections/${id}/activate`, {
       method: 'PATCH',
     })
     return response.data
