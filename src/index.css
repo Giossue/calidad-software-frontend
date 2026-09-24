@@ -156,14 +156,12 @@ html.reduce-motion *::after {
   mix-blend-mode: normal;
 }
 
-/* La capa vieja va encima de la nueva (al revés del orden por defecto):
-   así el círculo encoge la capa vieja para revelar la nueva debajo, en
-   vez de esperar a que la nueva termine de capturarse para crecer. */
+/* La capa nueva va encima de la anterior y se expande desde el botón. */
 ::view-transition-old(root) {
-  z-index: 2;
+  z-index: 1;
 }
 ::view-transition-new(root) {
-  z-index: 1;
+  z-index: 2;
 }
 
 /* El botón del toggle (view-transition-name propio) no debe hacer el
@@ -182,4 +180,3 @@ html.reduce-motion *::after {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
-

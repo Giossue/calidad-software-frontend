@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react'
+import { useRef, useState, type MouseEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { MoonIcon, SunIcon } from 'lucide-react'
 
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 
 export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
   const [isDark, setIsDark] = useState(() => getStoredAccessibility().darkMode)
+  const isTransitioning = useRef(false)
 
   function applyTheme() {
     const current = getStoredAccessibility()
@@ -16,6 +17,8 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
   }
 
   function toggle(event: MouseEvent<HTMLButtonElement>) {
+    if (isTransitioning.current) return
+
     const reduceMotion = getStoredAccessibility().reduceMotion
     if (reduceMotion || !document.startViewTransition) {
       applyTheme()
@@ -31,20 +34,30 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
     )
 
     const root = document.documentElement
-    // Sin flushSync, el cambio de estado de React puede quedar fuera de la
-    // ventana síncrona que espera la API, causando el parpadeo.
+    isTransitioning.current = true
+
     const transition = document.startViewTransition(() => flushSync(() => applyTheme()))
 
     void transition.ready.then(() => {
-      // Se anima la capa VIEJA encogiéndose (no la nueva creciendo). La vieja
-      // ya está lista desde antes de hacer clic, así que no hay espera de
-      // por medio: en el peor caso se ve el estado anterior un instante más,
-      // nunca el salto brusco al nuevo antes de que arranque el círculo.
       root.animate(
-        { clipPath: [`circle(${endRadius}px at ${x}px ${y}px)`, `circle(0px at ${x}px ${y}px)`] },
-        { duration: 500, easing: 'ease-in-out', pseudoElement: '::view-transition-old(root)' },
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
+        {
+          duration: 500,
+          easing: 'ease-in-out',
+          fill: 'both',
+          pseudoElement: '::view-transition-new(root)',
+        },
       )
     })
+
+    void transition.finished.then(
+      () => {
+        isTransitioning.current = false
+      },
+      () => {
+        isTransitioning.current = false
+      },
+    )
   }
 
   return (
