@@ -29,13 +29,22 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
       Math.max(y, window.innerHeight - y),
     )
 
+    const root = document.documentElement
+    // Evita que las transiciones normales del sitio (transition-colors, etc.)
+    // corran durante la captura y compitan visualmente con el círculo.
+    root.classList.add('vt-active')
+
     const transition = document.startViewTransition(() => applyTheme())
 
     void transition.ready.then(() => {
-      document.documentElement.animate(
+      root.animate(
         { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
         { duration: 500, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' },
       )
+    })
+
+    void transition.finished.finally(() => {
+      root.classList.remove('vt-active')
     })
   }
 

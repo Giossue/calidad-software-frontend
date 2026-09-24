@@ -156,6 +156,15 @@ html.reduce-motion *::after {
   mix-blend-mode: normal;
 }
 
+/* Mientras dura el efecto circular, ninguna transición normal del sitio
+   (transition-colors, etc.) debe correr: si lo hacen, se ve como si el
+   tema ya hubiera cambiado antes de que arranque el círculo. */
+html.vt-active *,
+html.vt-active *::before,
+html.vt-active *::after {
+  transition: none !important;
+}
+
 @theme inline {
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
