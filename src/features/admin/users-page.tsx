@@ -109,7 +109,7 @@ function getRoleBadgeStyle(role: string): string {
     case 'coordinador_titulacion':
       return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
     default:
-      return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
+      return 'bg-muted text-muted-foreground border-border'
   }
 }
 
@@ -355,57 +355,57 @@ export function UsersPage() {
 
       {/* Tarjetas KPI de Estadísticas Resumidas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+        <Card className="flex items-center gap-4 p-5 border-border">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
             <UsersIcon className="size-6" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Total Cuentas
             </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <span className="text-2xl font-bold tracking-tight text-foreground">
               {totalUsers}
             </span>
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex items-center gap-4 p-5 border-border">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
             <ShieldCheckIcon className="size-6" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Administradores
             </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <span className="text-2xl font-bold tracking-tight text-foreground">
               {totalAdmins}
             </span>
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex items-center gap-4 p-5 border-border">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
             <UserCheckIcon className="size-6" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Docentes
             </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <span className="text-2xl font-bold tracking-tight text-foreground">
               {totalDocentes}
             </span>
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex items-center gap-4 p-5 border-border">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
             <GraduationCapIcon className="size-6" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Estudiantes
             </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <span className="text-2xl font-bold tracking-tight text-foreground">
               {totalEstudiantes}
             </span>
           </div>
@@ -413,11 +413,11 @@ export function UsersPage() {
       </div>
 
       {/* Contenedor Principal: Filtros + Tabla */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-2xs">
         {/* Barra de Búsqueda y Filtro */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex flex-1 items-center max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
+            <SearchIcon className="absolute left-3.5 size-4 text-muted-foreground" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -443,12 +443,12 @@ export function UsersPage() {
         {/* Tabla de Usuarios */}
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            'overflow-x-auto rounded-xl border border-border transition-opacity',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
           <Table>
-            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+            <TableHeader className="bg-muted text-xs font-bold uppercase tracking-wider text-muted-foreground">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Usuario</TableHead>
                 <TableHead className="px-5 py-3.5">Rol</TableHead>
@@ -457,30 +457,30 @@ export function UsersPage() {
                 <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <TableBody className="divide-y divide-border">
               {isInitialLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
                     <TableCell className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-full bg-slate-200 dark:bg-slate-800" />
+                        <div className="size-10 rounded-full bg-muted" />
                         <div className="flex flex-col gap-1.5">
-                          <div className="h-4 w-32 rounded-md bg-slate-200 dark:bg-slate-800" />
-                          <div className="h-3 w-44 rounded-md bg-slate-100 dark:bg-slate-800/60" />
+                          <div className="h-4 w-32 rounded-md bg-muted" />
+                          <div className="h-3 w-44 rounded-md bg-muted" />
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-24 rounded-full bg-muted" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-muted" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-muted" /></TableCell>
+                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-muted" /></TableCell>
                   </TableRow>
                 ))
               ) : users.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <UsersIcon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <UsersIcon className="size-8 text-muted-foreground/50" />
                       <span className="font-medium">
                         {searchInput || roleFilter !== 'all'
                           ? 'No se encontraron usuarios coincidentes.'
@@ -503,10 +503,10 @@ export function UsersPage() {
                             {initials}
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-semibold text-slate-900 dark:text-white">
+                            <span className="font-semibold text-foreground">
                               {user.name}
                             </span>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                            <span className="text-xs text-muted-foreground">
                               {user.email}
                             </span>
                           </div>
@@ -526,10 +526,10 @@ export function UsersPage() {
 
                       <TableCell className="px-5 py-4 whitespace-normal">
                         <div className="flex flex-col text-xs">
-                          <span className="font-medium text-slate-800 dark:text-slate-200">
+                          <span className="font-medium text-foreground">
                             Cédula: {user.identification}
                           </span>
-                          <span className="text-slate-500 dark:text-slate-400">
+                          <span className="text-muted-foreground">
                             {user.phone ? `Tel: ${user.phone}` : 'Sin teléfono'}
                           </span>
                         </div>
@@ -541,13 +541,13 @@ export function UsersPage() {
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                             active
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                              : 'border-border bg-muted text-muted-foreground',
                           )}
                         >
                           <span
                             className={cn(
                               'size-1.5 rounded-full',
-                              active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400',
+                              active ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground',
                             )}
                           />
                           {active ? 'Activo' : 'Inactivo'}
@@ -559,7 +559,7 @@ export function UsersPage() {
                           <button
                             type="button"
                             onClick={() => openEditModal(user)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                             title="Editar usuario"
                           >
                             <Edit2Icon className="size-4" />
@@ -568,7 +568,7 @@ export function UsersPage() {
                             <button
                               type="button"
                               onClick={() => setUserToToggle({ user, action: 'deactivate' })}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                              className="rounded-lg p-2 text-muted-foreground hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
                               title="Desactivar usuario"
                             >
                               <UserXIcon className="size-4" />
@@ -577,7 +577,7 @@ export function UsersPage() {
                             <button
                               type="button"
                               onClick={() => setUserToToggle({ user, action: 'activate' })}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              className="rounded-lg p-2 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                               title="Habilitar usuario"
                             >
                               <UserCheckIcon className="size-4" />
@@ -800,7 +800,7 @@ export function UsersPage() {
 
             <FieldError>{formError}</FieldError>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>

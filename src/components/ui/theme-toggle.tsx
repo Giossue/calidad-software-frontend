@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from 'react'
+import { flushSync } from 'react-dom'
 import { MoonIcon, SunIcon } from 'lucide-react'
 
 import { getStoredAccessibility, saveAccessibilitySettings } from '@/lib/accessibility'
@@ -34,7 +35,12 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
     // corran durante la captura y compitan visualmente con el círculo.
     root.classList.add('vt-active')
 
-    const transition = document.startViewTransition(() => applyTheme())
+    // flushSync fuerza a React a aplicar el cambio de estado de forma
+    // síncrona dentro del callback. Sin esto, React puede diferir el
+    // re-render fuera de la ventana que la View Transition API espera,
+    // y el navegador termina mostrando el DOM ya cambiado, "retrocediendo"
+    // al snapshot viejo y recién ahí animando el círculo hacia el nuevo.
+    const transition = document.startViewTransition(() => flushSync(() => applyTheme()))
 
     void transition.ready.then(() => {
       root.animate(
