@@ -30,6 +30,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { Spinner } from '@/components/ui/spinner'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
   AdminSectionContent,
   DEFAULT_ADMIN_SECTION,
@@ -181,6 +182,8 @@ export function DashboardPage() {
             >
               <Settings2Icon className="size-4 text-muted-foreground" />
             </button>
+
+            <ThemeToggle />
 
             <div className="flex items-center gap-3 rounded-full border border-border bg-card p-1.5 pr-4 shadow-2xs">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white">

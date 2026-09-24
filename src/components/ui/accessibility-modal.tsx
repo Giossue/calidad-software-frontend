@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   EyeIcon,
-  MoonIcon,
-  SunIcon,
   TypeIcon,
   ZapIcon,
 } from 'lucide-react'
@@ -69,29 +67,6 @@ export function AccessibilityModal({
       maxWidth="max-w-lg"
     >
       <div className="flex flex-col gap-5">
-        {/* Tema Visual (Oscuro / Claro) */}
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-              {settings.darkMode ? <MoonIcon className="size-5" /> : <SunIcon className="size-5" />}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900 dark:text-white">Tema Visual</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {settings.darkMode ? 'Modo Oscuro activo' : 'Modo Claro activo'}
-              </span>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => updateSetting('darkMode', !settings.darkMode)}
-          >
-            {settings.darkMode ? <SunIcon data-icon="inline-start" /> : <MoonIcon data-icon="inline-start" />}
-            {settings.darkMode ? 'Cambiar a Claro' : 'Cambiar a Oscuro'}
-          </Button>
-        </div>
-
         {/* Tamaño de Texto */}
         <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
           <div className="flex items-center gap-3">
