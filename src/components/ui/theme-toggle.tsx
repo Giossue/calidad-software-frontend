@@ -19,7 +19,10 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
   function toggle(event: MouseEvent<HTMLButtonElement>) {
     if (isTransitioning.current) return
 
-    const reduceMotion = getStoredAccessibility().reduceMotion
+    const reduceMotion =
+      getStoredAccessibility().reduceMotion ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
     if (reduceMotion || !document.startViewTransition) {
       applyTheme()
       return
@@ -34,6 +37,10 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
     )
 
     const root = document.documentElement
+    // El pseudo-elemento nuevo nace ya recortado desde CSS. De esta forma no
+    // puede mostrarse a pantalla completa mientras transition.ready resuelve.
+    root.style.setProperty('--vt-x', `${x}px`)
+    root.style.setProperty('--vt-y', `${y}px`)
     isTransitioning.current = true
 
     const transition = document.startViewTransition(() => flushSync(() => applyTheme()))
@@ -44,7 +51,7 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
         {
           duration: 500,
           easing: 'ease-in-out',
-          fill: 'both',
+          fill: 'forwards',
           pseudoElement: '::view-transition-new(root)',
         },
       )
@@ -67,10 +74,6 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
       aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       title={isDark ? 'Modo claro' : 'Modo oscuro'}
       className={cn(
-        // view-transition-name propio: así el botón no queda atrapado dentro
-        // de la foto congelada que usa el círculo del fondo (::view-transition-*(root))
-        // y su propio giro de íconos no se ve interrumpido por ese efecto.
-        '[view-transition-name:theme-toggle-btn]',
         'relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card text-muted-foreground shadow-2xs transition-colors hover:bg-muted',
         className,
       )}

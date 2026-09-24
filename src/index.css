@@ -156,18 +156,14 @@ html.reduce-motion *::after {
   mix-blend-mode: normal;
 }
 
-/* La capa nueva va encima de la anterior y se expande desde el botón. */
+/* La capa nueva va encima y nace recortada desde CSS. Así nunca aparece
+   completa mientras JavaScript espera a que transition.ready se resuelva. */
 ::view-transition-old(root) {
   z-index: 1;
 }
 ::view-transition-new(root) {
   z-index: 2;
-}
-
-/* El botón del toggle (view-transition-name propio) no debe hacer el
-   fundido por defecto: sus íconos ya tienen su propia transición CSS. */
-::view-transition-group(theme-toggle-btn) {
-  animation-duration: 0s;
+  clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%));
 }
 
 @theme inline {
