@@ -103,7 +103,7 @@ export function DashboardPage() {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon" className="shadow-[6px_0_16px_-6px_rgba(10,40,63,0.35)]">
+      <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-1 py-1">
             <img
