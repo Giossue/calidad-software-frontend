@@ -291,10 +291,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       )}
 
       {/* Tabla de Carreras */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-2xs">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex flex-1 items-center max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -309,12 +309,12 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
 
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-border transition-opacity',
+            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
           <Table>
-            <TableHeader className="bg-muted text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Carrera Universitaria</TableHead>
                 <TableHead className="px-5 py-3.5 whitespace-normal">Facultad Perteneciente</TableHead>
@@ -323,22 +323,22 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                 <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-border">
+            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
-                    <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-36 rounded-md bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-24 rounded-md bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-muted" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : careers.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground whitespace-normal">
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <BookOpenIcon className="size-8 text-muted-foreground/50" />
+                      <BookOpenIcon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
                         {searchInput ? 'No se encontraron carreras con el término buscado.' : 'Todavía no hay carreras registradas.'}
                       </span>
@@ -348,14 +348,14 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               ) : (
                 careers.map((career) => (
                   <TableRow key={career.id}>
-                    <TableCell className="px-5 py-4 font-semibold text-foreground whitespace-normal">
+                    <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
                       <div className="flex items-center gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                           <BookOpenIcon className="size-4" />
                         </div>
                         <div className="flex flex-col">
                           <span>{career.name}</span>
-                          <span className="text-xs font-normal text-muted-foreground">
+                          <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                             {career.cycles_count === 0
                               ? 'Sin ciclos'
                               : `${career.active_cycles_count} de ${career.cycles_count} ciclo${career.cycles_count === 1 ? '' : 's'} activo${career.active_cycles_count === 1 ? '' : 's'}`}
@@ -363,10 +363,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-xs font-medium text-muted-foreground whitespace-normal">
+                    <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
                       {career.faculty_name ?? `Facultad #${career.faculty_id}`}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-xs font-medium text-muted-foreground whitespace-normal">
+                    <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
                       {career.modality_name ?? 'Sin modalidad'}
                     </TableCell>
                     <TableCell className="px-5 py-4">
@@ -375,10 +375,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                           'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                           career.status
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'border-border bg-muted text-muted-foreground',
+                            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
                         )}
                       >
-                        <span className={cn('size-1.5 rounded-full', career.status ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground')} />
+                        <span className={cn('size-1.5 rounded-full', career.status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400')} />
                         {career.status ? 'Activa' : 'Inactiva'}
                       </span>
                     </TableCell>
@@ -387,7 +387,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                         <button
                           type="button"
                           onClick={() => onSelectCareer(career)}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="Ver ciclos de esta carrera"
                         >
                           <Layers3Icon className="size-4" />
@@ -395,7 +395,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                         <button
                           type="button"
                           onClick={() => startCareerEdit(career)}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="Editar carrera"
                         >
                           <Edit2Icon className="size-4" />
@@ -404,7 +404,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                           <button
                             type="button"
                             onClick={() => setCareerToToggle({ career, action: 'deactivate' })}
-                            className="rounded-lg p-2 text-muted-foreground hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
                             title="Desactivar carrera"
                           >
                             <PowerOffIcon className="size-4" />
@@ -413,7 +413,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                           <button
                             type="button"
                             onClick={() => setCareerToToggle({ career, action: 'activate' })}
-                            className="rounded-lg p-2 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                             title="Habilitar carrera"
                           >
                             <PowerIcon className="size-4" />
@@ -562,7 +562,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
 
             <FieldError>{formError}</FieldError>
 
-            <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeCareerModal} disabled={formPending}>
                 Cancelar
               </DialogCancelButton>
@@ -787,7 +787,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-brand-red"
+        className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-brand-red dark:text-slate-400"
       >
         <ArrowLeftIcon className="size-4" />
         Volver a Carreras
@@ -819,10 +819,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       )}
 
       {/* Tabla de Ciclos */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-2xs">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex flex-1 items-center max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -837,12 +837,12 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
 
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-border transition-opacity',
+            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
           <Table>
-            <TableHeader className="bg-muted text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Ciclo Académico</TableHead>
                 <TableHead className="px-5 py-3.5">Orden / Nivel</TableHead>
@@ -850,21 +850,21 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                 <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-border">
+            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
-                    <TableCell className="px-5 py-4"><div className="h-5 w-40 rounded-md bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-16 rounded-md bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-muted" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-5 w-40 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : cycles.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-12 text-center text-muted-foreground whitespace-normal">
+                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <Layers3Icon className="size-8 text-muted-foreground/50" />
+                      <Layers3Icon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
                         {searchInput ? 'No se encontraron ciclos con el término buscado.' : 'Todavía no hay ciclos registrados para esta carrera.'}
                       </span>
@@ -874,7 +874,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               ) : (
                 cycles.map((cycle) => (
                   <TableRow key={cycle.id}>
-                    <TableCell className="px-5 py-4 font-semibold text-foreground whitespace-normal">
+                    <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
                       <div className="flex items-center gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                           <Layers3Icon className="size-4" />
@@ -882,10 +882,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                         <span>{cycle.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-xs font-bold text-foreground">
+                    <TableCell className="px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200">
                       Nivel {cycle.number}
                       {cycle.paralelo_name && (
-                        <span className="ml-1 font-medium text-muted-foreground">· Paralelo {cycle.paralelo_name}</span>
+                        <span className="ml-1 font-medium text-slate-500 dark:text-slate-400">· Paralelo {cycle.paralelo_name}</span>
                       )}
                     </TableCell>
                     <TableCell className="px-5 py-4">
@@ -894,10 +894,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                           'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                           cycle.status
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'border-border bg-muted text-muted-foreground',
+                            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
                         )}
                       >
-                        <span className={cn('size-1.5 rounded-full', cycle.status ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground')} />
+                        <span className={cn('size-1.5 rounded-full', cycle.status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400')} />
                         {cycle.status ? 'Activo' : 'Inactivo'}
                       </span>
                     </TableCell>
@@ -906,7 +906,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                         <button
                           type="button"
                           onClick={() => startCycleEdit(cycle)}
-                          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="Editar ciclo"
                         >
                           <Edit2Icon className="size-4" />
@@ -915,7 +915,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                           <button
                             type="button"
                             onClick={() => setCycleToToggle({ cycle, action: 'deactivate' })}
-                            className="rounded-lg p-2 text-muted-foreground hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
                             title="Desactivar ciclo"
                           >
                             <PowerOffIcon className="size-4" />
@@ -924,7 +924,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                           <button
                             type="button"
                             onClick={() => setCycleToToggle({ cycle, action: 'activate' })}
-                            className="rounded-lg p-2 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                            className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                             title="Habilitar ciclo"
                           >
                             <PowerIcon className="size-4" />
@@ -1082,7 +1082,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
 
             <FieldError>{formError}</FieldError>
 
-            <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeCycleModal} disabled={formPending}>
                 Cancelar
               </DialogCancelButton>

@@ -190,11 +190,11 @@ export function FacultiesPage() {
       )}
 
       {/* Contenedor Principal: Filtro + Tabla */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-2xs">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         {/* Barra de Búsqueda */}
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex flex-1 items-center max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -210,12 +210,12 @@ export function FacultiesPage() {
         {/* Tabla de Facultades */}
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-border transition-opacity',
+            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
           <Table>
-            <TableHeader className="bg-muted text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Nombre de la Facultad</TableHead>
                 <TableHead className="px-5 py-3.5 whitespace-normal">Código Institucional</TableHead>
@@ -223,21 +223,21 @@ export function FacultiesPage() {
                 <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-border">
+            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
-                    <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-20 rounded-md bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-muted" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-muted" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : faculties.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-12 text-center text-muted-foreground whitespace-normal">
+                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <Building2Icon className="size-8 text-muted-foreground/50" />
+                      <Building2Icon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
                         {searchInput
                           ? 'No se encontraron facultades con el término buscado.'
@@ -254,7 +254,7 @@ export function FacultiesPage() {
                   return (
                     <TableRow key={faculty.id}>
                       {/* Nombre con icono */}
-                      <TableCell className="px-5 py-4 font-semibold text-foreground whitespace-normal">
+                      <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
                         <div className="flex items-center gap-3">
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                             <Building2Icon className="size-4" />
@@ -264,7 +264,7 @@ export function FacultiesPage() {
                       </TableCell>
 
                       {/* Código */}
-                      <TableCell className="px-5 py-4 text-xs font-medium text-muted-foreground whitespace-normal">
+                      <TableCell className="px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-normal">
                         <div className="flex flex-col gap-0.5">
                           <span>Facultad #{faculty.id}</span>
                           <span>
@@ -282,13 +282,13 @@ export function FacultiesPage() {
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                             active
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'border-border bg-muted text-muted-foreground',
+                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
                           )}
                         >
                           <span
                             className={cn(
                               'size-1.5 rounded-full',
-                              active ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground',
+                              active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400',
                             )}
                           />
                           {active ? 'Activa' : 'Inactiva'}
@@ -301,7 +301,7 @@ export function FacultiesPage() {
                           <button
                             type="button"
                             onClick={() => openEditModal(faculty)}
-                            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             title="Editar facultad"
                           >
                             <Edit2Icon className="size-4" />
@@ -329,8 +329,8 @@ export function FacultiesPage() {
                                     setFacultyToToggle({ faculty, action: 'deactivate' })
                                   }}
                                   className={cn(
-                                    'rounded-lg p-2 text-muted-foreground hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400',
-                                    hasActiveCareers && 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground',
+                                    'rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400',
+                                    hasActiveCareers && 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-slate-400',
                                   )}
                                 >
                                   <PowerOffIcon className="size-4" />
@@ -346,7 +346,7 @@ export function FacultiesPage() {
                             <button
                               type="button"
                               onClick={() => setFacultyToToggle({ faculty, action: 'activate' })}
-                              className="rounded-lg p-2 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                               title="Habilitar facultad"
                             >
                               <PowerIcon className="size-4" />
@@ -407,7 +407,7 @@ export function FacultiesPage() {
 
             <FieldError>{formError}</FieldError>
 
-            <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>
