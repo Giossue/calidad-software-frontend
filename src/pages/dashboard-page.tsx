@@ -130,6 +130,7 @@ export function DashboardPage() {
                         isActive={activeSection === item.id}
                         tooltip={item.label}
                         onClick={() => navigate(`/panel/${item.id}`)}
+                        className="border-l-2 border-transparent data-[active=true]:border-sidebar-primary data-[active=true]:font-semibold"
                       >
                         <Icon />
                         <span>{item.label}</span>
