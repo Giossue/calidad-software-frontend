@@ -181,4 +181,16 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(degreeCoordinationApi.registerSection).toHaveBeenCalledWith('B'))
     expect(await screen.findByText('B')).toBeInTheDocument()
   })
+
+  it('sanea los caracteres no válidos del nombre del paralelo', async () => {
+    const user = userEvent.setup()
+    vi.mocked(degreeCoordinationApi.sections).mockResolvedValue(sections)
+    render(<DegreeSectionsPage />)
+    const registerButton = screen.getByRole('button', { name: 'Registrar paralelo' })
+    await waitFor(() => expect(registerButton).toBeEnabled())
+    await user.click(registerButton)
+    const name = screen.getByLabelText('Nombre del paralelo')
+    await user.type(name, 'B2!')
+    expect(name).toHaveValue('B')
+  })
 })
