@@ -28,3 +28,12 @@ pares, historial tras recarga, aislamiento del estudiante y vistas móviles.
 La puesta en producción requiere el backend compatible y la migración
 `2026_09_27_010000_align_degree_coordination_baseline`. El estado del despliegue
 se documenta en el plan de titulación del repositorio backend.
+
+Publicación verificada el 2026-09-27 a las 22:27 UTC: interfaz `63dea64` y API
+`ab7f038`, con la migración aplicada y 21 migraciones registradas. Chromium
+contra el dominio real confirmó menú e inicio del coordinador de titulación,
+paralelos, docentes, vista móvil, consulta del estudiante y acceso del
+administrador. No hubo errores de JavaScript ni peticiones API fallidas.
+La base todavía no contiene propuestas de titulación, por lo que las listas
+presentan el estado vacío previsto. Los flujos de revisión con datos se
+probaron en el entorno aislado.
