@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
+import { sanitizeCode, sanitizeLetters } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
@@ -130,8 +131,14 @@ export function TutoringSubjectsPage() {
     <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     <MutationDialog open={open} title={editing ? 'Editar asignatura' : 'Registrar asignatura'} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar asignatura'}>
       <SelectField id="subject-career" label="Carrera" value={form.career_id} onChange={(value) => setForm({ ...form, career_id: value })} disabled={Boolean(editing)}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status || String(career.id) === form.career_id).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>
-      <Field><FieldLabel htmlFor="subject-code">Código</FieldLabel><Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} required maxLength={30} placeholder="Ej. SW-B1-001" /></Field>
-      <Field><FieldLabel htmlFor="subject-name">Nombre</FieldLabel><Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required maxLength={150} placeholder="Ej. Algoritmos y lógica de programación" /></Field>
+      <Field>
+        <div className="flex items-center justify-between"><FieldLabel htmlFor="subject-code">Código</FieldLabel><FieldCounter current={form.code.length} max={30} /></div>
+        <Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} required maxLength={30} placeholder="Ej. SW-B1-001" />
+      </Field>
+      <Field>
+        <div className="flex items-center justify-between"><FieldLabel htmlFor="subject-name">Nombre</FieldLabel><FieldCounter current={form.name.length} max={150} /></div>
+        <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} required maxLength={150} placeholder="Ej. Algoritmos y lógica de programación" />
+      </Field>
     </MutationDialog>
     <MutationDialog open={Boolean(assigning)} title="Ciclos de la asignatura" description={assigning?.name} pending={operation.pending} error={operation.error} dirty={Boolean(cycleId)} onClose={() => setAssigning(null)} submitLabel="Agregar ciclo" submitDisabled={!cycleId} onSubmit={addCycle}>
       {assigning && assigning.cycle_ids.length > 0 && <div className="flex flex-col gap-2">

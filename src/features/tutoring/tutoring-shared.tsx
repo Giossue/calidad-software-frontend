@@ -26,7 +26,7 @@ export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs 
 }
 
 export function ModuleHeader({ title, description, createLabel, onCreate, disabled }: Readonly<{ title: string; description: string; createLabel: string; onCreate: () => void; disabled: boolean }>) {
-  return <AdminSectionHeader title={title} description={description} actions={<Button type="button" disabled={disabled} onClick={onCreate}><PlusIcon data-icon="inline-start" />{createLabel}</Button>} />
+  return <AdminSectionHeader title={title} description={description} actions={<Button type="button" disabled={disabled} onClick={onCreate} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"><PlusIcon data-icon="inline-start" />{createLabel}</Button>} />
 }
 
 export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }: Readonly<{ search: string; onSearch: (value: string) => void; careerId?: string; onCareer?: (value: string) => void; careers?: readonly Career[] }>) {

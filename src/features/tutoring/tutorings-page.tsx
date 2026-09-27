@@ -1,17 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarDaysIcon, LayersIcon, UserPlusIcon } from 'lucide-react'
+import { CalendarDaysIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { tutoringApi, type AvailableTeacher, type Subject, type Tutoring } from '@/lib/tutoring-api'
 import { TutoringDetail } from './tutoring-detail'
-import { CatalogFilters, ErrorNotice, ModuleHeader, MutationDialog, RecordActions, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
+import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
 import { describeError, useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 type FormMode = 'create' | 'edit' | 'cycle' | 'teacher'
@@ -21,7 +24,18 @@ const TITLES: Record<FormMode, string> = { create: 'Registrar tutoría', edit: '
 export function TutoringsPage() {
   const catalogs = useTutoringCatalogs()
   const [careerFilter, setCareerFilter] = useState('')
-  const list = usePaginatedCatalog((page, search) => tutoringApi.tutorings({ page, search, career_id: Number(careerFilter) || undefined }), careerFilter)
+  const [cycleFilter, setCycleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
+  const list = usePaginatedCatalog(
+    (page, search) => tutoringApi.tutorings({
+      page,
+      search,
+      career_id: Number(careerFilter) || undefined,
+      cycle_id: Number(cycleFilter) || undefined,
+      status: statusFilter || undefined,
+    }),
+    `${careerFilter}|${cycleFilter}|${statusFilter}`,
+  )
   const operation = useOperation()
   const [subjects, setSubjects] = useState<readonly Subject[]>([])
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
@@ -106,6 +120,21 @@ export function TutoringsPage() {
     }, mode === 'create' ? 'Tutoría registrada.' : 'Tutoría actualizada.', async () => { setMode(null); await list.reload() })
   }
 
+  function onCareerFilterChange(value: string) {
+    setCareerFilter(value)
+    const current = cycleFilter ? catalogs.cycles.find((cycle) => String(cycle.id) === cycleFilter) : null
+    if (cycleFilter && (!current || (value && current.career_id !== Number(value)))) setCycleFilter('')
+  }
+
+  const hasActiveFilters = Boolean(list.searchInput || careerFilter || cycleFilter || statusFilter)
+  function clearFilters() {
+    list.setSearchInput('')
+    setCareerFilter('')
+    setCycleFilter('')
+    setStatusFilter('')
+  }
+
+  const cycleFilterOptions = catalogs.cycles.filter((cycle) => !careerFilter || cycle.career_id === Number(careerFilter))
   const subject = subjects.find((item) => item.id === Number(form.subject_id))
   const availableCycles = catalogs.cycles.filter((cycle) => cycle.status && (subject ? cycle.career_id === subject.career_id && subject.cycle_ids.includes(cycle.id) : mode === 'cycle' && editing?.subject_id === null && cycle.career_id === editing.career_id))
 
@@ -113,17 +142,39 @@ export function TutoringsPage() {
     {detail ? <TutoringDetail tutoring={detail} onBack={() => setDetail(null)} onAssignTeacher={() => openForm('teacher', detail)} /> : <>
       <ModuleHeader title="Tutorías" description="Organiza las tutorías de tus carreras, asigna docentes y supervisa los horarios, asistencias e informes." createLabel="Registrar tutoría" onCreate={() => openForm('create')} disabled={operation.pending || catalogs.loading || subjectsLoading || !catalogs.careers.some((career) => career.status)} />
       <ScopeNotice catalogs={catalogs} />
-      <CatalogFilters search={list.searchInput} onSearch={list.setSearchInput} careerId={careerFilter} onCareer={setCareerFilter} careers={catalogs.careers} />
+      <Card>
+        <CardContent className="pt-6">
+          <FieldGroup className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
+            <Field className="flex-1 lg:min-w-[220px]"><FieldLabel htmlFor="tutorings-search">Buscar</FieldLabel><Input id="tutorings-search" type="search" placeholder="Busca por asignatura…" value={list.searchInput} onChange={(event) => list.setSearchInput(event.target.value)} /></Field>
+            <Field className="lg:w-52"><FieldLabel htmlFor="tutorings-career-filter">Carrera</FieldLabel><NativeSelect id="tutorings-career-filter" value={careerFilter} onChange={(event) => onCareerFilterChange(event.target.value)}><option value="">Todas mis carreras</option>{catalogs.careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</NativeSelect></Field>
+            <Field className="lg:w-52"><FieldLabel htmlFor="tutorings-cycle-filter">Ciclo</FieldLabel><NativeSelect id="tutorings-cycle-filter" value={cycleFilter} onChange={(event) => setCycleFilter(event.target.value)}><option value="">Todos los ciclos</option>{cycleFilterOptions.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.name}{cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}</option>)}</NativeSelect></Field>
+            <Field className="lg:w-40"><FieldLabel htmlFor="tutorings-status-filter">Estado</FieldLabel><NativeSelect id="tutorings-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as '' | 'active' | 'inactive')}><option value="">Todos</option><option value="active">Activas</option><option value="inactive">Inactivas</option></NativeSelect></Field>
+            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" disabled={!hasActiveFilters} onClick={clearFilters}><RotateCcwIcon data-icon="inline-start" />Limpiar filtros</Button>
+          </FieldGroup>
+        </CardContent>
+      </Card>
       <ErrorNotice message={list.error} retry={list.reload} />
       <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty="No se encontraron tutorías para esta búsqueda." columns={[
         { label: 'Tutoría', render: (tutoring) => <div className="flex flex-col gap-1"><span className="font-medium">{tutoring.subject_name}</span><span className="text-xs text-muted-foreground">{tutoring.period_name} · {tutoring.modality_name}</span></div> },
         { label: 'Ciclo y paralelo', render: (tutoring) => <div className="flex flex-col gap-1"><span>{tutoring.cycle_name}{tutoring.section_name ? ` · ${tutoring.section_name}` : ''}</span><span className="text-xs text-muted-foreground">{catalogs.careers.find((career) => career.id === tutoring.career_id)?.name}</span></div> },
         { label: 'Docente', render: (tutoring) => <div className="flex flex-col gap-1"><span>{tutoring.teacher_name || 'Sin docente asignado'}</span>{tutoring.teacher_id && !tutoring.teacher_is_active ? <span className="text-xs text-destructive">Docente inactivo: requiere reasignación</span> : null}</div> },
         { label: 'Estado', render: (tutoring) => <StatusBadge active={tutoring.is_active} activeLabel="Activa" inactiveLabel="Inactiva" /> },
-        { label: 'Acciones', render: (tutoring) => <RecordActions name={tutoring.subject_name} disabled={operation.pending} onEdit={tutoring.is_active ? () => openForm('edit', tutoring) : undefined} onDeactivate={tutoring.is_active ? () => { operation.clearError(); setDeactivating(tutoring) } : undefined}>
-          <Button type="button" variant="outline" size="sm" onClick={() => setDetail(tutoring)}><CalendarDaysIcon data-icon="inline-start" />Supervisar</Button>
-          {tutoring.is_active && <><Button type="button" variant="outline" size="sm" disabled={operation.pending || subjectsLoading} onClick={() => openForm('cycle', tutoring)}><LayersIcon data-icon="inline-start" />Ciclo</Button><Button type="button" variant="outline" size="sm" disabled={operation.pending} onClick={() => openForm('teacher', tutoring)}><UserPlusIcon data-icon="inline-start" />Docente</Button></>}
-        </RecordActions> },
+        {
+          label: 'Acciones', render: (tutoring) => <div className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="icon-sm" title="Supervisar" aria-label={`Supervisar ${tutoring.subject_name}`} disabled={operation.pending} onClick={() => setDetail(tutoring)}><CalendarDaysIcon /></Button>
+            {tutoring.is_active && <>
+              <Button type="button" variant="ghost" size="icon-sm" title="Asignar docente" aria-label={`Asignar docente a ${tutoring.subject_name}`} disabled={operation.pending} onClick={() => openForm('teacher', tutoring)}><UserPlusIcon /></Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${tutoring.subject_name}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => openForm('edit', tutoring)}><PencilIcon />Editar</DropdownMenuItem>
+                  <DropdownMenuItem disabled={subjectsLoading} onSelect={() => openForm('cycle', tutoring)}><LayersIcon />Ciclo y paralelo</DropdownMenuItem>
+                  <DropdownMenuItem variant="destructive" onSelect={() => { operation.clearError(); setDeactivating(tutoring) }}><PowerOffIcon />Desactivar</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>}
+          </div>,
+        },
       ]} />
       <CatalogPagination label="tutorías" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </>}

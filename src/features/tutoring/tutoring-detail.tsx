@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -73,7 +73,7 @@ export function TutoringDetail({ tutoring, onBack, onAssignTeacher }: Readonly<{
       {tutoring.is_active && <Button type="button" variant="outline" onClick={onAssignTeacher} disabled={operation.pending}><UserPlusIcon data-icon="inline-start" />{tutoring.teacher_id ? 'Cambiar docente' : 'Asignar docente'}</Button>}
     </CardContent></Card>
     <section aria-labelledby="tutoring-schedules-title" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h3 id="tutoring-schedules-title" className="text-xl font-semibold">Horarios</h3>{tutoring.is_active && <Button type="button" disabled={operation.pending} onClick={() => edit(null)}><PlusIcon data-icon="inline-start" />Registrar horario</Button>}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h3 id="tutoring-schedules-title" className="text-xl font-semibold">Horarios</h3>{tutoring.is_active && <Button type="button" disabled={operation.pending} onClick={() => edit(null)} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"><PlusIcon data-icon="inline-start" />Registrar horario</Button>}</div>
       <ErrorNotice message={schedulesError} retry={reloadSchedules} />
       <RecordTable rows={schedules} loading={schedulesLoading} empty="Esta tutoría todavía no tiene horarios registrados." columns={[
         { label: 'Día', render: (schedule) => DAY_LABELS[schedule.day] ?? schedule.day },
@@ -123,7 +123,10 @@ export function TutoringDetail({ tutoring, onBack, onAssignTeacher }: Readonly<{
       <SelectField id="schedule-day" label="Día" value={form.day} onChange={(value) => setForm({ ...form, day: value })}>{WEEK_DAYS.map((day) => <option key={day} value={day}>{DAY_LABELS[day]}</option>)}</SelectField>
       <Field><FieldLabel htmlFor="schedule-start">Hora de inicio</FieldLabel><Input id="schedule-start" type="time" value={form.start_time} onChange={(event) => setForm({ ...form, start_time: event.target.value })} required /></Field>
       <Field><FieldLabel htmlFor="schedule-end">Hora de fin</FieldLabel><Input id="schedule-end" type="time" value={form.end_time} onChange={(event) => setForm({ ...form, end_time: event.target.value })} required /></Field>
-      <Field><FieldLabel htmlFor="schedule-room">Aula o lugar</FieldLabel><Input id="schedule-room" value={form.room} onChange={(event) => setForm({ ...form, room: event.target.value })} maxLength={100} required /></Field>
+      <Field>
+        <div className="flex items-center justify-between"><FieldLabel htmlFor="schedule-room">Aula o lugar</FieldLabel><FieldCounter current={form.room.length} max={100} /></div>
+        <Input id="schedule-room" value={form.room} onChange={(event) => setForm({ ...form, room: event.target.value.slice(0, 100) })} maxLength={100} required placeholder="Ej. Aula 204" />
+      </Field>
       <Alert><CalendarDaysIcon /><AlertDescription>La hora de fin debe ser posterior al inicio. El horario no puede cruzarse con otro horario de esta tutoría.</AlertDescription></Alert>
     </MutationDialog>
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar horario?" description={`El horario del ${DAY_LABELS[deactivating?.day ?? ''] ?? ''}, ${deactivating?.start_time.slice(0, 5) ?? ''} – ${deactivating?.end_time.slice(0, 5) ?? ''}, dejará de estar disponible.`} confirmLabel="Desactivar horario" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateSchedule(tutoring.id, deactivating.id), 'Horario desactivado.', () => { setDeactivating(null); reloadSchedules() }) }} />
