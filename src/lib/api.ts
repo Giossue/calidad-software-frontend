@@ -8,6 +8,7 @@ export interface User {
   readonly email: string
   readonly phone: string | null
   readonly role: string
+  readonly coordinated_career_ids?: readonly number[]
   readonly is_active: boolean
   readonly email_verified_at: string | null
   readonly has_two_factor: boolean
@@ -203,13 +204,13 @@ export const challengeStore = {
   clear: () => sessionStorage.removeItem(CHALLENGE_KEY),
 }
 
-function buildQuery(params: Record<string, string | number | undefined>): string {
+export function buildQuery(params: Record<string, string | number | undefined>): string {
   const entries = Object.entries(params).filter((entry): entry is [string, string | number] => entry[1] !== undefined && entry[1] !== '')
   if (entries.length === 0) return ''
   return `?${new URLSearchParams(entries.map(([key, value]) => [key, String(value)])).toString()}`
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = tokenStore.get()
   const response = await fetch(`${API_URL}${path}`, {
     ...init,

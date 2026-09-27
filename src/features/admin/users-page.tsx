@@ -29,6 +29,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
+import { CoordinatorCareersDialog } from '@/features/admin/coordinator-careers-dialog'
 import { ApiError, api, type User, type UserPaginationMeta } from '@/lib/api'
 import { isValidEcuadorianCedula } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
@@ -186,6 +187,7 @@ export function UsersPage() {
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userToToggle, setUserToToggle] = useState<ToggleTarget | null>(null)
+  const [coordinatorToAssign, setCoordinatorToAssign] = useState<User | null>(null)
 
   async function handleRefresh() {
     const ok = await reload()
@@ -556,6 +558,17 @@ export function UsersPage() {
 
                       <TableCell className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {user.role === 'coordinador_carrera' && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCoordinatorToAssign(user)}
+                              disabled={pending !== null}
+                            >
+                              Asignar carreras
+                            </Button>
+                          )}
                           <button
                             type="button"
                             onClick={() => openEditModal(user)}
@@ -812,6 +825,15 @@ export function UsersPage() {
           </FieldGroup>
         </form>
       </Dialog>
+
+      {coordinatorToAssign && (
+        <CoordinatorCareersDialog
+          key={coordinatorToAssign.id}
+          user={coordinatorToAssign}
+          onClose={() => setCoordinatorToAssign(null)}
+          onSaved={() => { void reload() }}
+        />
+      )}
 
       {/* ConfirmModal para Habilitar / Desactivar Usuario */}
       <ConfirmModal

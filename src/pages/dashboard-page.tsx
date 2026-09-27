@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   Building2Icon,
   CalendarDaysIcon,
+  GraduationCapIcon,
   LogOutIcon,
   Settings2Icon,
   UsersIcon,
@@ -11,7 +12,7 @@ import {
 
 import uebLogo from '@/assets/ueb-logo.png'
 import { AccessibilityModal } from '@/components/ui/accessibility-modal'
-import { Card } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Sidebar,
   SidebarContent,
@@ -33,14 +34,17 @@ import { Spinner } from '@/components/ui/spinner'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
   AdminSectionContent,
-  DEFAULT_ADMIN_SECTION,
   isAdminSection,
   type AdminSection,
 } from '@/features/admin/admin-page'
 import { useAuth } from '@/features/auth/auth-context'
+import { TutoringSubjectsPage } from '@/features/tutoring/subjects-page'
+import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
+import { TutoringsPage } from '@/features/tutoring/tutorings-page'
+import { canCoordinateTutorings, dashboardSection, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
 
 type NavItem = {
-  readonly id: AdminSection
+  readonly id: AdminSection | TutoringSection
   readonly label: string
   readonly icon: React.ComponentType<{ className?: string }>
 }
@@ -50,6 +54,12 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'periods', label: 'Períodos Académicos', icon: CalendarDaysIcon },
   { id: 'faculties', label: 'Facultades', icon: Building2Icon },
   { id: 'careers', label: 'Carreras', icon: BookOpenIcon },
+]
+
+const TUTORING_NAV_ITEMS: readonly NavItem[] = [
+  { id: 'tutoring-subjects', label: 'Asignaturas', icon: BookOpenIcon },
+  { id: 'tutoring-teachers', label: 'Docentes', icon: UsersIcon },
+  { id: 'tutorings', label: 'Tutorías', icon: GraduationCapIcon },
 ]
 
 function getRoleLabel(role?: string): string {
@@ -85,7 +95,11 @@ export function DashboardPage() {
   const [pending, setPending] = useState(false)
   const [accessibilityOpen, setAccessibilityOpen] = useState(false)
 
-  const activeSection: AdminSection = isAdminSection(section) ? section : DEFAULT_ADMIN_SECTION
+  const activeSection = dashboardSection(user?.role, section)
+  const navGroups = [
+    ...(user?.role === 'administrador' ? [{ label: 'Administración', items: NAV_ITEMS }] : []),
+    ...(canCoordinateTutorings(user?.role) ? [{ label: 'Coordinación de tutorías', items: TUTORING_NAV_ITEMS }] : []),
+  ]
 
   useEffect(() => {
     if (section !== activeSection) {
@@ -118,11 +132,11 @@ export function DashboardPage() {
         <SidebarSeparator />
 
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Administración</SidebarGroupLabel>
+          {navGroups.map((group) => <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {NAV_ITEMS.map((item) => {
+                {group.items.map((item) => {
                   const Icon = item.icon
 
                   return (
@@ -141,7 +155,7 @@ export function DashboardPage() {
                 })}
               </SidebarMenu>
             </SidebarGroupContent>
-          </SidebarGroup>
+          </SidebarGroup>)}
         </SidebarContent>
 
         <SidebarSeparator />
@@ -202,13 +216,17 @@ export function DashboardPage() {
         </header>
 
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-          {user?.role === 'administrador' ? (
+          {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
+          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (
+            <TutoringSubjectsPage />
+          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-teachers' ? (
+            <TutoringTeachersPage />
+          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutorings' ? (
+            <TutoringsPage />
           ) : (
-            <Card className="p-6">
-              <p className="text-sm text-muted-foreground">
-                Tu cuenta no tiene permisos para administrar el catálogo académico.
-              </p>
+            <Card>
+              <CardHeader><CardTitle>Bienvenido, {user?.name ?? 'usuario'}</CardTitle><CardDescription>Tu cuenta no tiene módulos de administración o coordinación de tutorías habilitados.</CardDescription></CardHeader>
             </Card>
           )}
         </main>
