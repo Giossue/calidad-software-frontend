@@ -47,7 +47,7 @@ describe('Coordinación de tutorías', () => {
     expect(dashboardSection('administrador', 'users')).toBe('users')
     expect(dashboardSection('administrador', 'tutorings')).toBe('tutorings')
     expect(dashboardSection('docente', 'tutorings')).toBe('home')
-    expect(dashboardSection('estudiante', 'users')).toBe('home')
+    expect(dashboardSection('estudiante', 'users')).toBe('student-degree-topics')
   })
 
   it('explica cómo habilitar la coordinación cuando no hay carreras asignadas', async () => {

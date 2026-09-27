@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   Building2Icon,
   CalendarDaysIcon,
+  ClipboardListIcon,
   GraduationCapIcon,
   LogOutIcon,
   Settings2Icon,
@@ -38,13 +39,18 @@ import {
   type AdminSection,
 } from '@/features/admin/admin-page'
 import { useAuth } from '@/features/auth/auth-context'
+import { canCoordinateDegrees, type DegreeSection } from '@/features/degree-coordination/degree-navigation'
+import { DegreeSectionsPage } from '@/features/degree-coordination/degree-sections-page'
+import { DegreeTeachersPage } from '@/features/degree-coordination/degree-teachers-page'
+import { DegreeTopicsPage } from '@/features/degree-coordination/degree-topics-page'
+import { StudentDegreeTopicsPage } from '@/features/student-degree-topics/student-degree-topics-page'
 import { TutoringSubjectsPage } from '@/features/tutoring/subjects-page'
 import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
 import { TutoringsPage } from '@/features/tutoring/tutorings-page'
 import { canCoordinateTutorings, dashboardSection, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
 
 type NavItem = {
-  readonly id: AdminSection | TutoringSection
+  readonly id: AdminSection | TutoringSection | DegreeSection | 'student-degree-topics'
   readonly label: string
   readonly icon: React.ComponentType<{ className?: string }>
 }
@@ -60,6 +66,16 @@ const TUTORING_NAV_ITEMS: readonly NavItem[] = [
   { id: 'tutoring-subjects', label: 'Asignaturas', icon: BookOpenIcon },
   { id: 'tutoring-teachers', label: 'Docentes', icon: UsersIcon },
   { id: 'tutorings', label: 'Tutorías', icon: GraduationCapIcon },
+]
+
+const DEGREE_NAV_ITEMS: readonly NavItem[] = [
+  { id: 'degree-topics', label: 'Propuestas de titulación', icon: ClipboardListIcon },
+  { id: 'degree-sections', label: 'Período y paralelos', icon: CalendarDaysIcon },
+  { id: 'degree-teachers', label: 'Docentes de titulación', icon: UsersIcon },
+]
+
+const STUDENT_NAV_ITEMS: readonly NavItem[] = [
+  { id: 'student-degree-topics', label: 'Mis propuestas', icon: ClipboardListIcon },
 ]
 
 function getRoleLabel(role?: string): string {
@@ -99,6 +115,8 @@ export function DashboardPage() {
   const navGroups = [
     ...(user?.role === 'administrador' ? [{ label: 'Administración', items: NAV_ITEMS }] : []),
     ...(canCoordinateTutorings(user?.role) ? [{ label: 'Coordinación de tutorías', items: TUTORING_NAV_ITEMS }] : []),
+    ...(canCoordinateDegrees(user?.role) ? [{ label: 'Coordinación de titulación', items: DEGREE_NAV_ITEMS }] : []),
+    ...(user?.role === 'estudiante' ? [{ label: 'Titulación', items: STUDENT_NAV_ITEMS }] : []),
   ]
 
   useEffect(() => {
@@ -224,9 +242,17 @@ export function DashboardPage() {
             <TutoringTeachersPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutorings' ? (
             <TutoringsPage />
+          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-topics' ? (
+            <DegreeTopicsPage />
+          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-sections' ? (
+            <DegreeSectionsPage />
+          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-teachers' ? (
+            <DegreeTeachersPage />
+          ) : user?.role === 'estudiante' && activeSection === 'student-degree-topics' ? (
+            <StudentDegreeTopicsPage />
           ) : (
             <Card>
-              <CardHeader><CardTitle>Bienvenido, {user?.name ?? 'usuario'}</CardTitle><CardDescription>Tu cuenta no tiene módulos de administración o coordinación de tutorías habilitados.</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Bienvenido, {user?.name ?? 'usuario'}</CardTitle><CardDescription>No hay módulos disponibles para el rol actual de tu cuenta.</CardDescription></CardHeader>
             </Card>
           )}
         </main>
