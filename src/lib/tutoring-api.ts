@@ -3,7 +3,7 @@ import { buildQuery, request, type AcademicPeriod, type Career, type Cycle, type
 const ROOT = '/api/v1/tutoring-coordination'
 type Collection<T> = { readonly data: readonly T[] }
 type Resource<T> = { readonly data: T }
-export type TutoringListParams = { page?: number; search?: string; career_id?: number; per_page?: number }
+export type TutoringListParams = { page?: number; search?: string; career_id?: number; cycle_id?: number; status?: 'active' | 'inactive'; per_page?: number }
 
 export interface Subject {
   readonly id: number
@@ -100,6 +100,7 @@ export const tutoringApi = {
   updateSubject: (id: number, input: Omit<SubjectInput, 'career_id'>) => mutate<Subject>(`subjects/${id}`, 'PATCH', input),
   deactivateSubject: (id: number) => mutate<Subject>(`subjects/${id}/deactivate`, 'PATCH'),
   assignSubjectCycle: (id: number, cycleId: number) => mutate<Subject>(`subjects/${id}/cycles/${cycleId}`, 'PUT'),
+  unassignSubjectCycle: (id: number, cycleId: number) => mutate<Subject>(`subjects/${id}/cycles/${cycleId}`, 'DELETE'),
   teachers: (params?: TutoringListParams) => list<Teacher>('teachers', params),
   availableTeachers: (search = '') => collection<AvailableTeacher>(`available-teachers${buildQuery({ search })}`),
   createTeacher: (input: TeacherInput) => mutate<Teacher>('teachers', 'POST', input),
