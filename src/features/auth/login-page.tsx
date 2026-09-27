@@ -7,7 +7,6 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError } from '@/lib/api'
-import { AuthFeedback } from './auth-feedback'
 import { AuthShell } from './auth-shell'
 import { useAuth } from './auth-context'
 
@@ -48,7 +47,6 @@ export function LoginPage() {
       title="Bienvenido"
       description="Ingresa con tus credenciales institucionales para acceder a la gestión académica."
     >
-      <AuthFeedback error={error} />
       <form onSubmit={submit} noValidate className="space-y-6 mt-4">
         <FieldGroup className="gap-5">
           <Field data-invalid={Boolean(error)}>
@@ -64,7 +62,10 @@ export function LoginPage() {
                 autoComplete="email"
                 placeholder="nombre@ueb.edu.ec"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value)
+                  setError(null)
+                }}
                 aria-invalid={Boolean(error)}
                 className="pl-10 h-11 border-slate-200 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
                 required
@@ -85,7 +86,10 @@ export function LoginPage() {
                 autoComplete="current-password"
                 placeholder="Ingresa tu contraseña"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value)
+                  setError(null)
+                }}
                 aria-invalid={Boolean(error)}
                 className="pl-10 pr-10 h-11 border-slate-200 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
                 required
