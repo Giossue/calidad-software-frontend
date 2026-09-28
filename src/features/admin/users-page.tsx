@@ -32,6 +32,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { CoordinatorCareersDialog } from '@/features/admin/coordinator-careers-dialog'
 import { ApiError, api, type User, type UserPaginationMeta } from '@/lib/api'
 import { isValidEcuadorianCedula } from '@/lib/cedula'
+import { getInitials } from '@/lib/format'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
@@ -112,15 +113,6 @@ function getRoleBadgeStyle(role: string): string {
     default:
       return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
   }
-}
-
-function getInitials(name?: string): string {
-  if (!name) return 'US'
-  const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-  }
-  return name.slice(0, 2).toUpperCase()
 }
 
 function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {

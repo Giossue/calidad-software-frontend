@@ -330,4 +330,25 @@ describe('Coordinación de tutorías', () => {
     await user.click(within(screen.getByRole('form', { name: 'Registrar horario' })).getByRole('button', { name: 'Registrar horario' }))
     await waitFor(() => expect(tutoringApi.createSchedule).toHaveBeenCalledWith(40, { day: 'miercoles', start_time: '09:00', end_time: '10:00', room: 'Aula 3' }))
   })
+
+  it('edita y desactiva un horario desde el botón Editar y el menú de la fila', async () => {
+    const user = userEvent.setup()
+    const schedule = { id: 5, tutoring_id: 40, day: 'lunes', start_time: '10:00', end_time: '11:30', room: 'Aula 301', is_active: true }
+    vi.mocked(tutoringApi.schedules).mockResolvedValue([schedule])
+    vi.mocked(tutoringApi.updateSchedule).mockResolvedValue({ ...schedule, room: 'Aula 302' })
+    vi.mocked(tutoringApi.deactivateSchedule).mockResolvedValue({ ...schedule, is_active: false })
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} onAssignTeacher={vi.fn()} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Editar horario del Lunes' }))
+    const form = screen.getByRole('form', { name: 'Editar horario' })
+    await user.clear(within(form).getByLabelText('Aula o lugar'))
+    await user.type(within(form).getByLabelText('Aula o lugar'), 'Aula 302')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(tutoringApi.updateSchedule).toHaveBeenCalledWith(40, 5, { day: 'lunes', start_time: '10:00', end_time: '11:30', room: 'Aula 302' }))
+
+    await user.click(screen.getByRole('button', { name: 'Más acciones para el horario del Lunes' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Desactivar' }))
+    await user.click(screen.getByRole('button', { name: 'Desactivar horario' }))
+    await waitFor(() => expect(tutoringApi.deactivateSchedule).toHaveBeenCalledWith(40, 5))
+  })
 })

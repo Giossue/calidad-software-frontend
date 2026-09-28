@@ -36,7 +36,7 @@ export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }
   </FieldGroup>
 }
 
-export function RecordTable<T extends { readonly id: number }>({ rows, columns, loading, empty }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: string }>) {
+export function RecordTable<T extends { readonly id: number }>({ rows, columns, loading, empty }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode }>) {
   return <div className="rounded-xl border bg-card" aria-busy={loading}>
     <Table><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody>
       {loading ? <TableRow><TableCell colSpan={columns.length}><span role="status" className="flex items-center gap-2 py-5"><Spinner aria-hidden="true" />Cargando…</span></TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id}>{columns.map((column) => <TableCell key={column.label} className="whitespace-normal">{column.render(row)}</TableCell>)}</TableRow>)}
