@@ -81,6 +81,28 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(degreeCoordinationApi.topics).toHaveBeenLastCalledWith({ status: 'aprobado', section_id: 20, search: 'Carlos' }))
   })
 
+  it('calcula las estadísticas del período y limpia los filtros', async () => {
+    const user = userEvent.setup()
+    const secondStudent = { id: 6, name: 'Lucía Vera', identification: '0202222222', email: 'lucia@ueb.edu.ec', phone: null }
+    const secondTopic: DegreeTopic = { ...topic, id: 31, title: 'Sistema de biblioteca', student: secondStudent, status: 'aprobado' }
+    vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [topic, secondTopic], meta: { academic_period: period, filter_section_id: null } })
+    render(<DegreeTopicsPage />)
+    await screen.findByText('Plataforma de seguimiento')
+
+    await screen.findByText('Propuestas')
+    expect(screen.getByText('Propuestas').previousElementSibling).toHaveTextContent('2')
+    expect(screen.getByText('Estudiantes únicos').previousElementSibling).toHaveTextContent('2')
+    expect(screen.getByText('En revisión').previousElementSibling).toHaveTextContent('1')
+
+    const clearButton = screen.getByRole('button', { name: 'Limpiar filtros' })
+    expect(clearButton).toBeDisabled()
+    await user.type(screen.getByLabelText('Buscar propuesta'), 'Carlos')
+    await waitFor(() => expect(clearButton).toBeEnabled())
+    await user.click(clearButton)
+    expect(screen.getByLabelText('Buscar propuesta')).toHaveValue('')
+    await waitFor(() => expect(clearButton).toBeDisabled())
+  })
+
   it('bloquea la aprobación cuando no hay docentes suficientes', async () => {
     vi.mocked(degreeCoordinationApi.teachers).mockResolvedValue([teachers[0]])
     render(<DegreeTopicDetail topicId={30} onBack={vi.fn()} />)
