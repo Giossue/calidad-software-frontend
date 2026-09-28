@@ -103,6 +103,26 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(clearButton).toBeDisabled())
   })
 
+  it('evita duplicar la consulta a la API cuando no hay filtros activos', async () => {
+    const user = userEvent.setup()
+    render(<DegreeTopicsPage />)
+    await screen.findByText('Plataforma de seguimiento')
+
+    // Sin filtros, la tabla reutiliza la respuesta del período completo:
+    // una sola llamada a la API, no una por las estadísticas y otra por la tabla.
+    expect(degreeCoordinationApi.topics).toHaveBeenCalledTimes(1)
+    expect(degreeCoordinationApi.topics).toHaveBeenCalledWith({})
+
+    await user.type(screen.getByLabelText('Buscar propuesta'), 'Carlos')
+    await waitFor(() => expect(degreeCoordinationApi.topics).toHaveBeenCalledTimes(2))
+    expect(degreeCoordinationApi.topics).toHaveBeenLastCalledWith({ status: undefined, section_id: undefined, search: 'Carlos' })
+
+    await user.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    expect(screen.getByLabelText('Buscar propuesta')).toHaveValue('')
+    await new Promise((resolve) => { setTimeout(resolve, 400) })
+    expect(degreeCoordinationApi.topics).toHaveBeenCalledTimes(2)
+  })
+
   it('bloquea la aprobación cuando no hay docentes suficientes', async () => {
     vi.mocked(degreeCoordinationApi.teachers).mockResolvedValue([teachers[0]])
     render(<DegreeTopicDetail topicId={30} onBack={vi.fn()} />)

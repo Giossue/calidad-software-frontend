@@ -18,7 +18,7 @@ function OverviewStat({ icon: Icon, tone, label, value }: Readonly<{ icon: typeo
   const toneClass = tone === 'green'
     ? 'bg-success/10 text-success-foreground'
     : tone === 'blue'
-      ? 'bg-brand-blue/10 text-brand-blue'
+      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
       : 'bg-muted text-muted-foreground'
   return <div className="flex items-center gap-3">
     <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${toneClass}`}><Icon className="size-5" /></div>
@@ -32,12 +32,31 @@ export function DegreeTopicsPage() {
   const [status, setStatus] = useState<DegreeTopicStatus | ''>('')
   const [sectionId, setSectionId] = useState('')
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
-  const topics = useDegreeResource(() => degreeCoordinationApi.topics({ status: status || undefined, section_id: Number(sectionId) || undefined, search: search.search }), `${status}|${sectionId}|${search.search}`)
-  const overview = useDegreeResource(() => degreeCoordinationApi.topics({}), 'overview')
-
-  if (selectedTopicId !== null) return <DegreeTopicDetail topicId={selectedTopicId} onBack={() => { setSelectedTopicId(null); topics.reload(); overview.reload() }} />
-
   const hasActiveFilters = Boolean(search.input || status || sectionId)
+
+  // El período completo (sin filtros) se pide una sola vez y alimenta tanto las
+  // estadísticas como la tabla cuando no hay filtros activos. Cuando sí los hay,
+  // "filteredTopics" pide ese subconjunto aparte; su loader no llama a la API si
+  // no hace falta, así evitamos duplicar la misma consulta en cada carga.
+  const overview = useDegreeResource(() => degreeCoordinationApi.topics({}), 'overview')
+  const filteredTopics = useDegreeResource(
+    () => hasActiveFilters
+      ? degreeCoordinationApi.topics({ status: status || undefined, section_id: Number(sectionId) || undefined, search: search.search })
+      : Promise.resolve(null),
+    `${status}|${sectionId}|${search.search}`,
+  )
+  const table = hasActiveFilters
+    ? { rows: filteredTopics.data?.data ?? [], loading: filteredTopics.loading, error: filteredTopics.error, retry: filteredTopics.reload }
+    : { rows: overview.data?.data ?? [], loading: overview.loading, error: overview.error, retry: overview.reload }
+
+  function reloadAll() {
+    period.reload()
+    overview.reload()
+    if (hasActiveFilters) filteredTopics.reload()
+  }
+
+  if (selectedTopicId !== null) return <DegreeTopicDetail topicId={selectedTopicId} onBack={() => { setSelectedTopicId(null); reloadAll() }} />
+
   function clearFilters() {
     search.setInput('')
     setStatus('')
@@ -49,7 +68,7 @@ export function DegreeTopicsPage() {
   const pendingCount = overviewRows.filter((topic) => topic.status === 'pendiente').length
 
   return <section className="flex flex-col gap-6">
-    <AdminSectionHeader title="Propuestas de titulación" description="Revisa las propuestas del período vigente, registra observaciones y organiza las asignaciones académicas." actions={<Button type="button" variant="outline" disabled={topics.loading || period.loading} onClick={() => { period.reload(); topics.reload(); overview.reload() }}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
+    <AdminSectionHeader title="Propuestas de titulación" description="Revisa las propuestas del período vigente, registra observaciones y organiza las asignaciones académicas." actions={<Button type="button" variant="outline" disabled={table.loading || period.loading} onClick={reloadAll}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
     <DegreePeriodCard resource={period} extra={period.status !== 404 && !overview.error && <div className="flex flex-wrap gap-6">
       <OverviewStat icon={FileTextIcon} tone="green" label="Propuestas" value={overviewRows.length} />
       <OverviewStat icon={UsersIcon} tone="blue" label="Estudiantes únicos" value={uniqueStudents} />
@@ -65,8 +84,8 @@ export function DegreeTopicsPage() {
         </FieldGroup>
       </CardContent>
     </Card>
-    {period.status !== 404 && <ErrorNotice message={topics.error} retry={topics.reload} />}
-    {period.status !== 404 && <RecordTable rows={topics.data?.data ?? []} loading={topics.loading} empty={<Empty className="border-none p-0">
+    {period.status !== 404 && <ErrorNotice message={table.error} retry={table.retry} />}
+    {period.status !== 404 && <RecordTable rows={table.rows} loading={table.loading} empty={<Empty className="border-none p-0">
       <EmptyMedia variant="icon"><ClipboardListIcon /></EmptyMedia>
       <EmptyTitle>No hay propuestas registradas</EmptyTitle>
       <EmptyDescription>No hay propuestas que coincidan con los filtros en el período vigente.</EmptyDescription>
@@ -78,6 +97,6 @@ export function DegreeTopicsPage() {
       { label: 'Estado', render: (topic) => <DegreeStatusBadge status={topic.status} /> },
       { label: 'Acciones', render: (topic) => <Button type="button" variant="outline" size="sm" onClick={() => setSelectedTopicId(topic.id)} aria-label={`Revisar ${topic.title}`}>Ver detalle</Button> },
     ]} />}
-    {topics.data && <p className="text-sm text-muted-foreground">Mostrando {topics.data.data.length} propuesta{topics.data.data.length === 1 ? '' : 's'} en esta consulta.</p>}
+    {!table.loading && !table.error && <p className="text-sm text-muted-foreground">Mostrando {table.rows.length} propuesta{table.rows.length === 1 ? '' : 's'} en esta consulta.</p>}
   </section>
 }
