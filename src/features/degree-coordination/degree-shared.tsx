@@ -22,7 +22,7 @@ export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: Retur
   if (resource.error) return <ErrorNotice message={resource.error} retry={resource.reload} />
   if (!resource.data) return null
   const { period } = resource.data
-  return <Card><CardContent className="flex flex-wrap items-center gap-6 pt-6">
+  return <Card><CardContent className="flex flex-wrap items-center justify-between gap-6 pt-6">
     <div className="flex items-center gap-4">
       <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 text-brand-blue"><CalendarIcon className="size-5" /></div>
       <div className="flex flex-col">
