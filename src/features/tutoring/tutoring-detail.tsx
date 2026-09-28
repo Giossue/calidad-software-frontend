@@ -35,7 +35,7 @@ function InfoChip({ icon: Icon, label }: Readonly<{ icon: ComponentType<{ classN
 
 function StatMiniCard({ icon: Icon, tone, label, value }: Readonly<{ icon: ComponentType<{ className?: string }>; tone: 'blue' | 'green' | 'red'; label: string; value: number }>) {
   const toneClass = tone === 'blue'
-    ? 'bg-brand-blue/10 text-brand-blue'
+    ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
     : tone === 'green'
       ? 'bg-success/10 text-success-foreground'
       : 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
