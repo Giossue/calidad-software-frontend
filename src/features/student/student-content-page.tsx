@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, ChevronDownIcon, CircleDashedIcon, ClockIcon, FileTextIcon, UsersIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -100,10 +101,11 @@ export function StudentContentPage() {
     {tutorings.loading ? <div role="status" aria-label="Cargando contenido" className="flex flex-col gap-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div> : !tutorings.error && !selected ? <StudentEmpty title="Aún no estás inscrito en ninguna tutoría" description="Cuando tu docente te inscriba, podrás revisar aquí su contenido." /> : selected && <>
       <Card><CardContent className="flex flex-col gap-5 pt-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-center"><IconTile icon={BookOpenIcon} /><Field className="w-full min-w-0 max-w-md"><FieldLabel htmlFor="student-tutoring">Tutoría</FieldLabel><NativeSelect id="student-tutoring" value={selectedId} onChange={(event) => setParams({ tutoring: event.target.value })}>
-          {rows.filter((item) => item.subject).map((item) => <option key={item.id} value={item.subject?.id}>{item.subject?.name} · {item.subject?.academic_period?.name}</option>)}
+          {rows.filter((item) => item.subject).map((item) => <option key={item.id} value={item.subject?.id}>{item.subject?.name} · {item.subject?.academic_period?.name}{item.is_active && item.subject?.is_active ? '' : ' (finalizada)'}</option>)}
         </NativeSelect></Field></div>
         <TutoringInfoChips source={selected.subject} />
       </CardContent></Card>
+      {!(selected.is_active && selected.subject?.is_active) && <Alert><AlertDescription>Esta tutoría ya finalizó. Puedes consultar su contenido, pero no tendrá nuevas sesiones.</AlertDescription></Alert>}
       {content.loading ? <Skeleton role="status" aria-label="Cargando temas" className="h-64 w-full" /> : content.data && <ContentView key={selectedId} content={content.data} />}
     </>}
   </section>

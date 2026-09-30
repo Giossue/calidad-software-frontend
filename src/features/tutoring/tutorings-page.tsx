@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarDaysIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
+import { CalendarDaysIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PowerIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
@@ -173,6 +173,7 @@ export function TutoringsPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </>}
+            {!tutoring.is_active && <Button type="button" variant="outline" size="sm" aria-label={`Activar ${tutoring.subject_name}`} disabled={operation.pending} onClick={() => void operation.run(() => tutoringApi.activateTutoring(tutoring.id), 'Tutoría activada.', list.reload)}><PowerIcon data-icon="inline-start" />Activar</Button>}
           </div>,
         },
       ]} />

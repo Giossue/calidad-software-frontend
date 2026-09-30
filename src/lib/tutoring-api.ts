@@ -110,6 +110,7 @@ export const tutoringApi = {
   createTutoring: (input: TutoringInput) => mutate<Tutoring>('tutorings', 'POST', input),
   updateTutoring: (id: number, input: Pick<TutoringInput, 'period_id' | 'modality_id'>) => mutate<Tutoring>(`tutorings/${id}`, 'PATCH', input),
   deactivateTutoring: (id: number) => mutate<Tutoring>(`tutorings/${id}/deactivate`, 'PATCH'),
+  activateTutoring: (id: number) => mutate<Tutoring>(`tutorings/${id}/activate`, 'PATCH'),
   assignTutoringCycle: (id: number, cycleId: number) => mutate<Tutoring>(`tutorings/${id}/cycle`, 'PUT', { cycle_id: cycleId }),
   assignTeacher: (id: number, teacherId: number) => mutate<Tutoring>(`tutorings/${id}/teacher`, 'PUT', { teacher_id: teacherId }),
   schedules: (id: number) => collection<TutoringSchedule>(`tutorings/${id}/schedules`),

@@ -94,6 +94,15 @@ describe('Módulo Estudiante', () => {
     expect(screen.getByText('Ningún tema coincide con tu búsqueda.')).toBeInTheDocument()
   })
 
+  it('avisa cuando la tutoría seleccionada está inactiva', async () => {
+    const inactive: StudentTutoring = { ...tutoring, subject: tutoring.subject && { ...tutoring.subject, is_active: false } }
+    vi.mocked(studentApi.tutorings).mockResolvedValue([inactive])
+    vi.mocked(studentApi.content).mockResolvedValue(content)
+    show(<StudentContentPage />)
+    expect(await screen.findByText(/Esta tutoría ya finalizó/)).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /\(finalizada\)/ })).toBeInTheDocument()
+  })
+
   it('pagina los temas del plan didáctico cuando hay más de cinco', async () => {
     const user = userEvent.setup()
     const many = Array.from({ length: 7 }, (_, index) => ({ ...content.topics[1], id: 100 + index, name: `Tema ${index + 1}` }))

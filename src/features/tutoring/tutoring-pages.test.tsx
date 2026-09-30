@@ -268,6 +268,16 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByRole('button', { name: 'Volver a tutorías' })).toBeInTheDocument()
   })
 
+  it('reactiva una tutoría inactiva desde su fila', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([{ ...tutoring, is_active: false }]))
+    vi.mocked(tutoringApi.activateTutoring).mockResolvedValue(tutoring)
+    render(<TutoringsPage />)
+    await user.click(await screen.findByRole('button', { name: 'Activar Matemática' }))
+    await waitFor(() => expect(tutoringApi.activateTutoring).toHaveBeenCalledWith(40))
+    expect(screen.queryByRole('button', { name: 'Asignar docente a Matemática' })).not.toBeInTheDocument()
+  })
+
   it('asigna un docente desde el ícono de la fila sin pasar por el menú', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.availableTeachers).mockResolvedValue([{ id: 70, name: 'Ana Torres', email: 'ana@ueb.edu.ec', is_active: true }])
