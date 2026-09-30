@@ -44,8 +44,8 @@ function TopicCard({ topic, onEdit }: Readonly<{ topic: DegreeTopic; onEdit?: (t
     </div>
     <div className="grid gap-4 lg:grid-cols-2">
       <SectionCard icon={FileTextIcon} title="Descripción de la propuesta" description={`Presentada el ${formatDate(topic.proposed_at)}`}><p className="whitespace-pre-wrap break-words text-sm leading-6">{topic.description || 'No registraste una descripción.'}</p></SectionCard>
-      <SectionCard icon={ClipboardListIcon} title="Revisión y seguimiento" description={topic.reviewer ? `Revisada por ${topic.reviewer.name}` : 'Pendiente de revisión por coordinación'}>
-        <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Estado</dt><dd>{STATUS_LABELS[topic.status] ?? topic.status}</dd></div><div><dt className="text-muted-foreground">Fecha de revisión</dt><dd>{formatDate(topic.reviewed_at)}</dd></div></dl>
+      <SectionCard icon={ClipboardListIcon} title="Revisión y seguimiento" description={topic.reviewer ? 'Propuesta revisada' : 'Pendiente de revisión por coordinación'}>
+        <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Coordinación</dt><dd>{topic.reviewer?.name ?? 'Sin asignar'}</dd></div><div><dt className="text-muted-foreground">Fecha de revisión</dt><dd>{formatDate(topic.reviewed_at)}</dd></div></dl>
       </SectionCard>
     </div>
     <SectionCard icon={UsersIcon} title="Docentes asignados" description="Tutor y pares académicos de tu propuesta.">
