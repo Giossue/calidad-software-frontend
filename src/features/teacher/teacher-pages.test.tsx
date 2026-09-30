@@ -90,7 +90,7 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     workspace('students')
     await user.click(await screen.findByRole('button', { name: 'Volver a mis tutorías' }))
-    expect(await screen.findByText('Tutorías asignadas')).toBeInTheDocument()
+    expect(await screen.findByRole('searchbox', { name: 'Buscar' })).toBeInTheDocument()
   })
 
   it('no consulta estudiantes cuando la tutoría ya no está asignada al docente', async () => {
