@@ -51,6 +51,12 @@ import { TutoringSubjectsPage } from '@/features/tutoring/subjects-page'
 import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
 import { TutoringsPage } from '@/features/tutoring/tutorings-page'
 import { canCoordinateTutorings, dashboardSection, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
+import type { StudentSection } from '@/features/student/student-navigation'
+import { StudentTutoringsPage } from '@/features/student/student-tutorings-page'
+import { StudentGradesPage } from '@/features/student/student-grades-page'
+import { StudentAttendancePage } from '@/features/student/student-attendance-page'
+import { StudentContentPage } from '@/features/student/student-content-page'
+import { StudentDegreeAssignmentsPage } from '@/features/student/student-degree-assignments-page'
 import type { TeacherSection } from '@/features/teacher/teacher-navigation'
 import { TeacherTutoringsPage } from '@/features/teacher/teacher-tutorings-page'
 import { TeacherStudentsPage } from '@/features/teacher/teacher-students-page'
@@ -61,7 +67,7 @@ import { TeacherReportsPage } from '@/features/teacher/teacher-reports-page'
 import { TeacherDegreeAssignmentsPage } from '@/features/teacher/teacher-degree-assignments-page'
 
 type NavItem = {
-  readonly id: AdminSection | TutoringSection | DegreeSection | TeacherSection | 'student-degree-topics'
+  readonly id: AdminSection | TutoringSection | DegreeSection | TeacherSection | StudentSection
   readonly label: string
   readonly icon: React.ComponentType<{ className?: string }>
 }
@@ -85,8 +91,16 @@ const DEGREE_NAV_ITEMS: readonly NavItem[] = [
   { id: 'degree-teachers', label: 'Docentes de titulación', icon: UsersIcon },
 ]
 
-const STUDENT_NAV_ITEMS: readonly NavItem[] = [
-  { id: 'student-degree-topics', label: 'Mis propuestas', icon: ClipboardListIcon },
+const STUDENT_TUTORING_NAV_ITEMS: readonly NavItem[] = [
+  { id: 'student-tutorings', label: 'Mis tutorías', icon: GraduationCapIcon },
+  { id: 'student-grades', label: 'Calificaciones', icon: ClipboardListIcon },
+  { id: 'student-attendance', label: 'Asistencia', icon: ClipboardCheckIcon },
+  { id: 'student-content', label: 'Contenido', icon: LayersIcon },
+]
+
+const STUDENT_DEGREE_NAV_ITEMS: readonly NavItem[] = [
+  { id: 'student-degree-topics', label: 'Mis propuestas', icon: FileTextIcon },
+  { id: 'student-degree-assignments', label: 'Tutor y pares', icon: UsersIcon },
 ]
 
 const TEACHER_NAV_ITEMS: readonly NavItem[] = [
@@ -137,7 +151,7 @@ export function DashboardPage() {
     ...(user?.role === 'administrador' ? [{ label: 'Administración', items: NAV_ITEMS }] : []),
     ...(canCoordinateTutorings(user?.role) ? [{ label: 'Coordinación de tutorías', items: TUTORING_NAV_ITEMS }] : []),
     ...(canCoordinateDegrees(user?.role) ? [{ label: 'Coordinación de titulación', items: DEGREE_NAV_ITEMS }] : []),
-    ...(user?.role === 'estudiante' ? [{ label: 'Titulación', items: STUDENT_NAV_ITEMS }] : []),
+    ...(user?.role === 'estudiante' ? [{ label: 'Tutorías', items: STUDENT_TUTORING_NAV_ITEMS }, { label: 'Titulación', items: STUDENT_DEGREE_NAV_ITEMS }] : []),
     ...(user?.role === 'docente' ? [{ label: 'Docencia', items: TEACHER_NAV_ITEMS }] : []),
   ]
 
@@ -270,8 +284,18 @@ export function DashboardPage() {
             <DegreeSectionsPage />
           ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-teachers' ? (
             <DegreeTeachersPage />
+          ) : user?.role === 'estudiante' && activeSection === 'student-tutorings' ? (
+            <StudentTutoringsPage />
+          ) : user?.role === 'estudiante' && activeSection === 'student-grades' ? (
+            <StudentGradesPage />
+          ) : user?.role === 'estudiante' && activeSection === 'student-attendance' ? (
+            <StudentAttendancePage />
+          ) : user?.role === 'estudiante' && activeSection === 'student-content' ? (
+            <StudentContentPage />
           ) : user?.role === 'estudiante' && activeSection === 'student-degree-topics' ? (
             <StudentDegreeTopicsPage />
+          ) : user?.role === 'estudiante' && activeSection === 'student-degree-assignments' ? (
+            <StudentDegreeAssignmentsPage />
           ) : user?.role === 'docente' && activeSection === 'teacher-tutorings' ? (
             <TeacherTutoringsPage />
           ) : user?.role === 'docente' && activeSection === 'teacher-students' ? (

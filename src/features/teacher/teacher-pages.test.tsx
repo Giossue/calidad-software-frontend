@@ -53,7 +53,7 @@ describe('Módulo Docente', () => {
     expect(dashboardSection('docente', 'users')).toBe('teacher-tutorings')
     expect(dashboardSection('docente', 'teacher-grades')).toBe('teacher-grades')
     expect(dashboardSection('coordinador_carrera', 'teacher-grades')).toBe('tutorings')
-    expect(dashboardSection('estudiante', 'teacher-grades')).toBe('student-degree-topics')
+    expect(dashboardSection('estudiante', 'teacher-grades')).toBe('student-tutorings')
   })
 
   it('consulta tutorías con paginación y muestra sus horarios en un diálogo', async () => {
