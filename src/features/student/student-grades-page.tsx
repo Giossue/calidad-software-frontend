@@ -20,7 +20,7 @@ function GradesCard({ item }: Readonly<{ item: StudentGrades }>) {
   return <Card>
     <CardContent className="flex flex-col gap-6 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4"><IconTile /><div className="flex min-w-0 flex-col gap-2"><div className="flex flex-col gap-0.5"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{item.tutoring?.academic_period?.name ?? 'Período sin registrar'}</p></div><ContextPills source={item.tutoring} /></div></div>
+        <div className="flex min-w-0 items-center gap-4"><IconTile /><div className="flex min-w-0 flex-col gap-2"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><ContextPills source={item.tutoring} /></div></div>
         {metric ? <Badge variant="secondary" className="px-3 py-1">Grupo de conocimiento: {metric.group}</Badge> : <Badge variant="secondary" className="px-3 py-1">Sin clasificar</Badge>}
       </div>
       <dl className="grid gap-4 sm:grid-cols-2">
