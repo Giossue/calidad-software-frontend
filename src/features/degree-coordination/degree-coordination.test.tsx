@@ -56,7 +56,7 @@ describe('Coordinación de titulación', () => {
     expect(dashboardSection('administrador', 'degree-topics')).toBe('degree-topics')
     expect(dashboardSection('coordinador_carrera', 'degree-topics')).toBe('tutorings')
     expect(dashboardSection('estudiante', 'degree-topics')).toBe('student-degree-topics')
-    expect(dashboardSection('docente', 'degree-topics')).toBe('home')
+    expect(dashboardSection('docente', 'degree-topics')).toBe('teacher-tutorings')
     expect(canCoordinateDegrees('docente')).toBe(false)
     expect(canCoordinateDegrees('coordinador_carrera')).toBe(false)
   })
