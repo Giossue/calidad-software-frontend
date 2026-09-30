@@ -14,3 +14,8 @@ export function formatDate(value: string, time = false): string {
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', ...(time ? { timeStyle: 'short' as const } : {}) }).format(date)
 }
+
+// Orden alfabético en español (ignora mayúsculas y tildes).
+export function compareNames(a: string, b: string): number {
+  return a.localeCompare(b, 'es', { sensitivity: 'base' })
+}

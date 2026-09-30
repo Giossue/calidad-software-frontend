@@ -25,8 +25,8 @@ export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs 
   return null
 }
 
-export function ModuleHeader({ title, description, createLabel, onCreate, disabled }: Readonly<{ title: string; description: string; createLabel: string; onCreate: () => void; disabled: boolean }>) {
-  return <AdminSectionHeader title={title} description={description} actions={<Button type="button" disabled={disabled} onClick={onCreate} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"><PlusIcon data-icon="inline-start" />{createLabel}</Button>} />
+export function ModuleHeader({ title, description, createLabel, onCreate, disabled, extraActions }: Readonly<{ title: string; description: string; createLabel: string; onCreate: () => void; disabled: boolean; extraActions?: ReactNode }>) {
+  return <AdminSectionHeader title={title} description={description} actions={<div className="flex flex-wrap items-center gap-3">{extraActions}<Button type="button" disabled={disabled} onClick={onCreate} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"><PlusIcon data-icon="inline-start" />{createLabel}</Button></div>} />
 }
 
 export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }: Readonly<{ search: string; onSearch: (value: string) => void; careerId?: string; onCareer?: (value: string) => void; careers?: readonly Career[] }>) {
@@ -36,10 +36,10 @@ export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }
   </FieldGroup>
 }
 
-export function RecordTable<T extends { readonly id: number }>({ rows, columns, loading, empty }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode }>) {
+export function RecordTable<T extends { readonly id: number }>({ rows, columns, loading, empty, onRowClick, rowTitle }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string }>) {
   return <div className="rounded-xl border bg-card" aria-busy={loading}>
     <Table><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody>
-      {loading ? <TableRow><TableCell colSpan={columns.length}><span role="status" className="flex items-center gap-2 py-5"><Spinner aria-hidden="true" />Cargando…</span></TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id}>{columns.map((column) => <TableCell key={column.label} className="whitespace-normal">{column.render(row)}</TableCell>)}</TableRow>)}
+      {loading ? <TableRow><TableCell colSpan={columns.length}><span role="status" className="flex items-center gap-2 py-5"><Spinner aria-hidden="true" />Cargando…</span></TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), className: 'cursor-pointer', onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && event.key === 'Enter') onRowClick(row) } } : {})}>{columns.map((column) => <TableCell key={column.label} className="whitespace-normal">{column.render(row)}</TableCell>)}</TableRow>)}
     </TableBody></Table>
   </div>
 }
