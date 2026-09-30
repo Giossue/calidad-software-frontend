@@ -25,6 +25,7 @@ export function DegreeStatusBadge({ status }: Readonly<{ status: DegreeTopicStat
 type IconType = ComponentType<{ className?: string }>
 const TONES = {
   gray: 'bg-muted text-foreground',
+  red: 'bg-brand-red/10 text-brand-red dark:bg-brand-red/25 dark:text-brand-red-contrast',
   blue: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
 } as const
 export type SectionTone = keyof typeof TONES

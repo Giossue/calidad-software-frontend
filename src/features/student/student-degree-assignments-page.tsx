@@ -14,7 +14,7 @@ type Row = { readonly id: number; readonly assignments: StudentDegreeAssignments
 
 function Person({ role, person }: Readonly<{ role: string; person: NonNullable<StudentDegreeAssignments['tutor']> }>) {
   return <li className="flex items-start gap-4 rounded-xl border bg-card p-4 text-sm">
-    <InitialsAvatar name={person.name} tone={role === 'Tutor' ? 'blue' : 'gray'} />
+    <InitialsAvatar name={person.name} tone={role === 'Tutor' ? 'red' : 'blue'} />
     <div className="flex min-w-0 flex-col gap-1">
       <Badge variant="secondary" className="w-fit">{role}</Badge>
       <span className="font-semibold">{person.name}</span>

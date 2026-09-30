@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils'
 
 type IconType = ComponentType<{ className?: string }>
 
-/** Ícono de sección en círculo neutro, igual que las tarjetas de titulación. */
+/** Ícono de tutoría: cuadro con tinte azul suave. */
 export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ icon?: IconType; className?: string }>) {
-  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-foreground', className)}><Icon className="size-5" /></span>
+  return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', className)}><Icon className="size-5" /></span>
 }
 
 export function InfoChip({ icon: Icon, value, label }: Readonly<{ icon: IconType; value: ReactNode; label: string }>) {
@@ -34,6 +34,16 @@ export function TutoringInfoChips({ source }: Readonly<{ source: ContextSource |
   </div>
 }
 
+/** Ciclo, paralelo y docente como píldoras discretas, para que no compitan con el título. */
+export function ContextPills({ source }: Readonly<{ source: ContextSource | null | undefined }>) {
+  const items = [
+    { icon: GraduationCapIcon, text: source?.cycle?.name ?? 'Sin ciclo' },
+    { icon: UsersIcon, text: source?.section ? `Paralelo ${source.section.name}` : 'Sin paralelo' },
+    { icon: UserIcon, text: source?.teacher?.name ?? 'Sin docente' },
+  ]
+  return <ul className="flex flex-wrap gap-2">{items.map(({ icon: Icon, text }) => <li key={text} className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"><Icon aria-hidden="true" className="size-3.5 shrink-0" /><span className="truncate">{text}</span></li>)}</ul>
+}
+
 export function RedProgress({ value, label, className }: Readonly<{ value: number; label: string; className?: string }>) {
   const width = Math.max(0, Math.min(100, value))
   return <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} className={cn('h-2.5 w-full overflow-hidden rounded-full bg-muted', className)}>
@@ -41,9 +51,9 @@ export function RedProgress({ value, label, className }: Readonly<{ value: numbe
   </div>
 }
 
-export function FilterChips<T extends string>({ label, value, onChange, options }: Readonly<{ label: string; value: T; onChange: (value: T) => void; options: readonly { value: T; label: string; count: number }[] }>) {
+export function FilterChips<T extends string>({ label, value, onChange, options }: Readonly<{ label: string; value: T; onChange: (value: T) => void; options: readonly { value: T; label: string; count: number; icon?: IconType }[] }>) {
   return <div role="group" aria-label={label} className="flex flex-wrap gap-2">
-    {options.map((option) => <button key={option.value} type="button" aria-pressed={value === option.value} onClick={() => onChange(option.value)} className={cn('rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50', value === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-muted')}>{option.label} ({option.count})</button>)}
+    {options.map((option) => <button key={option.value} type="button" aria-pressed={value === option.value} onClick={() => onChange(option.value)} className={cn('inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50', value === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-muted')}>{option.icon && <option.icon className="size-4" />}{option.label} ({option.count})</button>)}
   </div>
 }
 

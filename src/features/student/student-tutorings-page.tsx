@@ -7,7 +7,7 @@ import { formatDate } from '@/lib/format'
 import { studentApi, type StudentTutoring } from '@/lib/student-api'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { StudentEmpty, StudentReadPage } from './student-shared'
-import { IconTile, TutoringInfoChips } from './student-ui'
+import { ContextPills, IconTile } from './student-ui'
 
 function TutoringCard({ enrollment }: Readonly<{ enrollment: StudentTutoring }>) {
   const subject = enrollment.subject
@@ -18,11 +18,10 @@ function TutoringCard({ enrollment }: Readonly<{ enrollment: StudentTutoring }>)
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
           <IconTile />
-          <div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{subject?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{[subject?.academic_period?.name, subject?.modality?.name].filter(Boolean).join(' · ') || 'Período sin registrar'}</p></div>
+          <div className="flex min-w-0 flex-col gap-2"><div className="flex flex-col gap-0.5"><h3 className="break-words text-lg font-semibold tracking-tight">{subject?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{[subject?.academic_period?.name, subject?.modality?.name].filter(Boolean).join(' · ') || 'Período sin registrar'}</p></div><ContextPills source={subject} /></div>
         </div>
         <StatusBadge active={enrollment.is_active && Boolean(subject?.is_active)} activeLabel="En curso" inactiveLabel="Finalizada" />
       </div>
-      <TutoringInfoChips source={subject} />
       <div className="grid gap-5 border-t pt-5 text-sm md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <h4 className="font-semibold">Contacto del docente</h4>
