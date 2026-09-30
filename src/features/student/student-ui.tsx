@@ -7,11 +7,9 @@ import { cn } from '@/lib/utils'
 
 type IconType = ComponentType<{ className?: string }>
 
-/** Ícono de sección con tinte rojo suave, igual que las tarjetas de titulación. */
-export const SOFT_ACCENT = 'bg-brand-red/10 text-brand-red dark:bg-brand-red/25 dark:text-brand-red-contrast'
-
+/** Ícono de sección en círculo neutro, igual que las tarjetas de titulación. */
 export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ icon?: IconType; className?: string }>) {
-  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-red/10 text-brand-red dark:bg-brand-red/25 dark:text-brand-red-contrast', className)}><Icon className="size-5" /></span>
+  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-foreground', className)}><Icon className="size-5" /></span>
 }
 
 export function InfoChip({ icon: Icon, value, label }: Readonly<{ icon: IconType; value: ReactNode; label: string }>) {

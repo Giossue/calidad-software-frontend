@@ -24,13 +24,13 @@ export function DegreeStatusBadge({ status }: Readonly<{ status: DegreeTopicStat
 
 type IconType = ComponentType<{ className?: string }>
 const TONES = {
-  red: 'bg-brand-red/10 text-brand-red dark:bg-brand-red/25 dark:text-brand-red-contrast',
+  gray: 'bg-muted text-foreground',
   blue: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
 } as const
 export type SectionTone = keyof typeof TONES
 
 /** Tarjeta de sección: ícono con tinte suave, título, descripción y una acción opcional a la derecha. */
-export function SectionCard({ icon: Icon, title, description, action, tone = 'red', children }: Readonly<{ icon: IconType; title: string; description?: ReactNode; action?: ReactNode; tone?: SectionTone; children?: ReactNode }>) {
+export function SectionCard({ icon: Icon, title, description, action, tone = 'gray', children }: Readonly<{ icon: IconType; title: string; description?: ReactNode; action?: ReactNode; tone?: SectionTone; children?: ReactNode }>) {
   return <Card className="flex flex-col">
     <div className="flex flex-wrap items-center justify-between gap-4 p-6 pb-4">
       <div className="flex min-w-0 items-center gap-4">
@@ -43,7 +43,7 @@ export function SectionCard({ icon: Icon, title, description, action, tone = 're
   </Card>
 }
 
-export function InitialsAvatar({ name, tone = 'red' }: Readonly<{ name: string; tone?: SectionTone }>) {
+export function InitialsAvatar({ name, tone = 'gray' }: Readonly<{ name: string; tone?: SectionTone }>) {
   return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold', TONES[tone])}>{getInitials(name)}</span>
 }
 
