@@ -75,9 +75,9 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {topic && <>
       <AdminSectionHeader title={topic.title} description={<span className="flex flex-wrap items-center gap-x-2">{[`Propuesta #${topic.id}`, topic.academic_period?.name ?? 'Sin período', topic.section ? `Paralelo ${topic.section.name}` : 'Sin paralelo'].map((part, index) => <span key={part} className="flex items-center gap-2">{index > 0 && <span aria-hidden="true">·</span>}{part}</span>)}</span>} actions={<div className="flex flex-col items-start gap-1 sm:items-end"><DegreeStatusBadge status={topic.status} /><span className="text-xs text-muted-foreground">Presentada el {formatDegreeDate(topic.proposed_at)}</span></div>} />
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard icon={FileTextIcon} title="Descripción de la propuesta" description={`Presentada el ${formatDegreeDate(topic.proposed_at)}`}><p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{topic.description || 'El estudiante no registró una descripción.'}</p></SectionCard>
-        <SectionCard icon={UserIcon} tone="blue" title="Estudiante" description={topic.student ? undefined : 'Sin estudiante vinculado'}>
+        <SectionCard icon={UserIcon} tone="blue" title="Estudiante" description={topic.student ? 'Datos de contacto del estudiante' : 'Sin estudiante vinculado'}>
           <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Nombre</dt><dd className="font-medium">{topic.student?.name ?? 'Sin registrar'}</dd></div><div><dt className="text-muted-foreground">Correo</dt><dd className="[overflow-wrap:anywhere]">{topic.student?.email ?? 'Sin registrar'}</dd></div><div><dt className="text-muted-foreground">Cédula</dt><dd>{topic.student?.identification ?? 'Sin registrar'}</dd></div><div><dt className="text-muted-foreground">Teléfono</dt><dd>{topic.student?.phone || 'Sin registrar'}</dd></div></dl>
         </SectionCard>
       </div>

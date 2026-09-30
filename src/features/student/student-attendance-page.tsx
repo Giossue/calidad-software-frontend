@@ -19,7 +19,7 @@ function AttendanceCard({ item }: Readonly<{ item: StudentAttendance }>) {
   const pager = usePagedList(visible)
   return <Card>
     <CardContent className="flex flex-col gap-6 pt-6">
-      <div className="flex min-w-0 items-center gap-4"><IconTile className="size-14" /><div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{tutoringContext(item.tutoring)}</p></div></div>
+      <div className="flex min-w-0 items-center gap-4"><IconTile /><div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{tutoringContext(item.tutoring)}</p></div></div>
       <TutoringInfoChips source={item.tutoring} />
       <div className="flex flex-col gap-2">
         <p className="text-4xl font-semibold tabular-nums">{Math.round(summary.attendance_percentage)}% <span className="text-base font-normal text-muted-foreground">de asistencia</span></p>
@@ -30,7 +30,7 @@ function AttendanceCard({ item }: Readonly<{ item: StudentAttendance }>) {
         <FilterChips label="Filtrar sesiones" value={filter} onChange={(next) => { setFilter(next); pager.setPage(1) }} options={[{ value: 'all', label: 'Todas', count: item.records.length }, { value: 'present', label: 'Presentes', count: summary.present_count }, { value: 'absent', label: 'Ausentes', count: summary.absent_count }]} />
         <ul className="flex flex-col gap-3">
           {pager.rows.map((record) => <li key={record.id} className="flex items-center gap-4 rounded-xl border bg-card p-4">
-            <span aria-hidden="true" className="flex size-11 shrink-0 flex-col items-center justify-center rounded-full bg-brand-red text-white"><span className="text-sm font-semibold leading-none">{record.date ? record.date.slice(8, 10) : '—'}</span></span>
+            <span aria-hidden="true" className="flex size-11 shrink-0 flex-col items-center justify-center rounded-full bg-muted text-foreground"><span className="text-sm font-semibold leading-none">{record.date ? record.date.slice(8, 10) : '—'}</span></span>
             <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm"><span className="font-semibold">{record.date ? formatDate(record.date) : 'Sin fecha'}</span><span className="text-muted-foreground">{record.topics.length ? record.topics.map((topic) => topic.name).join(', ') : record.topics_covered === false ? 'Sin temas vistos' : 'Sin temas registrados'}</span></div>
             <Badge variant={record.present ? 'success' : 'inactive'} className="gap-1.5 px-3 py-1">{record.present ? <CheckCircle2Icon aria-hidden="true" /> : <XCircleIcon aria-hidden="true" />}{record.present ? 'Presente' : 'Ausente'}</Badge>
           </li>)}

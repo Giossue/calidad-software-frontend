@@ -24,9 +24,9 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
   const [open, setOpen] = useState(false)
   const firstActivity = topic.activities[0]
   const firstMethodology = firstActivity?.methodologies[0]
-  return <li className="rounded-xl border bg-card transition-colors hover:border-brand-red/40">
+  return <li className="rounded-xl border bg-card transition-colors hover:border-primary/40">
     <button type="button" aria-expanded={open} aria-label={`${open ? 'Ocultar' : 'Ver'} detalle de ${topic.name}`} onClick={() => setOpen(!open)} className="flex w-full items-center gap-4 rounded-xl p-4 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
-      <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-red text-base font-semibold text-white">{number}</span>
+      <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-base font-semibold text-foreground">{number}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="break-words font-semibold">{topic.name}</span>
         {topic.description && <span className="line-clamp-2 text-sm text-muted-foreground">{topic.description}</span>}
@@ -42,7 +42,7 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
     {open && <div className="flex flex-col gap-3 border-t px-4 py-4 text-sm sm:pl-[4.75rem]">
       <Badge variant={topic.is_covered ? 'success' : 'secondary'} className="w-fit sm:hidden">{topic.is_covered ? 'Visto' : 'Pendiente'}</Badge>
       {topic.activities.length === 0 ? <p className="text-muted-foreground">Este tema aún no tiene actividades.</p> : <ul className="flex flex-col gap-3">
-        {topic.activities.map((activity) => <li key={activity.id} className="flex flex-col gap-1 border-l-2 border-brand-red/60 pl-4">
+        {topic.activities.map((activity) => <li key={activity.id} className="flex flex-col gap-1 border-l-2 border-border pl-4">
           <span className="font-medium">{activity.name} <span className="font-normal text-muted-foreground">· {activity.duration}</span></span>
           {activity.methodologies.length > 0 && <ul className="list-disc pl-5 text-muted-foreground">{activity.methodologies.map((methodology) => <li key={methodology.id} className="break-words">{methodology.description}</li>)}</ul>}
         </li>)}
@@ -99,7 +99,7 @@ export function StudentContentPage() {
     <ErrorNotice message={tutorings.error ?? content.error} retry={tutorings.error ? tutorings.reload : content.reload} />
     {tutorings.loading ? <div role="status" aria-label="Cargando contenido" className="flex flex-col gap-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div> : !tutorings.error && !selected ? <StudentEmpty title="Aún no estás inscrito en ninguna tutoría" description="Cuando tu docente te inscriba, podrás revisar aquí su contenido." /> : selected && <>
       <Card><CardContent className="flex flex-col gap-5 pt-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-center"><IconTile icon={BookOpenIcon} className="size-14" /><Field className="w-full min-w-0 max-w-md"><FieldLabel htmlFor="student-tutoring">Tutoría</FieldLabel><NativeSelect id="student-tutoring" value={selectedId} onChange={(event) => setParams({ tutoring: event.target.value })}>
+        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-center"><IconTile icon={BookOpenIcon} /><Field className="w-full min-w-0 max-w-md"><FieldLabel htmlFor="student-tutoring">Tutoría</FieldLabel><NativeSelect id="student-tutoring" value={selectedId} onChange={(event) => setParams({ tutoring: event.target.value })}>
           {rows.filter((item) => item.subject).map((item) => <option key={item.id} value={item.subject?.id}>{item.subject?.name} · {item.subject?.academic_period?.name}</option>)}
         </NativeSelect></Field></div>
         <TutoringInfoChips source={selected.subject} />

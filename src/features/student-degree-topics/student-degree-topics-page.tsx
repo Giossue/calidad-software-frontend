@@ -42,10 +42,10 @@ function TopicCard({ topic, onEdit }: Readonly<{ topic: DegreeTopic; onEdit?: (t
       <div className="flex min-w-0 flex-col gap-1"><h3 className="break-words font-display text-2xl font-semibold tracking-tight">{topic.title}</h3><p className="text-sm text-muted-foreground">{[`Propuesta #${topic.id}`, topic.academic_period?.name ?? 'Período sin registrar', topic.section ? `Paralelo ${topic.section.name}` : null].filter(Boolean).join(' · ')}</p></div>
       <div className="flex flex-col items-start gap-2 sm:items-end"><div className="flex flex-wrap items-center gap-3">{onEdit && <Button type="button" variant="outline" size="sm" onClick={() => onEdit(topic)}><PencilIcon data-icon="inline-start" />Cambiar propuesta</Button>}<Badge variant={badge} className="px-3 py-1">{STATUS_LABELS[topic.status] ?? topic.status}</Badge></div><span className="text-xs text-muted-foreground">Presentada el {formatDate(topic.proposed_at)}</span></div>
     </div>
-    <div className="grid items-start gap-4 lg:grid-cols-2">
-      <SectionCard icon={FileTextIcon} title="Descripción de la propuesta"><p className="whitespace-pre-wrap break-words text-sm leading-6">{topic.description || 'No registraste una descripción.'}</p></SectionCard>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <SectionCard icon={FileTextIcon} title="Descripción de la propuesta" description={`Presentada el ${formatDate(topic.proposed_at)}`}><p className="whitespace-pre-wrap break-words text-sm leading-6">{topic.description || 'No registraste una descripción.'}</p></SectionCard>
       <SectionCard icon={ClipboardListIcon} title="Revisión y seguimiento" description={topic.reviewer ? `Revisada por ${topic.reviewer.name}` : 'Pendiente de revisión por coordinación'}>
-        <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Fecha de propuesta</dt><dd>{formatDate(topic.proposed_at)}</dd></div><div><dt className="text-muted-foreground">Fecha de revisión</dt><dd>{formatDate(topic.reviewed_at)}</dd></div></dl>
+        <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Estado</dt><dd>{STATUS_LABELS[topic.status] ?? topic.status}</dd></div><div><dt className="text-muted-foreground">Fecha de revisión</dt><dd>{formatDate(topic.reviewed_at)}</dd></div></dl>
       </SectionCard>
     </div>
     <SectionCard icon={UsersIcon} title="Docentes asignados" description="Tutor y pares académicos de tu propuesta.">
@@ -56,7 +56,7 @@ function TopicCard({ topic, onEdit }: Readonly<{ topic: DegreeTopic; onEdit?: (t
     </SectionCard>
     <SectionCard icon={MessageSquareIcon} title="Observaciones de coordinación" description="Mensajes registrados sobre tu propuesta.">
       {topic.observations.length === 0 ? <div className="flex flex-col items-center gap-1 rounded-xl bg-muted/50 px-6 py-8 text-center"><MessageSquareIcon aria-hidden="true" className="mb-1 size-7 text-muted-foreground" /><p className="text-sm font-medium">Todavía no hay observaciones para esta propuesta.</p><p className="text-xs text-muted-foreground">Cuando coordinación registre una, la verás aquí.</p></div> : <ul className="flex flex-col gap-4">
-        {topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-brand-red/60 pl-4">
+        {topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-border pl-4">
           <p className="whitespace-pre-wrap break-words text-sm leading-6">{observation.observation}</p>
           <p className="text-xs text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDate(observation.registered_at)}</p>
         </li>)}

@@ -17,7 +17,7 @@ function TutoringCard({ enrollment }: Readonly<{ enrollment: StudentTutoring }>)
     <CardContent className="flex flex-col gap-5 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
-          <IconTile className="size-14" />
+          <IconTile />
           <div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{subject?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{[subject?.academic_period?.name, subject?.modality?.name].filter(Boolean).join(' · ') || 'Período sin registrar'}</p></div>
         </div>
         <StatusBadge active={enrollment.is_active && Boolean(subject?.is_active)} activeLabel="En curso" inactiveLabel="Finalizada" />

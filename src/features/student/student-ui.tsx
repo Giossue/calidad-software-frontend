@@ -7,9 +7,11 @@ import { cn } from '@/lib/utils'
 
 type IconType = ComponentType<{ className?: string }>
 
-/** Ícono institucional: cuadro rojo con glifo blanco, igual en modo claro y oscuro. */
+/** Ícono de sección con tinte rojo suave, igual que las tarjetas de titulación. */
+export const SOFT_ACCENT = 'bg-brand-red/10 text-brand-red dark:bg-brand-red/25 dark:text-brand-red-contrast'
+
 export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ icon?: IconType; className?: string }>) {
-  return <span aria-hidden="true" className={cn('flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-red text-white shadow-xs', className)}><Icon className="size-5" /></span>
+  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-red/10 text-brand-red dark:bg-brand-red/25 dark:text-brand-red-contrast', className)}><Icon className="size-5" /></span>
 }
 
 export function InfoChip({ icon: Icon, value, label }: Readonly<{ icon: IconType; value: ReactNode; label: string }>) {
@@ -37,13 +39,13 @@ export function TutoringInfoChips({ source }: Readonly<{ source: ContextSource |
 export function RedProgress({ value, label, className }: Readonly<{ value: number; label: string; className?: string }>) {
   const width = Math.max(0, Math.min(100, value))
   return <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} className={cn('h-2.5 w-full overflow-hidden rounded-full bg-muted', className)}>
-    <div className="h-full rounded-full bg-brand-red transition-[width]" style={{ width: `${width}%` }} />
+    <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${width}%` }} />
   </div>
 }
 
 export function FilterChips<T extends string>({ label, value, onChange, options }: Readonly<{ label: string; value: T; onChange: (value: T) => void; options: readonly { value: T; label: string; count: number }[] }>) {
   return <div role="group" aria-label={label} className="flex flex-wrap gap-2">
-    {options.map((option) => <button key={option.value} type="button" aria-pressed={value === option.value} onClick={() => onChange(option.value)} className={cn('rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50', value === option.value ? 'border-brand-red bg-brand-red text-white' : 'border-border bg-card text-foreground hover:bg-muted')}>{option.label} ({option.count})</button>)}
+    {options.map((option) => <button key={option.value} type="button" aria-pressed={value === option.value} onClick={() => onChange(option.value)} className={cn('rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50', value === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-muted')}>{option.label} ({option.count})</button>)}
   </div>
 }
 

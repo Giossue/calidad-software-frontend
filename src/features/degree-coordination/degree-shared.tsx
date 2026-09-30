@@ -31,7 +31,7 @@ export type SectionTone = keyof typeof TONES
 
 /** Tarjeta de sección: ícono con tinte suave, título, descripción y una acción opcional a la derecha. */
 export function SectionCard({ icon: Icon, title, description, action, tone = 'red', children }: Readonly<{ icon: IconType; title: string; description?: ReactNode; action?: ReactNode; tone?: SectionTone; children?: ReactNode }>) {
-  return <Card>
+  return <Card className="flex flex-col">
     <div className="flex flex-wrap items-center justify-between gap-4 p-6 pb-4">
       <div className="flex min-w-0 items-center gap-4">
         <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full', TONES[tone])}><Icon className="size-5" /></span>
@@ -39,7 +39,7 @@ export function SectionCard({ icon: Icon, title, description, action, tone = 're
       </div>
       {action}
     </div>
-    {children && <CardContent className="border-t pt-5">{children}</CardContent>}
+    {children && <CardContent className="flex-1 border-t pt-5">{children}</CardContent>}
   </Card>
 }
 

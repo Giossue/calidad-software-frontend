@@ -21,8 +21,8 @@ function GradesCard({ item }: Readonly<{ item: StudentGrades }>) {
   return <Card>
     <CardContent className="flex flex-col gap-6 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4"><IconTile className="size-14" /><div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{tutoringContext(item.tutoring)}</p></div></div>
-        {metric ? <Badge className="bg-brand-red px-3 py-1 text-white">Grupo de conocimiento: {metric.group}</Badge> : <Badge variant="secondary" className="px-3 py-1">Sin clasificar</Badge>}
+        <div className="flex min-w-0 items-center gap-4"><IconTile /><div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{tutoringContext(item.tutoring)}</p></div></div>
+        {metric ? <Badge variant="secondary" className="px-3 py-1">Grupo de conocimiento: {metric.group}</Badge> : <Badge variant="secondary" className="px-3 py-1">Sin clasificar</Badge>}
       </div>
       <TutoringInfoChips source={item.tutoring} />
       <dl className="grid gap-4 sm:grid-cols-2">
@@ -33,7 +33,7 @@ function GradesCard({ item }: Readonly<{ item: StudentGrades }>) {
       <section aria-label={`Historial de notas de ${item.tutoring?.name ?? 'la tutoría'}`} className="flex flex-col gap-3 border-t pt-5">
         <h4 className="font-semibold">Historial de registros</h4>
         {item.grades.history.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay notas registradas.</p> : <ul className="flex flex-col gap-2 text-sm">
-          {item.grades.history.map((entry) => <li key={entry.id} className="flex flex-wrap justify-between gap-2 border-l-2 border-brand-red/60 pl-4"><span>{entry.type === 'diagnostic' ? 'Diagnóstico' : 'Nota parcial'}: <strong className="tabular-nums">{entry.formatted_value}</strong></span><span className="text-muted-foreground">{entry.registered_at ? formatDate(entry.registered_at) : 'Sin fecha'}</span></li>)}
+          {item.grades.history.map((entry) => <li key={entry.id} className="flex flex-wrap justify-between gap-2 border-l-2 border-border pl-4"><span>{entry.type === 'diagnostic' ? 'Diagnóstico' : 'Nota parcial'}: <strong className="tabular-nums">{entry.formatted_value}</strong></span><span className="text-muted-foreground">{entry.registered_at ? formatDate(entry.registered_at) : 'Sin fecha'}</span></li>)}
         </ul>}
       </section>
     </CardContent>
