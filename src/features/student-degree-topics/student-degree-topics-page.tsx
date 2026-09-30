@@ -1,16 +1,16 @@
 import { useState, type FormEvent } from 'react'
-import { PencilIcon, PlusIcon, RefreshCwIcon, ReplaceIcon } from 'lucide-react'
+import { ClipboardListIcon, FileTextIcon, MessageSquareIcon, PencilIcon, PlusIcon, RefreshCwIcon, ReplaceIcon, UsersIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
+import { InitialsAvatar, SectionCard } from '@/features/degree-coordination/degree-shared'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { MutationDialog } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeTopic } from '@/lib/degree-coordination-api'
@@ -33,38 +33,36 @@ function formatDate(value: string | null): string {
 }
 
 function TopicCard({ topic, onEdit }: Readonly<{ topic: DegreeTopic; onEdit?: (topic: DegreeTopic) => void }>) {
-  const tutor = topic.assignments.find((assignment) => assignment.role === 'tutor')
+  const tutor = topic.assignments.find((assignment) => assignment.role === 'tutor')?.teacher
   const peers = topic.assignments.filter((assignment) => assignment.role === 'par_academico')
+  const badge = topic.status === 'rechazado' ? 'destructive' : topic.status === 'aprobado' ? 'success' : 'secondary'
 
-  return <Card>
-    <CardHeader>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <CardTitle className="min-w-0 break-words">{topic.title}</CardTitle>
-        <Badge variant={topic.status === 'rechazado' ? 'destructive' : topic.status === 'aprobado' ? 'default' : 'secondary'}>{STATUS_LABELS[topic.status] ?? topic.status}</Badge>
+  return <article aria-label={topic.title} className="flex flex-col gap-4 not-first-of-type:border-t not-first-of-type:pt-8">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex min-w-0 flex-col gap-1"><h3 className="break-words font-display text-2xl font-semibold tracking-tight">{topic.title}</h3><p className="text-sm text-muted-foreground">{[`Propuesta #${topic.id}`, topic.academic_period?.name ?? 'Período sin registrar', topic.section ? `Paralelo ${topic.section.name}` : null].filter(Boolean).join(' · ')}</p></div>
+      <div className="flex flex-col items-start gap-2 sm:items-end"><div className="flex flex-wrap items-center gap-3">{onEdit && <Button type="button" variant="outline" size="sm" onClick={() => onEdit(topic)}><PencilIcon data-icon="inline-start" />Cambiar propuesta</Button>}<Badge variant={badge} className="px-3 py-1">{STATUS_LABELS[topic.status] ?? topic.status}</Badge></div><span className="text-xs text-muted-foreground">Presentada el {formatDate(topic.proposed_at)}</span></div>
+    </div>
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+      <SectionCard icon={FileTextIcon} title="Descripción de la propuesta"><p className="whitespace-pre-wrap break-words text-sm leading-6">{topic.description || 'No registraste una descripción.'}</p></SectionCard>
+      <SectionCard icon={ClipboardListIcon} title="Revisión y seguimiento" description={topic.reviewer ? `Revisada por ${topic.reviewer.name}` : 'Pendiente de revisión por coordinación'}>
+        <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Fecha de propuesta</dt><dd>{formatDate(topic.proposed_at)}</dd></div><div><dt className="text-muted-foreground">Fecha de revisión</dt><dd>{formatDate(topic.reviewed_at)}</dd></div></dl>
+      </SectionCard>
+    </div>
+    <SectionCard icon={UsersIcon} title="Docentes asignados" description="Tutor y pares académicos de tu propuesta.">
+      <div className="grid gap-6 sm:grid-cols-2 sm:gap-0 sm:divide-x">
+        <div className="flex flex-col gap-3 sm:pr-6"><h4 className="text-sm text-muted-foreground">Tutor</h4>{tutor ? <div className="flex items-center gap-3"><InitialsAvatar name={tutor.name} /><div className="flex min-w-0 flex-col"><span className="font-medium">{tutor.name}</span><span className="text-xs text-muted-foreground break-all">{tutor.email}</span></div></div> : <p className="text-sm text-muted-foreground">Sin tutor asignado</p>}</div>
+        <div className="flex flex-col gap-3 sm:pl-6"><h4 className="text-sm text-muted-foreground">Pares académicos</h4>{peers.length === 0 ? <p className="text-sm text-muted-foreground">Sin pares asignados</p> : <ul className="flex flex-col gap-4">{peers.map((peer) => <li key={peer.id} className="flex items-center gap-3"><InitialsAvatar name={peer.teacher?.name ?? 'Docente'} tone="blue" /><div className="flex min-w-0 flex-col"><span className="font-medium">{peer.teacher?.name ?? 'Docente no disponible'}</span><span className="text-xs text-muted-foreground break-all">{peer.teacher?.email}</span></div></li>)}</ul>}</div>
       </div>
-      <CardDescription>{topic.academic_period?.name ?? 'Período sin registrar'}{topic.section ? ` · Paralelo ${topic.section.name}` : ''}</CardDescription>
-    </CardHeader>
-    <CardContent className="flex flex-col gap-5">
-      {onEdit && <div><Button type="button" variant="outline" size="sm" onClick={() => onEdit(topic)}><PencilIcon data-icon="inline-start" />Cambiar propuesta</Button></div>}
-      <p className="whitespace-pre-wrap break-words">{topic.description || 'Sin descripción.'}</p>
-      <dl className="grid gap-4 text-sm sm:grid-cols-2">
-        <div><dt className="text-muted-foreground">Fecha de propuesta</dt><dd>{formatDate(topic.proposed_at)}</dd></div>
-        <div><dt className="text-muted-foreground">Fecha de revisión</dt><dd>{formatDate(topic.reviewed_at)}</dd></div>
-        <div><dt className="text-muted-foreground">Coordinación</dt><dd>{topic.reviewer?.name ?? 'Pendiente de revisión'}</dd></div>
-        <div><dt className="text-muted-foreground">Tutor</dt><dd>{tutor?.teacher?.name ?? 'Sin tutor asignado'}</dd></div>
-        <div className="sm:col-span-2"><dt className="text-muted-foreground">Pares académicos</dt><dd>{peers.length ? peers.map((peer) => peer.teacher?.name ?? 'Docente no disponible').join(', ') : 'Sin pares asignados'}</dd></div>
-      </dl>
-      <section aria-label={`Observaciones de ${topic.title}`} className="flex flex-col gap-3">
-        <h3 className="font-semibold">Observaciones de coordinación</h3>
-        {topic.observations.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay observaciones para esta propuesta.</p> : <ul className="flex flex-col gap-3">
-          {topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-border pl-4">
-            <p className="whitespace-pre-wrap break-words">{observation.observation}</p>
-            <p className="text-sm text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDate(observation.registered_at)}</p>
-          </li>)}
-        </ul>}
-      </section>
-    </CardContent>
-  </Card>
+    </SectionCard>
+    <SectionCard icon={MessageSquareIcon} title="Observaciones de coordinación" description="Mensajes registrados sobre tu propuesta.">
+      {topic.observations.length === 0 ? <div className="flex flex-col items-center gap-1 rounded-xl bg-muted/50 px-6 py-8 text-center"><MessageSquareIcon aria-hidden="true" className="mb-1 size-7 text-muted-foreground" /><p className="text-sm font-medium">Todavía no hay observaciones para esta propuesta.</p><p className="text-xs text-muted-foreground">Cuando coordinación registre una, la verás aquí.</p></div> : <ul className="flex flex-col gap-4">
+        {topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-brand-red/60 pl-4">
+          <p className="whitespace-pre-wrap break-words text-sm leading-6">{observation.observation}</p>
+          <p className="text-xs text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDate(observation.registered_at)}</p>
+        </li>)}
+      </ul>}
+    </SectionCard>
+  </article>
 }
 
 function ProposalDialog({ mode, onClose, onSaved }: Readonly<{ mode: ProposalMode | null; onClose: () => void; onSaved: () => void }>) {
@@ -88,8 +86,8 @@ function ProposalDialog({ mode, onClose, onSaved }: Readonly<{ mode: ProposalMod
   }
 
   return <MutationDialog open={mode !== null} title={mode?.kind === 'edit' ? 'Cambiar propuesta' : mode?.kind === 'replace' ? 'Proponer una alternativa' : 'Nueva propuesta de titulación'} description={mode?.kind === 'replace' ? 'Tu propuesta pendiente quedará reemplazada por esta nueva.' : 'Coordinación revisará tu propuesta y te notificará el resultado.'} pending={operation.pending} error={operation.error} dirty={form.title !== initial.title || form.description !== initial.description} onClose={onClose} onSubmit={submit} submitLabel={mode?.kind === 'edit' ? 'Guardar cambios' : 'Enviar propuesta'} submitDisabled={title.length < 5}>
-    <Field><FieldLabel htmlFor="student-topic-title">Título del tema</FieldLabel><Input id="student-topic-title" required minLength={5} maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /><FieldDescription>Entre 5 y 255 caracteres.</FieldDescription></Field>
-    <Field><FieldLabel htmlFor="student-topic-description">Descripción</FieldLabel><Textarea id="student-topic-description" maxLength={2000} rows={5} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><FieldDescription>Opcional. Explica el alcance y el objetivo del tema.</FieldDescription></Field>
+    <Field><FieldLabel htmlFor="student-topic-title">Título del tema</FieldLabel><Input id="student-topic-title" placeholder="Ej.: Plataforma web para el seguimiento de tutorías académicas" required minLength={5} maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /><FieldDescription>Entre 5 y 255 caracteres.</FieldDescription></Field>
+    <Field><FieldLabel htmlFor="student-topic-description">Descripción</FieldLabel><Textarea id="student-topic-description" placeholder="Describe el problema que resuelve tu tema, su alcance y los resultados esperados." maxLength={2000} rows={5} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><FieldDescription>Opcional. Explica el alcance y el objetivo del tema.</FieldDescription></Field>
   </MutationDialog>
 }
 
@@ -109,7 +107,7 @@ export function StudentDegreeTopicsPage() {
     : <Button type="button" onClick={() => setMode({ kind: 'create' })}><PlusIcon data-icon="inline-start" />Nueva propuesta</Button>
 
   return <section className="flex min-w-0 flex-col gap-6" aria-busy={loading}>
-    <AdminSectionHeader title="Mis propuestas de titulación" description="Presenta tu tema, consulta el estado de tus propuestas, los docentes asignados y las observaciones de coordinación." actions={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading} onClick={resource.reload}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>{action}</div>} />
+    <AdminSectionHeader title="Mis propuestas de titulación" description="Presenta tu tema, consulta el estado de tus propuestas, los docentes asignados y las observaciones de coordinación." actions={<div className="flex shrink-0 flex-col gap-2 sm:flex-row"><Button type="button" variant="outline" disabled={loading} onClick={resource.reload}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>{action}</div>} />
     {error ? <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{error}</span><Button type="button" variant="outline" onClick={resource.reload}>Reintentar</Button></AlertDescription></Alert> : loading ? <div role="status" aria-label="Cargando propuestas" className="flex flex-col gap-4"><Skeleton className="h-36 w-full" /><Skeleton className="h-36 w-full" /></div> : topics.length === 0 ? <Alert><AlertDescription>Aún no tienes propuestas de titulación registradas. Usa «Nueva propuesta» para presentar tu tema a coordinación.</AlertDescription></Alert> : topics.map((topic) => <TopicCard key={topic.id} topic={topic} onEdit={topic.status === 'pendiente' ? (item) => setMode({ kind: 'edit', topic: item }) : undefined} />)}
     <ProposalDialog mode={mode} onClose={() => setMode(null)} onSaved={resource.reload} />
   </section>

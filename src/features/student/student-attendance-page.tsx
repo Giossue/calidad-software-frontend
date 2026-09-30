@@ -1,33 +1,42 @@
+import { useState } from 'react'
 import { CheckCircle2Icon, XCircleIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { formatDate } from '@/lib/format'
 import { studentApi, type StudentAttendance } from '@/lib/student-api'
-import { StudentEmpty, StudentReadPage } from './student-shared'
 import { tutoringContext } from './student-format'
+import { StudentEmpty, StudentReadPage } from './student-shared'
+import { FilterChips, IconTile, ListFooter, RedProgress, TutoringInfoChips } from './student-ui'
+import { usePagedList } from './student-hooks'
+
+type RecordFilter = 'all' | 'present' | 'absent'
 
 function AttendanceCard({ item }: Readonly<{ item: StudentAttendance }>) {
   const { summary } = item
+  const [filter, setFilter] = useState<RecordFilter>('all')
+  const visible = item.records.filter((record) => filter === 'all' || (filter === 'present') === record.present)
+  const pager = usePagedList(visible)
   return <Card>
-    <CardHeader>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <CardTitle className="min-w-0 break-words">{item.tutoring?.name ?? 'Tutoría no disponible'}</CardTitle>
-        <Badge variant={summary.total_sessions > 0 && summary.attendance_percentage < 70 ? 'destructive' : 'secondary'}>{summary.attendance_percentage}% de asistencia</Badge>
-      </div>
-      <CardDescription>{tutoringContext(item.tutoring)}</CardDescription>
-    </CardHeader>
-    <CardContent className="flex flex-col gap-5">
+    <CardContent className="flex flex-col gap-6 pt-6">
+      <div className="flex min-w-0 items-center gap-4"><IconTile className="size-14" /><div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><p className="text-sm text-muted-foreground">{tutoringContext(item.tutoring)}</p></div></div>
+      <TutoringInfoChips source={item.tutoring} />
       <div className="flex flex-col gap-2">
-        <div role="progressbar" aria-label="Porcentaje de asistencia" aria-valuemin={0} aria-valuemax={100} aria-valuenow={summary.attendance_percentage} className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, summary.attendance_percentage)}%` }} /></div>
-        <p className="text-sm text-muted-foreground">{summary.present_count} presentes · {summary.absent_count} ausentes · {summary.total_sessions} sesiones registradas</p>
+        <p className="text-4xl font-semibold tabular-nums">{Math.round(summary.attendance_percentage)}% <span className="text-base font-normal text-muted-foreground">de asistencia</span></p>
+        <RedProgress value={summary.attendance_percentage} label="Porcentaje de asistencia" />
+        <div className="flex flex-wrap justify-between gap-2 text-sm text-muted-foreground"><span>{summary.present_count} presentes · {summary.absent_count} ausentes</span><span>{summary.total_sessions} sesiones registradas</span></div>
       </div>
-      {item.records.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay sesiones registradas.</p> : <ul className="flex flex-col divide-y rounded-lg border">
-        {item.records.map((record) => <li key={record.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-1 text-sm"><span className="font-medium">{record.date ? formatDate(record.date) : 'Sin fecha'}</span><span className="text-muted-foreground">{record.topics.length ? record.topics.map((topic) => topic.name).join(', ') : record.topics_covered === false ? 'Sin temas vistos' : 'Sin temas registrados'}</span></div>
-          <Badge variant={record.present ? 'success' : 'inactive'} className="w-fit gap-1.5">{record.present ? <CheckCircle2Icon aria-hidden="true" /> : <XCircleIcon aria-hidden="true" />}{record.present ? 'Presente' : 'Ausente'}</Badge>
-        </li>)}
-      </ul>}
+      {item.records.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay sesiones registradas.</p> : <>
+        <FilterChips label="Filtrar sesiones" value={filter} onChange={(next) => { setFilter(next); pager.setPage(1) }} options={[{ value: 'all', label: 'Todas', count: item.records.length }, { value: 'present', label: 'Presentes', count: summary.present_count }, { value: 'absent', label: 'Ausentes', count: summary.absent_count }]} />
+        <ul className="flex flex-col gap-3">
+          {pager.rows.map((record) => <li key={record.id} className="flex items-center gap-4 rounded-xl border bg-card p-4">
+            <span aria-hidden="true" className="flex size-11 shrink-0 flex-col items-center justify-center rounded-full bg-brand-red text-white"><span className="text-sm font-semibold leading-none">{record.date ? record.date.slice(8, 10) : '—'}</span></span>
+            <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm"><span className="font-semibold">{record.date ? formatDate(record.date) : 'Sin fecha'}</span><span className="text-muted-foreground">{record.topics.length ? record.topics.map((topic) => topic.name).join(', ') : record.topics_covered === false ? 'Sin temas vistos' : 'Sin temas registrados'}</span></div>
+            <Badge variant={record.present ? 'success' : 'inactive'} className="gap-1.5 px-3 py-1">{record.present ? <CheckCircle2Icon aria-hidden="true" /> : <XCircleIcon aria-hidden="true" />}{record.present ? 'Presente' : 'Ausente'}</Badge>
+          </li>)}
+        </ul>
+        <ListFooter noun="sesiones" total={visible.length} start={pager.start} shown={pager.rows.length} page={pager.page} lastPage={pager.lastPage} onPage={pager.setPage} />
+      </>}
     </CardContent>
   </Card>
 }

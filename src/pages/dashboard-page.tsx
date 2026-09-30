@@ -155,6 +155,8 @@ export function DashboardPage() {
     ...(user?.role === 'docente' ? [{ label: 'Docencia', items: TEACHER_NAV_ITEMS }] : []),
   ]
 
+  const sectionLabel = navGroups.flatMap((group) => group.items).find((item) => item.id === activeSection)?.label
+
   useEffect(() => {
     if (section !== activeSection) {
       navigate(`/panel/${activeSection}`, { replace: true })
@@ -237,7 +239,7 @@ export function DashboardPage() {
           <div className="flex items-center gap-3">
             <SidebarTrigger className="md:hidden" />
             <span className="text-xs font-medium text-muted-foreground md:text-sm">
-              {userRoleText} &rsaquo; Tutorías y Titulación
+              {userRoleText} &rsaquo; Tutorías y Titulación{sectionLabel && <> &rsaquo; <span aria-current="page" className="font-semibold text-foreground">{sectionLabel}</span></>}
             </span>
           </div>
 

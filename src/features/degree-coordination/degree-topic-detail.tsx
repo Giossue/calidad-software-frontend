@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowLeftIcon, CheckIcon, MessageSquareIcon, UsersIcon, XIcon } from 'lucide-react'
+import { ArrowLeftIcon, CheckIcon, ClipboardListIcon, FileTextIcon, MessageSquareIcon, PlusCircleIcon, UserIcon, UsersIcon, XIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
@@ -13,7 +12,7 @@ import { ErrorNotice, MutationDialog, SelectField } from '@/features/tutoring/tu
 import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
 import { formatDegreeDate } from './degree-format'
 import { useDegreeResource } from './degree-hooks'
-import { DegreeObservationField, DegreeStatusBadge } from './degree-shared'
+import { DegreeObservationField, DegreeStatusBadge, InitialsAvatar, SectionCard } from './degree-shared'
 
 type ReviewAction = 'approve' | 'reject' | 'observe' | 'peers'
 const ACTION_LABELS: Record<ReviewAction, string> = { approve: 'Aprobar propuesta', reject: 'Rechazar propuesta', observe: 'Registrar observación', peers: 'Gestionar pares académicos' }
@@ -75,28 +74,34 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
     {resource.loading && <p role="status" className="flex items-center gap-2"><Spinner aria-hidden="true" />Cargando propuesta…</p>}
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {topic && <>
-      <AdminSectionHeader title={topic.title} description={`Propuesta #${topic.id} · ${topic.academic_period?.name ?? 'Sin período'} · ${topic.section ? `Paralelo ${topic.section.name}` : 'Sin paralelo'}`} actions={<DegreeStatusBadge status={topic.status} />} />
+      <AdminSectionHeader title={topic.title} description={<span className="flex flex-wrap items-center gap-x-2">{[`Propuesta #${topic.id}`, topic.academic_period?.name ?? 'Sin período', topic.section ? `Paralelo ${topic.section.name}` : 'Sin paralelo'].map((part, index) => <span key={part} className="flex items-center gap-2">{index > 0 && <span aria-hidden="true">·</span>}{part}</span>)}</span>} actions={<div className="flex flex-col items-start gap-1 sm:items-end"><DegreeStatusBadge status={topic.status} /><span className="text-xs text-muted-foreground">Presentada el {formatDegreeDate(topic.proposed_at)}</span></div>} />
       <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Card><CardHeader><CardTitle>Descripción de la propuesta</CardTitle><CardDescription>Presentada el {formatDegreeDate(topic.proposed_at)}</CardDescription></CardHeader><CardContent><p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{topic.description || 'El estudiante no registró una descripción.'}</p></CardContent></Card>
-        <Card><CardHeader><CardTitle>Estudiante</CardTitle><CardDescription>{topic.student?.name ?? 'Sin estudiante vinculado'}</CardDescription></CardHeader><CardContent><dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Cédula</dt><dd>{topic.student?.identification ?? 'Sin registrar'}</dd></div><div><dt className="text-muted-foreground">Teléfono</dt><dd>{topic.student?.phone || 'Sin registrar'}</dd></div><div className="sm:col-span-2"><dt className="text-muted-foreground">Correo</dt><dd className="[overflow-wrap:anywhere]">{topic.student?.email ?? 'Sin registrar'}</dd></div></dl></CardContent></Card>
+        <SectionCard icon={FileTextIcon} title="Descripción de la propuesta" description={`Presentada el ${formatDegreeDate(topic.proposed_at)}`}><p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{topic.description || 'El estudiante no registró una descripción.'}</p></SectionCard>
+        <SectionCard icon={UserIcon} tone="blue" title="Estudiante" description={topic.student ? undefined : 'Sin estudiante vinculado'}>
+          <dl className="grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-muted-foreground">Nombre</dt><dd className="font-medium">{topic.student?.name ?? 'Sin registrar'}</dd></div><div><dt className="text-muted-foreground">Correo</dt><dd className="[overflow-wrap:anywhere]">{topic.student?.email ?? 'Sin registrar'}</dd></div><div><dt className="text-muted-foreground">Cédula</dt><dd>{topic.student?.identification ?? 'Sin registrar'}</dd></div><div><dt className="text-muted-foreground">Teléfono</dt><dd>{topic.student?.phone || 'Sin registrar'}</dd></div></dl>
+        </SectionCard>
       </div>
-      <Card><CardHeader><CardTitle>Revisión y seguimiento</CardTitle><CardDescription>{topic.reviewer ? `Revisada por ${topic.reviewer.name} el ${formatDegreeDate(topic.reviewed_at)}` : 'La propuesta todavía no ha sido revisada.'}</CardDescription></CardHeader><CardContent className="flex flex-col gap-4">
-        {(topic.status === 'pendiente' || topic.status === 'aprobado') && <ErrorNotice message={teachers.error} retry={teachers.reload} />}
-        {topic.status === 'pendiente' && !teachers.loading && !teachers.error && !approvalPossible && <Alert><AlertDescription>Se necesitan al menos dos docentes activos: uno como tutor y otro como par académico. Registra o activa docentes antes de aprobar la propuesta.</AlertDescription></Alert>}
-        {topic.status === 'aprobado' && !teachers.loading && !teachers.error && !peerChangePossible && <Alert><AlertDescription>No hay docentes activos disponibles diferentes del tutor. Activa o registra otro docente para gestionar los pares académicos.</AlertDescription></Alert>}
-        <div className="flex flex-wrap gap-3">
-          {topic.status === 'pendiente' && <><Button type="button" disabled={operation.pending || !approvalPossible} onClick={() => openAction('approve')}><CheckIcon data-icon="inline-start" />Aprobar propuesta</Button><Button type="button" variant="destructive" disabled={operation.pending} onClick={() => openAction('reject')}><XIcon data-icon="inline-start" />Rechazar propuesta</Button></>}
-          {topic.status === 'aprobado' && <Button type="button" variant="outline" disabled={operation.pending || !peerChangePossible} onClick={() => openAction('peers')}><UsersIcon data-icon="inline-start" />Gestionar pares académicos</Button>}
-          <Button type="button" variant="outline" disabled={operation.pending} onClick={() => openAction('observe')}><MessageSquareIcon data-icon="inline-start" />Registrar observación</Button>
+      <SectionCard icon={ClipboardListIcon} title="Revisión y seguimiento" description={topic.reviewer ? `Revisada por ${topic.reviewer.name} el ${formatDegreeDate(topic.reviewed_at)}` : 'La propuesta todavía no ha sido revisada.'}>
+        <div className="flex flex-col gap-4">
+          {(topic.status === 'pendiente' || topic.status === 'aprobado') && <ErrorNotice message={teachers.error} retry={teachers.reload} />}
+          {topic.status === 'pendiente' && !teachers.loading && !teachers.error && !approvalPossible && <Alert><AlertDescription>Se necesitan al menos dos docentes activos: uno como tutor y otro como par académico. Registra o activa docentes antes de aprobar la propuesta.</AlertDescription></Alert>}
+          {topic.status === 'aprobado' && !teachers.loading && !teachers.error && !peerChangePossible && <Alert><AlertDescription>No hay docentes activos disponibles diferentes del tutor. Activa o registra otro docente para gestionar los pares académicos.</AlertDescription></Alert>}
+          <div className="flex flex-wrap gap-3">
+            {topic.status === 'pendiente' && <><Button type="button" disabled={operation.pending || !approvalPossible} onClick={() => openAction('approve')}><CheckIcon data-icon="inline-start" />Aprobar propuesta</Button><Button type="button" variant="destructive" disabled={operation.pending} onClick={() => openAction('reject')}><XIcon data-icon="inline-start" />Rechazar propuesta</Button></>}
+            {topic.status === 'aprobado' && <Button type="button" disabled={operation.pending || !peerChangePossible} onClick={() => openAction('peers')}><UsersIcon data-icon="inline-start" />Gestionar pares académicos</Button>}
+            <Button type="button" variant="outline" className="border-brand-red/50 text-brand-red hover:bg-brand-red/5 hover:text-brand-red dark:text-brand-red-contrast" disabled={operation.pending} onClick={() => openAction('observe')}><MessageSquareIcon data-icon="inline-start" />Registrar observación</Button>
+          </div>
         </div>
-      </CardContent></Card>
-      <Card><CardHeader><CardTitle>Docentes asignados</CardTitle><CardDescription>Tutor y pares académicos de esta propuesta.</CardDescription></CardHeader><CardContent className="grid gap-6 sm:grid-cols-2">
-        <div className="flex flex-col gap-2"><h3 className="text-sm font-medium">Tutor</h3><p className="text-sm">{tutor?.name ?? 'Sin tutor asignado'}</p>{tutor && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{tutor.email}</p>}</div>
-        <div className="flex flex-col gap-2"><h3 className="text-sm font-medium">Pares académicos</h3>{peers.length === 0 ? <p className="text-sm text-muted-foreground">Sin pares asignados.</p> : <ul className="flex flex-col gap-3">{peers.map((assignment) => <li key={assignment.id} className="flex flex-col gap-1"><span className="text-sm">{assignment.teacher?.name ?? 'Docente no disponible'}</span><span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{assignment.teacher?.email} · Desde {formatDegreeDate(assignment.assigned_at)}</span></li>)}</ul>}</div>
-      </CardContent></Card>
-      <Card><CardHeader><CardTitle>Observaciones</CardTitle><CardDescription>Mensajes disponibles para el estudiante.</CardDescription></CardHeader><CardContent>
-        {topic.observations.length === 0 ? <p className="text-sm text-muted-foreground">No hay observaciones registradas.</p> : <ol className="flex flex-col gap-5">{topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2"><p className="text-xs text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDegreeDate(observation.registered_at)}</p><p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{observation.observation}</p></li>)}</ol>}
-      </CardContent></Card>
+      </SectionCard>
+      <SectionCard icon={UsersIcon} title="Docentes asignados" description="Tutor y pares académicos de esta propuesta.">
+        <div className="grid gap-6 sm:grid-cols-2 sm:gap-0 sm:divide-x">
+          <div className="flex flex-col gap-3 sm:pr-6"><h4 className="text-sm text-muted-foreground">Tutor</h4>{tutor ? <div className="flex items-center gap-3"><InitialsAvatar name={tutor.name} /><div className="flex min-w-0 flex-col"><span className="font-medium">{tutor.name}</span><span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{tutor.email}</span></div></div> : <p className="text-sm text-muted-foreground">Sin tutor asignado</p>}</div>
+          <div className="flex flex-col gap-3 sm:pl-6"><h4 className="text-sm text-muted-foreground">Pares académicos</h4>{peers.length === 0 ? <p className="text-sm text-muted-foreground">Sin pares asignados.</p> : <ul className="flex flex-col gap-4">{peers.map((assignment) => <li key={assignment.id} className="flex items-center gap-3"><InitialsAvatar name={assignment.teacher?.name ?? 'Docente'} tone="blue" /><div className="flex min-w-0 flex-col"><span className="font-medium">{assignment.teacher?.name ?? 'Docente no disponible'}</span><span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{assignment.teacher?.email}</span><span className="text-xs text-muted-foreground">Desde {formatDegreeDate(assignment.assigned_at)}</span></div></li>)}</ul>}</div>
+        </div>
+      </SectionCard>
+      <SectionCard icon={MessageSquareIcon} title="Observaciones" description="Mensajes disponibles para el estudiante." action={<Button type="button" variant="outline" disabled={operation.pending} onClick={() => openAction('observe')}><PlusCircleIcon data-icon="inline-start" />Agregar observación</Button>}>
+        {topic.observations.length === 0 ? <div className="flex flex-col items-center gap-1 rounded-xl bg-muted/50 px-6 py-8 text-center"><MessageSquareIcon aria-hidden="true" className="mb-1 size-7 text-muted-foreground" /><p className="text-sm font-medium">No hay observaciones registradas.</p><p className="text-xs text-muted-foreground">Las observaciones que registres serán visibles para el estudiante.</p></div> : <ol className="flex flex-col gap-5">{topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-brand-red/60 pl-4"><p className="text-xs text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDegreeDate(observation.registered_at)}</p><p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{observation.observation}</p></li>)}</ol>}
+      </SectionCard>
     </>}
     <MutationDialog open={Boolean(action)} title={action ? ACTION_LABELS[action] : ''} description={topic?.title} pending={operation.pending} error={operation.error} dirty={JSON.stringify(draft) !== JSON.stringify(initialDraft)} onClose={() => setAction(null)} onSubmit={submit} submitLabel={action === 'peers' ? 'Guardar pares académicos' : action ? ACTION_LABELS[action] : 'Guardar'} submitDisabled={!canSubmit}>
       {action === 'approve' && <SelectField id="degree-tutor" label="Docente tutor" value={draft.tutorId} onChange={(value) => setDraft({ ...draft, tutorId: value, peerIds: draft.peerIds.filter((id) => id !== Number(value)) })}><option value="">Selecciona un tutor</option>{activeTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name} · {teacher.active_tutorships_count} tutorías asignadas</option>)}</SelectField>}
