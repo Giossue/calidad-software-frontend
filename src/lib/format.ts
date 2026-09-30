@@ -7,3 +7,10 @@ export function getInitials(name?: string): string {
   }
   return name.slice(0, 2).toUpperCase()
 }
+
+/** Las fechas académicas se muestran sin desplazar el día por la zona horaria. */
+export function formatDate(value: string, time = false): string {
+  const date = new Date(value.length === 10 ? `${value}T12:00:00` : value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', ...(time ? { timeStyle: 'short' as const } : {}) }).format(date)
+}

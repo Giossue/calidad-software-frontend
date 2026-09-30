@@ -4,8 +4,11 @@ import {
   BookOpenIcon,
   Building2Icon,
   CalendarDaysIcon,
+  ClipboardCheckIcon,
   ClipboardListIcon,
   GraduationCapIcon,
+  FileTextIcon,
+  LayersIcon,
   LogOutIcon,
   Settings2Icon,
   UsersIcon,
@@ -48,9 +51,17 @@ import { TutoringSubjectsPage } from '@/features/tutoring/subjects-page'
 import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
 import { TutoringsPage } from '@/features/tutoring/tutorings-page'
 import { canCoordinateTutorings, dashboardSection, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
+import type { TeacherSection } from '@/features/teacher/teacher-navigation'
+import { TeacherTutoringsPage } from '@/features/teacher/teacher-tutorings-page'
+import { TeacherStudentsPage } from '@/features/teacher/teacher-students-page'
+import { TeacherGradesPage } from '@/features/teacher/teacher-grades-page'
+import { TeacherAttendancePage } from '@/features/teacher/teacher-attendance-page'
+import { TeacherContentPage } from '@/features/teacher/teacher-content-page'
+import { TeacherReportsPage } from '@/features/teacher/teacher-reports-page'
+import { TeacherDegreeAssignmentsPage } from '@/features/teacher/teacher-degree-assignments-page'
 
 type NavItem = {
-  readonly id: AdminSection | TutoringSection | DegreeSection | 'student-degree-topics'
+  readonly id: AdminSection | TutoringSection | DegreeSection | TeacherSection | 'student-degree-topics'
   readonly label: string
   readonly icon: React.ComponentType<{ className?: string }>
 }
@@ -76,6 +87,16 @@ const DEGREE_NAV_ITEMS: readonly NavItem[] = [
 
 const STUDENT_NAV_ITEMS: readonly NavItem[] = [
   { id: 'student-degree-topics', label: 'Mis propuestas', icon: ClipboardListIcon },
+]
+
+const TEACHER_NAV_ITEMS: readonly NavItem[] = [
+  { id: 'teacher-tutorings', label: 'Mis tutorías', icon: GraduationCapIcon },
+  { id: 'teacher-students', label: 'Estudiantes', icon: UsersIcon },
+  { id: 'teacher-grades', label: 'Calificaciones', icon: ClipboardListIcon },
+  { id: 'teacher-attendance', label: 'Asistencia', icon: ClipboardCheckIcon },
+  { id: 'teacher-content', label: 'Contenido', icon: LayersIcon },
+  { id: 'teacher-reports', label: 'Informes', icon: FileTextIcon },
+  { id: 'teacher-degree-assignments', label: 'Titulación', icon: BookOpenIcon },
 ]
 
 function getRoleLabel(role?: string): string {
@@ -117,6 +138,7 @@ export function DashboardPage() {
     ...(canCoordinateTutorings(user?.role) ? [{ label: 'Coordinación de tutorías', items: TUTORING_NAV_ITEMS }] : []),
     ...(canCoordinateDegrees(user?.role) ? [{ label: 'Coordinación de titulación', items: DEGREE_NAV_ITEMS }] : []),
     ...(user?.role === 'estudiante' ? [{ label: 'Titulación', items: STUDENT_NAV_ITEMS }] : []),
+    ...(user?.role === 'docente' ? [{ label: 'Docencia', items: TEACHER_NAV_ITEMS }] : []),
   ]
 
   useEffect(() => {
@@ -250,6 +272,20 @@ export function DashboardPage() {
             <DegreeTeachersPage />
           ) : user?.role === 'estudiante' && activeSection === 'student-degree-topics' ? (
             <StudentDegreeTopicsPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-tutorings' ? (
+            <TeacherTutoringsPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-students' ? (
+            <TeacherStudentsPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-grades' ? (
+            <TeacherGradesPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-attendance' ? (
+            <TeacherAttendancePage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-content' ? (
+            <TeacherContentPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-reports' ? (
+            <TeacherReportsPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-degree-assignments' ? (
+            <TeacherDegreeAssignmentsPage />
           ) : (
             <Card>
               <CardHeader><CardTitle>Bienvenido, {user?.name ?? 'usuario'}</CardTitle><CardDescription>No hay módulos disponibles para el rol actual de tu cuenta.</CardDescription></CardHeader>

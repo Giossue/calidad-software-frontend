@@ -46,7 +46,7 @@ describe('Coordinación de tutorías', () => {
     expect(dashboardSection('coordinador_carrera', 'tutoring-subjects')).toBe('tutoring-subjects')
     expect(dashboardSection('administrador', 'users')).toBe('users')
     expect(dashboardSection('administrador', 'tutorings')).toBe('tutorings')
-    expect(dashboardSection('docente', 'tutorings')).toBe('home')
+    expect(dashboardSection('docente', 'tutorings')).toBe('teacher-tutorings')
     expect(dashboardSection('estudiante', 'users')).toBe('student-degree-topics')
   })
 
