@@ -76,7 +76,7 @@ export interface TutoringReportMeta extends PaginationMeta {
   readonly present_count: number
   readonly absent_count: number
 }
-export type SubjectInput = { career_id: number; code: string; name: string }
+export type SubjectInput = { career_id: number; code: string; name: string; cycle_id?: number }
 export type TeacherInput = { career_id: number; identification: string; name: string; email: string; phone: string }
 export type TutoringInput = { subject_id: number; cycle_id: number; period_id: number; modality_id: number }
 
@@ -97,12 +97,14 @@ export const tutoringApi = {
   modalities: () => collection<Modality>('modalities'),
   subjects: (params?: TutoringListParams) => list<Subject>('subjects', params),
   createSubject: (input: SubjectInput) => mutate<Subject>('subjects', 'POST', input),
-  updateSubject: (id: number, input: Omit<SubjectInput, 'career_id'>) => mutate<Subject>(`subjects/${id}`, 'PATCH', input),
+  updateSubject: (id: number, input: Omit<SubjectInput, 'career_id' | 'cycle_id'>) => mutate<Subject>(`subjects/${id}`, 'PATCH', input),
   deactivateSubject: (id: number) => mutate<Subject>(`subjects/${id}/deactivate`, 'PATCH'),
   assignSubjectCycle: (id: number, cycleId: number) => mutate<Subject>(`subjects/${id}/cycles/${cycleId}`, 'PUT'),
   unassignSubjectCycle: (id: number, cycleId: number) => mutate<Subject>(`subjects/${id}/cycles/${cycleId}`, 'DELETE'),
   teachers: (params?: TutoringListParams) => list<Teacher>('teachers', params),
-  availableTeachers: (search = '') => collection<AvailableTeacher>(`available-teachers${buildQuery({ search })}`),
+  availableTeachers: (search = '', excludeCareerId?: number) => collection<AvailableTeacher>(`available-teachers${buildQuery({ search, exclude_career_id: excludeCareerId })}`),
+  linkTeacherToCareer: (teacherId: number, careerId: number) => mutate<Teacher>(`teachers/${teacherId}/careers`, 'POST', { career_id: careerId }),
+  unlinkTeacherFromCareer: (teacherId: number, careerId: number) => mutate<Teacher>(`teachers/${teacherId}/careers/${careerId}`, 'DELETE'),
   createTeacher: (input: TeacherInput) => mutate<Teacher>('teachers', 'POST', input),
   updateTeacher: (id: number, input: Omit<TeacherInput, 'career_id'>) => mutate<Teacher>(`teachers/${id}`, 'PATCH', input),
   deactivateTeacher: (id: number) => mutate<Teacher>(`teachers/${id}/deactivate`, 'PATCH'),

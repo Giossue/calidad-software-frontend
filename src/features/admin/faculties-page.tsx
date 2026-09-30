@@ -9,6 +9,7 @@ import {
   SearchIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
@@ -36,7 +37,12 @@ function getErrorMessage(error: unknown): string {
   return 'No fue posible conectar con el servidor.'
 }
 
+function careersPath(faculty: Faculty): string {
+  return `/panel/careers?${new URLSearchParams({ faculty: String(faculty.id), facultyName: faculty.name })}`
+}
+
 export function FacultiesPage() {
+  const navigate = useNavigate()
   const fetchFaculties = useCallback((page: number, search: string) => api.listFaculties({ page, search }), [])
   const {
     data: faculties,
@@ -252,7 +258,16 @@ export function FacultiesPage() {
                   const hasActiveCareers = faculty.active_careers_count > 0
 
                   return (
-                    <TableRow key={faculty.id}>
+                    <TableRow
+                      key={faculty.id}
+                      tabIndex={0}
+                      onClick={() => navigate(careersPath(faculty))}
+                      onKeyDown={(event) => {
+                        if (event.target === event.currentTarget && event.key === 'Enter') navigate(careersPath(faculty))
+                      }}
+                      className="cursor-pointer"
+                      title="Ver carreras de esta facultad"
+                    >
                       {/* Nombre con icono */}
                       <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
                         <div className="flex items-center gap-3">
@@ -296,7 +311,7 @@ export function FacultiesPage() {
                       </TableCell>
 
                       {/* Acciones */}
-                      <TableCell className="px-5 py-4 text-right">
+                      <TableCell className="px-5 py-4 text-right" onClick={(event) => event.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"

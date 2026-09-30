@@ -1,24 +1,23 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarDaysIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PowerIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
+import { CalendarDaysIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PowerIcon, PowerOffIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { tutoringApi, type AvailableTeacher, type Subject, type Tutoring } from '@/lib/tutoring-api'
 import { TutoringDetail } from './tutoring-detail'
+import { FilterBar } from './filter-bar'
 import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
 import { describeError, useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 type FormMode = 'create' | 'edit' | 'cycle' | 'teacher'
-const EMPTY_FORM = { subject_id: '', cycle_id: '', period_id: '', modality_id: '', teacher_id: '' }
+const EMPTY_FORM = { career_id: '', subject_id: '', cycle_id: '', period_id: '', modality_id: '', teacher_id: '' }
 const TITLES: Record<FormMode, string> = { create: 'Registrar tutoría', edit: 'Editar tutoría', cycle: 'Asignar ciclo y paralelo', teacher: 'Asignar docente' }
 
 export function TutoringsPage() {
@@ -92,7 +91,7 @@ export function TutoringsPage() {
   }, [mode, teacherSearch])
 
   function openForm(nextMode: FormMode, tutoring: Tutoring | null = null) {
-    const next = tutoring ? { subject_id: String(tutoring.subject_id ?? ''), cycle_id: String(tutoring.cycle_id), period_id: String(tutoring.period_id), modality_id: String(tutoring.modality_id), teacher_id: nextMode === 'teacher' ? '' : String(tutoring.teacher_id ?? '') } : EMPTY_FORM
+    const next = tutoring ? { career_id: String(tutoring.career_id), subject_id: String(tutoring.subject_id ?? ''), cycle_id: String(tutoring.cycle_id), period_id: String(tutoring.period_id), modality_id: String(tutoring.modality_id), teacher_id: nextMode === 'teacher' ? '' : String(tutoring.teacher_id ?? '') } : { ...EMPTY_FORM, career_id: catalogs.careers.filter((career) => career.status).length === 1 ? String(catalogs.careers.find((career) => career.status)?.id) : '' }
     setEditing(tutoring)
     setForm(next)
     setInitialForm(next)
@@ -123,36 +122,36 @@ export function TutoringsPage() {
   function onCareerFilterChange(value: string) {
     setCareerFilter(value)
     const current = cycleFilter ? catalogs.cycles.find((cycle) => String(cycle.id) === cycleFilter) : null
-    if (cycleFilter && (!current || (value && current.career_id !== Number(value)))) setCycleFilter('')
+    if (cycleFilter && (!value || !current || current.career_id !== Number(value))) setCycleFilter('')
   }
 
-  const hasActiveFilters = Boolean(list.searchInput || careerFilter || cycleFilter || statusFilter)
   function clearFilters() {
-    list.setSearchInput('')
     setCareerFilter('')
     setCycleFilter('')
     setStatusFilter('')
   }
 
-  const cycleFilterOptions = catalogs.cycles.filter((cycle) => !careerFilter || cycle.career_id === Number(careerFilter))
+  const cycleFilterOptions = careerFilter ? catalogs.cycles.filter((cycle) => cycle.career_id === Number(careerFilter)) : []
+  const cycleSubjects = subjects.filter((item) => item.is_active && item.career_id === Number(form.career_id) && item.cycle_ids.includes(Number(form.cycle_id)))
   const subject = subjects.find((item) => item.id === Number(form.subject_id))
-  const availableCycles = catalogs.cycles.filter((cycle) => cycle.status && (subject ? cycle.career_id === subject.career_id && subject.cycle_ids.includes(cycle.id) : mode === 'cycle' && editing?.subject_id === null && cycle.career_id === editing.career_id))
+  const availableCycles = catalogs.cycles.filter((cycle) => cycle.status && (mode === 'create' ? cycle.career_id === Number(form.career_id) : subject ? cycle.career_id === subject.career_id && subject.cycle_ids.includes(cycle.id) : mode === 'cycle' && editing?.subject_id === null && cycle.career_id === editing.career_id))
 
   return <section className="flex flex-col gap-6">
     {detail ? <TutoringDetail tutoring={detail} onBack={() => setDetail(null)} onAssignTeacher={() => openForm('teacher', detail)} /> : <>
       <ModuleHeader title="Tutorías" description="Organiza las tutorías de tus carreras, asigna docentes y supervisa los horarios, asistencias e informes." createLabel="Registrar tutoría" onCreate={() => openForm('create')} disabled={operation.pending || catalogs.loading || subjectsLoading || !catalogs.careers.some((career) => career.status)} />
       <ScopeNotice catalogs={catalogs} />
-      <Card>
-        <CardContent className="pt-6">
-          <FieldGroup className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-            <Field className="flex-1 lg:min-w-[220px]"><FieldLabel htmlFor="tutorings-search">Buscar</FieldLabel><Input id="tutorings-search" type="search" placeholder="Busca por asignatura…" value={list.searchInput} onChange={(event) => list.setSearchInput(event.target.value)} /></Field>
-            <Field className="lg:w-52"><FieldLabel htmlFor="tutorings-career-filter">Carrera</FieldLabel><NativeSelect id="tutorings-career-filter" value={careerFilter} onChange={(event) => onCareerFilterChange(event.target.value)}><option value="">Todas mis carreras</option>{catalogs.careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</NativeSelect></Field>
-            <Field className="lg:w-52"><FieldLabel htmlFor="tutorings-cycle-filter">Ciclo</FieldLabel><NativeSelect id="tutorings-cycle-filter" value={cycleFilter} onChange={(event) => setCycleFilter(event.target.value)}><option value="">Todos los ciclos</option>{cycleFilterOptions.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.name}{cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}</option>)}</NativeSelect></Field>
-            <Field className="lg:w-40"><FieldLabel htmlFor="tutorings-status-filter">Estado</FieldLabel><NativeSelect id="tutorings-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as '' | 'active' | 'inactive')}><option value="">Todos</option><option value="active">Activas</option><option value="inactive">Inactivas</option></NativeSelect></Field>
-            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" disabled={!hasActiveFilters} onClick={clearFilters}><RotateCcwIcon data-icon="inline-start" />Limpiar filtros</Button>
-          </FieldGroup>
-        </CardContent>
-      </Card>
+      <FilterBar
+        id="tutorings"
+        search={list.searchInput}
+        onSearch={list.setSearchInput}
+        searchPlaceholder="Busca por asignatura…"
+        onClear={clearFilters}
+        filters={[
+          { id: 'career', label: 'Carrera', value: careerFilter, onChange: onCareerFilterChange, allLabel: 'Todas mis carreras', options: catalogs.careers.map((career) => ({ value: String(career.id), label: career.name })) },
+          { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: careerFilter ? 'Todos los ciclos' : 'Primero selecciona una carrera', disabled: !careerFilter, disabledReason: 'Selecciona primero una carrera para filtrar por ciclo.', options: cycleFilterOptions.map((cycle) => ({ value: String(cycle.id), label: `${cycle.name}${cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}` })) },
+          { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+        ]}
+      />
       <ErrorNotice message={list.error} retry={list.reload} />
       <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty="No se encontraron tutorías para esta búsqueda." columns={[
         { label: 'Tutoría', render: (tutoring) => <div className="flex flex-col gap-1"><span className="font-medium">{tutoring.subject_name}</span><span className="text-xs text-muted-foreground">{tutoring.period_name} · {tutoring.modality_name}</span></div> },
@@ -181,10 +180,15 @@ export function TutoringsPage() {
     </>}
     <MutationDialog open={Boolean(mode)} title={mode ? TITLES[mode] : ''} description={editing?.subject_name} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setMode(null)} onSubmit={submit} submitLabel={mode === 'create' ? 'Registrar tutoría' : mode === 'teacher' ? 'Asignar docente' : 'Guardar cambios'} submitDisabled={mode === 'teacher' ? teachersLoading || Boolean(teachersError) || !form.teacher_id : (mode === 'create' || mode === 'cycle') && (subjectsLoading || Boolean(subjectsError))}>
       {(mode === 'create' || mode === 'cycle') && <ErrorNotice message={subjectsError} retry={() => setSubjectsRevision((value) => value + 1)} />}
-      {mode === 'create' && <SelectField id="tutoring-subject" label="Asignatura" value={form.subject_id} onChange={(value) => setForm({ ...form, subject_id: value, cycle_id: '' })}><option value="">Selecciona una asignatura</option>{subjects.filter((item) => item.is_active).map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name} · {item.career_name}</option>)}</SelectField>}
-      {(mode === 'create' || mode === 'cycle') && <>
+      {mode === 'create' && <>
+        <SelectField id="tutoring-career" label="Carrera" value={form.career_id} onChange={(value) => setForm({ ...form, career_id: value, cycle_id: '', subject_id: '' })}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>
+        <SelectField id="tutoring-cycle" label="Ciclo y paralelo" value={form.cycle_id} disabled={!form.career_id} onChange={(value) => setForm({ ...form, cycle_id: value, subject_id: '' })}><option value="">{form.career_id ? 'Selecciona un ciclo' : 'Primero selecciona una carrera'}</option>{availableCycles.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.name}{cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}</option>)}</SelectField>
+        <SelectField id="tutoring-subject" label="Asignatura" value={form.subject_id} disabled={!form.cycle_id} onChange={(value) => setForm({ ...form, subject_id: value })}><option value="">{form.cycle_id ? (cycleSubjects.length === 0 ? 'No hay asignaturas para este ciclo' : 'Selecciona una asignatura') : 'Primero selecciona un ciclo'}</option>{cycleSubjects.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</SelectField>
+        {form.cycle_id && cycleSubjects.length === 0 && <p className="text-sm text-muted-foreground">Ninguna asignatura activa está asignada a este ciclo. Asígnala primero en la sección Asignaturas.</p>}
+      </>}
+      {mode === 'cycle' && <>
         <SelectField id="tutoring-cycle" label="Ciclo y paralelo" value={form.cycle_id} onChange={(value) => setForm({ ...form, cycle_id: value })}><option value="">Selecciona un ciclo</option>{availableCycles.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.name}{cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}</option>)}</SelectField>
-        <p className="text-sm text-muted-foreground">El paralelo corresponde al ciclo seleccionado.{subject && availableCycles.length === 0 ? ' Asigna primero un ciclo activo a esta asignatura en la sección Asignaturas.' : ''}</p>
+        <p className="text-sm text-muted-foreground">El paralelo corresponde al ciclo seleccionado.</p>
       </>}
       {(mode === 'create' || mode === 'edit') && <>
         <SelectField id="tutoring-period" label="Período académico" value={form.period_id} onChange={(value) => setForm({ ...form, period_id: value })}><option value="">Selecciona un período</option>{editing && !catalogs.periods.some((period) => period.id === editing.period_id) && <option value={editing.period_id}>{editing.period_name} (actual, inactivo)</option>}{catalogs.periods.filter((period) => period.is_active || String(period.id) === form.period_id).map((period) => <option key={period.id} value={period.id}>{period.name}{period.is_active ? '' : ' (inactivo)'}</option>)}</SelectField>

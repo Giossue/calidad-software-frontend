@@ -1,23 +1,22 @@
 import { useState, type FormEvent } from 'react'
-import { LayersIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, RotateCcwIcon, XIcon } from 'lucide-react'
+import { LayersIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, XIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Field, FieldCounter, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { sanitizeCode, sanitizeLetters } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
+import { FilterBar } from './filter-bar'
 import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
-const EMPTY_FORM = { career_id: '', code: '', name: '' }
+const EMPTY_FORM = { career_id: '', cycle_id: '', code: '', name: '' }
 
 export function TutoringSubjectsPage() {
   const catalogs = useTutoringCatalogs()
@@ -44,7 +43,7 @@ export function TutoringSubjectsPage() {
   const [cycleId, setCycleId] = useState('')
 
   function edit(subject: Subject | null) {
-    const next = subject ? { career_id: String(subject.career_id), code: subject.code, name: subject.name } : { ...EMPTY_FORM, career_id: catalogs.careers.length === 1 ? String(catalogs.careers[0].id) : '' }
+    const next = subject ? { career_id: String(subject.career_id), cycle_id: '', code: subject.code, name: subject.name } : { ...EMPTY_FORM, career_id: catalogs.careers.length === 1 ? String(catalogs.careers[0].id) : '' }
     setEditing(subject)
     setForm(next)
     setInitialForm(next)
@@ -55,24 +54,22 @@ export function TutoringSubjectsPage() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const input = { code: form.code.trim(), name: form.name.trim() }
-    void operation.run(() => editing ? tutoringApi.updateSubject(editing.id, input) : tutoringApi.createSubject({ ...input, career_id: Number(form.career_id) }), editing ? 'Asignatura actualizada.' : 'Asignatura registrada.', async () => { setOpen(false); await list.reload() })
+    void operation.run(() => editing ? tutoringApi.updateSubject(editing.id, input) : tutoringApi.createSubject({ ...input, career_id: Number(form.career_id), cycle_id: Number(form.cycle_id) || undefined }), editing ? 'Asignatura actualizada.' : 'Asignatura registrada.', async () => { setOpen(false); await list.reload() })
   }
 
   function onCareerFilterChange(value: string) {
     setCareerFilter(value)
     const current = cycleFilter ? catalogs.cycles.find((cycle) => String(cycle.id) === cycleFilter) : null
-    if (cycleFilter && (!current || (value && current.career_id !== Number(value)))) setCycleFilter('')
+    if (cycleFilter && (!value || !current || current.career_id !== Number(value))) setCycleFilter('')
   }
 
-  const hasActiveFilters = Boolean(list.searchInput || careerFilter || cycleFilter || statusFilter)
   function clearFilters() {
-    list.setSearchInput('')
     setCareerFilter('')
     setCycleFilter('')
     setStatusFilter('')
   }
 
-  const cycleFilterOptions = catalogs.cycles.filter((cycle) => !careerFilter || cycle.career_id === Number(careerFilter))
+  const cycleFilterOptions = careerFilter ? catalogs.cycles.filter((cycle) => cycle.career_id === Number(careerFilter)) : []
   const availableCycles = catalogs.cycles.filter((cycle) => cycle.career_id === assigning?.career_id && cycle.status && !assigning.cycle_ids.includes(cycle.id))
 
   function addCycle(event: FormEvent<HTMLFormElement>) {
@@ -97,17 +94,18 @@ export function TutoringSubjectsPage() {
   return <section className="flex flex-col gap-6">
     <ModuleHeader title="Asignaturas" description="Gestiona las asignaturas de tus carreras y vincúlalas con los ciclos que recibirán tutorías." createLabel="Registrar asignatura" onCreate={() => edit(null)} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <ScopeNotice catalogs={catalogs} />
-    <Card>
-      <CardContent className="pt-6">
-        <FieldGroup className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-          <Field className="flex-1 lg:min-w-[220px]"><FieldLabel htmlFor="subjects-search">Buscar</FieldLabel><Input id="subjects-search" type="search" placeholder="Busca por nombre o código…" value={list.searchInput} onChange={(event) => list.setSearchInput(event.target.value)} /></Field>
-          <Field className="lg:w-52"><FieldLabel htmlFor="subjects-career-filter">Carrera</FieldLabel><NativeSelect id="subjects-career-filter" value={careerFilter} onChange={(event) => onCareerFilterChange(event.target.value)}><option value="">Todas mis carreras</option>{catalogs.careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</NativeSelect></Field>
-          <Field className="lg:w-52"><FieldLabel htmlFor="subjects-cycle-filter">Ciclo</FieldLabel><NativeSelect id="subjects-cycle-filter" value={cycleFilter} onChange={(event) => setCycleFilter(event.target.value)}><option value="">Todos los ciclos</option>{cycleFilterOptions.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.name}{cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}</option>)}</NativeSelect></Field>
-          <Field className="lg:w-40"><FieldLabel htmlFor="subjects-status-filter">Estado</FieldLabel><NativeSelect id="subjects-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as '' | 'active' | 'inactive')}><option value="">Todos</option><option value="active">Activas</option><option value="inactive">Inactivas</option></NativeSelect></Field>
-          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" disabled={!hasActiveFilters} onClick={clearFilters}><RotateCcwIcon data-icon="inline-start" />Limpiar filtros</Button>
-        </FieldGroup>
-      </CardContent>
-    </Card>
+    <FilterBar
+      id="subjects"
+      search={list.searchInput}
+      onSearch={list.setSearchInput}
+      searchPlaceholder="Busca por nombre o código…"
+      onClear={clearFilters}
+      filters={[
+        { id: 'career', label: 'Carrera', value: careerFilter, onChange: onCareerFilterChange, allLabel: 'Todas mis carreras', options: catalogs.careers.map((career) => ({ value: String(career.id), label: career.name })) },
+        { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: careerFilter ? 'Todos los ciclos' : 'Primero selecciona una carrera', disabled: !careerFilter, disabledReason: 'Selecciona primero una carrera para filtrar por ciclo.', options: cycleFilterOptions.map((cycle) => ({ value: String(cycle.id), label: `${cycle.name}${cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}` })) },
+        { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+      ]}
+    />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty="No se encontraron asignaturas para esta búsqueda." columns={[
       { label: 'Código', render: (subject) => <Badge variant="secondary">{subject.code}</Badge> },
@@ -130,7 +128,11 @@ export function TutoringSubjectsPage() {
     ]} />
     <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     <MutationDialog open={open} title={editing ? 'Editar asignatura' : 'Registrar asignatura'} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar asignatura'}>
-      <SelectField id="subject-career" label="Carrera" value={form.career_id} onChange={(value) => setForm({ ...form, career_id: value })} disabled={Boolean(editing)}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status || String(career.id) === form.career_id).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>
+      <SelectField id="subject-career" label="Carrera" value={form.career_id} onChange={(value) => setForm({ ...form, career_id: value, cycle_id: '' })} disabled={Boolean(editing)}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status || String(career.id) === form.career_id).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>
+      {!editing && <SelectField id="subject-new-cycle" label="Ciclo" value={form.cycle_id} onChange={(value) => setForm({ ...form, cycle_id: value })} disabled={!form.career_id} required={false}>
+        <option value="">{form.career_id ? 'Sin ciclo por ahora' : 'Primero selecciona una carrera'}</option>
+        {catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === Number(form.career_id)).map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.name}{cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}</option>)}
+      </SelectField>}
       <Field>
         <div className="flex items-center justify-between"><FieldLabel htmlFor="subject-code">Código</FieldLabel><FieldCounter current={form.code.length} max={30} /></div>
         <Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} required maxLength={30} placeholder="Ej. SW-B1-001" />

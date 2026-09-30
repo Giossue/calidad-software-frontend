@@ -142,6 +142,7 @@ export type CareerInput = {
   readonly faculty_id: number
   readonly name: string
   readonly modality_id?: number | null
+  readonly cycles_count?: number
 }
 
 export type CycleInput = {
@@ -357,8 +358,8 @@ export const api = {
     return response.data
   },
 
-  async listCareers(params?: ListParams): Promise<PaginatedResourceCollection<Career>> {
-    const query = buildQuery({ page: params?.page, search: params?.search })
+  async listCareers(params?: ListParams & { facultyId?: number }): Promise<PaginatedResourceCollection<Career>> {
+    const query = buildQuery({ page: params?.page, search: params?.search, faculty_id: params?.facultyId })
     return request<PaginatedResourceCollection<Career>>(`/api/v1/admin/careers${query}`)
   },
 

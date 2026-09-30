@@ -1,20 +1,20 @@
-import { useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, MoreVerticalIcon, PencilIcon, PowerOffIcon, RotateCcwIcon, XCircleIcon } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { CheckCircle2Icon, LinkIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, XCircleIcon, XIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Field, FieldCounter, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { SearchSelect } from '@/components/ui/search-select'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isValidEcuadorianCedula } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
-import { tutoringApi, type Teacher } from '@/lib/tutoring-api'
+import { tutoringApi, type AvailableTeacher, type Teacher } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
+import { FilterBar } from './filter-bar'
 import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
@@ -39,6 +39,42 @@ export function TutoringTeachersPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [initialForm, setInitialForm] = useState(EMPTY_FORM)
   const [deactivating, setDeactivating] = useState<Teacher | null>(null)
+  const [unlinking, setUnlinking] = useState<{ teacher: Teacher; careerId: number; careerName: string } | null>(null)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkCareerId, setLinkCareerId] = useState('')
+  const [linkSearch, setLinkSearch] = useState('')
+  const [linkSelected, setLinkSelected] = useState<AvailableTeacher | null>(null)
+  const [linkCandidates, setLinkCandidates] = useState<readonly AvailableTeacher[]>([])
+  const [linkLoading, setLinkLoading] = useState(false)
+
+  // Busca docentes que aún no pertenecen a la carrera elegida (con debounce al escribir).
+  useEffect(() => {
+    if (!linkOpen || !linkCareerId) return
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setLinkLoading(true)
+      tutoringApi.availableTeachers(linkSearch.trim(), Number(linkCareerId))
+        .then((teachers) => { if (!cancelled) setLinkCandidates(teachers) })
+        .catch(() => { if (!cancelled) setLinkCandidates([]) })
+        .finally(() => { if (!cancelled) setLinkLoading(false) })
+    }, 300)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [linkOpen, linkCareerId, linkSearch])
+
+  function openLink() {
+    const activeCareers = catalogs.careers.filter((career) => career.status)
+    setLinkCareerId(activeCareers.length === 1 ? String(activeCareers[0].id) : '')
+    setLinkSearch('')
+    setLinkSelected(null)
+    setLinkCandidates([])
+    operation.clearError()
+    setLinkOpen(true)
+  }
+
+  function submitLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void operation.run(() => tutoringApi.linkTeacherToCareer(linkSelected?.id ?? 0, Number(linkCareerId)), 'Docente vinculado a la carrera.', async () => { setLinkOpen(false); await list.reload() })
+  }
 
   function edit(teacher: Teacher | null) {
     const next = teacher ? { career_id: String(teacher.career_ids[0] ?? ''), identification: teacher.identification, name: teacher.name, email: teacher.email, phone: teacher.phone ?? '' } : { ...EMPTY_FORM, career_id: catalogs.careers.length === 1 ? String(catalogs.careers[0].id) : '' }
@@ -55,31 +91,42 @@ export function TutoringTeachersPage() {
     void operation.run(() => editing ? tutoringApi.updateTeacher(editing.id, input) : tutoringApi.createTeacher({ ...input, career_id: Number(form.career_id) }), editing ? 'Docente actualizado.' : 'Docente registrado.', async () => { setOpen(false); await list.reload() })
   }
 
-  const hasActiveFilters = Boolean(list.searchInput || careerFilter || statusFilter)
   function clearFilters() {
-    list.setSearchInput('')
     setCareerFilter('')
     setStatusFilter('')
   }
 
   return <section className="flex flex-col gap-6">
-    <ModuleHeader title="Docentes" description="Registra y consulta los docentes vinculados con las carreras que coordinas." createLabel="Registrar docente" onCreate={() => edit(null)} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title="Docentes" description="Registra y consulta los docentes vinculados con las carreras que coordinas." createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<Button type="button" variant="outline" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <ScopeNotice catalogs={catalogs} />
-    <Card>
-      <CardContent className="pt-6">
-        <FieldGroup className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-          <Field className="flex-1 lg:min-w-[220px]"><FieldLabel htmlFor="teachers-search">Buscar</FieldLabel><Input id="teachers-search" type="search" placeholder="Busca por nombre o correo…" value={list.searchInput} onChange={(event) => list.setSearchInput(event.target.value)} /></Field>
-          <Field className="lg:w-52"><FieldLabel htmlFor="teachers-career-filter">Carrera</FieldLabel><NativeSelect id="teachers-career-filter" value={careerFilter} onChange={(event) => setCareerFilter(event.target.value)}><option value="">Todas mis carreras</option>{catalogs.careers.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</NativeSelect></Field>
-          <Field className="lg:w-40"><FieldLabel htmlFor="teachers-status-filter">Estado</FieldLabel><NativeSelect id="teachers-status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as '' | 'active' | 'inactive')}><option value="">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></NativeSelect></Field>
-          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" disabled={!hasActiveFilters} onClick={clearFilters}><RotateCcwIcon data-icon="inline-start" />Limpiar filtros</Button>
-        </FieldGroup>
-      </CardContent>
-    </Card>
+    <FilterBar
+      id="teachers"
+      search={list.searchInput}
+      onSearch={list.setSearchInput}
+      searchPlaceholder="Busca por nombre o correo…"
+      onClear={clearFilters}
+      filters={[
+        { id: 'career', label: 'Carrera', value: careerFilter, onChange: setCareerFilter, allLabel: 'Todas mis carreras', options: catalogs.careers.map((career) => ({ value: String(career.id), label: career.name })) },
+        { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+      ]}
+    />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty="No se encontraron docentes para esta búsqueda." columns={[
       { label: 'Docente', render: (teacher) => <div className="flex flex-col gap-1"><span className="font-medium">{teacher.name}</span><span className="text-xs text-muted-foreground">{teacher.identification}</span></div> },
       { label: 'Contacto', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono'}</span></div> },
-      { label: 'Carreras', render: (teacher) => teacher.career_ids.map((id) => catalogs.careers.find((career) => career.id === id)?.name ?? `Carrera #${id}`).join(', ') || 'Sin carrera vinculada' },
+      {
+        label: 'Carreras', render: (teacher) => {
+          if (teacher.career_ids.length === 0) return 'Sin carrera vinculada'
+          return <div className="flex flex-wrap gap-1.5">{teacher.career_ids.map((id) => {
+            const career = catalogs.careers.find((item) => item.id === id)
+            const name = career?.name ?? `Carrera #${id}`
+            return <span key={id} className="inline-flex items-center gap-1 rounded-full border bg-muted/50 py-0.5 pl-2.5 pr-1 text-xs">
+              {name}
+              {career && <button type="button" aria-label={`Quitar ${name} de ${teacher.name}`} title="Quitar de esta carrera" disabled={operation.pending} onClick={() => { operation.clearError(); setUnlinking({ teacher, careerId: id, careerName: name }) }} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"><XIcon className="size-3" /></button>}
+            </span>
+          })}</div>
+        },
+      },
       { label: 'Estado', render: (teacher) => <StatusBadge active={teacher.is_active} /> },
       {
         label: 'Acciones', render: (teacher) => {
@@ -98,6 +145,25 @@ export function TutoringTeachersPage() {
       },
     ]} />
     <CatalogPagination label="docentes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
+    <MutationDialog open={linkOpen} title="Vincular docente existente" description="Busca un docente ya registrado y agrégalo a una de tus carreras. Un docente puede pertenecer a varias carreras." pending={operation.pending} error={operation.error} dirty={Boolean(linkSelected)} onClose={() => setLinkOpen(false)} onSubmit={submitLink} submitLabel="Vincular docente" submitDisabled={!linkSelected || !linkCareerId}>
+      <SelectField id="link-teacher-career" label="Carrera" value={linkCareerId} onChange={(value) => { setLinkCareerId(value); setLinkSelected(null) }}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>
+      <Field>
+        <FieldLabel htmlFor="link-teacher-search">Docente</FieldLabel>
+        <SearchSelect
+          id="link-teacher-search"
+          query={linkSearch}
+          onQueryChange={setLinkSearch}
+          options={linkCandidates.map((teacher) => ({ value: String(teacher.id), label: teacher.name, description: teacher.email }))}
+          selected={linkSelected ? { value: String(linkSelected.id), label: linkSelected.name, description: linkSelected.email } : null}
+          onSelect={(option) => setLinkSelected(option ? linkCandidates.find((teacher) => String(teacher.id) === option.value) ?? null : null)}
+          loading={linkLoading}
+          disabled={!linkCareerId}
+          placeholder={linkCareerId ? 'Busca por nombre o correo…' : 'Primero selecciona una carrera'}
+          emptyMessage="No hay docentes disponibles con esa búsqueda."
+        />
+      </Field>
+      <FieldDescription>Solo aparecen docentes activos que todavía no pertenecen a la carrera elegida. Si no existe, regístralo como docente nuevo.</FieldDescription>
+    </MutationDialog>
     <MutationDialog open={open} title={editing ? 'Editar docente' : 'Registrar docente'} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}>
       {!editing && <SelectField id="teacher-career" label="Carrera" value={form.career_id} onChange={(value) => setForm({ ...form, career_id: value })}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>}
       <Field>
@@ -126,6 +192,7 @@ export function TutoringTeachersPage() {
       </Field>
       {!editing && <p className="text-sm text-muted-foreground">Se enviará una contraseña provisional al correo institucional.</p>}
     </MutationDialog>
+    <ConfirmModal open={Boolean(unlinking)} title="¿Quitar docente de la carrera?" description={`«${unlinking?.teacher.name ?? ''}» dejará de estar vinculado a «${unlinking?.careerName ?? ''}». Su cuenta y sus otras carreras no cambian. Si tiene tutorías activas en esa carrera, primero debes reasignarlas.`} confirmLabel="Quitar de la carrera" pending={operation.pending} onClose={() => { if (!operation.pending) setUnlinking(null) }} onConfirm={() => { if (unlinking) void operation.run(() => tutoringApi.unlinkTeacherFromCareer(unlinking.teacher.id, unlinking.careerId), 'Docente quitado de la carrera.', async () => { setUnlinking(null); await list.reload() }) }} />
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar docente?" description={`La cuenta de «${deactivating?.name ?? ''}» perderá el acceso y no podrá recibir nuevas asignaciones de tutorías.`} confirmLabel="Desactivar docente" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateTeacher(deactivating.id), 'Docente desactivado.', async () => { setDeactivating(null); await list.reload() }) }} />
   </section>
 }

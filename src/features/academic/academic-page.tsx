@@ -10,7 +10,9 @@ import {
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
+  XIcon,
 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
@@ -75,7 +77,15 @@ type CareerPendingAction = 'career' | 'toggle-career' | null
 type CareerToggleTarget = { career: Career; action: 'activate' | 'deactivate' }
 
 function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Career) => void }>) {
-  const fetchCareers = useCallback((page: number, search: string) => api.listCareers({ page, search }), [])
+  const [searchParams, setSearchParams] = useSearchParams()
+  const facultyParam = Number(searchParams.get('faculty'))
+  const facultyFilterId = Number.isInteger(facultyParam) && facultyParam > 0 ? facultyParam : undefined
+  const facultyFilterName = searchParams.get('facultyName') || 'Facultad seleccionada'
+
+  const fetchCareers = useCallback(
+    (page: number, search: string) => api.listCareers({ page, search, facultyId: facultyFilterId }),
+    [facultyFilterId],
+  )
   const {
     data: careers,
     meta,
@@ -87,7 +97,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     isFetching,
     error: pageError,
     reload,
-  } = usePaginatedCatalog(fetchCareers)
+  } = usePaginatedCatalog(fetchCareers, String(facultyFilterId ?? ''))
 
   const [activeFaculties, setActiveFaculties] = useState<readonly Faculty[]>([])
   const [modalities, setModalities] = useState<readonly Modality[]>([])
@@ -110,6 +120,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   const [careerFacultyId, setCareerFacultyId] = useState('')
   const [careerName, setCareerName] = useState('')
   const [careerModalityId, setCareerModalityId] = useState('')
+  const [careerCyclesCount, setCareerCyclesCount] = useState('8')
   const [initialCareerFacultyId, setInitialCareerFacultyId] = useState('')
   const [initialCareerName, setInitialCareerName] = useState('')
   const [initialCareerModalityId, setInitialCareerModalityId] = useState('')
@@ -132,6 +143,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setCareerFacultyId('')
     setCareerName('')
     setCareerModalityId('')
+    setCareerCyclesCount('8')
     setInitialCareerFacultyId('')
     setInitialCareerName('')
     setInitialCareerModalityId('')
@@ -223,7 +235,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         await api.updateCareer(editingCareer.id, input)
         toast.success('Carrera actualizada', { description: `La carrera "${input.name}" fue modificada.` })
       } else {
-        await api.createCareer(input)
+        await api.createCareer({ ...input, cycles_count: Number(careerCyclesCount) })
         toast.success('Carrera creada', { description: `La carrera "${input.name}" ha sido agregada.` })
       }
       closeCareerModal()
@@ -290,6 +302,22 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         </Alert>
       )}
 
+      {facultyFilterId !== undefined && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-3 pr-1.5 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            Facultad: {facultyFilterName}
+            <button
+              type="button"
+              onClick={() => setSearchParams({})}
+              className="rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-white"
+              aria-label="Quitar filtro de facultad"
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          </span>
+        </div>
+      )}
+
       {/* Tabla de Carreras */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between gap-4">
@@ -340,7 +368,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                     <div className="flex flex-col items-center gap-2">
                       <BookOpenIcon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
-                        {searchInput ? 'No se encontraron carreras con el término buscado.' : 'Todavía no hay carreras registradas.'}
+                        {searchInput ? 'No se encontraron carreras con el término buscado.' : facultyFilterId !== undefined ? 'Esta facultad todavía no tiene carreras registradas.' : 'Todavía no hay carreras registradas.'}
                       </span>
                     </div>
                   </TableCell>
@@ -559,6 +587,26 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               />
               <FieldError>{careerErrors.name}</FieldError>
             </Field>
+
+            {!editingCareer && (
+              <Field>
+                <FieldLabel htmlFor="career-cycles-count">Ciclos a crear</FieldLabel>
+                <NativeSelect
+                  id="career-cycles-count"
+                  value={careerCyclesCount}
+                  onChange={(e) => setCareerCyclesCount(e.target.value)}
+                  disabled={formPending}
+                >
+                  <option value="0">Ninguno</option>
+                  {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+                    <option key={count} value={count}>
+                      {count} {count === 1 ? 'ciclo' : 'ciclos'}
+                    </option>
+                  ))}
+                </NativeSelect>
+                <FieldDescription className="text-xs">Se crean automáticamente en el paralelo A.</FieldDescription>
+              </Field>
+            )}
 
             <FieldError>{formError}</FieldError>
 

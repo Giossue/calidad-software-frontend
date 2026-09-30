@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import { ClipboardListIcon, ClockIcon, FileTextIcon, RefreshCwIcon, RotateCcwIcon, UsersIcon } from 'lucide-react'
+import { ClipboardListIcon, ClockIcon, FileTextIcon, RefreshCwIcon, UsersIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { ErrorNotice, RecordTable, SelectField } from '@/features/tutoring/tutoring-shared'
+import { FilterBar } from '@/features/tutoring/filter-bar'
+import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeTopicStatus } from '@/lib/degree-coordination-api'
 import { DEGREE_STATUS_LABELS, formatDegreeDate } from './degree-format'
 import { useDegreePeriod, useDegreeResource, useDegreeSearch } from './degree-hooks'
@@ -58,7 +56,6 @@ export function DegreeTopicsPage() {
   if (selectedTopicId !== null) return <DegreeTopicDetail topicId={selectedTopicId} onBack={() => { setSelectedTopicId(null); reloadAll() }} />
 
   function clearFilters() {
-    search.setInput('')
     setStatus('')
     setSectionId('')
   }
@@ -74,16 +71,19 @@ export function DegreeTopicsPage() {
       <OverviewStat icon={UsersIcon} tone="blue" label="Estudiantes únicos" value={uniqueStudents} />
       <OverviewStat icon={ClockIcon} tone="muted" label="En revisión" value={pendingCount} />
     </div>} />
-    <Card>
-      <CardContent className="pt-6">
-        <FieldGroup className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-          <Field className="flex-1 lg:min-w-[220px]"><FieldLabel htmlFor="degree-topic-search">Buscar propuesta</FieldLabel><Input id="degree-topic-search" type="search" placeholder="Título, estudiante o cédula" value={search.input} onChange={(event) => search.setInput(event.target.value)} disabled={period.status === 404} /></Field>
-          <div className="lg:w-52"><SelectField id="degree-topic-status" label="Estado" value={status} onChange={(value) => setStatus(value as DegreeTopicStatus | '')} required={false} disabled={period.status === 404}><option value="">Todos los estados</option>{Object.entries(DEGREE_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</SelectField></div>
-          <div className="lg:w-52"><SelectField id="degree-topic-section" label="Paralelo" value={sectionId} onChange={setSectionId} required={false} disabled={period.loading || !period.data}><option value="">Todos los paralelos</option>{period.data?.sections.map((section) => <option key={section.id} value={section.id}>{section.name}{section.is_active ? '' : ' (inactivo)'}</option>)}</SelectField></div>
-          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" disabled={!hasActiveFilters} onClick={clearFilters}><RotateCcwIcon data-icon="inline-start" />Limpiar filtros</Button>
-        </FieldGroup>
-      </CardContent>
-    </Card>
+    <FilterBar
+      id="degree-topics"
+      search={search.input}
+      onSearch={search.setInput}
+      searchLabel="Buscar propuesta"
+      searchPlaceholder="Título, estudiante o cédula"
+      disabled={period.status === 404}
+      onClear={clearFilters}
+      filters={[
+        { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as DegreeTopicStatus | ''), allLabel: 'Todos los estados', options: Object.entries(DEGREE_STATUS_LABELS).map(([value, label]) => ({ value, label })) },
+        { id: 'section', label: 'Paralelo', value: sectionId, onChange: setSectionId, allLabel: 'Todos los paralelos', options: (period.data?.sections ?? []).map((section) => ({ value: String(section.id), label: `${section.name}${section.is_active ? '' : ' (inactivo)'}` })) },
+      ]}
+    />
     {period.status !== 404 && <ErrorNotice message={table.error} retry={table.retry} />}
     {period.status !== 404 && <RecordTable rows={table.rows} loading={table.loading} empty={<Empty className="border-none p-0">
       <EmptyMedia variant="icon"><ClipboardListIcon /></EmptyMedia>
