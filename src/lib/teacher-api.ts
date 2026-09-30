@@ -14,13 +14,8 @@ export interface TeacherTutoring extends Tutoring {
   readonly period_start_date: string
   readonly period_end_date: string
 }
-export type GradeType = 'diagnostic' | 'partial'
-export interface Grade {
-  readonly id: number
-  readonly type: string
-  readonly value: string
-  readonly registered_at: string
-}
+export type GradeType = 'diagnostic' | 'partial' | 'partial_two'
+export type GradeEntry = { enrollment_id: number; diagnostic?: string; partial?: string; partial_two?: string }
 export interface Enrollment {
   readonly id: number
   readonly tutoring_id: number
@@ -35,9 +30,9 @@ export interface Enrollment {
   readonly enrolled_at: string
   readonly diagnostic_grade: string | null
   readonly partial_grade: string | null
+  readonly second_partial_grade: string | null
   readonly knowledge_group: string | null
   readonly knowledge_group_key: string | null
-  readonly grade_history: readonly Grade[]
 }
 export type AvailableStudent = Pick<Enrollment, 'identification' | 'name' | 'email'> & { readonly id: number }
 export type NewStudentInput = { identification: string; name: string; email: string; phone: string | null }
@@ -131,6 +126,7 @@ export const teacherApi = {
   enrollStudent: (id: number, input: NewStudentInput | { student_id: number }) => mutate<Enrollment>(`tutorings/${id}/students`, 'POST', input),
   updateStudent: (id: number, enrollmentId: number, input: { name: string; phone: string | null }) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
   deactivateStudent: (id: number, enrollmentId: number) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),
+  saveGrades: async (id: number, grades: readonly GradeEntry[]) => (await request<Collection<Enrollment>>(`${ROOT}/tutorings/${id}/grades`, { method: 'PUT', body: JSON.stringify({ grades }) })).data,
   registerGrade: (id: number, enrollmentId: number, type: GradeType, value: string) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/grades/${type}`, 'PUT', { value }),
   topics: (id: number, params?: TeacherListParams) => list<TutoringTopic>(`tutorings/${id}/topics`, params),
   allTopics: (id: number) => collectPages((page) => list<TutoringTopic>(`tutorings/${id}/topics`, { page, per_page: 100 })),

@@ -54,7 +54,7 @@ export interface StudentGrades {
   readonly grades: {
     readonly diagnostic: StudentGradeEntry | null
     readonly partial: StudentGradeEntry | null
-    readonly history: readonly (StudentGradeEntry & { readonly type: string })[]
+    readonly second_partial: StudentGradeEntry | null
   }
   readonly knowledge_metric: { readonly id: number; readonly group: string; readonly group_key: string; readonly min_score: number; readonly max_score: number } | null
   readonly scale_settings: { readonly minimum: number; readonly maximum: number }

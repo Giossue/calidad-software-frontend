@@ -3,27 +3,26 @@ import { PencilIcon, PlusIcon, PowerOffIcon, RotateCcwIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { SearchSelect } from '@/components/ui/search-select'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource, useDegreeSearch } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
-import { teacherApi, type Enrollment, type TeacherTutoring } from '@/lib/teacher-api'
-import { TeacherEmpty, TeacherFilters, TeacherWorkspacePage } from './teacher-shared'
+import { teacherApi, type AvailableStudent, type Enrollment, type TeacherTutoring } from '@/lib/teacher-api'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FilterBar } from '@/features/tutoring/filter-bar'
+import { TeacherEmpty } from './teacher-shared'
 
-const EMPTY_FORM = { student_id: 'new', identification: '', name: '', email: '', phone: '' }
+const EMPTY_FORM = { identification: '', name: '', email: '', phone: '' }
+type Mode = 'existing' | 'new'
 
-export function TeacherStudentsPage() {
-  return <TeacherWorkspacePage title="Estudiantes" description="Inscribe estudiantes en tus tutorías y mantén actualizados sus datos de contacto.">{(tutoring) => <StudentsTable tutoring={tutoring} />}</TeacherWorkspacePage>
-}
 
-function StudentsTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
+export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.students(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
   const operation = useOperation()
@@ -32,23 +31,33 @@ function StudentsTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [deactivating, setDeactivating] = useState<Enrollment | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [initial, setInitial] = useState(EMPTY_FORM)
+  const [mode, setMode] = useState<Mode>('existing')
+  const [selected, setSelected] = useState<AvailableStudent | null>(null)
   const search = useDegreeSearch()
-  const available = useDegreeResource(() => open && !editing ? teacherApi.availableStudents(tutoring.id, search.search) : Promise.resolve([]), `${open}:${editing?.id ?? ''}:${tutoring.id}:${search.search}`)
+  const searching = open && !editing && mode === 'existing'
+  const available = useDegreeResource(() => searching ? teacherApi.availableStudents(tutoring.id, search.search) : Promise.resolve([]), `${searching}:${tutoring.id}:${search.search}`)
 
   function openForm(student: Enrollment | null = null) {
-    const next = student ? { student_id: String(student.student_id), identification: student.identification, name: student.name, email: student.email, phone: student.phone ?? '' } : EMPTY_FORM
-    setEditing(student); setForm(next); setInitial(next); search.setInput(''); operation.clearError(); setOpen(true)
+    const next = student ? { identification: student.identification, name: student.name, email: student.email, phone: student.phone ?? '' } : EMPTY_FORM
+    setEditing(student); setForm(next); setInitial(next); setMode('existing'); setSelected(null); search.setInput(''); operation.clearError(); setOpen(true)
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     void operation.run(() => editing
       ? teacherApi.updateStudent(tutoring.id, editing.id, { name: form.name.trim(), phone: form.phone || null })
-      : teacherApi.enrollStudent(tutoring.id, form.student_id === 'new' ? { identification: form.identification, name: form.name.trim(), email: form.email.trim(), phone: form.phone || null } : { student_id: Number(form.student_id) }),
-    editing ? 'Datos del estudiante actualizados.' : 'Estudiante inscrito.', async () => { setOpen(false); await list.reload() })
+      : teacherApi.enrollStudent(tutoring.id, mode === 'new' ? { identification: form.identification, name: form.name.trim(), email: form.email.trim(), phone: form.phone || null } : { student_id: selected?.id ?? 0 }),
+    editing ? 'Datos del estudiante actualizados.' : mode === 'new' ? 'Estudiante creado e inscrito.' : 'Estudiante inscrito.', async () => { setOpen(false); await list.reload() })
   }
 
   return <div className="flex flex-col gap-5">
-    <Card><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3"><CardTitle>Estudiantes de la tutoría</CardTitle><Button disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button></CardHeader><CardContent><TeacherFilters id="teacher-students" search={list.searchInput} onSearch={list.setSearchInput} status={status} onStatus={setStatus} /></CardContent></Card>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="flex-1">
+        <FilterBar id="teacher-students" search={list.searchInput} onSearch={list.setSearchInput} searchLabel="Buscar" searchPlaceholder="Busca por nombre, cédula o correo…" onClear={() => setStatus('')} filters={[
+          { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+        ]} />
+      </div>
+      <Button className="h-10 shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>
+    </div>
     <ErrorNotice message={list.error} retry={list.reload} />{!open && <ErrorNotice message={operation.error} />}
     <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
       { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span className="font-medium">{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
@@ -60,15 +69,35 @@ function StudentsTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
       </div> },
     ]} />
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
-    <MutationDialog open={open} title={editing ? 'Editar estudiante' : 'Registrar estudiante'} description={tutoring.subject_name} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initial)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Inscribir estudiante'} submitDisabled={!form.student_id}>
-      {!editing && <>
-        <Field><FieldLabel htmlFor="teacher-student-search">Buscar estudiante del paralelo</FieldLabel><Input id="teacher-student-search" type="search" placeholder="Nombre, cédula o correo" value={search.input} onChange={(event) => search.setInput(event.target.value)} /><FieldDescription>Se muestran hasta 100 coincidencias del paralelo {tutoring.section_name ?? ''}.</FieldDescription></Field>
+    <MutationDialog open={open} title={editing ? 'Editar estudiante' : 'Registrar estudiante'} description={tutoring.subject_name} pending={operation.pending} error={operation.error} dirty={Boolean(selected) || JSON.stringify(form) !== JSON.stringify(initial)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'} submitDisabled={!editing && mode === 'existing' && !selected}>
+      {!editing && <Tabs value={mode} onValueChange={(value) => { setMode(value as Mode); operation.clearError() }}>
+        <TabsList aria-label="Cómo registrar al estudiante">
+          <TabsTrigger value="existing">Ya registrado</TabsTrigger>
+          <TabsTrigger value="new">Estudiante nuevo</TabsTrigger>
+        </TabsList>
+      </Tabs>}
+      {!editing && mode === 'existing' && <>
+        <Field>
+          <FieldLabel htmlFor="teacher-student-search">Estudiante</FieldLabel>
+          <SearchSelect
+            id="teacher-student-search"
+            query={search.input}
+            onQueryChange={search.setInput}
+            options={(available.data ?? []).map((student) => ({ value: String(student.id), label: student.name, description: `${student.identification} · ${student.email}` }))}
+            selected={selected ? { value: String(selected.id), label: selected.name, description: `${selected.identification} · ${selected.email}` } : null}
+            onSelect={(option) => setSelected(option ? (available.data ?? []).find((student) => String(student.id) === option.value) ?? null : null)}
+            loading={available.loading}
+            placeholder="Busca por nombre, cédula o correo…"
+            emptyMessage="Ningún estudiante del paralelo coincide. Si no está registrado, usa «Estudiante nuevo»."
+          />
+          <FieldDescription>Se listan los estudiantes del paralelo {tutoring.section_name ?? ''} que aún no están inscritos en esta tutoría (hasta 100).</FieldDescription>
+        </Field>
         <ErrorNotice message={available.error} retry={available.reload} />
-        <Field><FieldLabel htmlFor="teacher-student-existing">Estudiante</FieldLabel><NativeSelect id="teacher-student-existing" value={form.student_id} onChange={(event) => setForm({ ...form, student_id: event.target.value })}><option value="new">Registrar un estudiante nuevo</option>{available.data?.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.identification}</option>)}</NativeSelect></Field>
       </>}
-      {(editing || form.student_id === 'new') && <>
+      {(editing || mode === 'new') && <>
+        {!editing && <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>}
         <Field><FieldLabel htmlFor="teacher-student-identification">Cédula</FieldLabel><Input id="teacher-student-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeDigits(event.target.value, 10) })} inputMode="numeric" pattern="[0-9]{10}" maxLength={10} required disabled={Boolean(editing)} placeholder="10 dígitos" /></Field>
-        <Field><FieldLabel htmlFor="teacher-student-name">Nombre completo</FieldLabel><Input id="teacher-student-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} maxLength={150} required placeholder="Nombres y apellidos" /></Field>
+        <Field><FieldLabel htmlFor="teacher-student-name">Nombre completo</FieldLabel><Input id="teacher-student-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} maxLength={150} required placeholder="Apellidos y nombres" /></Field>
         <Field><FieldLabel htmlFor="teacher-student-email">Correo institucional</FieldLabel><Input id="teacher-student-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} maxLength={150} required disabled={Boolean(editing)} placeholder="estudiante@ueb.edu.ec" /></Field>
         <Field><FieldLabel htmlFor="teacher-student-phone">Teléfono</FieldLabel><Input id="teacher-student-phone" type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: sanitizeDigits(event.target.value, 10) })} maxLength={10} pattern="[0-9]{10}" placeholder="Opcional, 10 dígitos" /></Field>
       </>}

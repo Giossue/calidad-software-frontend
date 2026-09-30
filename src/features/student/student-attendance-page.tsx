@@ -2,26 +2,26 @@ import { useState } from 'react'
 import { CheckCircle2Icon, ListIcon, XCircleIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
+import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { studentApi, type StudentAttendance } from '@/lib/student-api'
-import { StudentEmpty, StudentReadPage } from './student-shared'
-import { ContextPills, FilterChips, IconTile, ListFooter, RedProgress } from './student-ui'
+import { StudentEmpty } from './student-shared'
+import { FilterChips, ListFooter, RedProgress } from './student-ui'
 import { usePagedList } from './student-hooks'
 
 const monthYear = (date: string) => new Intl.DateTimeFormat('es-EC', { month: 'short', year: 'numeric' }).format(new Date(`${date}T12:00:00`)).replace('.', '')
 
 type RecordFilter = 'all' | 'present' | 'absent'
 
-function AttendanceCard({ item }: Readonly<{ item: StudentAttendance }>) {
+function AttendanceView({ item }: Readonly<{ item: StudentAttendance }>) {
   const { summary } = item
   const [filter, setFilter] = useState<RecordFilter>('all')
   const visible = item.records.filter((record) => filter === 'all' || (filter === 'present') === record.present)
   const pager = usePagedList(visible)
-  return <Card>
-    <CardContent className="flex flex-col gap-6 pt-6">
-      <div className="flex min-w-0 items-center gap-4"><IconTile /><div className="flex min-w-0 flex-col gap-2"><h3 className="break-words text-lg font-semibold tracking-tight">{item.tutoring?.name ?? 'Tutoría no disponible'}</h3><ContextPills source={item.tutoring} /></div></div>
+  return <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <p className="text-4xl font-semibold tabular-nums">{Math.round(summary.attendance_percentage)}% <span className="text-base font-normal text-muted-foreground">de asistencia</span></p>
         <RedProgress value={summary.attendance_percentage} label="Porcentaje de asistencia" />
@@ -38,13 +38,16 @@ function AttendanceCard({ item }: Readonly<{ item: StudentAttendance }>) {
         </ul>
         <ListFooter noun="sesiones" total={visible.length} start={pager.start} shown={pager.rows.length} page={pager.page} lastPage={pager.lastPage} onPage={pager.setPage} />
       </>}
-    </CardContent>
-  </Card>
+  </div>
 }
 
-export function StudentAttendancePage() {
-  return <StudentReadPage title="Mi asistencia" description="Consulta tu récord de asistencia, el porcentaje acumulado y los temas vistos en cada sesión." label="asistencia" loader={studentApi.attendance}
-    empty={<StudentEmpty title="Aún no tienes asistencia registrada" description="Tu récord aparecerá cuando tu docente registre la primera sesión." />}>
-    {(rows) => rows.map((item) => <AttendanceCard key={item.enrollment_id} item={item} />)}
-  </StudentReadPage>
+// Récord de asistencia de una tutoría.
+export function AttendancePanel({ tutoringId }: Readonly<{ tutoringId: number }>) {
+  const resource = useDegreeResource(studentApi.attendance)
+  const item = resource.data?.find((attendance) => attendance.tutoring?.id === tutoringId)
+
+  return <div className="flex flex-col gap-5">
+    <ErrorNotice message={resource.error} retry={resource.reload} />
+    {resource.loading ? <Skeleton role="status" aria-label="Cargando asistencia" className="h-48 w-full" /> : !resource.error && (!item ? <StudentEmpty title="Aún no tienes asistencia registrada" description="Tu récord aparecerá cuando tu docente registre la primera sesión." /> : <AttendanceView item={item} />)}
+  </div>
 }

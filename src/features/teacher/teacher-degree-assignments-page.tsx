@@ -5,11 +5,8 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
@@ -25,10 +22,9 @@ export function TeacherDegreeAssignmentsPage() {
 
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Mis asignaciones de titulación" description="Consulta los estudiantes y temas en los que participas como tutor o par académico." />
-    <Card><CardHeader><CardTitle>Asignaciones vigentes</CardTitle></CardHeader><CardContent><FieldGroup className="flex flex-col gap-4 sm:flex-row">
-      <Field className="flex-1"><FieldLabel htmlFor="teacher-degree-search">Buscar tema o estudiante</FieldLabel><Input id="teacher-degree-search" type="search" value={list.searchInput} onChange={(event) => list.setSearchInput(event.target.value)} placeholder="Título del tema o nombre del estudiante" /></Field>
-      <Field className="sm:w-52"><FieldLabel htmlFor="teacher-degree-role">Participación</FieldLabel><NativeSelect id="teacher-degree-role" value={role} onChange={(event) => setRole(event.target.value as typeof role)}><option value="">Todas</option><option value="tutor">Tutor</option><option value="par_academico">Par académico</option></NativeSelect></Field>
-    </FieldGroup></CardContent></Card>
+    <FilterBar id="teacher-degree" search={list.searchInput} onSearch={list.setSearchInput} searchLabel="Buscar tema o estudiante" searchPlaceholder="Título del tema o nombre del estudiante" onClear={() => setRole('')} filters={[
+      { id: 'role', label: 'Participación', value: role, onChange: (value) => setRole(value as typeof role), allLabel: 'Todas', options: [{ value: 'tutor', label: 'Tutor' }, { value: 'par_academico', label: 'Par académico' }] },
+    ]} />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No tienes asignaciones de titulación con estos criterios" description="Las asignaciones aparecerán cuando el Coordinador de Titulación te designe como tutor o par académico." />} columns={[
       { label: 'Tema', render: (item) => <div className="flex flex-col gap-1"><span className="font-medium">{item.topic.title}</span><span className="text-xs text-muted-foreground">{item.period.name}</span></div> },

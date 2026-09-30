@@ -1,47 +1,51 @@
-import { CalendarDaysIcon, MailIcon } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { ChevronRightIcon } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { formatDate } from '@/lib/format'
+import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
+import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
 import { studentApi, type StudentTutoring } from '@/lib/student-api'
-import { DAY_LABELS } from '@/lib/tutoring-api'
-import { StudentEmpty, StudentReadPage } from './student-shared'
+import { StudentEmpty } from './student-shared'
+import { StudentTutoringWorkspace } from './student-tutoring-workspace'
 import { ContextPills, IconTile } from './student-ui'
 
-function TutoringCard({ enrollment }: Readonly<{ enrollment: StudentTutoring }>) {
-  const subject = enrollment.subject
-  const schedules = (subject?.schedules ?? []).filter((item) => item.is_active)
-  const teacher = subject?.teacher
-  return <Card>
-    <CardContent className="flex flex-col gap-5 pt-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <IconTile />
-          <div className="flex min-w-0 flex-col gap-2"><div className="flex flex-col gap-0.5"><h3 className="break-words text-lg font-semibold tracking-tight">{subject?.name ?? 'Tutoría no disponible'}</h3>{subject?.modality && <p className="text-sm text-muted-foreground">Modalidad {subject.modality.name}</p>}</div><ContextPills source={subject} /></div>
-        </div>
-        <StatusBadge active={enrollment.is_active && Boolean(subject?.is_active)} activeLabel="En curso" inactiveLabel="Finalizada" />
-      </div>
-      <div className="grid gap-5 border-t pt-5 text-sm md:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <h4 className="font-semibold">Contacto del docente</h4>
-          {teacher ? <><p className="flex items-center gap-2 break-all text-muted-foreground"><MailIcon className="size-4 shrink-0" aria-hidden="true" />{teacher.email}</p>{teacher.phone && <p className="text-muted-foreground">{teacher.phone}</p>}</> : <p className="text-muted-foreground">Sin docente asignado.</p>}
-          {enrollment.enrolled_at && <p className="text-xs text-muted-foreground">Inscrito el {formatDate(enrollment.enrolled_at)}</p>}
-        </div>
-        <div className="flex flex-col gap-2">
-          <h4 className="flex items-center gap-2 font-semibold"><CalendarDaysIcon className="size-4 text-muted-foreground" aria-hidden="true" />Horarios</h4>
-          {schedules.length === 0 ? <p className="text-muted-foreground">Aún no hay horarios registrados.</p> : <ul className="flex flex-wrap gap-2">
-            {schedules.map((item) => <li key={item.id}><Badge variant="secondary" className="px-3 py-1">{DAY_LABELS[item.day_of_week] ?? item.day_of_week} · {item.start_time.slice(0, 5)} – {item.end_time.slice(0, 5)}</Badge></li>)}
-          </ul>}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+export function StudentTutoringsPage() {
+  const [params, setParams] = useSearchParams()
+  const selectedId = Number(params.get('tutoring'))
+
+  if (Number.isInteger(selectedId) && selectedId > 0) {
+    return <StudentTutoringWorkspace subjectId={selectedId} onBack={() => setParams({})} />
+  }
+  return <TutoringsList onOpen={(id) => setParams({ tutoring: String(id) })} />
 }
 
-export function StudentTutoringsPage() {
-  return <StudentReadPage title="Mis tutorías" description="Consulta las asignaturas en las que estás inscrito, su docente y sus horarios." label="tutorías" loader={studentApi.tutorings}
-    empty={<StudentEmpty title="Aún no estás inscrito en ninguna tutoría" description="Tu docente te inscribirá en la tutoría de tu paralelo y aparecerá aquí." />}>
-    {(rows) => rows.map((enrollment) => <TutoringCard key={enrollment.id} enrollment={enrollment} />)}
-  </StudentReadPage>
+function TutoringRow({ enrollment, onOpen }: Readonly<{ enrollment: StudentTutoring; onOpen: (id: number) => void }>) {
+  const subject = enrollment.subject
+  if (!subject) return null
+  return <li>
+    <button type="button" onClick={() => onOpen(subject.id)} aria-label={`Abrir ${subject.name}`} className="flex w-full cursor-pointer items-center gap-4 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+      <IconTile />
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="break-words text-lg font-semibold tracking-tight">{subject.name}</span>
+        <ContextPills source={subject} />
+      </span>
+      <StatusBadge active={enrollment.is_active && subject.is_active} activeLabel="En curso" inactiveLabel="Finalizada" />
+      <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </button>
+  </li>
+}
+
+function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
+  const resource = useDegreeResource(studentApi.tutorings)
+  const rows = (resource.data ?? []).filter((item) => item.subject)
+
+  return <section className="flex min-w-0 flex-col gap-6" aria-busy={resource.loading}>
+    <AdminSectionHeader title="Mis tutorías" description="Elige una tutoría para ver su contenido, tu asistencia, tus calificaciones y sus horarios." />
+    <ErrorNotice message={resource.error} retry={resource.reload} />
+    {resource.loading ? <div role="status" aria-label="Cargando tutorías" className="flex flex-col gap-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
+      : !resource.error && (rows.length === 0 ? <StudentEmpty title="Aún no estás inscrito en ninguna tutoría" description="Tu docente te inscribirá en la tutoría de tu paralelo y aparecerá aquí." />
+        : <ul className="flex flex-col gap-3">{rows.map((enrollment) => <TutoringRow key={enrollment.id} enrollment={enrollment} onOpen={onOpen} />)}</ul>)}
+  </section>
 }

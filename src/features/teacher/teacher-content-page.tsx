@@ -4,7 +4,6 @@ import { ArrowLeftIcon, BookOpenIcon, ChevronRightIcon, PencilIcon, PlusIcon, Po
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -14,19 +13,19 @@ import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { teacherApi, type Activity, type Methodology, type TeacherTutoring, type TutoringTopic } from '@/lib/teacher-api'
-import { TeacherEmpty, TeacherFilters, TeacherWorkspacePage } from './teacher-shared'
+import { FilterBar } from '@/features/tutoring/filter-bar'
+import { TeacherEmpty } from './teacher-shared'
 
 type Kind = 'topic' | 'activity' | 'methodology'
 type ContentRecord = TutoringTopic | Activity | Methodology
 type Editing = { kind: Kind; record: ContentRecord | null }
 const LABELS = { topic: 'tema', activity: 'actividad', methodology: 'metodología' }
 const EMPTY = { name: '', description: '', duration: '' }
+const NAME_PLACEHOLDERS = { topic: 'Ej. Pruebas unitarias', activity: 'Ej. Diseñar casos de prueba', methodology: '' }
+const DESCRIPTION_PLACEHOLDERS = { topic: 'Opcional. Breve resumen de lo que se verá en este tema', activity: '', methodology: 'Ej. Trabajo colaborativo en parejas con revisión del docente' }
 
-export function TeacherContentPage() {
-  return <TeacherWorkspacePage title="Contenido de tutoría" description="Organiza los temas, sus actividades y las metodologías con las que trabajarás en las sesiones.">{(tutoring) => <ContentTable tutoring={tutoring} />}</TeacherWorkspacePage>
-}
 
-function ContentTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
+export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.topics(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
   const operation = useOperation()
@@ -81,7 +80,14 @@ function ContentTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
 
   return <div className="flex flex-col gap-5">
     {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="ghost" size="sm" disabled={operation.pending} onClick={() => { setTopicId(null); setActivityId(null) }}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="ghost" size="sm" disabled={operation.pending} onClick={() => setActivityId(null)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
-    <Card><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3"><CardTitle>{title}</CardTitle><Button disabled={!canManage || operation.pending} onClick={() => openForm(kind)}><PlusIcon data-icon="inline-start" />Registrar {LABELS[kind]}</Button></CardHeader>{!topic && <CardContent><TeacherFilters id="teacher-content" search={list.searchInput} onSearch={list.setSearchInput} status={status} onStatus={setStatus} /></CardContent>}</Card>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="flex-1">{topic
+        ? <h3 className="flex h-10 items-center font-display text-lg font-semibold">{title}</h3>
+        : <FilterBar id="teacher-content" search={list.searchInput} onSearch={list.setSearchInput} searchPlaceholder="Busca por tema…" onClear={() => setStatus('')} filters={[
+          { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+        ]} />}</div>
+      <Button className="h-10 shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}><PlusIcon data-icon="inline-start" />Registrar {LABELS[kind]}</Button>
+    </div>
     <ErrorNotice message={list.error} retry={list.reload} />{!editing && <ErrorNotice message={operation.error} />}
     {activity ? <RecordTable rows={activity.methodologies} loading={list.isFetching} empty={<TeacherEmpty title="Esta actividad aún no tiene metodologías" />} columns={[
       { label: 'Metodología', render: (item) => <p className="whitespace-pre-wrap break-words">{item.description}</p> }, { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> }, { label: 'Acciones', render: (item) => actions(item, 'methodology', item.description) },
@@ -97,8 +103,8 @@ function ContentTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
       <CatalogPagination label="temas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </>}
     <MutationDialog open={Boolean(editing)} title={dialogTitle} description={activity?.name ?? topic?.name ?? tutoring.subject_name} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initial)} onClose={() => setEditing(null)} onSubmit={submit} submitLabel={editing?.record ? 'Guardar cambios' : `Registrar ${editing ? LABELS[editing.kind] : ''}`}>
-      {editing?.kind !== 'methodology' && <Field><FieldLabel htmlFor="teacher-content-name">Nombre</FieldLabel><Input id="teacher-content-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} maxLength={150} required /></Field>}
-      {editing?.kind === 'activity' ? <Field><FieldLabel htmlFor="teacher-content-duration">Duración</FieldLabel><Input id="teacher-content-duration" value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} placeholder="Ej. 30 minutos" maxLength={50} required /></Field> : <Field><FieldLabel htmlFor="teacher-content-description">Descripción</FieldLabel><Textarea id="teacher-content-description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength={255} required={editing?.kind === 'methodology'} /></Field>}
+      {editing?.kind !== 'methodology' && <Field><FieldLabel htmlFor="teacher-content-name">Nombre</FieldLabel><Input id="teacher-content-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} maxLength={150} required placeholder={editing ? NAME_PLACEHOLDERS[editing.kind] : undefined} /></Field>}
+      {editing?.kind === 'activity' ? <Field><FieldLabel htmlFor="teacher-content-duration">Duración</FieldLabel><Input id="teacher-content-duration" value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} placeholder="Ej. 30 minutos" maxLength={50} required /></Field> : <Field><FieldLabel htmlFor="teacher-content-description">Descripción</FieldLabel><Textarea id="teacher-content-description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength={255} required={editing?.kind === 'methodology'} placeholder={editing ? DESCRIPTION_PLACEHOLDERS[editing.kind] : undefined} /></Field>}
     </MutationDialog>
     <ConfirmModal open={Boolean(deactivating)} title={`¿Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}?`} description="El contenido dejará de estar disponible para nuevas sesiones. Su historial se conservará." pending={operation.pending} confirmLabel="Deshabilitar contenido" onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={deactivate} />
   </div>

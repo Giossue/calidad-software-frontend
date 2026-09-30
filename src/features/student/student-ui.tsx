@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType } from 'react'
 import { BookOpenIcon, GraduationCapIcon, SearchIcon, UserIcon, UsersIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -12,26 +12,10 @@ export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ ic
   return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', className)}><Icon className="size-5" /></span>
 }
 
-export function InfoChip({ icon: Icon, value, label }: Readonly<{ icon: IconType; value: ReactNode; label: string }>) {
-  return <div className="flex min-w-0 items-center gap-3">
-    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground"><Icon className="size-4" /></span>
-    <div className="flex min-w-0 flex-col leading-tight"><span className="truncate text-sm font-semibold">{value}</span><span className="text-xs text-muted-foreground">{label}</span></div>
-  </div>
-}
-
 type ContextSource = {
   readonly cycle?: { readonly name: string } | null
   readonly section?: { readonly name: string } | null
   readonly teacher?: { readonly name: string } | null
-}
-
-/** Ciclo, paralelo y docente de una tutoría, en el mismo orden en todas las pantallas. */
-export function TutoringInfoChips({ source }: Readonly<{ source: ContextSource | null | undefined }>) {
-  return <div className="flex flex-wrap gap-x-6 gap-y-3">
-    <InfoChip icon={GraduationCapIcon} value={source?.cycle?.name ?? 'Sin ciclo'} label="Ciclo" />
-    <InfoChip icon={UsersIcon} value={source?.section ? `Paralelo ${source.section.name}` : 'Sin paralelo'} label="Paralelo" />
-    <InfoChip icon={UserIcon} value={source?.teacher?.name ?? 'Sin docente'} label="Docente tutor" />
-  </div>
 }
 
 /** Ciclo, paralelo y docente como píldoras discretas, para que no compitan con el título. */

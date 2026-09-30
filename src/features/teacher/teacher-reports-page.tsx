@@ -3,7 +3,6 @@ import { FileTextIcon, SendIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -13,15 +12,12 @@ import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tu
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
 import { teacherApi, type TeacherReport, type TeacherTutoring } from '@/lib/teacher-api'
-import { TeacherEmpty, TeacherWorkspacePage } from './teacher-shared'
+import { TeacherEmpty } from './teacher-shared'
 
 const INITIAL = { title: 'Informe de tutorías', observations: '' }
 
-export function TeacherReportsPage() {
-  return <TeacherWorkspacePage title="Informes" description="Envía al Coordinador de Carrera un informe consolidado del trabajo de tus tutorías.">{(tutoring) => <ReportsTable tutoring={tutoring} />}</TeacherWorkspacePage>
-}
 
-function ReportsTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
+export function ReportsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const list = usePaginatedCatalog((page) => teacherApi.reports(tutoring.id, { page }), String(tutoring.id))
   const operation = useOperation()
   const [open, setOpen] = useState(false)
@@ -33,7 +29,10 @@ function ReportsTable({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   }
 
   return <div className="flex flex-col gap-5">
-    <Card><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3"><div className="flex flex-col gap-1"><CardTitle>Informes enviados</CardTitle><CardDescription>Conserva el consolidado de estudiantes, notas, asistencia y temas al momento del envío.</CardDescription></div><Button disabled={!tutoring.can_manage || operation.pending} onClick={() => { operation.clearError(); setForm(INITIAL); setOpen(true) }}><SendIcon data-icon="inline-start" />Enviar informe</Button></CardHeader></Card>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-muted-foreground">Conserva el consolidado de estudiantes, notas, asistencia y temas al momento del envío.</p>
+      <Button className="shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => { operation.clearError(); setForm(INITIAL); setOpen(true) }}><SendIcon data-icon="inline-start" />Enviar informe</Button>
+    </div>
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="Aún no hay informes enviados" description="Envía un informe para compartir el desarrollo de esta tutoría con el coordinador." />} columns={[
       { label: 'Informe', render: (report) => <span className="font-medium">{report.type}</span> }, { label: 'Autor', render: (report) => report.author_name }, { label: 'Enviado', render: (report) => formatDate(report.generated_at, true) },
