@@ -33,6 +33,8 @@ export interface Career {
   readonly status: boolean
   readonly cycles_count: number
   readonly active_cycles_count: number
+  // Cantidad de ciclos (niveles) de la carrera: el número de ciclo más alto.
+  readonly cycle_levels: number
 }
 
 export interface Cycle {

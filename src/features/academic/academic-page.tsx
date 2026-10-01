@@ -121,6 +121,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   const [careerName, setCareerName] = useState('')
   const [careerModalityId, setCareerModalityId] = useState('')
   const [careerCyclesCount, setCareerCyclesCount] = useState('8')
+  const [initialCareerCyclesCount, setInitialCareerCyclesCount] = useState('8')
   const [initialCareerFacultyId, setInitialCareerFacultyId] = useState('')
   const [initialCareerName, setInitialCareerName] = useState('')
   const [initialCareerModalityId, setInitialCareerModalityId] = useState('')
@@ -144,6 +145,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setCareerName('')
     setCareerModalityId('')
     setCareerCyclesCount('8')
+    setInitialCareerCyclesCount('8')
     setInitialCareerFacultyId('')
     setInitialCareerName('')
     setInitialCareerModalityId('')
@@ -162,6 +164,8 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setCareerFacultyId(String(career.faculty_id))
     setCareerName(career.name)
     setCareerModalityId(career.modality_id ? String(career.modality_id) : '')
+    setCareerCyclesCount(String(career.cycle_levels))
+    setInitialCareerCyclesCount(String(career.cycle_levels))
     setInitialCareerFacultyId(String(career.faculty_id))
     setInitialCareerName(career.name)
     setInitialCareerModalityId(career.modality_id ? String(career.modality_id) : '')
@@ -232,7 +236,9 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         modality_id: careerModalityId ? Number(careerModalityId) : null,
       }
       if (editingCareer) {
-        await api.updateCareer(editingCareer.id, input)
+        // Solo se envía la cantidad de ciclos si se aumentó: desde aquí no se quitan ciclos.
+        const cyclesChanged = careerCyclesCount !== initialCareerCyclesCount
+        await api.updateCareer(editingCareer.id, cyclesChanged ? { ...input, cycles_count: Number(careerCyclesCount) } : input)
         toast.success('Carrera actualizada', { description: `La carrera "${input.name}" fue modificada.` })
       } else {
         await api.createCareer({ ...input, cycles_count: Number(careerCyclesCount) })
@@ -274,6 +280,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     careerFacultyId !== initialCareerFacultyId
     || careerName !== initialCareerName
     || careerModalityId !== initialCareerModalityId
+    || (Boolean(editingCareer) && careerCyclesCount !== initialCareerCyclesCount)
 
   return (
     <section className="flex flex-col gap-8">
@@ -588,25 +595,29 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               <FieldError>{careerErrors.name}</FieldError>
             </Field>
 
-            {!editingCareer && (
-              <Field>
-                <FieldLabel htmlFor="career-cycles-count">Ciclos a crear</FieldLabel>
-                <NativeSelect
-                  id="career-cycles-count"
-                  value={careerCyclesCount}
-                  onChange={(e) => setCareerCyclesCount(e.target.value)}
-                  disabled={formPending}
-                >
-                  <option value="0">Ninguno</option>
-                  {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+            <Field>
+              <FieldLabel htmlFor="career-cycles-count">{editingCareer ? 'Cantidad de ciclos' : 'Ciclos a crear'}</FieldLabel>
+              <NativeSelect
+                id="career-cycles-count"
+                value={careerCyclesCount}
+                onChange={(e) => setCareerCyclesCount(e.target.value)}
+                disabled={formPending}
+              >
+                {(!editingCareer || editingCareer.cycle_levels === 0) && <option value="0">{editingCareer ? 'Sin ciclos' : 'Ninguno'}</option>}
+                {Array.from({ length: 12 }, (_, index) => index + 1)
+                  .filter((count) => !editingCareer || count >= editingCareer.cycle_levels)
+                  .map((count) => (
                     <option key={count} value={count}>
                       {count} {count === 1 ? 'ciclo' : 'ciclos'}
                     </option>
                   ))}
-                </NativeSelect>
-                <FieldDescription className="text-xs">Se crean automáticamente en el paralelo A.</FieldDescription>
-              </Field>
-            )}
+              </NativeSelect>
+              <FieldDescription className="text-xs">
+                {editingCareer
+                  ? 'Al aumentar la cantidad se crean los ciclos que faltan en el paralelo A. Para quitar un ciclo, desactívalo desde la carrera.'
+                  : 'Se crean automáticamente en el paralelo A.'}
+              </FieldDescription>
+            </Field>
 
             <FieldError>{formError}</FieldError>
 
