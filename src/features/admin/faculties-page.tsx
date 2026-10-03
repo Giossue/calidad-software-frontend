@@ -18,13 +18,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { ApiError, api, type Faculty } from '@/lib/api'
+import { api, type Faculty } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
@@ -32,10 +33,6 @@ type FacultyFormErrors = { name?: string }
 type PendingAction = 'faculty' | 'toggle-faculty' | null
 type ToggleTarget = { faculty: Faculty; action: 'activate' | 'deactivate' }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
-  return 'No fue posible conectar con el servidor.'
-}
 
 function careersPath(faculty: Faculty): string {
   return `/panel/careers?${new URLSearchParams({ faculty: String(faculty.id), facultyName: faculty.name })}`
@@ -61,7 +58,7 @@ export function FacultiesPage() {
   const [name, setName] = useState('')
   const [initialName, setInitialName] = useState('')
   const [nameError, setNameError] = useState<string | undefined>()
-  const [formError, setFormError] = useState<string | null>(null)
+  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
 
   // Modales
@@ -79,7 +76,6 @@ export function FacultiesPage() {
   function updateName(value: string) {
     setName(sanitizeLetters(value, 150))
     setNameError(undefined)
-    setFormError(null)
   }
 
   function openCreateModal() {
@@ -87,7 +83,6 @@ export function FacultiesPage() {
     setName('')
     setInitialName('')
     setNameError(undefined)
-    setFormError(null)
     setIsModalOpen(true)
   }
 
@@ -96,7 +91,6 @@ export function FacultiesPage() {
     setName(faculty.name)
     setInitialName(faculty.name)
     setNameError(undefined)
-    setFormError(null)
     setIsModalOpen(true)
   }
 
@@ -105,7 +99,6 @@ export function FacultiesPage() {
     setEditingFaculty(null)
     setName('')
     setNameError(undefined)
-    setFormError(null)
   }
 
   async function submitFaculty(event: FormEvent<HTMLFormElement>) {
@@ -119,11 +112,14 @@ export function FacultiesPage() {
 
     setNameError(errors.name)
     if (Object.keys(errors).length > 0) {
-      setFormError('Revisa el nombre antes de guardar.')
+      setErrorModal({
+        open: true,
+        title: 'Revisa los campos requeridos',
+        description: 'El nombre de la facultad es obligatorio y no puede superar 150 caracteres.',
+      })
       return
     }
 
-    setFormError(null)
     setPending('faculty')
     try {
       if (editingFaculty) {
@@ -136,7 +132,15 @@ export function FacultiesPage() {
       closeModal()
       await reload()
     } catch (error: unknown) {
-      setFormError(getErrorMessage(error))
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
+      if (friendly.field === 'name') {
+        setNameError(friendly.description)
+      }
     } finally {
       setPending(null)
     }
@@ -159,7 +163,12 @@ export function FacultiesPage() {
       await reload()
     } catch (error: unknown) {
       setFacultyToToggle(null)
-      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
     } finally {
       setPending(null)
     }
@@ -420,8 +429,6 @@ export function FacultiesPage() {
               <FieldError>{nameError}</FieldError>
             </Field>
 
-            <FieldError>{formError}</FieldError>
-
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
@@ -450,6 +457,14 @@ export function FacultiesPage() {
         cancelLabel="Cancelar"
         variant={facultyToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-faculty'}
+      />
+
+      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
+      <ErrorModal
+        open={Boolean(errorModal?.open)}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title}
+        description={errorModal?.description}
       />
     </section>
   )

@@ -89,10 +89,19 @@ export interface StudentTopic {
   readonly activities_count: number
   readonly activities: readonly StudentActivity[]
 }
+export interface StudentClassSession {
+  readonly id: number
+  readonly tutoring_id?: number
+  readonly date: string
+  readonly topics_covered: boolean
+  readonly topics: readonly StudentTopic[]
+}
+
 export interface StudentContent {
   readonly tutoring: StudentTutoringSummary
   readonly progress: { readonly total_topics: number; readonly covered_topics: number; readonly pending_topics: number; readonly progress_percentage: number }
   readonly topics: readonly StudentTopic[]
+  readonly sessions?: readonly StudentClassSession[]
 }
 
 export interface StudentDegreeAssignments {
@@ -122,6 +131,7 @@ export const studentApi = {
   grades: async () => (await request<Collection<StudentGrades>>(`${ROOT}/tutoring/grades`)).data,
   attendance: async () => (await request<Collection<StudentAttendance>>(`${ROOT}/tutoring/attendance`)).data,
   content: async (tutoringId: number) => (await request<Resource<StudentContent>>(`${ROOT}/tutoring/${tutoringId}/topics`)).data,
+  sessions: async (tutoringId: number) => (await request<Collection<StudentClassSession>>(`${ROOT}/tutoring/${tutoringId}/sessions`)).data,
   degreeAssignments: async (topicId: number) => (await request<Resource<StudentDegreeAssignments>>(`${ROOT}/degree-topics/${topicId}/assignments`)).data,
   createTopic: (input: StudentTopicInput & { replace_pending?: boolean }) => mutate<DegreeTopic>('degree-topics', 'POST', input),
   updateTopic: (topicId: number, input: StudentTopicInput) => mutate<DegreeTopic>(`degree-topics/${topicId}`, 'PUT', input),

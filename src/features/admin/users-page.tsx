@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   CheckCircle2Icon,
   Edit2Icon,
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -30,7 +31,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { CoordinatorCareersDialog } from '@/features/admin/coordinator-careers-dialog'
-import { ApiError, api, type User, type UserPaginationMeta } from '@/lib/api'
+import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
 import { isValidEcuadorianCedula } from '@/lib/cedula'
 import { getInitials } from '@/lib/format'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
@@ -42,6 +43,8 @@ type UserForm = {
   email: string
   phone: string
   role: string
+  facultyId: string
+  careerId: string
   password: string
   password_confirmation: string
 }
@@ -56,6 +59,8 @@ type UserFormInput = {
   email: string
   phone: string
   role: string
+  faculty_id?: number | null
+  career_id?: number | null
   password?: string
   password_confirmation?: string
 }
@@ -74,14 +79,12 @@ const INITIAL_USER_FORM: UserForm = {
   email: '',
   phone: '',
   role: '',
+  facultyId: '',
+  careerId: '',
   password: '',
   password_confirmation: '',
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
-  return 'No fue posible conectar con el servidor.'
-}
 
 function isRole(value: string): boolean {
   return ROLE_OPTIONS.some((option) => option.value === value)
@@ -139,6 +142,11 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
 
   if (!isRole(form.role)) errors.role = 'Selecciona un rol válido.'
 
+  if (form.role && form.role !== 'administrador') {
+    if (!form.facultyId) errors.facultyId = 'Selecciona la facultad.'
+    if (!form.careerId) errors.careerId = 'Selecciona la carrera.'
+  }
+
   if (editing && form.password) {
     const passwordHint = getPasswordRequirementHint(form.password)
     if (passwordHint) errors.password = passwordHint
@@ -173,8 +181,38 @@ export function UsersPage() {
   const [userForm, setUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [initialUserForm, setInitialUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [userErrors, setUserErrors] = useState<UserFormErrors>({})
-  const [formError, setFormError] = useState<string | null>(null)
+  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
+
+  // Catálogos institucionales
+  const [faculties, setFaculties] = useState<readonly Faculty[]>([])
+  const [careers, setCareers] = useState<readonly Career[]>([])
+  const [catalogsLoading, setCatalogsLoading] = useState(false)
+
+  const loadCatalogs = useCallback(async () => {
+    try {
+      setCatalogsLoading(true)
+      const [facultiesData, careersData] = await Promise.all([
+        api.listActiveFaculties(),
+        api.listActiveCareers(),
+      ])
+      setFaculties(facultiesData)
+      setCareers(careersData)
+    } catch {
+      // Omitir o mantener catálogos existentes si la API falla temporalmente
+    } finally {
+      setCatalogsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadCatalogs()
+  }, [loadCatalogs])
+
+  const filteredCareers = useMemo(() => {
+    if (!userForm.facultyId) return []
+    return careers.filter((c) => String(c.faculty_id) === userForm.facultyId)
+  }, [careers, userForm.facultyId])
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -182,19 +220,35 @@ export function UsersPage() {
   const [coordinatorToAssign, setCoordinatorToAssign] = useState<User | null>(null)
 
   async function handleRefresh() {
-    const ok = await reload()
+    const [ok] = await Promise.all([reload(), loadCatalogs()])
     if (ok) toast.success('Usuarios actualizados', { description: 'El listado se actualizó correctamente.' })
   }
 
   function updateUserField(field: keyof UserForm, value: string) {
-    setUserForm((current) => ({ ...current, [field]: value }))
+    setUserForm((current) => {
+      const next = { ...current, [field]: value }
+      if (field === 'role' && value === 'administrador') {
+        next.facultyId = ''
+        next.careerId = ''
+      }
+      if (field === 'facultyId') {
+        next.careerId = ''
+      }
+      return next
+    })
     setUserErrors((current) => {
       if (!current[field]) return current
       const next = { ...current }
       delete next[field]
+      if (field === 'role' && value === 'administrador') {
+        delete next.facultyId
+        delete next.careerId
+      }
+      if (field === 'facultyId') {
+        delete next.careerId
+      }
       return next
     })
-    setFormError(null)
   }
 
   function openCreateModal() {
@@ -202,26 +256,35 @@ export function UsersPage() {
     setUserForm(INITIAL_USER_FORM)
     setInitialUserForm(INITIAL_USER_FORM)
     setUserErrors({})
-    setFormError(null)
     setIsModalOpen(true)
+    void loadCatalogs()
   }
 
   function openEditModal(user: User) {
     setEditingUser(user)
+    const userCareerId = user.career_id ?? user.coordinated_career_ids?.[0]
+    const matchedCareer = careers.find((c) => c.id === userCareerId)
+    const initialFacultyId = user.faculty_id
+      ? String(user.faculty_id)
+      : (matchedCareer ? String(matchedCareer.faculty_id) : '')
+    const initialCareerId = userCareerId ? String(userCareerId) : ''
+
     const initial: UserForm = {
       identification: user.identification,
       name: user.name,
       email: user.email,
       phone: user.phone ?? '',
       role: user.role,
+      facultyId: user.role !== 'administrador' ? initialFacultyId : '',
+      careerId: user.role !== 'administrador' ? initialCareerId : '',
       password: '',
       password_confirmation: '',
     }
     setUserForm(initial)
     setInitialUserForm(initial)
     setUserErrors({})
-    setFormError(null)
     setIsModalOpen(true)
+    void loadCatalogs()
   }
 
   function closeModal() {
@@ -229,7 +292,6 @@ export function UsersPage() {
     setEditingUser(null)
     setUserForm(INITIAL_USER_FORM)
     setUserErrors({})
-    setFormError(null)
   }
 
   async function submitUser(event: FormEvent<HTMLFormElement>) {
@@ -239,11 +301,14 @@ export function UsersPage() {
     const errors = validateUserForm(userForm, editingUser !== null)
     setUserErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setFormError('Revisa los campos marcados antes de guardar.')
+      setErrorModal({
+        open: true,
+        title: 'Revisa los campos requeridos',
+        description: 'Hay datos incompletos o con formato incorrecto en el formulario. Por favor, revísalos antes de continuar.',
+      })
       return
     }
 
-    setFormError(null)
     setPending('user')
     try {
       const baseInput: UserFormInput = {
@@ -252,6 +317,8 @@ export function UsersPage() {
         email: userForm.email.trim(),
         phone: userForm.phone.trim(),
         role: userForm.role,
+        faculty_id: userForm.role !== 'administrador' && userForm.facultyId ? Number(userForm.facultyId) : null,
+        career_id: userForm.role !== 'administrador' && userForm.careerId ? Number(userForm.careerId) : null,
       }
 
       if (editingUser) {
@@ -272,7 +339,15 @@ export function UsersPage() {
       closeModal()
       await reload()
     } catch (error: unknown) {
-      setFormError(getErrorMessage(error))
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
+      if (friendly.field && friendly.field in userForm) {
+        setUserErrors((prev) => ({ ...prev, [friendly.field!]: friendly.description }))
+      }
     } finally {
       setPending(null)
     }
@@ -295,7 +370,12 @@ export function UsersPage() {
       await reload()
     } catch (error: unknown) {
       setUserToToggle(null)
-      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
     } finally {
       setPending(null)
     }
@@ -508,14 +588,24 @@ export function UsersPage() {
                       </TableCell>
 
                       <TableCell className="px-5 py-4">
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold',
-                            badgeStyle,
+                        <div className="flex flex-col items-start gap-1">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold',
+                              badgeStyle,
+                            )}
+                          >
+                            {getRoleLabel(user.role)}
+                          </span>
+                          {user.career_name && (
+                            <span
+                              className="text-[11px] text-slate-500 dark:text-slate-400 font-medium max-w-[200px] truncate"
+                              title={`${user.career_name}${user.faculty_name ? ` · ${user.faculty_name}` : ''}`}
+                            >
+                              {user.career_name}
+                            </span>
                           )}
-                        >
-                          {getRoleLabel(user.role)}
-                        </span>
+                        </div>
                       </TableCell>
 
                       <TableCell className="px-5 py-4 whitespace-normal">
@@ -748,6 +838,59 @@ export function UsersPage() {
               </Field>
             </div>
 
+            {/* Selector de Facultad y Carrera para roles académicos (todos excepto Administrador) */}
+            {userForm.role && userForm.role !== 'administrador' && (
+              <div className="grid gap-5 sm:grid-cols-2 rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+                <Field data-invalid={Boolean(userErrors.facultyId)}>
+                  <FieldLabel htmlFor="user-faculty">Facultad</FieldLabel>
+                  <NativeSelect
+                    id="user-faculty"
+                    name="facultyId"
+                    value={userForm.facultyId}
+                    onChange={(e) => updateUserField('facultyId', e.target.value)}
+                    disabled={formDisabled || catalogsLoading}
+                    required
+                  >
+                    <option value="">
+                      {catalogsLoading ? 'Cargando facultades…' : 'Selecciona una facultad'}
+                    </option>
+                    {faculties.map((faculty) => (
+                      <option key={faculty.id} value={String(faculty.id)}>
+                        {faculty.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <FieldError>{userErrors.facultyId}</FieldError>
+                </Field>
+
+                <Field data-invalid={Boolean(userErrors.careerId)}>
+                  <FieldLabel htmlFor="user-career">Carrera</FieldLabel>
+                  <NativeSelect
+                    id="user-career"
+                    name="careerId"
+                    value={userForm.careerId}
+                    onChange={(e) => updateUserField('careerId', e.target.value)}
+                    disabled={formDisabled || catalogsLoading || !userForm.facultyId}
+                    required
+                  >
+                    <option value="">
+                      {!userForm.facultyId
+                        ? 'Primero selecciona una facultad'
+                        : filteredCareers.length === 0
+                          ? 'No hay carreras en esta facultad'
+                          : 'Selecciona una carrera'}
+                    </option>
+                    {filteredCareers.map((career) => (
+                      <option key={career.id} value={String(career.id)}>
+                        {career.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <FieldError>{userErrors.careerId}</FieldError>
+                </Field>
+              </div>
+            )}
+
             {/* Campos de contraseña SOLO al Editar (Opcional) */}
             {editingUser && (
               <div className="grid gap-5 sm:grid-cols-2">
@@ -803,8 +946,6 @@ export function UsersPage() {
               </div>
             )}
 
-            <FieldError>{formError}</FieldError>
-
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
@@ -842,6 +983,14 @@ export function UsersPage() {
         cancelLabel="Cancelar"
         variant={userToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-user'}
+      />
+
+      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
+      <ErrorModal
+        open={Boolean(errorModal?.open)}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title}
+        description={errorModal?.description}
       />
     </section>
   )

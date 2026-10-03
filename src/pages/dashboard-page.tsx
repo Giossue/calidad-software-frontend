@@ -9,6 +9,8 @@ import {
   FileTextIcon,
   LogOutIcon,
   Settings2Icon,
+  TrendingUpIcon,
+  UserCheckIcon,
   UsersIcon,
 } from 'lucide-react'
 
@@ -41,13 +43,17 @@ import {
 } from '@/features/admin/admin-page'
 import { useAuth } from '@/features/auth/auth-context'
 import { canCoordinateDegrees, type DegreeSection } from '@/features/degree-coordination/degree-navigation'
-import { DegreeSectionsPage } from '@/features/degree-coordination/degree-sections-page'
-import { DegreeTeachersPage } from '@/features/degree-coordination/degree-teachers-page'
+import { DegreeStudentsPage } from '@/features/degree-coordination/degree-students-page'
 import { DegreeTopicsPage } from '@/features/degree-coordination/degree-topics-page'
+import { DegreeTrackingPage } from '@/features/degree-coordination/degree-tracking-page'
+import { DegreeReportsPage } from '@/features/degree-coordination/degree-reports-page'
 import { StudentDegreeTopicsPage } from '@/features/student-degree-topics/student-degree-topics-page'
+import { StudentDegreeTrackingPage } from '@/features/student-degree-tracking/student-degree-tracking-page'
 import { TutoringSubjectsPage } from '@/features/tutoring/subjects-page'
 import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
 import { TutoringsPage } from '@/features/tutoring/tutorings-page'
+import { TutoringStudentsPage } from '@/features/tutoring/students-page'
+import { TutoringReportsPage } from '@/features/tutoring/reports-page'
 import { canCoordinateTutorings, dashboardSection, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
 import type { StudentSection } from '@/features/student/student-navigation'
 import { StudentTutoringsPage } from '@/features/student/student-tutorings-page'
@@ -55,6 +61,9 @@ import { StudentDegreeAssignmentsPage } from '@/features/student/student-degree-
 import type { TeacherSection } from '@/features/teacher/teacher-navigation'
 import { TeacherTutoringsPage } from '@/features/teacher/teacher-tutorings-page'
 import { TeacherDegreeAssignmentsPage } from '@/features/teacher/teacher-degree-assignments-page'
+import { TeacherDegreeTrackingPage } from '@/features/teacher/teacher-degree-tracking-page'
+import { TeacherReportsStandalonePage } from '@/features/teacher/teacher-reports-standalone-page'
+import { tutoringApi } from '@/lib/tutoring-api'
 
 type NavItem = {
   readonly id: AdminSection | TutoringSection | DegreeSection | TeacherSection | StudentSection
@@ -72,13 +81,16 @@ const NAV_ITEMS: readonly NavItem[] = [
 const TUTORING_NAV_ITEMS: readonly NavItem[] = [
   { id: 'tutoring-subjects', label: 'Asignaturas', icon: BookOpenIcon },
   { id: 'tutoring-teachers', label: 'Docentes', icon: UsersIcon },
+  { id: 'tutoring-students', label: 'Estudiantes', icon: UserCheckIcon },
   { id: 'tutorings', label: 'Tutorías', icon: GraduationCapIcon },
+  { id: 'tutoring-reports', label: 'Informes', icon: FileTextIcon },
 ]
 
 const DEGREE_NAV_ITEMS: readonly NavItem[] = [
+  { id: 'degree-students', label: 'Matrícula de estudiantes', icon: UserCheckIcon },
   { id: 'degree-topics', label: 'Propuestas de titulación', icon: ClipboardListIcon },
-  { id: 'degree-sections', label: 'Período y paralelos', icon: CalendarDaysIcon },
-  { id: 'degree-teachers', label: 'Docentes de titulación', icon: UsersIcon },
+  { id: 'degree-tracking', label: 'Seguimiento', icon: TrendingUpIcon },
+  { id: 'degree-reports', label: 'Reportes', icon: FileTextIcon },
 ]
 
 const STUDENT_TUTORING_NAV_ITEMS: readonly NavItem[] = [
@@ -87,12 +99,15 @@ const STUDENT_TUTORING_NAV_ITEMS: readonly NavItem[] = [
 
 const STUDENT_DEGREE_NAV_ITEMS: readonly NavItem[] = [
   { id: 'student-degree-topics', label: 'Mis propuestas', icon: FileTextIcon },
+  { id: 'student-degree-tracking', label: 'Seguimiento', icon: TrendingUpIcon },
   { id: 'student-degree-assignments', label: 'Tutor y pares', icon: UsersIcon },
 ]
 
 const TEACHER_NAV_ITEMS: readonly NavItem[] = [
   { id: 'teacher-tutorings', label: 'Mis tutorías', icon: GraduationCapIcon },
   { id: 'teacher-degree-assignments', label: 'Titulación', icon: BookOpenIcon },
+  { id: 'teacher-degree-tracking', label: 'Seguimiento', icon: TrendingUpIcon },
+  { id: 'teacher-reports', label: 'Informes', icon: FileTextIcon },
 ]
 
 function getRoleLabel(role?: string): string {
@@ -127,13 +142,44 @@ export function DashboardPage() {
   const { section } = useParams<{ section: string }>()
   const [pending, setPending] = useState(false)
   const [accessibilityOpen, setAccessibilityOpen] = useState(false)
+  const [studentDegreeEnrolled, setStudentDegreeEnrolled] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (user?.role !== 'estudiante') {
+      setStudentDegreeEnrolled(null)
+      return
+    }
+
+    let isCurrent = true
+    tutoringApi
+      .studentDegreeEnrollmentStatus()
+      .then((status) => {
+        if (isCurrent) {
+          setStudentDegreeEnrolled(status.is_enrolled)
+        }
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setStudentDegreeEnrolled(false)
+        }
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [user?.role])
 
   const activeSection = dashboardSection(user?.role, section)
   const navGroups = [
     ...(user?.role === 'administrador' ? [{ label: 'Administración', items: NAV_ITEMS }] : []),
     ...(canCoordinateTutorings(user?.role) ? [{ label: 'Coordinación de tutorías', items: TUTORING_NAV_ITEMS }] : []),
     ...(canCoordinateDegrees(user?.role) ? [{ label: 'Coordinación de titulación', items: DEGREE_NAV_ITEMS }] : []),
-    ...(user?.role === 'estudiante' ? [{ label: 'Tutorías', items: STUDENT_TUTORING_NAV_ITEMS }, { label: 'Titulación', items: STUDENT_DEGREE_NAV_ITEMS }] : []),
+    ...(user?.role === 'estudiante'
+      ? [
+          { label: 'Tutorías', items: STUDENT_TUTORING_NAV_ITEMS },
+          ...(studentDegreeEnrolled ? [{ label: 'Titulación', items: STUDENT_DEGREE_NAV_ITEMS }] : []),
+        ]
+      : []),
     ...(user?.role === 'docente' ? [{ label: 'Docencia', items: TEACHER_NAV_ITEMS }] : []),
   ]
 
@@ -144,6 +190,18 @@ export function DashboardPage() {
       navigate(`/panel/${activeSection}`, { replace: true })
     }
   }, [section, activeSection, navigate])
+
+  useEffect(() => {
+    if (
+      user?.role === 'estudiante' &&
+      studentDegreeEnrolled === false &&
+      (activeSection === 'student-degree-topics' ||
+        activeSection === 'student-degree-tracking' ||
+        activeSection === 'student-degree-assignments')
+    ) {
+      navigate('/panel/student-tutorings', { replace: true })
+    }
+  }, [user?.role, studentDegreeEnrolled, activeSection, navigate])
 
   async function signOut() {
     setPending(true)
@@ -262,22 +320,67 @@ export function DashboardPage() {
             <TutoringTeachersPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutorings' ? (
             <TutoringsPage />
+          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-students' ? (
+            <TutoringStudentsPage />
+          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-reports' ? (
+            <TutoringReportsPage />
+          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-students' ? (
+            <DegreeStudentsPage />
           ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-topics' ? (
             <DegreeTopicsPage />
-          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-sections' ? (
-            <DegreeSectionsPage />
-          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-teachers' ? (
-            <DegreeTeachersPage />
+          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-tracking' ? (
+            <DegreeTrackingPage />
+          ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-reports' ? (
+            <DegreeReportsPage />
           ) : user?.role === 'estudiante' && activeSection === 'student-tutorings' ? (
             <StudentTutoringsPage />
           ) : user?.role === 'estudiante' && activeSection === 'student-degree-topics' ? (
-            <StudentDegreeTopicsPage />
+            studentDegreeEnrolled === false ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Módulo de Titulación no disponible</CardTitle>
+                  <CardDescription>
+                    Para acceder al módulo de propuestas de titulación debes estar matriculado en titulación para el período académico actual. Consulta con tu coordinador de carrera.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <StudentDegreeTopicsPage />
+            )
+          ) : user?.role === 'estudiante' && activeSection === 'student-degree-tracking' ? (
+            studentDegreeEnrolled === false ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Módulo de Titulación no disponible</CardTitle>
+                  <CardDescription>
+                    Para acceder al módulo de seguimiento de titulación debes estar matriculado en titulación para el período académico actual. Consulta con tu coordinador de carrera.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <StudentDegreeTrackingPage />
+            )
           ) : user?.role === 'estudiante' && activeSection === 'student-degree-assignments' ? (
-            <StudentDegreeAssignmentsPage />
+            studentDegreeEnrolled === false ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Módulo de Titulación no disponible</CardTitle>
+                  <CardDescription>
+                    Para acceder al módulo de tutores y pares debes estar matriculado en titulación para el período académico actual. Consulta con tu coordinador de carrera.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <StudentDegreeAssignmentsPage />
+            )
           ) : user?.role === 'docente' && activeSection === 'teacher-tutorings' ? (
             <TeacherTutoringsPage />
           ) : user?.role === 'docente' && activeSection === 'teacher-degree-assignments' ? (
             <TeacherDegreeAssignmentsPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-degree-tracking' ? (
+            <TeacherDegreeTrackingPage />
+          ) : user?.role === 'docente' && activeSection === 'teacher-reports' ? (
+            <TeacherReportsStandalonePage />
           ) : (
             <Card>
               <CardHeader><CardTitle>Bienvenido, {user?.name ?? 'usuario'}</CardTitle><CardDescription>No hay módulos disponibles para el rol actual de tu cuenta.</CardDescription></CardHeader>

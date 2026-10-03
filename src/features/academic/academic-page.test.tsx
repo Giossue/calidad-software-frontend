@@ -42,4 +42,42 @@ describe('Edición de carreras', () => {
     await waitFor(() => expect(api.updateCareer).toHaveBeenCalled())
     expect(vi.mocked(api.updateCareer).mock.calls[0][1]).not.toHaveProperty('cycles_count')
   })
+
+  it('muestra "Seleccionar" como valor por defecto de modalidad y valida nombre de carrera duplicado', async () => {
+    const user = userEvent.setup()
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    await user.click(await screen.findByRole('button', { name: 'Nueva carrera' }))
+
+    const dialog = await screen.findByRole('dialog')
+    const modalitySelect = within(dialog).getByLabelText('Modalidad')
+    expect(within(modalitySelect).getByRole('option', { name: 'Seleccionar' })).toBeInTheDocument()
+
+    // Intentar registrar una carrera con un nombre ya existente ("Software")
+    await user.selectOptions(within(dialog).getByLabelText('Facultad Perteneciente'), '1')
+    await user.type(within(dialog).getByLabelText('Nombre de la carrera'), 'Software')
+    await user.click(within(dialog).getByRole('button', { name: 'Registrar Carrera' }))
+
+    const alertDialog = await screen.findByRole('alertdialog')
+    expect(within(alertDialog).getByText('Carrera ya registrada')).toBeInTheDocument()
+  })
+})
+
+describe('Gestión de ciclos', () => {
+  it('no muestra el campo número al registrar o editar un ciclo', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'listCycles').mockResolvedValue({
+      data: [{ id: 1, career_id: 10, name: 'Primer Ciclo', number: 1, status: true, paralelo_id: null, paralelo_name: null }],
+      meta,
+    })
+    vi.spyOn(api, 'listSections').mockResolvedValue({ data: [], meta })
+
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    await user.click(await screen.findByTitle('Ver ciclos de esta carrera'))
+
+    await user.click(await screen.findByRole('button', { name: 'Nuevo ciclo' }))
+    const dialog = await screen.findByRole('dialog')
+
+    expect(within(dialog).getByLabelText('Nombre del ciclo')).toBeInTheDocument()
+    expect(within(dialog).queryByLabelText('Número')).not.toBeInTheDocument()
+  })
 })

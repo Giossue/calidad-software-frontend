@@ -1,8 +1,29 @@
-import { buildQuery, request, type AcademicPeriod, type Section } from '@/lib/api'
+import { buildQuery, request, type AcademicPeriod, type PaginatedResourceCollection, type PaginationMeta, type Section } from '@/lib/api'
 
 const ROOT = '/api/v1/coordination'
 type Resource<T> = { readonly data: T }
 type Collection<T> = { readonly data: readonly T[] }
+
+export interface DegreePaginationMeta extends PaginationMeta {
+  readonly current_period?: {
+    readonly id: number
+    readonly name: string
+  } | null
+}
+
+export interface DegreeEnrollmentStudent {
+  readonly id: number
+  readonly student_id: number
+  readonly identification: string
+  readonly name: string
+  readonly email: string
+  readonly phone: string | null
+  readonly is_degree_enrolled: boolean
+  readonly degree_enrollment_id: number | null
+  readonly enrolled_at: string | null
+  readonly period_id: number | null
+  readonly period_name: string | null
+}
 
 export type DegreeTopicStatus = 'pendiente' | 'aprobado' | 'rechazado'
 export interface DegreePerson {
@@ -28,6 +49,35 @@ export interface DegreeObservation {
   readonly registered_at: string | null
   readonly coordinator: DegreePerson | null
 }
+export interface DegreeActivity {
+  readonly id: number
+  readonly description: string
+  readonly is_completed: boolean
+  readonly registered_at: string | null
+  readonly teacher?: DegreePerson | null
+}
+
+export interface DegreeTracking {
+  readonly id: number
+  readonly opened_at: string | null
+  readonly progress_percentage: number
+  readonly status: string
+  readonly activities: readonly DegreeActivity[]
+}
+
+export interface DegreeReport {
+  readonly id: number
+  readonly topic_id: number | null
+  readonly topic_title: string
+  readonly student_name: string
+  readonly student_identification: string
+  readonly coordinator_name: string
+  readonly generated_at: string
+  readonly final_observations: string
+  readonly progress_percentage: number
+  readonly period_name: string
+}
+
 export interface DegreeTopic {
   readonly id: number
   readonly title: string
@@ -41,6 +91,7 @@ export interface DegreeTopic {
   readonly reviewer: DegreePerson | null
   readonly assignments: readonly DegreeAssignment[]
   readonly observations: readonly DegreeObservation[]
+  readonly tracking?: DegreeTracking | null
 }
 export interface DegreeTeacher extends DegreeStudent {
   readonly is_active: boolean
@@ -94,4 +145,46 @@ export const degreeCoordinationApi = {
   async studentTopics(): Promise<readonly DegreeTopic[]> {
     return (await request<Collection<DegreeTopic>>('/api/v1/student/degree-topics')).data
   },
+  degreeStudents: (params?: { page?: number; search?: string; enrolled?: boolean }) =>
+    request<PaginatedResourceCollection<DegreeEnrollmentStudent, DegreePaginationMeta>>(
+      `${ROOT}/degree-students${buildQuery({
+        page: params?.page,
+        search: params?.search,
+        enrolled: params?.enrolled !== undefined ? (params.enrolled ? 1 : 0) : undefined,
+      })}`,
+    ),
+  enrollDegreeStudent: (studentId: number) =>
+    request<{ data: DegreeEnrollmentStudent; message: string }>(`${ROOT}/degree-students/${studentId}/enroll`, { method: 'POST' }),
+  unenrollDegreeStudent: (studentId: number) =>
+    request<{ data: DegreeEnrollmentStudent; message: string }>(`${ROOT}/degree-students/${studentId}/unenroll`, { method: 'DELETE' }),
+  addActivity: (topicId: number, data: { descripcion: string; completada?: boolean; docente_id?: number }) =>
+    request<{ data: DegreeActivity; message: string }>(`${ROOT}/degree-topics/${topicId}/activities`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  toggleActivity: (topicId: number, activityId: number, completada?: boolean) =>
+    request<{ data: { id: number; is_completed: boolean; progress_percentage: number }; message: string }>(
+      `${ROOT}/degree-topics/${topicId}/activities/${activityId}/toggle`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(completada !== undefined ? { completada } : {}),
+      },
+    ),
+  updateProgress: (topicId: number, data: { porcentaje_avance: number; estado?: string }) =>
+    request<{ data: { id: number; progress_percentage: number; status: string }; message: string }>(
+      `${ROOT}/degree-topics/${topicId}/progress`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      },
+    ),
+  generateReport: (topicId: number, data: { observaciones_finales: string }) =>
+    request<{ data: DegreeReport; message: string }>(`${ROOT}/degree-topics/${topicId}/reports`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  reports: (params?: { page?: number; search?: string }) =>
+    request<PaginatedResourceCollection<DegreeReport, PaginationMeta>>(
+      `${ROOT}/degree-reports${buildQuery({ page: params?.page, search: params?.search })}`,
+    ),
 }
