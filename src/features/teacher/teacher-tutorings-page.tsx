@@ -28,7 +28,7 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
   const list = usePaginatedCatalog((page, search) => teacherApi.tutorings({ page, search, status: status || undefined }), status)
 
   return <section className="flex flex-col gap-6">
-    <AdminSectionHeader title="Mis tutorías" description="Elige una tutoría para gestionar sus estudiantes, calificaciones, asistencia, contenido, informes y horarios." />
+    <AdminSectionHeader title="Mis tutorías" description="Elige una tutoría para gestionar sus estudiantes, calificaciones, asistencia, contenido y horarios." />
     <FilterBar id="teacher-tutorings" search={list.searchInput} onSearch={list.setSearchInput} searchPlaceholder="Busca por asignatura…" onClear={() => setStatus('')} filters={[
       { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todas', options: [{ value: 'active', label: 'En curso' }, { value: 'inactive', label: 'Solo consulta' }] },
     ]} />

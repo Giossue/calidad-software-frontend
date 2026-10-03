@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ApiError, type AcademicPeriod, type Career, type Cycle, type Modality } from '@/lib/api'
+import { ApiError, type AcademicPeriod, type Career, type Cycle, type Modality, type Section } from '@/lib/api'
 import { tutoringApi } from '@/lib/tutoring-api'
 
 export function describeError(error: unknown): string {
@@ -39,24 +39,32 @@ export function useTutoringCatalogs() {
   const [cycles, setCycles] = useState<readonly Cycle[]>([])
   const [periods, setPeriods] = useState<readonly AcademicPeriod[]>([])
   const [modalities, setModalities] = useState<readonly Modality[]>([])
+  const [sections, setSections] = useState<readonly Section[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
   useEffect(() => {
     let cancelled = false
-    Promise.all([tutoringApi.careers(), tutoringApi.cycles(), tutoringApi.periods(), tutoringApi.modalities()])
-      .then(([nextCareers, nextCycles, nextPeriods, nextModalities]) => {
+    Promise.all([
+      tutoringApi.careers(),
+      tutoringApi.cycles(),
+      tutoringApi.periods(),
+      tutoringApi.modalities(),
+      Promise.resolve(tutoringApi.sections?.() ?? []).catch(() => []),
+    ])
+      .then(([nextCareers, nextCycles, nextPeriods, nextModalities, nextSections]) => {
         if (cancelled) return
         setCareers(nextCareers)
         setCycles(nextCycles)
         setPeriods(nextPeriods)
         setModalities(nextModalities)
+        setSections(nextSections ?? [])
       })
       .catch((caught: unknown) => { if (!cancelled) setError(describeError(caught)) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [revision])
-  return { careers, cycles, periods, modalities, loading, error, reload: useCallback(() => { setLoading(true); setError(null); setRevision((value) => value + 1) }, []) }
+  return { careers, cycles, periods, modalities, sections, loading, error, reload: useCallback(() => { setLoading(true); setError(null); setRevision((value) => value + 1) }, []) }
 }
 
 export type TutoringCatalogs = ReturnType<typeof useTutoringCatalogs>

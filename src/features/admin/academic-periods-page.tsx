@@ -18,12 +18,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { ApiError, api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
+import { api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 type AcademicPeriodForm = {
@@ -42,26 +43,44 @@ const INITIAL_FORM: AcademicPeriodForm = {
   endDate: '',
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
-  return 'No fue posible conectar con el servidor.'
-}
 
 function sanitizePeriodName(value: string, maxLength: number): string {
   return value.replace(/[^\p{L}\p{N}\s-]/gu, '').slice(0, maxLength)
 }
 
-function validatePeriodForm(form: AcademicPeriodForm): AcademicPeriodFormErrors {
+function getPeriodDateBounds() {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = String(now.getMonth() + 1).padStart(2, '0')
+  const minDate = `${currentYear}-${currentMonth}-01`
+  const maxYear = currentYear + 2
+  const maxDate = `${maxYear}-12-31`
+  return { minDate, maxDate, maxYear }
+}
+
+function validatePeriodForm(form: AcademicPeriodForm, isCreating = false): AcademicPeriodFormErrors {
   const errors: AcademicPeriodFormErrors = {}
   const name = form.name.trim()
 
   if (!name) errors.name = 'El nombre del período es obligatorio.'
   else if (name.length > 100) errors.name = 'El nombre no puede superar 100 caracteres.'
 
-  if (!form.startDate) errors.startDate = 'La fecha de inicio es obligatoria.'
-  if (!form.endDate) errors.endDate = 'La fecha de finalización es obligatoria.'
-  else if (form.startDate && form.endDate < form.startDate) {
+  const { minDate, maxDate, maxYear } = getPeriodDateBounds()
+
+  if (!form.startDate) {
+    errors.startDate = 'La fecha de inicio es obligatoria.'
+  } else if (isCreating && form.startDate < minDate) {
+    errors.startDate = 'La fecha de inicio no puede pertenecer a un mes anterior.'
+  } else if (form.startDate > maxDate) {
+    errors.startDate = `El año no puede ser mayor a ${maxYear}.`
+  }
+
+  if (!form.endDate) {
+    errors.endDate = 'La fecha de finalización es obligatoria.'
+  } else if (form.startDate && form.endDate < form.startDate) {
     errors.endDate = 'La fecha de finalización debe ser igual o posterior a la fecha de inicio.'
+  } else if (form.endDate > maxDate) {
+    errors.endDate = `El año no puede ser mayor a ${maxYear}.`
   }
 
   return errors
@@ -92,7 +111,7 @@ export function AcademicPeriodsPage() {
   const [form, setForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
   const [initialForm, setInitialForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
   const [formErrors, setFormErrors] = useState<AcademicPeriodFormErrors>({})
-  const [formError, setFormError] = useState<string | null>(null)
+  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
 
   // Modales
@@ -112,7 +131,6 @@ export function AcademicPeriodsPage() {
       delete next[field]
       return next
     })
-    setFormError(null)
   }
 
   function openCreateModal() {
@@ -120,7 +138,6 @@ export function AcademicPeriodsPage() {
     setForm(INITIAL_FORM)
     setInitialForm(INITIAL_FORM)
     setFormErrors({})
-    setFormError(null)
     setIsModalOpen(true)
   }
 
@@ -134,7 +151,6 @@ export function AcademicPeriodsPage() {
     setForm(initial)
     setInitialForm(initial)
     setFormErrors({})
-    setFormError(null)
     setIsModalOpen(true)
   }
 
@@ -143,21 +159,24 @@ export function AcademicPeriodsPage() {
     setEditingPeriod(null)
     setForm(INITIAL_FORM)
     setFormErrors({})
-    setFormError(null)
   }
 
   async function submitPeriod(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (pending !== null) return
 
-    const errors = validatePeriodForm(form)
+    const errors = validatePeriodForm(form, !editingPeriod)
     setFormErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setFormError('Revisa los campos marcados antes de guardar.')
+      const firstErrorMessage = Object.values(errors).find(Boolean)
+      setErrorModal({
+        open: true,
+        title: errors.startDate || errors.endDate ? 'Fecha no válida' : 'Revisa los campos requeridos',
+        description: firstErrorMessage || 'Hay datos incompletos o fechas incorrectas en el período académico. Por favor, revísalos antes de continuar.',
+      })
       return
     }
 
-    setFormError(null)
     setPending('period')
     try {
       const input: AcademicPeriodInput = {
@@ -177,7 +196,15 @@ export function AcademicPeriodsPage() {
       closeModal()
       await reload()
     } catch (error: unknown) {
-      setFormError(getErrorMessage(error))
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
+      if (friendly.field === 'name') {
+        setFormErrors((prev) => ({ ...prev, name: friendly.description }))
+      }
     } finally {
       setPending(null)
     }
@@ -200,7 +227,12 @@ export function AcademicPeriodsPage() {
       await reload()
     } catch (error: unknown) {
       setPeriodToToggle(null)
-      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
     } finally {
       setPending(null)
     }
@@ -208,6 +240,8 @@ export function AcademicPeriodsPage() {
 
   const formDisabled = pending !== null
   const isFormDirty = form.name !== initialForm.name || form.startDate !== initialForm.startDate || form.endDate !== initialForm.endDate
+  const isCreating = editingPeriod === null
+  const { minDate, maxDate } = getPeriodDateBounds()
 
   return (
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
@@ -434,6 +468,8 @@ export function AcademicPeriodsPage() {
                   id="academic-period-start-date"
                   name="start_date"
                   type="date"
+                  min={isCreating ? minDate : undefined}
+                  max={maxDate}
                   value={form.startDate}
                   onChange={(e) => updateField('startDate', e.target.value)}
                   disabled={formDisabled}
@@ -448,8 +484,9 @@ export function AcademicPeriodsPage() {
                   id="academic-period-end-date"
                   name="end_date"
                   type="date"
+                  min={form.startDate || (isCreating ? minDate : undefined)}
+                  max={maxDate}
                   value={form.endDate}
-                  min={form.startDate || undefined}
                   onChange={(e) => updateField('endDate', e.target.value)}
                   disabled={formDisabled}
                   required
@@ -457,8 +494,6 @@ export function AcademicPeriodsPage() {
                 <FieldError>{formErrors.endDate}</FieldError>
               </Field>
             </div>
-
-            <FieldError>{formError}</FieldError>
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
@@ -488,6 +523,14 @@ export function AcademicPeriodsPage() {
         cancelLabel="Cancelar"
         variant={periodToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-period'}
+      />
+
+      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
+      <ErrorModal
+        open={Boolean(errorModal?.open)}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title}
+        description={errorModal?.description}
       />
     </section>
   )

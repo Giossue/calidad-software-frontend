@@ -9,6 +9,10 @@ export interface User {
   readonly phone: string | null
   readonly role: string
   readonly coordinated_career_ids?: readonly number[]
+  readonly career_id?: number | null
+  readonly career_name?: string | null
+  readonly faculty_id?: number | null
+  readonly faculty_name?: string | null
   readonly is_active: boolean
   readonly email_verified_at: string | null
   readonly has_two_factor: boolean
@@ -122,6 +126,8 @@ export type CreateUserInput = {
   readonly email: string
   readonly phone: string
   readonly role: string
+  readonly faculty_id?: number | null
+  readonly career_id?: number | null
   readonly password?: string
   readonly password_confirmation?: string
 }
@@ -132,6 +138,8 @@ export type UpdateUserInput = {
   readonly email?: string
   readonly phone?: string
   readonly role?: string
+  readonly faculty_id?: number | null
+  readonly career_id?: number | null
   readonly password?: string
   readonly password_confirmation?: string
 }
@@ -363,6 +371,12 @@ export const api = {
   async listCareers(params?: ListParams & { facultyId?: number }): Promise<PaginatedResourceCollection<Career>> {
     const query = buildQuery({ page: params?.page, search: params?.search, faculty_id: params?.facultyId })
     return request<PaginatedResourceCollection<Career>>(`/api/v1/admin/careers${query}`)
+  },
+
+  async listActiveCareers(facultyId?: number): Promise<readonly Career[]> {
+    const query = buildQuery({ all: 1, faculty_id: facultyId })
+    const response = await request<ResourceCollection<Career>>(`/api/v1/admin/careers${query}`)
+    return response.data
   },
 
   async createCareer(input: CareerInput): Promise<Career> {

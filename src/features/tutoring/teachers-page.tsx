@@ -77,7 +77,12 @@ export function TutoringTeachersPage() {
   }
 
   function edit(teacher: Teacher | null) {
-    const next = teacher ? { career_id: String(teacher.career_ids[0] ?? ''), identification: teacher.identification, name: teacher.name, email: teacher.email, phone: teacher.phone ?? '' } : { ...EMPTY_FORM, career_id: catalogs.careers.length === 1 ? String(catalogs.careers[0].id) : '' }
+    const defaultCareerId = (careerFilter && catalogs.careers.some((c) => String(c.id) === careerFilter))
+      ? careerFilter
+      : (catalogs.careers[0] ? String(catalogs.careers[0].id) : '')
+    const next = teacher
+      ? { career_id: String(teacher.career_ids[0] ?? defaultCareerId), identification: teacher.identification, name: teacher.name, email: teacher.email, phone: teacher.phone ?? '' }
+      : { ...EMPTY_FORM, career_id: defaultCareerId }
     setEditing(teacher)
     setForm(next)
     setInitialForm(next)
@@ -87,8 +92,9 @@ export function TutoringTeachersPage() {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const careerId = Number(form.career_id) || Number(careerFilter) || (catalogs.careers[0]?.id ?? 0)
     const input = { identification: form.identification.trim(), name: form.name.trim(), email: form.email.trim().toLowerCase(), phone: form.phone.trim() }
-    void operation.run(() => editing ? tutoringApi.updateTeacher(editing.id, input) : tutoringApi.createTeacher({ ...input, career_id: Number(form.career_id) }), editing ? 'Docente actualizado.' : 'Docente registrado.', async () => { setOpen(false); await list.reload() })
+    void operation.run(() => editing ? tutoringApi.updateTeacher(editing.id, input) : tutoringApi.createTeacher({ ...input, career_id: careerId }), editing ? 'Docente actualizado.' : 'Docente registrado.', async () => { setOpen(false); await list.reload() })
   }
 
   function clearFilters() {
@@ -106,7 +112,9 @@ export function TutoringTeachersPage() {
       searchPlaceholder="Busca por nombre o correo…"
       onClear={clearFilters}
       filters={[
-        { id: 'career', label: 'Carrera', value: careerFilter, onChange: setCareerFilter, allLabel: 'Todas mis carreras', options: catalogs.careers.map((career) => ({ value: String(career.id), label: career.name })) },
+        ...(catalogs.careers.length > 1
+          ? [{ id: 'career', label: 'Carrera', value: careerFilter, onChange: setCareerFilter, allLabel: 'Todas mis carreras', options: catalogs.careers.map((career) => ({ value: String(career.id), label: career.name })) }]
+          : []),
         { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
       ]}
     />
@@ -165,7 +173,6 @@ export function TutoringTeachersPage() {
       <FieldDescription>Solo aparecen docentes activos que todavía no pertenecen a la carrera elegida. Si no existe, regístralo como docente nuevo.</FieldDescription>
     </MutationDialog>
     <MutationDialog open={open} title={editing ? 'Editar docente' : 'Registrar docente'} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}>
-      {!editing && <SelectField id="teacher-career" label="Carrera" value={form.career_id} onChange={(value) => setForm({ ...form, career_id: value })}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>}
       <Field>
         <div className="flex items-center justify-between"><FieldLabel htmlFor="teacher-identification">Cédula</FieldLabel><FieldCounter current={form.identification.length} max={10} /></div>
         <div className="relative flex items-center">

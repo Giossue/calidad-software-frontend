@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { CheckIcon, SaveIcon } from 'lucide-react'
+import { CheckIcon, MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -35,6 +35,62 @@ const stageLabel = (type: GradeType) => GRADE_LABELS[type] ?? type
 
 function serverValues(student: Enrollment): Values {
   return { diagnostic: student.diagnostic_grade ?? '', partial: student.partial_grade ?? '', partial_two: student.second_partial_grade ?? '' }
+}
+
+type Evolution =
+  | { status: 'up'; delta: number; label: string; title: string }
+  | { status: 'down'; delta: number; label: string; title: string }
+  | { status: 'same'; delta: number; label: string; title: string }
+  | { status: 'partial_one'; delta: number; label: string; title: string }
+  | { status: 'pending'; label: string; title: string }
+  | { status: 'no_diag'; label: string; title: string }
+
+function computeEvolution(diagnosticStr: string, partialTwoStr: string, partialOneStr?: string): Evolution {
+  const diagNum = Number(diagnosticStr)
+  if (!diagnosticStr || Number.isNaN(diagNum)) {
+    return { status: 'no_diag', label: '—', title: 'Sin calificación de diagnóstico registrada' }
+  }
+
+  const p2Num = Number(partialTwoStr)
+  if (partialTwoStr && !Number.isNaN(p2Num)) {
+    const delta = Math.round((p2Num - diagNum) * 100) / 100
+    if (delta > 0) {
+      return {
+        status: 'up',
+        delta,
+        label: `+${delta.toFixed(2)}`,
+        title: `Evolución positiva: subió ${delta.toFixed(2)} puntos desde Diagnóstico (${diagNum.toFixed(2)}) hasta Parcial 2 (${p2Num.toFixed(2)})`,
+      }
+    }
+    if (delta < 0) {
+      return {
+        status: 'down',
+        delta,
+        label: `${delta.toFixed(2)}`,
+        title: `Evolución negativa: bajó ${Math.abs(delta).toFixed(2)} puntos desde Diagnóstico (${diagNum.toFixed(2)}) hasta Parcial 2 (${p2Num.toFixed(2)})`,
+      }
+    }
+    return {
+      status: 'same',
+      delta: 0,
+      label: '0.00',
+      title: `Sin variación: misma nota en Diagnóstico (${diagNum.toFixed(2)}) y Parcial 2 (${p2Num.toFixed(2)})`,
+    }
+  }
+
+  const p1Num = Number(partialOneStr)
+  if (partialOneStr && !Number.isNaN(p1Num)) {
+    const delta = Math.round((p1Num - diagNum) * 100) / 100
+    const sign = delta > 0 ? '+' : ''
+    return {
+      status: 'partial_one',
+      delta,
+      label: `P1: ${sign}${delta.toFixed(2)}`,
+      title: `Evolución parcial preliminar: ${sign}${delta.toFixed(2)} en Parcial 1 (${p1Num.toFixed(2)}) respecto a Diagnóstico (${diagNum.toFixed(2)}). Pendiente Parcial 2.`,
+    }
+  }
+
+  return { status: 'pending', label: 'Pendiente P2', title: 'Pendiente calificación del Parcial 2' }
 }
 
 // --- Borrador: lo escrito se conserva aunque el docente salga de la página, hasta que guarde. ---
@@ -101,30 +157,86 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
       const value = meta.grid[row.original.id]?.[type] ?? ''
       // Solo la etapa elegida se edita; las otras se muestran como referencia.
       if (meta.stage !== type) return <div className="text-center tabular-nums text-muted-foreground">{value || '—'}</div>
-      return <div className="flex justify-center"><Input
-        className="h-9 w-24 text-center tabular-nums"
-        inputMode="decimal"
-        autoComplete="off"
-        maxLength={5}
-        placeholder="0.00"
-        data-grade-column={type}
-        aria-label={`${label} de ${row.original.name}`}
-        aria-invalid={value !== '' && !isValidGrade(value, meta.settings.maximum)}
-        value={value}
-        disabled={meta.disabled}
-        onChange={(event) => meta.onChange(row.original.id, type, sanitizeGradeInput(event.target.value, value, meta.settings.maximum))}
-        onBlur={() => { if (value !== '') meta.onChange(row.original.id, type, normalize(value)) }}
-        onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => focusNextRow(event, type)}
-      /></div>
+      return <div className="flex flex-col items-center gap-1">
+        <Input
+          className="h-9 w-24 text-center tabular-nums"
+          inputMode="decimal"
+          autoComplete="off"
+          maxLength={5}
+          placeholder="0.00"
+          data-grade-column={type}
+          aria-label={`${label} de ${row.original.name}`}
+          aria-invalid={value !== '' && !isValidGrade(value, meta.settings.maximum)}
+          value={value}
+          disabled={meta.disabled}
+          onChange={(event) => meta.onChange(row.original.id, type, sanitizeGradeInput(event.target.value, value, meta.settings.maximum))}
+          onBlur={() => { if (value !== '') meta.onChange(row.original.id, type, normalize(value)) }}
+          onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => focusNextRow(event, type)}
+        />
+        {type === 'diagnostic' && value && groupFor(value, meta.settings) && (
+          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{groupFor(value, meta.settings)}</span>
+        )}
+      </div>
     },
   })),
   {
-    id: 'group',
-    header: 'Grupo',
+    id: 'evolution',
+    header: () => <div className="text-center font-medium">Evolución (Diag → P2)</div>,
     cell: ({ row, table }) => {
       const meta = table.options.meta as GradesTableMeta
-      const group = groupFor(meta.grid[row.original.id]?.diagnostic ?? '', meta.settings)
-      return group ? <Badge variant="secondary">{group}</Badge> : <span className="text-muted-foreground">—</span>
+      const diagStr = meta.grid[row.original.id]?.diagnostic ?? ''
+      const p2Str = meta.grid[row.original.id]?.partial_two ?? ''
+      const p1Str = meta.grid[row.original.id]?.partial ?? ''
+      const evo = computeEvolution(diagStr, p2Str, p1Str)
+
+      if (evo.status === 'up') {
+        return (
+          <div className="flex justify-center">
+            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 font-semibold tabular-nums" title={evo.title}>
+              <TrendingUpIcon className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{evo.label}</span>
+            </Badge>
+          </div>
+        )
+      }
+
+      if (evo.status === 'down') {
+        return (
+          <div className="flex justify-center">
+            <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 gap-1 font-semibold tabular-nums" title={evo.title}>
+              <TrendingDownIcon className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{evo.label}</span>
+            </Badge>
+          </div>
+        )
+      }
+
+      if (evo.status === 'same') {
+        return (
+          <div className="flex justify-center">
+            <Badge variant="outline" className="text-muted-foreground gap-1 tabular-nums font-medium" title={evo.title}>
+              <MinusIcon className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{evo.label}</span>
+            </Badge>
+          </div>
+        )
+      }
+
+      if (evo.status === 'partial_one') {
+        return (
+          <div className="flex justify-center">
+            <Badge variant="secondary" className="text-xs font-normal tabular-nums text-muted-foreground" title={evo.title}>
+              {evo.label}
+            </Badge>
+          </div>
+        )
+      }
+
+      return (
+        <div className="text-center text-xs text-muted-foreground" title={evo.title}>
+          {evo.label}
+        </div>
+      )
     },
   },
 ]

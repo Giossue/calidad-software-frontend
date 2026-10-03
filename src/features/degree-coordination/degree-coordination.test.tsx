@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/api'
 import { degreeCoordinationApi, type DegreeTeacher, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { canCoordinateDegrees } from './degree-navigation'
 import { DegreeSectionsPage } from './degree-sections-page'
+import { DegreeStudentsPage } from './degree-students-page'
 import { DegreeTopicDetail } from './degree-topic-detail'
 import { DegreeTopicsPage } from './degree-topics-page'
 
@@ -50,13 +51,15 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('Coordinación de titulación', () => {
   it('asigna un inicio propio a cada rol sin conceder acceso a módulos ajenos', () => {
-    expect(dashboardSection('coordinador_titulacion')).toBe('degree-topics')
-    expect(dashboardSection('coordinador_titulacion', 'users')).toBe('degree-topics')
-    expect(dashboardSection('coordinador_titulacion', 'degree-sections')).toBe('degree-sections')
-    expect(dashboardSection('administrador', 'degree-topics')).toBe('degree-topics')
+    expect(dashboardSection('coordinador_titulacion')).toBe('degree-students')
+    expect(dashboardSection('coordinador_titulacion', 'users')).toBe('degree-students')
+    expect(dashboardSection('coordinador_titulacion', 'degree-tracking')).toBe('degree-tracking')
+    expect(dashboardSection('coordinador_titulacion', 'degree-reports')).toBe('degree-reports')
+    expect(dashboardSection('administrador', 'degree-topics')).toBe('users')
     expect(dashboardSection('coordinador_carrera', 'degree-topics')).toBe('tutorings')
     expect(dashboardSection('estudiante', 'degree-topics')).toBe('student-tutorings')
     expect(dashboardSection('docente', 'degree-topics')).toBe('teacher-tutorings')
+    expect(canCoordinateDegrees('administrador')).toBe(false)
     expect(canCoordinateDegrees('docente')).toBe(false)
     expect(canCoordinateDegrees('coordinador_carrera')).toBe(false)
   })
@@ -235,5 +238,56 @@ describe('Coordinación de titulación', () => {
     const name = screen.getByLabelText('Nombre del paralelo')
     await user.type(name, 'B2!')
     expect(name).toHaveValue('B')
+  })
+
+  it('permite al coordinador de titulación listar estudiantes y matricular a un estudiante', async () => {
+    const user = userEvent.setup()
+    const degreeStudent = {
+      id: 50,
+      student_id: 50,
+      identification: '0209999999',
+      name: 'Estudiante Titulación',
+      email: 'estudiante.tit@ueb.edu.ec',
+      phone: '0991112233',
+      is_degree_enrolled: false,
+      degree_enrollment_id: null,
+      enrolled_at: null,
+      period_id: 10,
+      period_name: '2026-2',
+    }
+    vi.mocked(degreeCoordinationApi.degreeStudents).mockResolvedValue({
+      data: [degreeStudent],
+      meta: {
+        current_page: 1,
+        last_page: 1,
+        total: 1,
+        per_page: 15,
+        from: 1,
+        to: 1,
+        active_count: 1,
+        inactive_count: 0,
+        current_period: period,
+      },
+    })
+    vi.mocked(degreeCoordinationApi.enrollDegreeStudent).mockResolvedValue({
+      data: { ...degreeStudent, is_degree_enrolled: true },
+      message: 'Estudiante matriculado en titulación exitosamente.',
+    })
+
+    render(<DegreeStudentsPage />)
+
+    expect(await screen.findByRole('heading', { level: 2, name: /Matrícula de Estudiantes en Titulación/i })).toBeInTheDocument()
+    expect(screen.getByText('Estudiante Titulación')).toBeInTheDocument()
+    expect(screen.getByText('0209999999')).toBeInTheDocument()
+    expect(screen.getByText('No matriculado')).toBeInTheDocument()
+
+    const enrollBtn = screen.getByRole('button', { name: 'Matricular en Titulación' })
+    await user.click(enrollBtn)
+
+    expect(screen.getByRole('heading', { level: 2, name: /¿Matricular a Estudiante Titulación en Titulación\?/i })).toBeInTheDocument()
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar matrícula' })
+    await user.click(confirmBtn)
+
+    await waitFor(() => expect(degreeCoordinationApi.enrollDegreeStudent).toHaveBeenCalledWith(50))
   })
 })

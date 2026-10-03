@@ -1,4 +1,5 @@
 import { buildQuery, request, type PaginatedResourceCollection } from '@/lib/api'
+import type { DegreeActivity, DegreeTopic } from '@/lib/degree-coordination-api'
 import type { Attendance, Tutoring, TutoringReport, TutoringSchedule } from '@/lib/tutoring-api'
 
 const ROOT = '/api/v1/teacher'
@@ -59,13 +60,31 @@ export interface TutoringTopic {
   readonly is_covered: boolean
   readonly activities: readonly Activity[]
 }
+export interface SessionActivity {
+  readonly id: number
+  readonly topic_id: number
+  readonly topic_name: string
+  readonly name: string
+  readonly duration: string
+  readonly methodologies: readonly string[]
+}
+export interface SessionAttendanceRecord {
+  readonly id: number
+  readonly enrollment_id: number
+  readonly student_id: number
+  readonly student_name: string
+  readonly student_identification?: string
+  readonly student_email?: string
+  readonly present: boolean
+}
 export interface TutoringSession {
   readonly id: number
   readonly tutoring_id: number
   readonly date: string
   readonly topics_covered: boolean
-  readonly topics: readonly Pick<TutoringTopic, 'id' | 'name' | 'is_active'>[]
-  readonly attendance: readonly { id: number; enrollment_id: number; student_id: number; student_name: string; present: boolean }[]
+  readonly topics: readonly (Pick<TutoringTopic, 'id' | 'name' | 'is_active'> & { description?: string | null; is_covered?: boolean; activities?: readonly Activity[] })[]
+  readonly activities?: readonly SessionActivity[]
+  readonly attendance: readonly SessionAttendanceRecord[]
 }
 export type SessionInput = { date: string; topics_covered: boolean; topic_ids: readonly number[]; attendance: readonly { enrollment_id: number; present: boolean }[] }
 export interface TeacherAttendance extends Attendance { readonly topics_covered: boolean | null }
@@ -130,8 +149,9 @@ export const teacherApi = {
   registerGrade: (id: number, enrollmentId: number, type: GradeType, value: string) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/grades/${type}`, 'PUT', { value }),
   topics: (id: number, params?: TeacherListParams) => list<TutoringTopic>(`tutorings/${id}/topics`, params),
   allTopics: (id: number) => collectPages((page) => list<TutoringTopic>(`tutorings/${id}/topics`, { page, per_page: 100 })),
-  createTopic: (id: number, input: { name: string; description: string }) => mutate<TutoringTopic>(`tutorings/${id}/topics`, 'POST', input),
-  updateTopic: (id: number, topicId: number, input: { name: string; description: string }) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}`, 'PATCH', input),
+  createTopic: (id: number, input: { name: string; description: string; is_covered?: boolean }) => mutate<TutoringTopic>(`tutorings/${id}/topics`, 'POST', input),
+  updateTopic: (id: number, topicId: number, input: { name?: string; description?: string; is_covered?: boolean }) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}`, 'PATCH', input),
+  toggleTopicCovered: (id: number, topicId: number, is_covered?: boolean) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}/toggle-covered`, 'PATCH', is_covered !== undefined ? { is_covered } : {}),
   deactivateTopic: (id: number, topicId: number) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}/deactivate`, 'PATCH'),
   createActivity: (id: number, topicId: number, input: { name: string; duration: string }) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities`, 'POST', input),
   updateActivity: (id: number, topicId: number, activityId: number, input: { name: string; duration: string }) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities/${activityId}`, 'PATCH', input),
@@ -140,10 +160,38 @@ export const teacherApi = {
   updateMethodology: (id: number, topicId: number, activityId: number, methodologyId: number, input: { description: string }) => mutate<Methodology>(`tutorings/${id}/topics/${topicId}/activities/${activityId}/methodologies/${methodologyId}`, 'PATCH', input),
   deactivateMethodology: (id: number, topicId: number, activityId: number, methodologyId: number) => mutate<Methodology>(`tutorings/${id}/topics/${topicId}/activities/${activityId}/methodologies/${methodologyId}/deactivate`, 'PATCH'),
   sessions: (id: number, params?: TeacherListParams) => list<TutoringSession>(`tutorings/${id}/sessions`, params),
+  allSessions: (id: number) => collectPages((page) => list<TutoringSession>(`tutorings/${id}/sessions`, { page, per_page: 100 })),
   attendance: (id: number, params?: TeacherListParams) => list<TeacherAttendance>(`tutorings/${id}/attendance`, params),
   allAttendance: (id: number, date: string) => collectPages((page) => list<TeacherAttendance>(`tutorings/${id}/attendance`, { page, date, per_page: 100 })),
   saveSession: (id: number, input: SessionInput) => mutate<TutoringSession>(`tutorings/${id}/sessions`, 'PUT', input),
+  updateSessionTopics: (id: number, sessionId: number, topic_ids: readonly number[]) => mutate<TutoringSession>(`tutorings/${id}/sessions/${sessionId}/topics`, 'PATCH', { topic_ids }),
   reports: (id: number, params?: TeacherListParams) => list<TeacherReport>(`tutorings/${id}/reports`, params),
   sendReport: (id: number, input: { title: string; observations: string }) => mutate<TeacherReport>(`tutorings/${id}/reports`, 'POST', input),
   degreeAssignments: (params?: TeacherListParams) => list<TeacherDegreeAssignment>('degree-assignments', params),
+  degreeTracking: (params?: TeacherListParams) => list<DegreeTopic>('degree-tracking', params),
+  degreeTrackingTopic: async (id: number) => (await request<Resource<DegreeTopic>>(`${ROOT}/degree-tracking/${id}`)).data,
+  addDegreeTrackingActivity: (topicId: number, data: { descripcion: string; completada?: boolean }) =>
+    mutate<DegreeActivity>(`degree-tracking/${topicId}/activities`, 'POST', data),
+  toggleDegreeTrackingActivity: (topicId: number, activityId: number, completada?: boolean) =>
+    request<{ data: { id: number; is_completed: boolean; progress_percentage: number }; message: string }>(
+      `${ROOT}/degree-tracking/${topicId}/activities/${activityId}/toggle`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(completada !== undefined ? { completada } : {}),
+      },
+    ),
+  updateDegreeTrackingProgress: (topicId: number, data: { porcentaje_avance: number; estado?: string }) =>
+    request<{ data: { id: number; progress_percentage: number; status: string }; message: string }>(
+      `${ROOT}/degree-tracking/${topicId}/progress`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      },
+    ),
+  schedules: async (id: number) => (await request<Collection<TutoringSchedule>>(`${ROOT}/tutorings/${id}/schedules`)).data,
+  syncSchedules: async (id: number, schedules: readonly { day: string; start_time: string; end_time: string; room?: string }[]) =>
+    (await request<Collection<TutoringSchedule>>(`${ROOT}/tutorings/${id}/schedules`, {
+      method: 'PUT',
+      body: JSON.stringify({ schedules }),
+    })).data,
 }

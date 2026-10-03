@@ -8,14 +8,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
-import { DAY_LABELS } from '@/lib/tutoring-api'
 import { AttendancePanel } from './teacher-attendance-page'
 import { ContentPanel } from './teacher-content-page'
 import { GradesPanel } from './teacher-grades-page'
-import { ReportsPanel } from './teacher-reports-page'
-import { TeacherEmpty } from './teacher-shared'
+import { SchedulesPanel } from './teacher-schedules-page'
 import { StudentsPanel } from './teacher-students-page'
 
 const TABS = [
@@ -24,7 +22,6 @@ const TABS = [
   { id: 'attendance', label: 'Asistencia' },
   { id: 'grades', label: 'Calificaciones' },
   { id: 'schedules', label: 'Horarios' },
-  { id: 'reports', label: 'Informes' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -65,8 +62,7 @@ export function TeacherTutoringWorkspace({ tutoringId, onBack }: Readonly<{ tuto
           <TabsContent value="content" key={`content-${tutoring.id}`}><ContentPanel tutoring={tutoring} /></TabsContent>
           <TabsContent value="attendance" key={`attendance-${tutoring.id}`}><AttendancePanel tutoring={tutoring} /></TabsContent>
           <TabsContent value="grades" key={`grades-${tutoring.id}`}><GradesPanel tutoring={tutoring} /></TabsContent>
-          <TabsContent value="schedules" key={`schedules-${tutoring.id}`}><SchedulesPanel tutoring={tutoring} /></TabsContent>
-          <TabsContent value="reports" key={`reports-${tutoring.id}`}><ReportsPanel tutoring={tutoring} /></TabsContent>
+          <TabsContent value="schedules" key={`schedules-${tutoring.id}`}><SchedulesPanel tutoring={tutoring} onReload={resource.reload} /></TabsContent>
         </Tabs>
       </>}
   </section>
@@ -84,13 +80,4 @@ function TutoringHeader({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
       <Badge variant="secondary">{tutoring.modality_name}</Badge>
     </div>
   </header>
-}
-
-function SchedulesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
-  return <RecordTable rows={tutoring.schedules} loading={false} empty={<TeacherEmpty title="Sin horarios registrados" description="El Coordinador de Carrera registra los horarios de esta tutoría." />} columns={[
-    { label: 'Día', render: (item) => DAY_LABELS[item.day] ?? item.day },
-    { label: 'Horario', render: (item) => `${item.start_time.slice(0, 5)} – ${item.end_time.slice(0, 5)}` },
-    { label: 'Aula o lugar', render: (item) => item.room || 'Sin aula' },
-    { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
-  ]} />
 }

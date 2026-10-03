@@ -115,6 +115,9 @@ export function Dialog({
 
         {/* Contenedor Modal */}
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
           className={cn(
             'relative z-10 flex w-full flex-col rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10 dark:bg-slate-900 dark:ring-slate-800 animate-in zoom-in-95 duration-150',
             maxWidth,

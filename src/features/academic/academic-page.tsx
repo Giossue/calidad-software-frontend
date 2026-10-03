@@ -21,20 +21,17 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { ApiError, api, type Career, type Cycle, type Faculty, type Modality, type Section } from '@/lib/api'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { api, type Career, type Cycle, type Faculty, type Modality, type Section } from '@/lib/api'
+import { sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
-  return 'No fue posible conectar con el servidor.'
-}
 
 type CareerFormErrors = { facultyId?: string; name?: string }
 
@@ -49,16 +46,13 @@ function validateCareerForm(facultyId: string, name: string): CareerFormErrors {
   return errors
 }
 
-type CycleFormErrors = { name?: string; number?: string }
+type CycleFormErrors = { name?: string }
 
-function validateCycleForm(name: string, number: string): CycleFormErrors {
+function validateCycleForm(name: string): CycleFormErrors {
   const errors: CycleFormErrors = {}
   const trimmedName = name.trim()
   if (!trimmedName) errors.name = 'El nombre del ciclo es obligatorio.'
   else if (trimmedName.length > 100) errors.name = 'El nombre no puede superar 100 caracteres.'
-
-  if (!number) errors.number = 'El número del ciclo es obligatorio.'
-  else if (Number(number) < 1) errors.number = 'El número debe ser mayor o igual a 1.'
 
   return errors
 }
@@ -112,7 +106,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     void refreshModalities()
   }, [])
 
-  const [formError, setFormError] = useState<string | null>(null)
+  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
   const [careerErrors, setCareerErrors] = useState<CareerFormErrors>({})
   const [pending, setPending] = useState<CareerPendingAction>(null)
 
@@ -152,7 +146,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setIsAddingModality(false)
     setNewModalityName('')
     setModalityNameError(null)
-    setFormError(null)
     setCareerErrors({})
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
@@ -172,7 +165,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setIsAddingModality(false)
     setNewModalityName('')
     setModalityNameError(null)
-    setFormError(null)
     setCareerErrors({})
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
@@ -188,7 +180,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setIsAddingModality(false)
     setNewModalityName('')
     setModalityNameError(null)
-    setFormError(null)
     setCareerErrors({})
   }
 
@@ -210,7 +201,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       setNewModalityName('')
       toast.success('Modalidad creada', { description: `Se agregó "${created.name}" al catálogo de modalidades.` })
     } catch (error: unknown) {
-      setModalityNameError(getErrorMessage(error))
+      setModalityNameError(getFriendlyError(error).description)
     } finally {
       setCreatingModality(false)
     }
@@ -223,11 +214,32 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     const errors = validateCareerForm(careerFacultyId, careerName)
     setCareerErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setFormError('Revisa los campos marcados antes de guardar.')
+      setErrorModal({
+        open: true,
+        title: 'Revisa los campos requeridos',
+        description: 'Verifica la facultad y el nombre de la carrera antes de guardar.',
+      })
       return
     }
 
-    setFormError(null)
+    const normalizedName = careerName.trim().toLowerCase()
+    const duplicateLocally = careers.find(
+      (c) => (!editingCareer || c.id !== editingCareer.id) && c.name.trim().toLowerCase() === normalizedName,
+    )
+    if (duplicateLocally) {
+      setErrorModal({
+        open: true,
+        title: 'Carrera ya registrada',
+        description:
+          'Ya existe una carrera con este nombre en el sistema. El nombre de la carrera es único institucionalmente y no puede repetirse en ninguna facultad.',
+      })
+      setCareerErrors((prev) => ({
+        ...prev,
+        name: 'Ya existe una carrera con este nombre.',
+      }))
+      return
+    }
+
     setPending('career')
     try {
       const input = {
@@ -247,7 +259,15 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       closeCareerModal()
       await reload()
     } catch (error: unknown) {
-      setFormError(getErrorMessage(error))
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
+      if (friendly.field === 'name') {
+        setCareerErrors((prev) => ({ ...prev, name: friendly.description }))
+      }
     } finally {
       setPending(null)
     }
@@ -269,7 +289,12 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       await reload()
     } catch (error: unknown) {
       setCareerToToggle(null)
-      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
     } finally {
       setPending(null)
     }
@@ -548,7 +573,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                     onChange={(e) => setCareerModalityId(e.target.value)}
                     disabled={formPending}
                   >
-                    <option value="">Sin modalidad</option>
+                    <option value="">Seleccionar</option>
                     {modalities.map((modality) => (
                       <option key={modality.id} value={modality.id}>
                         {modality.name}
@@ -619,8 +644,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               </FieldDescription>
             </Field>
 
-            <FieldError>{formError}</FieldError>
-
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeCareerModal} disabled={formPending}>
                 Cancelar
@@ -650,6 +673,14 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         variant={careerToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-career'}
       />
+
+      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
+      <ErrorModal
+        open={Boolean(errorModal?.open)}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title}
+        description={errorModal?.description}
+      />
     </section>
   )
 }
@@ -675,7 +706,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     reload,
   } = usePaginatedCatalog(fetchCycles)
 
-  const [formError, setFormError] = useState<string | null>(null)
+  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
   const [cycleErrors, setCycleErrors] = useState<CycleFormErrors>({})
   const [pending, setPending] = useState<CyclePendingAction>(null)
 
@@ -684,7 +715,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const [cycleNumber, setCycleNumber] = useState('')
   const [cycleParaleloId, setCycleParaleloId] = useState('')
   const [initialCycleName, setInitialCycleName] = useState('')
-  const [initialCycleNumber, setInitialCycleNumber] = useState('')
   const [initialCycleParaleloId, setInitialCycleParaleloId] = useState('')
 
   const [sections, setSections] = useState<readonly Section[]>([])
@@ -709,15 +739,14 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   function openCreateCycleModal() {
     setEditingCycle(null)
     setCycleName('')
-    setCycleNumber('')
+    const nextNumber = cycles.length > 0 ? Math.max(...cycles.map((c) => c.number)) + 1 : 1
+    setCycleNumber(String(nextNumber))
     setCycleParaleloId('')
     setInitialCycleName('')
-    setInitialCycleNumber('')
     setInitialCycleParaleloId('')
     setIsAddingSection(false)
     setNewSectionName('')
     setSectionNameError(null)
-    setFormError(null)
     setCycleErrors({})
     void refreshSections()
     setIsCycleModalOpen(true)
@@ -729,12 +758,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setCycleNumber(String(cycle.number))
     setCycleParaleloId(cycle.paralelo_id ? String(cycle.paralelo_id) : '')
     setInitialCycleName(cycle.name)
-    setInitialCycleNumber(String(cycle.number))
     setInitialCycleParaleloId(cycle.paralelo_id ? String(cycle.paralelo_id) : '')
     setIsAddingSection(false)
     setNewSectionName('')
     setSectionNameError(null)
-    setFormError(null)
     setCycleErrors({})
     void refreshSections()
     setIsCycleModalOpen(true)
@@ -749,7 +776,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setIsAddingSection(false)
     setNewSectionName('')
     setSectionNameError(null)
-    setFormError(null)
     setCycleErrors({})
   }
 
@@ -771,7 +797,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       setNewSectionName('')
       toast.success('Paralelo creado', { description: `Se agregó "${created.name}" al catálogo de paralelos.` })
     } catch (error: unknown) {
-      setSectionNameError(getErrorMessage(error))
+      setSectionNameError(getFriendlyError(error).description)
     } finally {
       setCreatingSection(false)
     }
@@ -781,20 +807,27 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     event.preventDefault()
     if (pending !== null) return
 
-    const errors = validateCycleForm(cycleName, cycleNumber)
+    const errors = validateCycleForm(cycleName)
     setCycleErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setFormError('Revisa los campos marcados antes de guardar.')
+      setErrorModal({
+        open: true,
+        title: 'Revisa los campos requeridos',
+        description: 'Ingresa el nombre del ciclo antes de continuar.',
+      })
       return
     }
 
-    setFormError(null)
     setPending('cycle')
     try {
+      const calculatedNumber = editingCycle
+        ? editingCycle.number
+        : (Number(cycleNumber) || (cycles.length > 0 ? Math.max(...cycles.map((c) => c.number)) + 1 : 1))
+
       const input = {
         career_id: career.id,
         name: cycleName.trim(),
-        number: Number(cycleNumber),
+        number: calculatedNumber,
         paralelo_id: cycleParaleloId ? Number(cycleParaleloId) : null,
       }
       if (editingCycle) {
@@ -807,7 +840,15 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       closeCycleModal()
       await reload()
     } catch (error: unknown) {
-      setFormError(getErrorMessage(error))
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
+      if (friendly.field === 'name') {
+        setCycleErrors((prev) => ({ ...prev, name: friendly.description }))
+      }
     } finally {
       setPending(null)
     }
@@ -829,7 +870,12 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       await reload()
     } catch (error: unknown) {
       setCycleToToggle(null)
-      toast.error('No se pudo completar la acción', { description: getErrorMessage(error) })
+      const friendly = getFriendlyError(error)
+      setErrorModal({
+        open: true,
+        title: friendly.title,
+        description: friendly.description,
+      })
     } finally {
       setPending(null)
     }
@@ -838,7 +884,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const formPending = pending === 'cycle'
   const isCycleFormDirty =
     cycleName !== initialCycleName
-    || cycleNumber !== initialCycleNumber
     || cycleParaleloId !== initialCycleParaleloId
 
   return (
@@ -904,7 +949,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
             <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Ciclo Académico</TableHead>
-                <TableHead className="px-5 py-3.5">Orden / Nivel</TableHead>
                 <TableHead className="px-5 py-3.5">Estado</TableHead>
                 <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
               </TableRow>
@@ -914,14 +958,13 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
                     <TableCell className="px-5 py-4"><div className="h-5 w-40 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : cycles.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={3} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
                       <Layers3Icon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
@@ -940,12 +983,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                         </div>
                         <span>{cycle.name}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="px-5 py-4 text-xs font-bold text-slate-700 dark:text-slate-200">
-                      Nivel {cycle.number}
-                      {cycle.paralelo_name && (
-                        <span className="ml-1 font-medium text-slate-500 dark:text-slate-400">· Paralelo {cycle.paralelo_name}</span>
-                      )}
                     </TableCell>
                     <TableCell className="px-5 py-4">
                       <span
@@ -1019,45 +1056,25 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               </div>
             </Field>
 
-            <div className="grid gap-5 sm:grid-cols-[1fr_7rem]">
-              <Field data-invalid={Boolean(cycleErrors.name)}>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="cycle-name">Nombre del ciclo</FieldLabel>
-                  <FieldCounter current={cycleName.length} max={100} />
-                </div>
-                <Input
-                  id="cycle-name"
-                  value={cycleName}
-                  onChange={(e) => {
-                    setCycleName(sanitizeLetters(e.target.value, 100))
-                    setCycleErrors((current) => ({ ...current, name: undefined }))
-                  }}
-                  placeholder="Ej. Primer Ciclo"
-                  disabled={formPending}
-                  maxLength={100}
-                  required
-                />
-                <FieldError>{cycleErrors.name}</FieldError>
-              </Field>
-              <Field data-invalid={Boolean(cycleErrors.number)}>
-                <FieldLabel htmlFor="cycle-number">Número</FieldLabel>
-                <Input
-                  id="cycle-number"
-                  type="number"
-                  inputMode="numeric"
-                  min="1"
-                  step="1"
-                  value={cycleNumber}
-                  onChange={(e) => {
-                    setCycleNumber(sanitizeDigits(e.target.value, 4))
-                    setCycleErrors((current) => ({ ...current, number: undefined }))
-                  }}
-                  disabled={formPending}
-                  required
-                />
-                <FieldError>{cycleErrors.number}</FieldError>
-              </Field>
-            </div>
+            <Field data-invalid={Boolean(cycleErrors.name)}>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="cycle-name">Nombre del ciclo</FieldLabel>
+                <FieldCounter current={cycleName.length} max={100} />
+              </div>
+              <Input
+                id="cycle-name"
+                value={cycleName}
+                onChange={(e) => {
+                  setCycleName(sanitizeLetters(e.target.value, 100))
+                  setCycleErrors((current) => ({ ...current, name: undefined }))
+                }}
+                placeholder="Ej. Primer Ciclo"
+                disabled={formPending}
+                maxLength={100}
+                required
+              />
+              <FieldError>{cycleErrors.name}</FieldError>
+            </Field>
 
             <Field data-invalid={Boolean(sectionNameError)}>
               <div className="flex items-center justify-between">
@@ -1139,8 +1156,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               )}
             </Field>
 
-            <FieldError>{formError}</FieldError>
-
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeCycleModal} disabled={formPending}>
                 Cancelar
@@ -1169,6 +1184,14 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         cancelLabel="Cancelar"
         variant={cycleToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-cycle'}
+      />
+
+      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
+      <ErrorModal
+        open={Boolean(errorModal?.open)}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title}
+        description={errorModal?.description}
       />
     </section>
   )

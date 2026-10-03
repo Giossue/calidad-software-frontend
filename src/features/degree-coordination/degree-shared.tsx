@@ -44,8 +44,8 @@ export function SectionCard({ icon: Icon, title, description, action, tone = 'gr
   </Card>
 }
 
-export function InitialsAvatar({ name, tone = 'gray' }: Readonly<{ name: string; tone?: SectionTone }>) {
-  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold', TONES[tone])}>{getInitials(name)}</span>
+export function InitialsAvatar({ name, tone = 'gray', className }: Readonly<{ name: string; tone?: SectionTone; className?: string }>) {
+  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold', TONES[tone], className)}>{getInitials(name)}</span>
 }
 
 export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: ReturnType<typeof useDegreePeriod>; extra?: ReactNode }>) {
