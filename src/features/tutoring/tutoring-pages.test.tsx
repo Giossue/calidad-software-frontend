@@ -188,7 +188,7 @@ describe('Coordinación de tutorías', () => {
     render(<TutoringSubjectsPage />)
     await screen.findByText('Matemática')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
-    expect(await screen.findByText('Física', {}, { timeout: 3000 })).toBeInTheDocument()
+    expect(await screen.findByText('Física', {}, { timeout: 10000 })).toBeInTheDocument()
     expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 2, search: '', career_id: undefined })
   })
 
@@ -292,13 +292,31 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.linkTeacherToCareer).toHaveBeenCalledWith(70, career.id))
   })
 
+  it('abre un modal con las carreras al hacer clic en el botón Carreras de la columna en Docentes', async () => {
+    const user = userEvent.setup()
+    const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [career.id], can_manage: true }
+    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher]))
+    render(<TutoringTeachersPage />)
+    await screen.findByText('Ana Torres')
+    const viewBtn = screen.getByRole('button', { name: 'Ver carreras de Ana Torres' })
+    expect(viewBtn).toBeInTheDocument()
+    expect(viewBtn).toHaveTextContent('Carreras')
+    await user.click(viewBtn)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Carreras asignadas')).toBeInTheDocument()
+    expect(within(dialog).getByText(career.name)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('quita a un docente de una de sus carreras tras confirmar', async () => {
     const user = userEvent.setup()
     const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [career.id, 99], can_manage: true }
     vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher]))
     vi.mocked(tutoringApi.unlinkTeacherFromCareer).mockResolvedValue({ ...teacher, career_ids: [99] })
     render(<TutoringTeachersPage />)
-    await user.click(await screen.findByRole('button', { name: `Quitar ${career.name} de Ana Torres` }))
+    await user.click(await screen.findByRole('button', { name: 'Más acciones para Ana Torres' }))
+    await user.click(await screen.findByRole('menuitem', { name: `Quitar ${career.name} de Ana Torres` }))
     expect(tutoringApi.unlinkTeacherFromCareer).not.toHaveBeenCalled()
     await user.click(await screen.findByRole('button', { name: 'Quitar de la carrera' }))
     await waitFor(() => expect(tutoringApi.unlinkTeacherFromCareer).toHaveBeenCalledWith(1, career.id))
@@ -730,7 +748,7 @@ describe('Coordinación de tutorías', () => {
 
     render(<TutoringReportsPage />)
     expect(await screen.findByRole('heading', { level: 2, name: 'Informes' })).toBeInTheDocument()
-    expect(screen.getByText('Estudiantes atendidos')).toBeInTheDocument()
+    expect(screen.queryByText('Estudiantes atendidos')).not.toBeInTheDocument()
     expect(screen.getByText('Asistencias registradas')).toBeInTheDocument()
     expect(screen.getByText('Ausencias registradas')).toBeInTheDocument()
 

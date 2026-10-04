@@ -3,6 +3,15 @@ export function sanitizeLetters(value: string, maxLength: number): string {
   return value.replace(/[^\p{L}\s]/gu, '').slice(0, maxLength)
 }
 
+/**
+ * Formats a normalized (lowercase, no-accent) subject name for display.
+ * Capitalizes the first letter of each word (title case).
+ * E.g. "matematicas y logica" → "Matematicas Y Logica"
+ */
+export function formatSubjectName(name: string): string {
+  return name.replace(/\p{L}+/gu, (word) => word.charAt(0).toUpperCase() + word.slice(1))
+}
+
 /** Elimina cualquier carácter que no sea un dígito. */
 export function sanitizeDigits(value: string, maxLength: number): string {
   return value.replace(/\D/g, '').slice(0, maxLength)

@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, LinkIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, XCircleIcon, XIcon } from 'lucide-react'
+import { CheckCircle2Icon, GraduationCapIcon, LinkIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, XCircleIcon, XIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { Dialog } from '@/components/ui/dialog'
+import { ErrorModal } from '@/components/ui/error-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -40,6 +42,7 @@ export function TutoringTeachersPage() {
   const [initialForm, setInitialForm] = useState(EMPTY_FORM)
   const [deactivating, setDeactivating] = useState<Teacher | null>(null)
   const [unlinking, setUnlinking] = useState<{ teacher: Teacher; careerId: number; careerName: string } | null>(null)
+  const [viewingCareersTeacher, setViewingCareersTeacher] = useState<Teacher | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkCareerId, setLinkCareerId] = useState('')
   const [linkSearch, setLinkSearch] = useState('')
@@ -124,15 +127,19 @@ export function TutoringTeachersPage() {
       { label: 'Contacto', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono'}</span></div> },
       {
         label: 'Carreras', render: (teacher) => {
-          if (teacher.career_ids.length === 0) return 'Sin carrera vinculada'
-          return <div className="flex flex-wrap gap-1.5">{teacher.career_ids.map((id) => {
-            const career = catalogs.careers.find((item) => item.id === id)
-            const name = career?.name ?? `Carrera #${id}`
-            return <span key={id} className="inline-flex items-center gap-1 rounded-full border bg-muted/50 py-0.5 pl-2.5 pr-1 text-xs">
-              {name}
-              {career && <button type="button" aria-label={`Quitar ${name} de ${teacher.name}`} title="Quitar de esta carrera" disabled={operation.pending} onClick={() => { operation.clearError(); setUnlinking({ teacher, careerId: id, careerName: name }) }} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-destructive"><XIcon className="size-3" /></button>}
-            </span>
-          })}</div>
+          if (teacher.career_ids.length === 0) return <span className="text-xs text-muted-foreground">Sin carreras</span>
+          return (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setViewingCareersTeacher(teacher)}
+              aria-label={`Ver carreras de ${teacher.name}`}
+              className="h-7 text-xs font-medium text-primary border-primary/30 hover:bg-primary/10"
+            >
+              Carreras
+            </Button>
+          )
         },
       },
       { label: 'Estado', render: (teacher) => <StatusBadge active={teacher.is_active} /> },
@@ -140,11 +147,24 @@ export function TutoringTeachersPage() {
         label: 'Acciones', render: (teacher) => {
           if (!teacher.can_manage) return <span className="text-xs text-muted-foreground">Consulta · cambios a cargo de administración</span>
           if (!teacher.is_active) return <span className="text-muted-foreground">—</span>
+          const coordinatedCareers = catalogs.careers.filter((c) => teacher.career_ids.includes(c.id))
           return <div className="flex items-center gap-1">
             <Button type="button" variant="ghost" size="icon-sm" title="Editar" aria-label={`Editar ${teacher.name}`} disabled={operation.pending} onClick={() => edit(teacher)}><PencilIcon /></Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${teacher.name}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {coordinatedCareers.map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    aria-label={`Quitar ${c.name} de ${teacher.name}`}
+                    onSelect={() => {
+                      operation.clearError()
+                      setUnlinking({ teacher, careerId: c.id, careerName: c.name })
+                    }}
+                  >
+                    <XIcon />Quitar de {c.name}
+                  </DropdownMenuItem>
+                ))}
                 <DropdownMenuItem variant="destructive" onSelect={() => { operation.clearError(); setDeactivating(teacher) }}><PowerOffIcon />Desactivar</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -153,7 +173,7 @@ export function TutoringTeachersPage() {
       },
     ]} />
     <CatalogPagination label="docentes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
-    <MutationDialog open={linkOpen} title="Vincular docente existente" description="Busca un docente ya registrado y agrégalo a una de tus carreras. Un docente puede pertenecer a varias carreras." pending={operation.pending} error={operation.error} dirty={Boolean(linkSelected)} onClose={() => setLinkOpen(false)} onSubmit={submitLink} submitLabel="Vincular docente" submitDisabled={!linkSelected || !linkCareerId}>
+    <MutationDialog open={linkOpen} title="Vincular docente existente" description="Busca un docente ya registrado y agrégalo a una de tus carreras. Un docente puede pertenecer a varias carreras." pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={Boolean(linkSelected)} onClose={() => setLinkOpen(false)} onSubmit={submitLink} submitLabel="Vincular docente" submitDisabled={!linkSelected || !linkCareerId}>
       <SelectField id="link-teacher-career" label="Carrera" value={linkCareerId} onChange={(value) => { setLinkCareerId(value); setLinkSelected(null) }}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>
       <Field>
         <FieldLabel htmlFor="link-teacher-search">Docente</FieldLabel>
@@ -172,7 +192,7 @@ export function TutoringTeachersPage() {
       </Field>
       <FieldDescription>Solo aparecen docentes activos que todavía no pertenecen a la carrera elegida. Si no existe, regístralo como docente nuevo.</FieldDescription>
     </MutationDialog>
-    <MutationDialog open={open} title={editing ? 'Editar docente' : 'Registrar docente'} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}>
+    <MutationDialog open={open} title={editing ? 'Editar docente' : 'Registrar docente'} pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}>
       <Field>
         <div className="flex items-center justify-between"><FieldLabel htmlFor="teacher-identification">Cédula</FieldLabel><FieldCounter current={form.identification.length} max={10} /></div>
         <div className="relative flex items-center">
@@ -201,5 +221,56 @@ export function TutoringTeachersPage() {
     </MutationDialog>
     <ConfirmModal open={Boolean(unlinking)} title="¿Quitar docente de la carrera?" description={`«${unlinking?.teacher.name ?? ''}» dejará de estar vinculado a «${unlinking?.careerName ?? ''}». Su cuenta y sus otras carreras no cambian. Si tiene tutorías activas en esa carrera, primero debes reasignarlas.`} confirmLabel="Quitar de la carrera" pending={operation.pending} onClose={() => { if (!operation.pending) setUnlinking(null) }} onConfirm={() => { if (unlinking) void operation.run(() => tutoringApi.unlinkTeacherFromCareer(unlinking.teacher.id, unlinking.careerId), 'Docente quitado de la carrera.', async () => { setUnlinking(null); await list.reload() }) }} />
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar docente?" description={`La cuenta de «${deactivating?.name ?? ''}» perderá el acceso y no podrá recibir nuevas asignaciones de tutorías.`} confirmLabel="Desactivar docente" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateTeacher(deactivating.id), 'Docente desactivado.', async () => { setDeactivating(null); await list.reload() }) }} />
+    <ErrorModal open={Boolean(operation.errorModal && !open && !linkOpen)} onClose={operation.clearErrorModal} title={operation.errorModal?.title} description={operation.errorModal?.description} />
+    <Dialog
+      open={Boolean(viewingCareersTeacher)}
+      title="Carreras asignadas"
+      description={viewingCareersTeacher ? viewingCareersTeacher.name : ''}
+      confirmClose={false}
+      onClose={() => setViewingCareersTeacher(null)}
+      maxWidth="max-w-md"
+    >
+      {viewingCareersTeacher && (() => {
+        const teacherCareers = viewingCareersTeacher.career_ids.map((id) => {
+          const career = catalogs.careers.find((item) => item.id === id)
+          return { id, name: career?.name ?? `Carrera #${id}` }
+        })
+
+        return (
+          <div className="flex flex-col gap-4">
+            {teacherCareers.length > 0 ? (
+              <div className="flex flex-col gap-2" role="list" aria-label="Lista de carreras">
+                {teacherCareers.map((c) => (
+                  <div
+                    key={c.id}
+                    role="listitem"
+                    className="flex items-center gap-2.5 p-3 rounded-lg border bg-card text-card-foreground shadow-xs hover:border-primary/40 transition-colors"
+                  >
+                    <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                      <GraduationCapIcon className="size-4" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground leading-snug break-words">{c.name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg bg-muted/30 border border-dashed text-center">
+                <p className="text-sm text-muted-foreground">Este docente no tiene carreras asignadas.</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end pt-2 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setViewingCareersTeacher(null)}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        )
+      })()}
+    </Dialog>
   </section>
 }

@@ -7,7 +7,6 @@ import {
   LockIcon,
   PlusIcon,
   SparklesIcon,
-  TrendingUpIcon,
   UsersIcon,
 } from 'lucide-react'
 
@@ -18,7 +17,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
@@ -46,10 +44,6 @@ export function TeacherDegreeTrackingPage() {
   const [activityDialogOpen, setActivityDialogOpen] = useState(false)
   const [newActivityDesc, setNewActivityDesc] = useState('')
   const [activitySubmitting, setActivitySubmitting] = useState(false)
-
-  const [progressDialogOpen, setProgressDialogOpen] = useState(false)
-  const [newProgress, setNewProgress] = useState<number>(0)
-  const [progressSubmitting, setProgressSubmitting] = useState(false)
 
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
 
@@ -104,24 +98,7 @@ export function TeacherDegreeTrackingPage() {
     }
   }
 
-  async function handleUpdateProgress() {
-    if (!selectedTopic) return
-    setProgressSubmitting(true)
-    try {
-      await teacherApi.updateDegreeTrackingProgress(selectedTopic.id, {
-        porcentaje_avance: Number(newProgress),
-      })
-      setProgressDialogOpen(false)
-      setFeedbackMsg('Porcentaje de avance actualizado.')
-      const updated = await teacherApi.degreeTrackingTopic(selectedTopic.id)
-      setSelectedTopic(updated)
-      list.reload()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al actualizar avance')
-    } finally {
-      setProgressSubmitting(false)
-    }
-  }
+
 
   if (selectedTopic) {
     const tracking = selectedTopic.tracking
@@ -209,16 +186,6 @@ export function TeacherDegreeTrackingPage() {
                   </CardTitle>
                   <CardDescription>Resumen del avance acumulado del tema y estado general</CardDescription>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setNewProgress(progress)
-                    setProgressDialogOpen(true)
-                  }}
-                >
-                  <TrendingUpIcon className="size-4 mr-2" /> Ajustar avance ({progress}%)
-                </Button>
               </CardHeader>
               <CardContent className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
@@ -541,39 +508,7 @@ export function TeacherDegreeTrackingPage() {
           </div>
         </Dialog>
 
-        {/* Dialog: Ajustar Avance */}
-        <Dialog
-          open={progressDialogOpen}
-          title="Ajustar porcentaje de avance"
-          description={`Tema: ${selectedTopic.title}`}
-          onClose={() => setProgressDialogOpen(false)}
-        >
-          <div className="flex flex-col gap-4">
-            <Field>
-              <FieldLabel htmlFor="progress-input">Porcentaje de avance (0% a 100%)</FieldLabel>
-              <Input
-                id="progress-input"
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={newProgress}
-                onChange={(e) => setNewProgress(Number(e.target.value))}
-              />
-            </Field>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <DialogCancelButton disabled={progressSubmitting}>Cancelar</DialogCancelButton>
-              <Button
-                onClick={handleUpdateProgress}
-                disabled={progressSubmitting}
-                className="bg-brand-red hover:bg-brand-red/90 text-white"
-              >
-                {progressSubmitting ? 'Guardando...' : 'Actualizar avance'}
-              </Button>
-            </div>
-          </div>
-        </Dialog>
       </section>
     )
   }

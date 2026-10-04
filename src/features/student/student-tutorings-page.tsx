@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
 import { studentApi, type StudentTutoring } from '@/lib/student-api'
+import { formatSubjectName } from '@/lib/sanitize'
 import { StudentEmpty } from './student-shared'
 import { StudentTutoringWorkspace } from './student-tutoring-workspace'
 import { ContextPills, IconTile } from './student-ui'
@@ -28,7 +29,7 @@ function TutoringRow({ enrollment, onOpen }: Readonly<{ enrollment: StudentTutor
     <button type="button" onClick={() => onOpen(subject.id)} aria-label={`Abrir ${subject.name}`} className="flex w-full cursor-pointer items-center gap-4 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <IconTile />
       <span className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="break-words text-lg font-semibold tracking-tight">{subject.name}</span>
+        <span className="break-words text-lg font-semibold tracking-tight">{formatSubjectName(subject.name)}</span>
         <ContextPills source={subject} />
       </span>
       <StatusBadge active={enrollment.is_active && subject.is_active} activeLabel="En curso" inactiveLabel="Finalizada" />

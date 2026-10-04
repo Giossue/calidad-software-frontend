@@ -1,10 +1,11 @@
-import type { FormEvent, ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { ErrorModal, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -48,12 +49,84 @@ export function RecordActions({ name, onEdit, onDeactivate, disabled, children }
   return <div className="flex flex-wrap items-center gap-2">{children}{onEdit && <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onEdit} aria-label={`Editar ${name}`}><PencilIcon data-icon="inline-start" />Editar</Button>}{onDeactivate && <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onDeactivate} aria-label={`Desactivar ${name}`}><PowerOffIcon data-icon="inline-start" />Desactivar</Button>}</div>
 }
 
-export function MutationDialog({ open, title, description, pending, error, dirty, onClose, onSubmit, children, submitLabel = 'Guardar cambios', submitDisabled = false }: Readonly<{ open: boolean; title: string; description?: string; pending: boolean; error: string | null; dirty: boolean; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; children: ReactNode; submitLabel?: string; submitDisabled?: boolean }>) {
-  return <Dialog open={open} title={title} description={description} confirmClose={dirty} onClose={() => { if (!pending) onClose() }} maxWidth="max-w-xl">
-    <form onSubmit={onSubmit} aria-label={title} className="max-h-[65vh] overflow-y-auto p-1">
-      <fieldset disabled={pending}><FieldGroup>{children}<ErrorNotice message={error} /><div className="flex flex-wrap justify-end gap-3"><DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton><Button type="submit" disabled={pending || submitDisabled}>{pending && <Spinner data-icon="inline-start" aria-hidden="true" />}{pending ? 'Guardando…' : submitLabel}</Button></div></FieldGroup></fieldset>
-    </form>
-  </Dialog>
+export function MutationDialog({
+  open,
+  title,
+  description,
+  pending,
+  error,
+  errorModal,
+  onCloseErrorModal,
+  dirty,
+  onClose,
+  onSubmit,
+  children,
+  submitLabel = 'Guardar cambios',
+  submitDisabled = false,
+}: Readonly<{
+  open: boolean
+  title: string
+  description?: string
+  pending: boolean
+  error: string | null
+  errorModal?: FriendlyErrorInfo | null
+  onCloseErrorModal?: () => void
+  dirty: boolean
+  onClose: () => void
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  children: ReactNode
+  submitLabel?: string
+  submitDisabled?: boolean
+}>) {
+  const [modalDismissed, setModalDismissed] = useState(false)
+  const lastErrorRef = useRef<FriendlyErrorInfo | null>(null)
+
+  useEffect(() => {
+    if (errorModal && errorModal !== lastErrorRef.current) {
+      setModalDismissed(false)
+      lastErrorRef.current = errorModal
+    } else if (!errorModal) {
+      lastErrorRef.current = null
+      setModalDismissed(false)
+    }
+  }, [errorModal])
+
+  const isErrorModalOpen = Boolean(open && errorModal && !modalDismissed)
+
+  function handleCloseErrorModal() {
+    setModalDismissed(true)
+    onCloseErrorModal?.()
+  }
+
+  return (
+    <>
+      <Dialog open={open} title={title} description={description} confirmClose={dirty} onClose={() => { if (!pending) onClose() }} maxWidth="max-w-xl">
+        <form onSubmit={onSubmit} aria-label={title} className="max-h-[65vh] overflow-y-auto p-1">
+          <fieldset disabled={pending}>
+            <FieldGroup>
+              {children}
+              <ErrorNotice message={error} />
+              <div className="flex flex-wrap justify-end gap-3">
+                <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
+                <Button type="submit" disabled={pending || submitDisabled}>
+                  {pending && <Spinner data-icon="inline-start" aria-hidden="true" />}
+                  {pending ? 'Guardando…' : submitLabel}
+                </Button>
+              </div>
+            </FieldGroup>
+          </fieldset>
+        </form>
+      </Dialog>
+      {errorModal && (
+        <ErrorModal
+          open={isErrorModalOpen}
+          onClose={handleCloseErrorModal}
+          title={errorModal.title}
+          description={errorModal.description}
+        />
+      )}
+    </>
+  )
 }
 
 export function SelectField({ id, label, value, onChange, children, disabled = false, required = true }: Readonly<{ id: string; label: string; value: string; onChange: (value: string) => void; children: ReactNode; disabled?: boolean; required?: boolean }>) {

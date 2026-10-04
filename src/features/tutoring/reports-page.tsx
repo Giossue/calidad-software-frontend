@@ -3,7 +3,6 @@ import {
   AlertTriangleIcon,
   ClipboardCheckIcon,
   FileTextIcon,
-  UsersIcon,
 } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -138,13 +137,7 @@ export function TutoringReportsPage() {
       <ErrorNotice message={list.error} retry={list.reload} />
 
       {list.meta && !list.error && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatMiniCard
-            icon={UsersIcon}
-            tone="blue"
-            label="Estudiantes atendidos"
-            value={list.meta.enrollment_count ?? 0}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
           <StatMiniCard
             icon={ClipboardCheckIcon}
             tone="green"
