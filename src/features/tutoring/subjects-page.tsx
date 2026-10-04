@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { sanitizeCode, sanitizeLetters } from '@/lib/sanitize'
+import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { FilterBar } from './filter-bar'
@@ -362,7 +362,7 @@ export function TutoringSubjectsPage() {
       label: 'Asignatura',
       render: (subject: Subject) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-medium text-foreground">{subject.name}</span>
+          <span className="font-medium text-foreground">{formatSubjectName(subject.name)}</span>
           {subject.modality_name && (
             <span className="text-xs text-muted-foreground">{subject.modality_name}</span>
           )}
@@ -378,7 +378,7 @@ export function TutoringSubjectsPage() {
           variant="outline"
           size="sm"
           onClick={() => setViewingParallelsSubject({ subject, cycleIds: groupCycleIds })}
-          aria-label={`Ver paralelos de ${subject.name}`}
+          aria-label={`Ver paralelos de ${formatSubjectName(subject.name)}`}
           className="h-7 text-xs font-medium text-primary border-primary/30 hover:bg-primary/10"
         >
           Ver Paralelos
@@ -390,10 +390,10 @@ export function TutoringSubjectsPage() {
       label: 'Acciones',
       render: (subject: Subject) => subject.is_active ? (
         <div className="flex items-center gap-1">
-          <Button type="button" variant="ghost" size="icon-sm" title="Gestionar paralelos" aria-label={`Gestionar paralelos de ${subject.name}`} disabled={operation.pending} onClick={() => { operation.clearError(); setParallelId(''); setIsAddingParallelInModal(false); setNewModalParallelName(''); setModalParallelError(null); setAssigning(subject) }}><LayersIcon /></Button>
-          <Button type="button" variant="ghost" size="icon-sm" title="Editar" aria-label={`Editar ${subject.name}`} disabled={operation.pending} onClick={() => edit(subject)}><PencilIcon /></Button>
+          <Button type="button" variant="ghost" size="icon-sm" title="Gestionar paralelos" aria-label={`Gestionar paralelos de ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => { operation.clearError(); setParallelId(''); setIsAddingParallelInModal(false); setNewModalParallelName(''); setModalParallelError(null); setAssigning(subject) }}><LayersIcon /></Button>
+          <Button type="button" variant="ghost" size="icon-sm" title="Editar" aria-label={`Editar ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => edit(subject)}><PencilIcon /></Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${subject.name}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${formatSubjectName(subject.name)}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem variant="destructive" onSelect={() => { operation.clearError(); setDeactivating(subject) }}><PowerOffIcon />Desactivar</DropdownMenuItem>
             </DropdownMenuContent>
@@ -562,7 +562,7 @@ export function TutoringSubjectsPage() {
       title={editing ? 'Editar asignatura' : 'Registrar asignatura'}
       description={
         editing
-          ? `Modifica los datos de ${editing.name}.`
+          ? `Modifica los datos de ${formatSubjectName(editing.name)}.`
           : currentCareer ? `Carrera: ${currentCareer.name}` : undefined
       }
       pending={operation.pending}
@@ -741,7 +741,7 @@ export function TutoringSubjectsPage() {
     <MutationDialog
       open={Boolean(assigning)}
       title="Paralelos de la asignatura"
-      description={assigning ? `${assigning.name}${assignedCycleName ? ` · ${assignedCycleName}` : ''}` : ''}
+      description={assigning ? `${formatSubjectName(assigning.name)}${assignedCycleName ? ` · ${assignedCycleName}` : ''}` : ''}
       pending={operation.pending}
       error={operation.error}
       dirty={Boolean(parallelId || newModalParallelName.trim())}
@@ -864,7 +864,7 @@ export function TutoringSubjectsPage() {
     <Dialog
       open={Boolean(viewingParallelsSubject)}
       title="Paralelos de la asignatura"
-      description={viewingParallelsSubject ? viewingParallelsSubject.subject.name : ''}
+      description={viewingParallelsSubject ? formatSubjectName(viewingParallelsSubject.subject.name) : ''}
       confirmClose={false}
       onClose={() => setViewingParallelsSubject(null)}
       maxWidth="max-w-md"

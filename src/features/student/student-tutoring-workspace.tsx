@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
 import { formatDate } from '@/lib/format'
+import { formatSubjectName } from '@/lib/sanitize'
 import { studentApi, type StudentTutoring } from '@/lib/student-api'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { AttendancePanel } from './student-attendance-page'
@@ -54,7 +55,7 @@ export function StudentTutoringWorkspace({ subjectId, onBack }: Readonly<{ subje
       : <>
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{subject.name}</h2>
+            <h2 className="font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{formatSubjectName(subject.name)}</h2>
             <StatusBadge active={enrollment.is_active && subject.is_active} activeLabel="En curso" inactiveLabel="Finalizada" />
           </div>
           <ContextPills source={subject} />

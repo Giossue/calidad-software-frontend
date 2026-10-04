@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIcon, CheckCircle2Icon, CircleIcon, FileTextIcon, ListTodoIcon, PlusIcon, SparklesIcon, TrendingUpIcon } from 'lucide-react'
+import { ActivityIcon, CheckCircle2Icon, CircleIcon, FileTextIcon, ListTodoIcon, PlusIcon, SparklesIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
@@ -25,10 +24,6 @@ export function DegreeTrackingPage() {
   const [activityDialogOpen, setActivityDialogOpen] = useState(false)
   const [newActivityDesc, setNewActivityDesc] = useState('')
   const [activitySubmitting, setActivitySubmitting] = useState(false)
-
-  const [progressDialogOpen, setProgressDialogOpen] = useState(false)
-  const [newProgress, setNewProgress] = useState<number>(0)
-  const [progressSubmitting, setProgressSubmitting] = useState(false)
 
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportObservations, setReportObservations] = useState('')
@@ -75,24 +70,6 @@ export function DegreeTrackingPage() {
     }
   }
 
-  async function handleUpdateProgress() {
-    if (!selectedTopic) return
-    setProgressSubmitting(true)
-    try {
-      await degreeCoordinationApi.updateProgress(selectedTopic.id, {
-        porcentaje_avance: Number(newProgress),
-      })
-      setProgressDialogOpen(false)
-      setFeedbackMsg('Porcentaje de avance actualizado.')
-      const updated = await degreeCoordinationApi.topic(selectedTopic.id)
-      setSelectedTopic(updated)
-      topicsResource.reload()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al actualizar avance')
-    } finally {
-      setProgressSubmitting(false)
-    }
-  }
 
   async function handleGenerateReport() {
     if (!selectedTopic || !reportObservations.trim()) return
@@ -135,15 +112,7 @@ export function DegreeTrackingPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setNewProgress(progress)
-                setProgressDialogOpen(true)
-              }}
-            >
-              <TrendingUpIcon className="size-4 mr-2" /> Ajustar avance ({progress}%)
-            </Button>
+
             <Button
               variant="outline"
               onClick={() => {
@@ -305,37 +274,7 @@ export function DegreeTrackingPage() {
           </div>
         </Dialog>
 
-        {/* Modal Ajustar Avance */}
-        <Dialog
-          open={progressDialogOpen}
-          onClose={() => setProgressDialogOpen(false)}
-          title="Ajustar porcentaje de avance"
-          description="Indica el porcentaje general de avance alcanzado en el trabajo de titulación."
-        >
-          <div className="space-y-4">
-            <Field>
-              <FieldLabel htmlFor="manual-progress">Porcentaje de avance (0 a 100)</FieldLabel>
-              <Input
-                id="manual-progress"
-                type="number"
-                min={0}
-                max={100}
-                value={newProgress}
-                onChange={(e) => setNewProgress(Number(e.target.value))}
-              />
-            </Field>
-            <div className="flex justify-end gap-2 pt-2">
-              <DialogCancelButton />
-              <Button
-                disabled={progressSubmitting}
-                onClick={() => void handleUpdateProgress()}
-                className="bg-brand-red hover:bg-brand-red/90 text-white"
-              >
-                {progressSubmitting ? 'Guardando…' : 'Guardar avance'}
-              </Button>
-            </div>
-          </div>
-        </Dialog>
+
 
         {/* Modal Generar Informe */}
         <Dialog

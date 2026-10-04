@@ -1,37 +1,53 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ApiError, type AcademicPeriod, type Career, type Cycle, type Modality, type Section } from '@/lib/api'
+import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
+import { type AcademicPeriod, type Career, type Cycle, type Modality, type Section } from '@/lib/api'
 import { tutoringApi } from '@/lib/tutoring-api'
 
 export function describeError(error: unknown): string {
-  if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
-  return 'No fue posible conectar con el servidor. Intenta nuevamente.'
+  const friendly = getFriendlyError(error)
+  return friendly.description
 }
 
 export function useOperation() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorModal, setErrorModal] = useState<FriendlyErrorInfo | null>(null)
   const busy = useRef(false)
+
   async function run(action: () => Promise<unknown>, success: string, onSuccess?: () => void | Promise<unknown>) {
     if (busy.current) return
     busy.current = true
     setPending(true)
     setError(null)
+    setErrorModal(null)
     try {
       await action()
       toast.success(success)
       await onSuccess?.()
     } catch (caught) {
-      const message = describeError(caught)
-      setError(message)
-      toast.error(message)
+      const friendly = getFriendlyError(caught)
+      setError(friendly.description)
+      setErrorModal(friendly)
+      toast.error(friendly.title, { description: friendly.description })
     } finally {
       busy.current = false
       setPending(false)
     }
   }
-  return { pending, error, clearError: () => setError(null), run }
+
+  return {
+    pending,
+    error,
+    errorModal,
+    clearError: () => {
+      setError(null)
+      setErrorModal(null)
+    },
+    clearErrorModal: () => setErrorModal(null),
+    run,
+  }
 }
 
 export function useTutoringCatalogs() {

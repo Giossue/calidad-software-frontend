@@ -52,7 +52,7 @@ describe('Módulo Estudiante', () => {
     vi.mocked(studentApi.content).mockResolvedValue(content)
     show(<StudentTutoringsPage />)
     await user.click(await screen.findByRole('button', { name: 'Abrir Calidad de software' }))
-    expect(await screen.findByRole('heading', { name: 'Calidad de software' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /calidad de software/i })).toBeInTheDocument()
     expect(await screen.findByText('1 de 2 temas completados')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Volver a mis tutorías' }))
     expect(await screen.findByRole('button', { name: 'Abrir Calidad de software' })).toBeInTheDocument()
