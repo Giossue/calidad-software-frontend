@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import {
   CalendarDaysIcon,
   CalendarIcon,
@@ -19,16 +19,21 @@ import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
-import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
+const PAO_NUMBERS = ['I', 'II', 'III'] as const
+type PaoNumber = (typeof PAO_NUMBERS)[number]
+
 type AcademicPeriodForm = {
-  name: string
+  paoNumber: PaoNumber | ''
+  year: string
   startDate: string
   endDate: string
 }
@@ -38,14 +43,23 @@ type PendingAction = 'period' | 'toggle-period' | null
 type ToggleTarget = { period: AcademicPeriod; action: 'activate' | 'deactivate' }
 
 const INITIAL_FORM: AcademicPeriodForm = {
-  name: '',
+  paoNumber: '',
+  year: '',
   startDate: '',
   endDate: '',
 }
 
+function composePeriodName(paoNumber: string, year: string): string {
+  return `PAO ${paoNumber} ${year}`.trim()
+}
 
-function sanitizePeriodName(value: string, maxLength: number): string {
-  return value.replace(/[^\p{L}\p{N}\s-]/gu, '').slice(0, maxLength)
+function parsePeriodName(name: string): { paoNumber: PaoNumber | ''; year: string } {
+  const match = /^PAO\s+(I{1,3})\s+(\d{4})$/.exec(name.trim())
+  if (match) {
+    const num = match[1] as PaoNumber
+    return { paoNumber: PAO_NUMBERS.includes(num) ? num : '', year: match[2] }
+  }
+  return { paoNumber: '', year: '' }
 }
 
 function getPeriodDateBounds() {
@@ -60,10 +74,18 @@ function getPeriodDateBounds() {
 
 function validatePeriodForm(form: AcademicPeriodForm, isCreating = false): AcademicPeriodFormErrors {
   const errors: AcademicPeriodFormErrors = {}
-  const name = form.name.trim()
 
-  if (!name) errors.name = 'El nombre del período es obligatorio.'
-  else if (name.length > 100) errors.name = 'El nombre no puede superar 100 caracteres.'
+  if (!form.paoNumber) errors.paoNumber = 'Selecciona el número de PAO.'
+  if (!form.year) {
+    errors.year = 'El año es obligatorio.'
+  } else if (!/^\d{4}$/.test(form.year)) {
+    errors.year = 'Ingresa un año válido de 4 dígitos.'
+  } else {
+    const yearNum = Number(form.year)
+    const currentYear = new Date().getFullYear()
+    if (yearNum < currentYear) errors.year = `El año no puede ser anterior a ${currentYear}.`
+    if (yearNum > currentYear + 2) errors.year = `El año no puede superar ${currentYear + 2}.`
+  }
 
   const { minDate, maxDate, maxYear } = getPeriodDateBounds()
 
@@ -110,6 +132,11 @@ export function AcademicPeriodsPage() {
   const [editingPeriod, setEditingPeriod] = useState<AcademicPeriod | null>(null)
   const [form, setForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
   const [initialForm, setInitialForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
+
+  const composedName = useMemo(
+    () => (form.paoNumber && form.year ? composePeriodName(form.paoNumber, form.year) : ''),
+    [form.paoNumber, form.year],
+  )
   const [formErrors, setFormErrors] = useState<AcademicPeriodFormErrors>({})
   const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
@@ -143,8 +170,10 @@ export function AcademicPeriodsPage() {
 
   function openEditModal(period: AcademicPeriod) {
     setEditingPeriod(period)
+    const parsed = parsePeriodName(period.name)
     const initial: AcademicPeriodForm = {
-      name: period.name,
+      paoNumber: parsed.paoNumber,
+      year: parsed.year || period.name,  // fallback: put raw name in year field if not parseable
       startDate: period.start_date.slice(0, 10),
       endDate: period.end_date.slice(0, 10),
     }
@@ -171,7 +200,7 @@ export function AcademicPeriodsPage() {
       const firstErrorMessage = Object.values(errors).find(Boolean)
       setErrorModal({
         open: true,
-        title: errors.startDate || errors.endDate ? 'Fecha no válida' : 'Revisa los campos requeridos',
+        title: errors.startDate || errors.endDate ? 'Fecha no válida' : (errors.paoNumber || errors.year) ? 'Nombre de período no válido' : 'Revisa los campos requeridos',
         description: firstErrorMessage || 'Hay datos incompletos o fechas incorrectas en el período académico. Por favor, revísalos antes de continuar.',
       })
       return
@@ -180,7 +209,7 @@ export function AcademicPeriodsPage() {
     setPending('period')
     try {
       const input: AcademicPeriodInput = {
-        name: form.name.trim(),
+        name: composedName,
         start_date: form.startDate,
         end_date: form.endDate,
       }
@@ -202,8 +231,8 @@ export function AcademicPeriodsPage() {
         title: friendly.title,
         description: friendly.description,
       })
-      if (friendly.field === 'name') {
-        setFormErrors((prev) => ({ ...prev, name: friendly.description }))
+      if (friendly.field === 'name' || friendly.field === 'nombre') {
+        setFormErrors((prev) => ({ ...prev, paoNumber: friendly.description }))
       }
     } finally {
       setPending(null)
@@ -239,7 +268,11 @@ export function AcademicPeriodsPage() {
   }
 
   const formDisabled = pending !== null
-  const isFormDirty = form.name !== initialForm.name || form.startDate !== initialForm.startDate || form.endDate !== initialForm.endDate
+  const isFormDirty =
+    form.paoNumber !== initialForm.paoNumber ||
+    form.year !== initialForm.year ||
+    form.startDate !== initialForm.startDate ||
+    form.endDate !== initialForm.endDate
   const isCreating = editingPeriod === null
   const { minDate, maxDate } = getPeriodDateBounds()
 
@@ -441,25 +474,58 @@ export function AcademicPeriodsPage() {
       >
         <form onSubmit={submitPeriod}>
           <FieldGroup className="gap-5">
-            <Field data-invalid={Boolean(formErrors.name)}>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="academic-period-name">Nombre del período</FieldLabel>
-                <FieldCounter current={form.name.length} max={100} />
+            {/* Nombre del período: PAO + número + año */}
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <FieldLabel className="mb-3 block">Nombre del período académico</FieldLabel>
+              <div className="flex items-center gap-2">
+                {/* Prefijo fijo: PAO */}
+                <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 select-none">
+                  PAO
+                </div>
+
+                {/* Selector de número romano */}
+                <Field data-invalid={Boolean(formErrors.paoNumber)} className="flex-1">
+                  <NativeSelect
+                    id="period-pao-number"
+                    name="paoNumber"
+                    value={form.paoNumber}
+                    onChange={(e) => updateField('paoNumber', e.target.value)}
+                    disabled={formDisabled}
+                    required
+                  >
+                    <option value="">Nº</option>
+                    {PAO_NUMBERS.map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </NativeSelect>
+                  <FieldError>{formErrors.paoNumber}</FieldError>
+                </Field>
+
+                {/* Campo de año */}
+                <Field data-invalid={Boolean(formErrors.year)} className="flex-1">
+                  <Input
+                    id="period-year"
+                    name="year"
+                    inputMode="numeric"
+                    value={form.year}
+                    onChange={(e) => updateField('year', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="Año"
+                    maxLength={4}
+                    autoComplete="off"
+                    disabled={formDisabled}
+                    required
+                  />
+                  <FieldError>{formErrors.year}</FieldError>
+                </Field>
               </div>
-              <Input
-                id="academic-period-name"
-                name="name"
-                value={form.name}
-                onChange={(e) => updateField('name', sanitizePeriodName(e.target.value, 100))}
-                placeholder="Ej. PAO II 2026 o 2026-1"
-                maxLength={100}
-                autoComplete="off"
-                disabled={formDisabled}
-                required
-              />
-              <FieldDescription>Ejemplo: PAO I 2026, PAO II 2026.</FieldDescription>
-              <FieldError>{formErrors.name}</FieldError>
-            </Field>
+
+              {/* Preview del nombre generado */}
+              {composedName && (
+                <FieldDescription className="mt-2">
+                  El período se registrará como: <strong>{composedName}</strong>
+                </FieldDescription>
+              )}
+            </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <Field data-invalid={Boolean(formErrors.startDate)}>

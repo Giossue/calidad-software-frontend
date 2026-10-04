@@ -392,8 +392,7 @@ describe('Coordinación de tutorías', () => {
     expect(within(form).getByText('Matemática')).toBeInTheDocument()
 
     // Asignar docente recuperado de docentes de la carrera específica (solo nombre, sin buscador ni correo)
-    expect(within(form).queryByLabelText(/Buscar docente/)).not.toBeInTheDocument()
-    await waitFor(() => expect(tutoringApi.availableTeachers).toHaveBeenCalledWith('', undefined, 10))
+    await waitFor(() => expect(tutoringApi.availableTeachers).toHaveBeenCalledWith(''))
     await waitFor(() => expect(within(form).getByLabelText('Docente')).toBeEnabled())
     expect(within(form).getByRole('option', { name: 'Ana Torres' })).toBeInTheDocument()
     expect(within(form).queryByRole('option', { name: /ana@ueb.edu.ec/ })).not.toBeInTheDocument()

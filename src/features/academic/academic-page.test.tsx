@@ -79,5 +79,6 @@ describe('Gestión de ciclos', () => {
 
     expect(within(dialog).getByLabelText('Nombre del ciclo')).toBeInTheDocument()
     expect(within(dialog).queryByLabelText('Número')).not.toBeInTheDocument()
+    expect(within(dialog).queryByLabelText('Paralelo')).not.toBeInTheDocument()
   })
 })

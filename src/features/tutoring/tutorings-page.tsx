@@ -147,7 +147,7 @@ export function TutoringsPage() {
     let cancelled = false
     setCreateTeachersLoading(true)
     setCreateTeachersError(null)
-    tutoringApi.availableTeachers('', undefined, creatingTutoringSubject.career_id)
+    tutoringApi.availableTeachers('')
       .then((data) => { if (!cancelled) setCreateTeachers(data) })
       .catch((caught: unknown) => { if (!cancelled) setCreateTeachersError(describeError(caught)) })
       .finally(() => { if (!cancelled) setCreateTeachersLoading(false) })
@@ -310,7 +310,7 @@ export function TutoringsPage() {
 
     setEditTeachersLoading(true)
     setEditTeachersError(null)
-    Promise.resolve(tutoringApi.availableTeachers('', undefined, item.career_id))
+    Promise.resolve(tutoringApi.availableTeachers(''))
       .then((data) => {
         if (!data || !Array.isArray(data)) return
         const map = new Map<number, AvailableTeacher>()

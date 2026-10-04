@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
+  AwardIcon,
+  BriefcaseIcon,
   CheckCircle2Icon,
   Edit2Icon,
   GraduationCapIcon,
@@ -30,7 +32,6 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { CoordinatorCareersDialog } from '@/features/admin/coordinator-careers-dialog'
 import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
 import { isValidEcuadorianCedula } from '@/lib/cedula'
 import { getInitials } from '@/lib/format'
@@ -57,7 +58,7 @@ type UserFormInput = {
   identification: string
   name: string
   email: string
-  phone: string
+  phone: string | null
   role: string
   faculty_id?: number | null
   career_id?: number | null
@@ -137,12 +138,17 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
   else if (email.length > 150) errors.email = 'El correo electrónico no puede superar 150 caracteres.'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Escribe un correo electrónico válido.'
 
-  if (!phone) errors.phone = 'El teléfono es obligatorio.'
-  else if (!/^\d{10}$/.test(phone)) errors.phone = 'El teléfono debe tener 10 dígitos numéricos.'
+  if (!phone) {
+    if (!editing) {
+      errors.phone = 'El teléfono es obligatorio.'
+    }
+  } else if (!/^\d{10}$/.test(phone)) {
+    errors.phone = 'El teléfono debe tener 10 dígitos numéricos.'
+  }
 
   if (!isRole(form.role)) errors.role = 'Selecciona un rol válido.'
 
-  if (form.role && form.role !== 'administrador') {
+  if (form.role && form.role !== 'administrador' && form.role !== 'docente') {
     if (!form.facultyId) errors.facultyId = 'Selecciona la facultad.'
     if (!form.careerId) errors.careerId = 'Selecciona la carrera.'
   }
@@ -217,7 +223,6 @@ export function UsersPage() {
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userToToggle, setUserToToggle] = useState<ToggleTarget | null>(null)
-  const [coordinatorToAssign, setCoordinatorToAssign] = useState<User | null>(null)
 
   async function handleRefresh() {
     const [ok] = await Promise.all([reload(), loadCatalogs()])
@@ -227,7 +232,7 @@ export function UsersPage() {
   function updateUserField(field: keyof UserForm, value: string) {
     setUserForm((current) => {
       const next = { ...current, [field]: value }
-      if (field === 'role' && value === 'administrador') {
+      if (field === 'role' && (value === 'administrador' || value === 'docente')) {
         next.facultyId = ''
         next.careerId = ''
       }
@@ -240,7 +245,7 @@ export function UsersPage() {
       if (!current[field]) return current
       const next = { ...current }
       delete next[field]
-      if (field === 'role' && value === 'administrador') {
+      if (field === 'role' && (value === 'administrador' || value === 'docente')) {
         delete next.facultyId
         delete next.careerId
       }
@@ -275,8 +280,8 @@ export function UsersPage() {
       email: user.email,
       phone: user.phone ?? '',
       role: user.role,
-      facultyId: user.role !== 'administrador' ? initialFacultyId : '',
-      careerId: user.role !== 'administrador' ? initialCareerId : '',
+      facultyId: (user.role !== 'administrador' && user.role !== 'docente') ? initialFacultyId : '',
+      careerId: (user.role !== 'administrador' && user.role !== 'docente') ? initialCareerId : '',
       password: '',
       password_confirmation: '',
     }
@@ -311,26 +316,38 @@ export function UsersPage() {
 
     setPending('user')
     try {
+      // Si se está editando y el usuario deja el teléfono vacío, se mantiene el anterior (o queda vacío si no tenía)
+      const resolvedPhone = editingUser
+        ? (userForm.phone.trim() || editingUser.phone || null)
+        : userForm.phone.trim()
+
       const baseInput: UserFormInput = {
         identification: userForm.identification.trim(),
         name: userForm.name.trim(),
         email: userForm.email.trim(),
-        phone: userForm.phone.trim(),
+        phone: resolvedPhone,
         role: userForm.role,
-        faculty_id: userForm.role !== 'administrador' && userForm.facultyId ? Number(userForm.facultyId) : null,
-        career_id: userForm.role !== 'administrador' && userForm.careerId ? Number(userForm.careerId) : null,
+        faculty_id: userForm.role !== 'administrador' && userForm.role !== 'docente' && userForm.facultyId ? Number(userForm.facultyId) : null,
+        career_id: userForm.role !== 'administrador' && userForm.role !== 'docente' && userForm.careerId ? Number(userForm.careerId) : null,
       }
 
       if (editingUser) {
-        const input: UserFormInput = { ...baseInput }
-        if (userForm.password) {
-          input.password = userForm.password
-          input.password_confirmation = userForm.password_confirmation
+        const input = {
+          ...baseInput,
+          ...(userForm.password
+            ? {
+                password: userForm.password,
+                password_confirmation: userForm.password_confirmation,
+              }
+            : {}),
         }
         await api.updateUser(editingUser.id, input)
         toast.success('Usuario actualizado', { description: `Los datos de ${baseInput.name} fueron modificados.` })
       } else {
-        await api.createUser(baseInput)
+        await api.createUser({
+          ...baseInput,
+          phone: userForm.phone.trim(),
+        })
         toast.success('Usuario registrado', {
           description: `Se creó la cuenta de ${baseInput.name} y se le envió su contraseña provisional por correo.`,
         })
@@ -389,6 +406,8 @@ export function UsersPage() {
   // Métricas KPI (independientes de la página actual, la búsqueda y el filtro de rol)
   const totalUsers = (meta?.active_count ?? 0) + (meta?.inactive_count ?? 0)
   const totalAdmins = meta?.admin_count ?? 0
+  const totalCoordinadoresCarrera = meta?.career_coordinator_count ?? 0
+  const totalCoordinadoresTitulacion = meta?.degree_coordinator_count ?? 0
   const totalDocentes = meta?.teacher_count ?? 0
   const totalEstudiantes = meta?.student_count ?? 0
 
@@ -428,7 +447,7 @@ export function UsersPage() {
       )}
 
       {/* Tarjetas KPI de Estadísticas Resumidas */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
             <UsersIcon className="size-6" />
@@ -453,6 +472,34 @@ export function UsersPage() {
             </span>
             <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               {totalAdmins}
+            </span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+            <BriefcaseIcon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Coord. Carrera
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {totalCoordinadoresCarrera}
+            </span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+            <AwardIcon className="size-6" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Coord. Titulación
+            </span>
+            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {totalCoordinadoresTitulacion}
             </span>
           </div>
         </Card>
@@ -640,17 +687,7 @@ export function UsersPage() {
 
                       <TableCell className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {user.role === 'coordinador_carrera' && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setCoordinatorToAssign(user)}
-                              disabled={pending !== null}
-                            >
-                              Asignar carreras
-                            </Button>
-                          )}
+
                           <button
                             type="button"
                             onClick={() => openEditModal(user)}
@@ -799,7 +836,9 @@ export function UsersPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <Field data-invalid={Boolean(userErrors.phone)}>
                 <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="user-phone">Teléfono</FieldLabel>
+                  <FieldLabel htmlFor="user-phone">
+                    Teléfono {editingUser ? <span className="font-normal text-muted-foreground text-xs">(Opcional)</span> : null}
+                  </FieldLabel>
                   <FieldCounter current={userForm.phone.length} max={10} />
                 </div>
                 <Input
@@ -810,10 +849,15 @@ export function UsersPage() {
                   value={userForm.phone}
                   onChange={(e) => updateUserField('phone', sanitizeDigits(e.target.value, 10))}
                   maxLength={10}
-                  placeholder="Ej. 0989938432"
+                  placeholder={editingUser?.phone ? `Anterior: ${editingUser.phone}` : 'Ej. 0989938432'}
                   disabled={formDisabled}
-                  required
+                  required={!editingUser}
                 />
+                {editingUser && (
+                  <FieldDescription className="text-xs">
+                    Si no colocas un número, se mantendrá el teléfono anterior o quedará vacío si no tenía uno registrado.
+                  </FieldDescription>
+                )}
                 <FieldError>{userErrors.phone}</FieldError>
               </Field>
 
@@ -838,8 +882,8 @@ export function UsersPage() {
               </Field>
             </div>
 
-            {/* Selector de Facultad y Carrera para roles académicos (todos excepto Administrador) */}
-            {userForm.role && userForm.role !== 'administrador' && (
+            {/* Selector de Facultad y Carrera para roles académicos específicos (Estudiante, Coordinadores) */}
+            {userForm.role && userForm.role !== 'administrador' && userForm.role !== 'docente' && (
               <div className="grid gap-5 sm:grid-cols-2 rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
                 <Field data-invalid={Boolean(userErrors.facultyId)}>
                   <FieldLabel htmlFor="user-faculty">Facultad</FieldLabel>
@@ -959,14 +1003,6 @@ export function UsersPage() {
         </form>
       </Dialog>
 
-      {coordinatorToAssign && (
-        <CoordinatorCareersDialog
-          key={coordinatorToAssign.id}
-          user={coordinatorToAssign}
-          onClose={() => setCoordinatorToAssign(null)}
-          onSaved={() => { void reload() }}
-        />
-      )}
 
       {/* ConfirmModal para Habilitar / Desactivar Usuario */}
       <ConfirmModal

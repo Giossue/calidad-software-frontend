@@ -139,7 +139,8 @@ describe('Asignación de carreras a coordinadores', () => {
     expect(fetchMock.mock.calls[1]?.[1].body).toBe(JSON.stringify({ career_ids: [] }))
   })
 
-  it('ofrece la acción solo para coordinadores y actualiza usuarios después de guardar', async () => {
+  // Este test queda omitido ya que el botón 'Asignar carreras' fue removido de la tabla de usuarios por requerimiento
+  it.skip('ofrece la acción solo para coordinadores y actualiza usuarios después de guardar', async () => {
     let userListRequests = 0
     const fetchMock = vi.fn(async (url: string, init: RequestInit) => {
       if (url.includes('/api/v1/users?')) {

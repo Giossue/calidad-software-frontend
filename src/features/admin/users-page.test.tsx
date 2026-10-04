@@ -108,6 +108,8 @@ beforeEach(() => {
       active_count: 2,
       inactive_count: 0,
       admin_count: 1,
+      career_coordinator_count: 3,
+      degree_coordinator_count: 2,
       teacher_count: 1,
       student_count: 0,
     },
@@ -131,7 +133,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     expect(screen.getByText('Ingeniería de Software')).toBeInTheDocument()
   })
 
-  it('muestra los selectores de facultad y carrera al elegir rol estudiante o docente, pero no para administrador', async () => {
+  it('muestra los selectores de facultad y carrera al elegir rol estudiante, pero no para administrador ni docente', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
 
@@ -142,21 +144,20 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     expect(screen.queryByLabelText('Facultad')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
 
-    // Si se selecciona un rol no-admin (ej. docente): aparecen los selectores
+    // Si se selecciona docente: tampoco se muestra facultad ni carrera
     const roleSelect = screen.getByLabelText('Rol en el sistema')
     await user.selectOptions(roleSelect, 'docente')
+    expect(screen.queryByLabelText('Facultad')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
 
-    expect(await screen.findByLabelText('Facultad')).toBeInTheDocument()
-    expect(screen.getByLabelText('Carrera')).toBeInTheDocument()
-
-    // Si se cambia a administrador: se ocultan los selectores
+    // Si se cambia a administrador: tampoco se muestran los selectores
     await user.selectOptions(roleSelect, 'administrador')
     expect(screen.queryByLabelText('Facultad')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
 
-    // Si se vuelve a seleccionar estudiante: se vuelven a mostrar
+    // Si se selecciona estudiante: se muestran facultad y carrera
     await user.selectOptions(roleSelect, 'estudiante')
-    expect(screen.getByLabelText('Facultad')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Facultad')).toBeInTheDocument()
     expect(screen.getByLabelText('Carrera')).toBeInTheDocument()
   })
 
@@ -257,6 +258,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     // Cambiar a Coordinador de carrera y seleccionar otra carrera
     await user.selectOptions(screen.getByLabelText('Rol en el sistema'), 'coordinador_carrera')
+    await user.selectOptions(screen.getByLabelText('Facultad'), '1')
     await user.selectOptions(screen.getByLabelText('Carrera'), '11')
 
     await user.click(screen.getByRole('button', { name: 'Guardar Cambios' }))
@@ -268,6 +270,92 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
           role: 'coordinador_carrera',
           faculty_id: 1,
           career_id: 11,
+        })
+      )
+    })
+  }, 15000)
+
+  it('registra un docente sin requerir ni enviar facultad ni carrera', async () => {
+    const user = userEvent.setup()
+    const createSpy = vi.spyOn(api, 'createUser').mockResolvedValue({
+      id: 4,
+      identification: '1710034065',
+      name: 'Docente Nuevo',
+      email: 'docente_nuevo@ueb.edu.ec',
+      phone: '0987654321',
+      role: 'docente',
+      is_active: true,
+      email_verified_at: null,
+      has_two_factor: false,
+    })
+
+    render(<UsersPage />)
+    await screen.findByText('Carlos Docente')
+
+    await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
+    expect(await screen.findByText('Registrar Nuevo Usuario')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Cédula'), '1710034065')
+    await user.type(screen.getByLabelText('Nombre completo'), 'Docente Nuevo')
+    await user.type(screen.getByLabelText('Correo electrónico institucional'), 'docente_nuevo@ueb.edu.ec')
+    await user.type(screen.getByLabelText('Teléfono'), '0987654321')
+    await user.selectOptions(screen.getByLabelText('Rol en el sistema'), 'docente')
+
+    expect(screen.queryByLabelText('Facultad')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Usuario' }))
+
+    await waitFor(() => {
+      expect(createSpy).toHaveBeenCalledWith({
+        identification: '1710034065',
+        name: 'Docente Nuevo',
+        email: 'docente_nuevo@ueb.edu.ec',
+        phone: '0987654321',
+        role: 'docente',
+        faculty_id: null,
+        career_id: null,
+      })
+    })
+  })
+
+  it('muestra tarjetas estadísticas para coordinadores de carrera y titulación', async () => {
+    render(<UsersPage />)
+
+    const coordCarreraLabel = await screen.findByText('Coord. Carrera')
+    expect(coordCarreraLabel).toBeInTheDocument()
+    expect(coordCarreraLabel.closest('div')?.querySelector('.text-2xl')?.textContent).toBe('3')
+
+    const coordTitulacionLabel = screen.getByText('Coord. Titulación')
+    expect(coordTitulacionLabel).toBeInTheDocument()
+    expect(coordTitulacionLabel.closest('div')?.querySelector('.text-2xl')?.textContent).toBe('2')
+  })
+
+  it('permite editar a un usuario con teléfono vacío manteniendo el teléfono anterior', async () => {
+    const user = userEvent.setup()
+    const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue(mockUsers[0])
+
+    render(<UsersPage />)
+    await screen.findByText('Carlos Docente')
+
+    const editButtons = screen.getAllByTitle('Editar usuario')
+    await user.click(editButtons[0])
+
+    expect(await screen.findByText('Editar Usuario')).toBeInTheDocument()
+
+    // Vaciar el campo teléfono
+    const phoneInput = screen.getByLabelText(/Teléfono/i)
+    await user.clear(phoneInput)
+    expect(phoneInput).not.toBeRequired()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar Cambios' }))
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          // Mantiene el teléfono anterior ('0991234567') porque se dejó vacío
+          phone: '0991234567',
         })
       )
     })

@@ -87,6 +87,8 @@ export interface UserPaginationMeta extends PaginationMeta {
   readonly admin_count: number
   readonly teacher_count: number
   readonly student_count: number
+  readonly career_coordinator_count?: number
+  readonly degree_coordinator_count?: number
 }
 
 export type ListParams = {
@@ -136,7 +138,7 @@ export type UpdateUserInput = {
   readonly identification?: string
   readonly name?: string
   readonly email?: string
-  readonly phone?: string
+  readonly phone?: string | null
   readonly role?: string
   readonly faculty_id?: number | null
   readonly career_id?: number | null

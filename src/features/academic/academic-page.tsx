@@ -28,7 +28,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { api, type Career, type Cycle, type Faculty, type Modality, type Section } from '@/lib/api'
+import { api, type Career, type Cycle, type Faculty, type Modality } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 
@@ -120,10 +120,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   const [initialCareerName, setInitialCareerName] = useState('')
   const [initialCareerModalityId, setInitialCareerModalityId] = useState('')
 
-  const [isAddingModality, setIsAddingModality] = useState(false)
-  const [newModalityName, setNewModalityName] = useState('')
-  const [modalityNameError, setModalityNameError] = useState<string | null>(null)
-  const [creatingModality, setCreatingModality] = useState(false)
+
 
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false)
   const [careerToToggle, setCareerToToggle] = useState<CareerToggleTarget | null>(null)
@@ -143,9 +140,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setInitialCareerFacultyId('')
     setInitialCareerName('')
     setInitialCareerModalityId('')
-    setIsAddingModality(false)
-    setNewModalityName('')
-    setModalityNameError(null)
     setCareerErrors({})
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
@@ -162,9 +156,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setInitialCareerFacultyId(String(career.faculty_id))
     setInitialCareerName(career.name)
     setInitialCareerModalityId(career.modality_id ? String(career.modality_id) : '')
-    setIsAddingModality(false)
-    setNewModalityName('')
-    setModalityNameError(null)
     setCareerErrors({})
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
@@ -177,35 +168,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setCareerFacultyId('')
     setCareerName('')
     setCareerModalityId('')
-    setIsAddingModality(false)
-    setNewModalityName('')
-    setModalityNameError(null)
     setCareerErrors({})
   }
 
-  async function handleCreateModality() {
-    const trimmedName = newModalityName.trim()
-    if (!trimmedName) {
-      setModalityNameError('El nombre de la modalidad es obligatorio.')
-      return
-    }
-    if (creatingModality) return
 
-    setModalityNameError(null)
-    setCreatingModality(true)
-    try {
-      const created = await api.createModality({ name: trimmedName })
-      await refreshModalities()
-      setCareerModalityId(String(created.id))
-      setIsAddingModality(false)
-      setNewModalityName('')
-      toast.success('Modalidad creada', { description: `Se agregó "${created.name}" al catálogo de modalidades.` })
-    } catch (error: unknown) {
-      setModalityNameError(getFriendlyError(error).description)
-    } finally {
-      setCreatingModality(false)
-    }
-  }
 
   async function submitCareer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -524,80 +490,21 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               <FieldError>{careerErrors.facultyId}</FieldError>
             </Field>
 
-            <Field data-invalid={Boolean(modalityNameError)}>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="career-modality">Modalidad</FieldLabel>
-                {isAddingModality && <FieldCounter current={newModalityName.length} max={100} />}
-              </div>
-              {isAddingModality ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={newModalityName}
-                    onChange={(e) => {
-                      setNewModalityName(sanitizeLetters(e.target.value, 100))
-                      setModalityNameError(null)
-                    }}
-                    placeholder="Ej. Semipresencial"
-                    maxLength={100}
-                    disabled={creatingModality}
-                    autoFocus
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => void handleCreateModality()}
-                    disabled={creatingModality || !newModalityName.trim()}
-                    className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold shrink-0"
-                  >
-                    {creatingModality && <Spinner data-icon="inline-start" />}
-                    Guardar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsAddingModality(false)
-                      setNewModalityName('')
-                      setModalityNameError(null)
-                    }}
-                    disabled={creatingModality}
-                    className="shrink-0"
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <NativeSelect
-                    id="career-modality"
-                    value={careerModalityId}
-                    onChange={(e) => setCareerModalityId(e.target.value)}
-                    disabled={formPending}
-                  >
-                    <option value="">Seleccionar</option>
-                    {modalities.map((modality) => (
-                      <option key={modality.id} value={modality.id}>
-                        {modality.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsAddingModality(true)}
-                    disabled={formPending}
-                    title="Crear nueva modalidad"
-                    className="shrink-0"
-                  >
-                    <PlusIcon />
-                  </Button>
-                </div>
-              )}
-              {modalityNameError ? (
-                <FieldError>{modalityNameError}</FieldError>
-              ) : (
-                !isAddingModality && <FieldDescription className="text-xs">Si no existe, créala con el botón "+".</FieldDescription>
-              )}
+            <Field>
+              <FieldLabel htmlFor="career-modality">Modalidad</FieldLabel>
+              <NativeSelect
+                id="career-modality"
+                value={careerModalityId}
+                onChange={(e) => setCareerModalityId(e.target.value)}
+                disabled={formPending}
+              >
+                <option value="">Seleccionar</option>
+                {modalities.map((modality) => (
+                  <option key={modality.id} value={modality.id}>
+                    {modality.name}
+                  </option>
+                ))}
+              </NativeSelect>
             </Field>
 
             <Field data-invalid={Boolean(careerErrors.name)}>
@@ -639,8 +546,8 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               </NativeSelect>
               <FieldDescription className="text-xs">
                 {editingCareer
-                  ? 'Al aumentar la cantidad se crean los ciclos que faltan en el paralelo A. Para quitar un ciclo, desactívalo desde la carrera.'
-                  : 'Se crean automáticamente en el paralelo A.'}
+                  ? 'Al aumentar la cantidad se crean los ciclos que faltan. Para quitar un ciclo, desactívalo desde la carrera.'
+                  : 'Se crean automáticamente los ciclos de la carrera.'}
               </FieldDescription>
             </Field>
 
@@ -713,23 +620,10 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const [editingCycle, setEditingCycle] = useState<Cycle | null>(null)
   const [cycleName, setCycleName] = useState('')
   const [cycleNumber, setCycleNumber] = useState('')
-  const [cycleParaleloId, setCycleParaleloId] = useState('')
   const [initialCycleName, setInitialCycleName] = useState('')
-  const [initialCycleParaleloId, setInitialCycleParaleloId] = useState('')
-
-  const [sections, setSections] = useState<readonly Section[]>([])
-  const [isAddingSection, setIsAddingSection] = useState(false)
-  const [newSectionName, setNewSectionName] = useState('')
-  const [sectionNameError, setSectionNameError] = useState<string | null>(null)
-  const [creatingSection, setCreatingSection] = useState(false)
 
   const [isCycleModalOpen, setIsCycleModalOpen] = useState(false)
   const [cycleToToggle, setCycleToToggle] = useState<CycleToggleTarget | null>(null)
-
-  async function refreshSections() {
-    const response = await api.listSections()
-    setSections(response.data.filter((section) => section.is_active))
-  }
 
   async function handleRefresh() {
     const ok = await reload()
@@ -741,14 +635,8 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setCycleName('')
     const nextNumber = cycles.length > 0 ? Math.max(...cycles.map((c) => c.number)) + 1 : 1
     setCycleNumber(String(nextNumber))
-    setCycleParaleloId('')
     setInitialCycleName('')
-    setInitialCycleParaleloId('')
-    setIsAddingSection(false)
-    setNewSectionName('')
-    setSectionNameError(null)
     setCycleErrors({})
-    void refreshSections()
     setIsCycleModalOpen(true)
   }
 
@@ -756,14 +644,8 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setEditingCycle(cycle)
     setCycleName(cycle.name)
     setCycleNumber(String(cycle.number))
-    setCycleParaleloId(cycle.paralelo_id ? String(cycle.paralelo_id) : '')
     setInitialCycleName(cycle.name)
-    setInitialCycleParaleloId(cycle.paralelo_id ? String(cycle.paralelo_id) : '')
-    setIsAddingSection(false)
-    setNewSectionName('')
-    setSectionNameError(null)
     setCycleErrors({})
-    void refreshSections()
     setIsCycleModalOpen(true)
   }
 
@@ -772,35 +654,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setEditingCycle(null)
     setCycleName('')
     setCycleNumber('')
-    setCycleParaleloId('')
-    setIsAddingSection(false)
-    setNewSectionName('')
-    setSectionNameError(null)
     setCycleErrors({})
-  }
-
-  async function handleCreateSection() {
-    const trimmedName = newSectionName.trim()
-    if (!trimmedName) {
-      setSectionNameError('El nombre del paralelo es obligatorio.')
-      return
-    }
-    if (creatingSection) return
-
-    setSectionNameError(null)
-    setCreatingSection(true)
-    try {
-      const created = await api.createSection({ name: trimmedName })
-      await refreshSections()
-      setCycleParaleloId(String(created.id))
-      setIsAddingSection(false)
-      setNewSectionName('')
-      toast.success('Paralelo creado', { description: `Se agregó "${created.name}" al catálogo de paralelos.` })
-    } catch (error: unknown) {
-      setSectionNameError(getFriendlyError(error).description)
-    } finally {
-      setCreatingSection(false)
-    }
   }
 
   async function submitCycle(event: FormEvent<HTMLFormElement>) {
@@ -828,7 +682,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         career_id: career.id,
         name: cycleName.trim(),
         number: calculatedNumber,
-        paralelo_id: cycleParaleloId ? Number(cycleParaleloId) : null,
       }
       if (editingCycle) {
         await api.updateCycle(editingCycle.id, input)
@@ -882,9 +735,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   }
 
   const formPending = pending === 'cycle'
-  const isCycleFormDirty =
-    cycleName !== initialCycleName
-    || cycleParaleloId !== initialCycleParaleloId
+  const isCycleFormDirty = cycleName !== initialCycleName
 
   return (
     <section className="flex flex-col gap-8">
@@ -1076,85 +927,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               <FieldError>{cycleErrors.name}</FieldError>
             </Field>
 
-            <Field data-invalid={Boolean(sectionNameError)}>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="cycle-paralelo">Paralelo</FieldLabel>
-                {isAddingSection && <FieldCounter current={newSectionName.length} max={50} />}
-              </div>
-              {isAddingSection ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={newSectionName}
-                    onChange={(e) => {
-                      setNewSectionName(sanitizeLetters(e.target.value, 50))
-                      setSectionNameError(null)
-                    }}
-                    placeholder="Ej. Paralelo A"
-                    maxLength={50}
-                    disabled={creatingSection}
-                    autoFocus
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => void handleCreateSection()}
-                    disabled={creatingSection || !newSectionName.trim()}
-                    className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold shrink-0"
-                  >
-                    {creatingSection && <Spinner data-icon="inline-start" />}
-                    Guardar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsAddingSection(false)
-                      setNewSectionName('')
-                      setSectionNameError(null)
-                    }}
-                    disabled={creatingSection}
-                    className="shrink-0"
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <NativeSelect
-                    id="cycle-paralelo"
-                    value={cycleParaleloId}
-                    onChange={(e) => setCycleParaleloId(e.target.value)}
-                    disabled={formPending}
-                  >
-                    <option value="">Sin paralelo</option>
-                    {sections.map((section) => (
-                      <option key={section.id} value={section.id}>
-                        {section.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsAddingSection(true)}
-                    disabled={formPending}
-                    title="Crear nuevo paralelo"
-                    className="shrink-0"
-                  >
-                    <PlusIcon />
-                  </Button>
-                </div>
-              )}
-              {sectionNameError ? (
-                <FieldError>{sectionNameError}</FieldError>
-              ) : (
-                !isAddingSection && (
-                  <FieldDescription className="text-xs">
-                    Solo hace falta si hay más de un grupo con el mismo número (ej. Paralelo A y B).
-                  </FieldDescription>
-                )
-              )}
-            </Field>
+
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
               <DialogCancelButton onClick={closeCycleModal} disabled={formPending}>
