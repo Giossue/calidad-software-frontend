@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -23,6 +23,8 @@ const mockApprovedTopic: DegreeTopic = {
     { id: 1, role: 'tutor', assigned_at: '2026-09-10', teacher: { id: 30, name: 'Ing. Docente Tutor', email: 'tutor@example.com' } },
     { id: 2, role: 'par_academico', assigned_at: '2026-09-10', teacher: { id: 31, name: 'Dra. Par Académico', email: 'par@example.com' } },
   ],
+  reviewer: null,
+  observations: [],
   tracking: {
     id: 1,
     degree_topic_id: 1,

@@ -30,6 +30,7 @@ export interface DegreePerson {
   readonly id: number
   readonly name: string
   readonly email: string
+  readonly role?: string
 }
 export interface DegreeStudent extends DegreePerson {
   readonly identification: string
@@ -54,12 +55,15 @@ export interface DegreeActivity {
   readonly description: string
   readonly is_completed: boolean
   readonly registered_at: string | null
+  readonly completed_at?: string | null
   readonly teacher?: DegreePerson | null
 }
 
 export interface DegreeTracking {
   readonly id: number
+  readonly degree_topic_id?: number
   readonly opened_at: string | null
+  readonly closed_at?: string | null
   readonly progress_percentage: number
   readonly status: string
   readonly activities: readonly DegreeActivity[]
