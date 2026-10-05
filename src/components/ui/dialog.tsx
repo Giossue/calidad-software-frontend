@@ -119,13 +119,13 @@ export function Dialog({
           aria-modal="true"
           aria-label={title}
           className={cn(
-            'relative z-10 flex w-full flex-col rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10 dark:bg-slate-900 dark:ring-slate-800 animate-in zoom-in-95 duration-150',
+            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10 dark:bg-slate-900 dark:ring-slate-800 animate-in zoom-in-95 duration-150',
             maxWidth,
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header del Modal */}
-          <div className="flex items-start justify-between border-b border-slate-100 p-6 dark:border-slate-800">
+          <div className="flex shrink-0 items-start justify-between border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
             <div className="flex flex-col gap-1 pr-6">
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {title}
@@ -147,7 +147,7 @@ export function Dialog({
           </div>
 
           {/* Cuerpo del Modal */}
-          <div className="p-6">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
 
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (

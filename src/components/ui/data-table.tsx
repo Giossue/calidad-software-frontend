@@ -25,7 +25,7 @@ export function DataTable<TData, TValue>({ columns, data, getRowId, emptyMessage
 
   return (
     <div className={cn('overflow-hidden rounded-xl border bg-card', className)}>
-      <Table>
+      <Table stacked>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>

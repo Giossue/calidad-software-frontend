@@ -388,7 +388,7 @@ export function ErrorModal({
 
       {/* Contenedor Modal de Error */}
       <div
-        className="relative z-10 flex w-full max-w-md flex-col gap-5 rounded-2xl border border-rose-200/80 bg-white p-6 shadow-2xl dark:border-rose-950/80 dark:bg-slate-900 animate-in zoom-in-95 duration-150"
+        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto rounded-2xl border border-rose-200/80 bg-white p-6 shadow-2xl dark:border-rose-950/80 dark:bg-slate-900 animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
         aria-modal="true"

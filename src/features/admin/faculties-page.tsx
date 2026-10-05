@@ -205,10 +205,10 @@ export function FacultiesPage() {
       )}
 
       {/* Contenedor Principal: Filtro + Tabla */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none dark:border-slate-800 dark:bg-slate-900 max-md:dark:bg-transparent">
         {/* Barra de Búsqueda */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex flex-1 items-center max-w-md">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="relative flex flex-1 items-center sm:max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
               value={searchInput}
@@ -225,11 +225,11 @@ export function FacultiesPage() {
         {/* Tabla de Facultades */}
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity max-md:rounded-none max-md:border-0 dark:border-slate-800',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
-          <Table>
+          <Table stacked cardTitle>
             <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="px-5 py-3.5 whitespace-normal">Nombre de la Facultad</TableHead>

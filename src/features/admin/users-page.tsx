@@ -6,6 +6,7 @@ import {
   Edit2Icon,
   GraduationCapIcon,
   MailIcon,
+  MoreVerticalIcon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
@@ -25,12 +26,14 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
 import { isValidEcuadorianCedula } from '@/lib/cedula'
@@ -165,6 +168,7 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
 }
 
 export function UsersPage() {
+  const isMobile = useIsMobile()
   const [roleFilter, setRoleFilter] = useState('all')
   const fetchUsers = useCallback(
     (page: number, search: string) => api.listUsers({ page, search, role: roleFilter === 'all' ? undefined : roleFilter }),
@@ -447,8 +451,8 @@ export function UsersPage() {
       )}
 
       {/* Tarjetas KPI de Estadísticas Resumidas */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
             <UsersIcon className="size-6" />
           </div>
@@ -462,7 +466,7 @@ export function UsersPage() {
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
             <ShieldCheckIcon className="size-6" />
           </div>
@@ -476,7 +480,7 @@ export function UsersPage() {
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
             <BriefcaseIcon className="size-6" />
           </div>
@@ -490,7 +494,7 @@ export function UsersPage() {
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
             <AwardIcon className="size-6" />
           </div>
@@ -504,7 +508,7 @@ export function UsersPage() {
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
             <UserCheckIcon className="size-6" />
           </div>
@@ -518,7 +522,7 @@ export function UsersPage() {
           </div>
         </Card>
 
-        <Card className="flex items-center gap-4 p-5 border-slate-200/80 dark:border-slate-800">
+        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
             <GraduationCapIcon className="size-6" />
           </div>
@@ -534,10 +538,10 @@ export function UsersPage() {
       </div>
 
       {/* Contenedor Principal: Filtros + Tabla */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none dark:border-slate-800 dark:bg-slate-900 max-md:dark:bg-transparent">
         {/* Barra de Búsqueda y Filtro */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex flex-1 items-center max-w-md">
+          <div className="relative flex flex-1 items-center sm:max-w-md">
             <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
             <Input
               value={searchInput}
@@ -561,7 +565,113 @@ export function UsersPage() {
           </div>
         </div>
 
-        {/* Tabla de Usuarios */}
+        {/* Lista de Usuarios (móvil): una tarjeta por usuario */}
+        {isMobile ? (
+        <ul className={cn('flex flex-col gap-3 transition-opacity', isFetching && !isInitialLoading && 'opacity-60')} aria-busy={isFetching}>
+          {isInitialLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <li key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+            ))
+          ) : users.length === 0 ? (
+            <li className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white py-12 text-center text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+              <UsersIcon className="size-8 text-slate-300 dark:text-slate-600" />
+              <span className="font-medium">
+                {searchInput || roleFilter !== 'all'
+                  ? 'No se encontraron usuarios coincidentes.'
+                  : 'Todavía no hay usuarios registrados.'}
+              </span>
+            </li>
+          ) : (
+            users.map((user) => {
+              const active = user.is_active
+
+              return (
+                <li key={user.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center text-sm font-bold text-brand-blue dark:text-white" aria-hidden="true">
+                      {getInitials(user.name)}
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] dark:text-white">{user.name}</span>
+                      <span className="text-xs text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400">{user.email}</span>
+                    </div>
+                    <span className={cn('inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold', getRoleBadgeStyle(user.role))}>
+                      {getRoleLabel(user.role)}
+                    </span>
+                  </div>
+
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                    <div className="flex flex-col">
+                      <dt className="text-xs text-slate-500 dark:text-slate-400">Cédula</dt>
+                      <dd className="font-medium text-slate-900 dark:text-slate-100">{user.identification}</dd>
+                    </div>
+                    <div className="flex flex-col">
+                      <dt className="text-xs text-slate-500 dark:text-slate-400">Teléfono</dt>
+                      <dd className="font-medium text-slate-900 dark:text-slate-100">{user.phone || 'Sin teléfono'}</dd>
+                    </div>
+                    {user.career_name && (
+                      <div className="col-span-2 flex flex-col">
+                        <dt className="text-xs text-slate-500 dark:text-slate-400">Carrera</dt>
+                        <dd className="font-medium text-slate-900 [overflow-wrap:anywhere] dark:text-slate-100">
+                          {user.career_name}{user.faculty_name ? ` · ${user.faculty_name}` : ''}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+
+                  <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                        active
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                      )}
+                    >
+                      <span className={cn('size-1.5 rounded-full', active ? 'bg-emerald-500' : 'bg-slate-400')} />
+                      {active ? 'Activo' : 'Inactivo'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(user)}
+                        className="flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                        aria-label={`Editar a ${user.name}`}
+                      >
+                        <Edit2Icon className="size-4" />
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                            aria-label={`Más opciones de ${user.name}`}
+                          >
+                            <MoreVerticalIcon className="size-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {active ? (
+                            <DropdownMenuItem variant="destructive" onSelect={() => setUserToToggle({ user, action: 'deactivate' })}>
+                              <UserXIcon />
+                              Desactivar usuario
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onSelect={() => setUserToToggle({ user, action: 'activate' })}>
+                              <UserCheckIcon />
+                              Habilitar usuario
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </li>
+              )
+            })
+          )}
+        </ul>
+        ) : (
         <div
           className={cn(
             'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
@@ -724,6 +834,7 @@ export function UsersPage() {
             </TableBody>
           </Table>
         </div>
+        )}
 
         {/* Paginación */}
         <CatalogPagination

@@ -279,7 +279,8 @@ export function DashboardPage() {
           <div className="flex items-center gap-3">
             <SidebarTrigger className="md:hidden" />
             <span className="text-xs font-medium text-muted-foreground md:text-sm">
-              {userRoleText} &rsaquo; Tutorías y Titulación{sectionLabel && <> &rsaquo; <span aria-current="page" className="font-semibold text-foreground">{sectionLabel}</span></>}
+              <span className="max-md:sr-only">{userRoleText} &rsaquo; Tutorías y Titulación{sectionLabel && <> &rsaquo; </>}</span>
+              {sectionLabel && <span aria-current="page" className="font-semibold text-foreground max-md:text-base">{sectionLabel}</span>}
             </span>
           </div>
 
@@ -295,7 +296,7 @@ export function DashboardPage() {
 
             <ThemeToggle />
 
-            <div className="flex items-center gap-3 rounded-full border border-border bg-card p-1.5 pr-4 shadow-2xs">
+            <div className="flex items-center gap-3 rounded-full border border-border bg-card p-1.5 pr-4 shadow-2xs max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white">
                 {initials}
               </div>

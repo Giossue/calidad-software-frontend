@@ -176,3 +176,91 @@ html.reduce-motion *::after {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
+
+/* Tablas `stacked`: en móvil cada fila pasa a ser una tarjeta y cada celda muestra su etiqueta. */
+@media (max-width: 47.999rem) {
+  table[data-stacked],
+  table[data-stacked] tbody,
+  table[data-stacked] tr,
+  table[data-stacked] td {
+    display: block;
+  }
+
+  /* El encabezado se oculta visualmente pero sigue disponible para lectores de pantalla. */
+  table[data-stacked] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  table[data-stacked] tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  table[data-stacked] tbody tr {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--card);
+    padding: 0.25rem 0;
+  }
+
+  table[data-stacked] tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.625rem 1rem;
+    text-align: right;
+    white-space: normal;
+  }
+
+  table[data-stacked] tbody td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    max-width: 40%;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Título de la tarjeta (`cardTitle`): primera celda a todo el ancho, sin etiqueta, para nombres largos. */
+  table[data-card-title] tbody td:first-child[data-label] {
+    display: block;
+    text-align: left;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+  }
+  table[data-card-title] tbody td:first-child[data-label]::before {
+    display: none;
+  }
+
+  /* Valores largos: pueden partirse en varias líneas sin desbordar la tarjeta. */
+  table[data-stacked] tbody td > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Acciones: ocupan todo el ancho, sin etiqueta. */
+  table[data-stacked] tbody td[data-label="Acciones"] {
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+  }
+  table[data-stacked] tbody td[data-label="Acciones"]::before {
+    display: none;
+  }
+
+  /* Filas de estado (cargando / sin resultados): sin etiqueta ni alineación a la derecha. */
+  table[data-stacked] tbody td:not([data-label]) {
+    display: block;
+    text-align: left;
+  }
+}
