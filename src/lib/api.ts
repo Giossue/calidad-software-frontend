@@ -13,6 +13,10 @@ export interface User {
   readonly career_name?: string | null
   readonly faculty_id?: number | null
   readonly faculty_name?: string | null
+  /** Ciclo que cursa el estudiante. */
+  readonly cycle_number?: number | null
+  /** El último ciclo de la carrera es titulación; los anteriores, tutorías. Nulo si no tiene ciclo. */
+  readonly academic_stage?: 'tutorias' | 'titulacion' | null
   readonly is_active: boolean
   readonly email_verified_at: string | null
   readonly has_two_factor: boolean
@@ -131,6 +135,7 @@ export type CreateUserInput = {
   readonly role: string
   readonly faculty_id?: number | null
   readonly career_id?: number | null
+  readonly cycle_number?: number | null
   readonly password?: string
   readonly password_confirmation?: string
 }
@@ -143,6 +148,7 @@ export type UpdateUserInput = {
   readonly role?: string
   readonly faculty_id?: number | null
   readonly career_id?: number | null
+  readonly cycle_number?: number | null
   readonly password?: string
   readonly password_confirmation?: string
 }
@@ -478,13 +484,6 @@ export const api = {
         start_date: input.start_date,
         end_date: input.end_date,
       }),
-    })
-    return response.data
-  },
-
-  async deactivateAcademicPeriod(id: number): Promise<AcademicPeriod> {
-    const response = await request<Resource<AcademicPeriod>>(`/api/v1/admin/academic-periods/${id}/deactivate`, {
-      method: 'PATCH',
     })
     return response.data
   },

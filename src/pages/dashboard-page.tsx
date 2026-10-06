@@ -169,16 +169,23 @@ export function DashboardPage() {
     }
   }, [user?.role])
 
-  const activeSection = dashboardSection(user?.role, section)
+  const studentStage = user?.role === 'estudiante' ? (user.academic_stage ?? null) : null
+  const activeSection = dashboardSection(user?.role, section, studentStage)
   const navGroups = [
     ...(user?.role === 'administrador' ? [{ label: 'Administración', items: NAV_ITEMS }] : []),
     ...(canCoordinateTutorings(user?.role) ? [{ label: 'Coordinación de tutorías', items: TUTORING_NAV_ITEMS }] : []),
     ...(canCoordinateDegrees(user?.role) ? [{ label: 'Coordinación de titulación', items: DEGREE_NAV_ITEMS }] : []),
+    // El último ciclo de la carrera es titulación; los anteriores, tutorías.
+    // Sin ciclo registrado se conserva el comportamiento anterior (matrícula de titulación).
     ...(user?.role === 'estudiante'
-      ? [
-          { label: 'Tutorías', items: STUDENT_TUTORING_NAV_ITEMS },
-          ...(studentDegreeEnrolled ? [{ label: 'Titulación', items: STUDENT_DEGREE_NAV_ITEMS }] : []),
-        ]
+      ? studentStage === 'titulacion'
+        ? [{ label: 'Titulación', items: STUDENT_DEGREE_NAV_ITEMS }]
+        : studentStage === 'tutorias'
+          ? [{ label: 'Tutorías', items: STUDENT_TUTORING_NAV_ITEMS }]
+          : [
+              { label: 'Tutorías', items: STUDENT_TUTORING_NAV_ITEMS },
+              ...(studentDegreeEnrolled ? [{ label: 'Titulación', items: STUDENT_DEGREE_NAV_ITEMS }] : []),
+            ]
       : []),
     ...(user?.role === 'docente' ? [{ label: 'Docencia', items: TEACHER_NAV_ITEMS }] : []),
   ]
@@ -194,14 +201,14 @@ export function DashboardPage() {
   useEffect(() => {
     if (
       user?.role === 'estudiante' &&
-      studentDegreeEnrolled === false &&
+      (studentStage === 'tutorias' || (studentStage === null && studentDegreeEnrolled === false)) &&
       (activeSection === 'student-degree-topics' ||
         activeSection === 'student-degree-tracking' ||
         activeSection === 'student-degree-assignments')
     ) {
       navigate('/panel/student-tutorings', { replace: true })
     }
-  }, [user?.role, studentDegreeEnrolled, activeSection, navigate])
+  }, [user?.role, studentStage, studentDegreeEnrolled, activeSection, navigate])
 
   async function signOut() {
     setPending(true)

@@ -409,17 +409,7 @@ describe('Coordinación de tutorías', () => {
   it('crea una tutoría con un solo botón: elige ciclo y asignatura y luego asigna docente y horario', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.availableTeachers).mockResolvedValue([{ id: 70, name: 'Ana Torres', email: 'ana@ueb.edu.ec', is_active: true }])
-    vi.mocked(tutoringApi.createTutoring).mockResolvedValue(tutoring)
-    vi.mocked(tutoringApi.assignTeacher).mockResolvedValue({ ...tutoring, teacher_id: 70, teacher_name: 'Ana Torres' })
-    vi.mocked(tutoringApi.createSchedule).mockResolvedValue({
-      id: 101,
-      tutoring_id: 40,
-      day: 'lunes',
-      start_time: '08:00',
-      end_time: '10:00',
-      room: 'Aula 101',
-      is_active: true,
-    })
+    vi.mocked(tutoringApi.createTutoring).mockResolvedValue({ ...tutoring, teacher_id: 70, teacher_name: 'Ana Torres' })
 
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
@@ -454,26 +444,49 @@ describe('Coordinación de tutorías', () => {
 
     await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
 
+    // Tutoría, docente y horarios se envían en una sola solicitud.
     await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledWith({
       subject_id: 30,
       cycle_id: 20,
       parallel_ids: [1],
       period_id: 50,
       modality_id: 60,
+      teacher_id: 70,
+      schedules: [
+        { day: 'lunes', start_time: '14:00', end_time: '16:00' },
+        { day: 'miercoles', start_time: '16:00', end_time: '18:00' },
+      ],
     }))
-    await waitFor(() => expect(tutoringApi.assignTeacher).toHaveBeenCalledWith(40, 70))
-    await waitFor(() => expect(tutoringApi.createSchedule).toHaveBeenCalledWith(40, {
-      day: 'lunes',
-      start_time: '14:00',
-      end_time: '16:00',
-      room: 'Por asignar',
-    }))
-    await waitFor(() => expect(tutoringApi.createSchedule).toHaveBeenCalledWith(40, {
-      day: 'miercoles',
-      start_time: '16:00',
-      end_time: '18:00',
-      room: 'Por asignar',
-    }))
+    expect(tutoringApi.assignTeacher).not.toHaveBeenCalled()
+    expect(tutoringApi.createSchedule).not.toHaveBeenCalled()
+  })
+
+  it('avisa y no permite crear la tutoría si el docente ya tiene tutoría a esa hora', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.availableTeachers).mockResolvedValue([{
+      id: 70, name: 'Ana Torres', email: 'ana@ueb.edu.ec', is_active: true,
+      busy_schedules: [{ tutoring_id: 99, tutoring_name: 'Física', day: 'lunes', start_time: '09:00', end_time: '11:00' }],
+    }])
+
+    render(<TutoringsPage />)
+    await screen.findByText('Matemática')
+    await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
+    await user.selectOptions(screen.getByLabelText('Ciclo'), '2')
+    await user.selectOptions(screen.getByLabelText('Asignatura'), '30')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    const form = await screen.findByRole('form', { name: 'Crear tutoría' })
+    await waitFor(() => expect(within(form).getByLabelText('Docente')).toBeEnabled())
+    await user.selectOptions(within(form).getByLabelText('Docente'), '70')
+
+    // Lunes 08:00-10:00 se cruza con Física (09:00-11:00).
+    expect(within(form).getByRole('alert')).toHaveTextContent('Física (Lunes de 09:00 a 11:00)')
+    expect(within(form).getByRole('button', { name: 'Crear tutoría' })).toBeDisabled()
+
+    // Una franja contigua sí se permite.
+    await user.selectOptions(within(form).getByLabelText('Hora de inicio'), '11:00')
+    await user.selectOptions(within(form).getByLabelText('Hora de fin'), '12:00')
+    expect(within(form).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Crear tutoría' })).toBeEnabled()
   })
 
   it('solo ofrece asignaturas activas al crear una tutoría', async () => {
@@ -542,12 +555,12 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('en los 3 puntos quita horarios y ciclo y paralelo, dejando únicamente editar y desactivar', async () => {
+  it('en los 3 puntos solo permite editar: una tutoría creada no se desactiva', async () => {
     const user = userEvent.setup()
     render(<TutoringsPage />)
     await user.click(await screen.findByRole('button', { name: 'Más acciones para Matemática' }))
     expect(await screen.findByRole('menuitem', { name: 'Editar' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Desactivar' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Desactivar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Horarios' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Ciclo y paralelo' })).not.toBeInTheDocument()
   })
@@ -570,7 +583,7 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.schedules).mockResolvedValue([
       { id: 101, tutoring_id: 40, day: 'lunes', start_time: '08:00', end_time: '10:00', room: 'Aula 1', is_active: true },
     ])
-    vi.mocked(tutoringApi.assignTeacher).mockResolvedValue({ ...scheduledTutoring, teacher_id: 71, teacher_name: 'Carlos Mendoza' })
+    vi.mocked(tutoringApi.configureTutoring).mockResolvedValue({ ...scheduledTutoring, teacher_id: 71, teacher_name: 'Carlos Mendoza' })
 
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
@@ -591,7 +604,11 @@ describe('Coordinación de tutorías', () => {
     await user.selectOptions(within(form).getByLabelText('Docente'), '71')
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
 
-    await waitFor(() => expect(tutoringApi.assignTeacher).toHaveBeenCalledWith(40, 71))
+    await waitFor(() => expect(tutoringApi.configureTutoring).toHaveBeenCalledWith(40, {
+      teacher_id: 71,
+      schedules: [{ day: 'lunes', start_time: '08:00', end_time: '10:00', room: 'Aula 1' }],
+    }))
+    expect(tutoringApi.assignTeacher).not.toHaveBeenCalled()
   })
 
   it('filtra tutorías por ciclo y estado, y abre el detalle al supervisar', async () => {
@@ -676,15 +693,7 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.schedules).mockResolvedValue([
       { id: 101, tutoring_id: 40, day: 'lunes', start_time: '08:00', end_time: '10:00', room: 'Aula 101', is_active: true },
     ])
-    vi.mocked(tutoringApi.createSchedule).mockResolvedValue({
-      id: 102,
-      tutoring_id: 40,
-      day: 'miercoles',
-      start_time: '14:00',
-      end_time: '16:00',
-      room: 'Por asignar',
-      is_active: true,
-    })
+    vi.mocked(tutoringApi.configureTutoring).mockResolvedValue(scheduledTutoring)
 
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
@@ -698,12 +707,14 @@ describe('Coordinación de tutorías', () => {
     await user.selectOptions(within(form).getByLabelText('Hora de fin (Miércoles)'), '16:00')
 
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
-    await waitFor(() => expect(tutoringApi.createSchedule).toHaveBeenCalledWith(40, {
-      day: 'miercoles',
-      start_time: '14:00',
-      end_time: '16:00',
-      room: 'Por asignar',
+    await waitFor(() => expect(tutoringApi.configureTutoring).toHaveBeenCalledWith(40, {
+      teacher_id: 70,
+      schedules: [
+        { day: 'lunes', start_time: '08:00', end_time: '10:00', room: 'Aula 101' },
+        { day: 'miercoles', start_time: '14:00', end_time: '16:00' },
+      ],
     }))
+    expect(tutoringApi.createSchedule).not.toHaveBeenCalled()
   })
 
   it('pide confirmación antes de desactivar una asignatura', async () => {
@@ -837,6 +848,51 @@ describe('Coordinación de tutorías', () => {
     await user.selectOptions(cycleSelect, String(cycle.id))
     expect(tutoringSelect).toBeEnabled()
     expect(screen.getByRole('option', { name: /Matemática/i })).toBeInTheDocument()
+  })
+
+  it('exige el ciclo al registrar un estudiante y no ofrece tutorías en el ciclo de titulación', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([]))
+    vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([tutoring]))
+    vi.mocked(tutoringApi.createCoordinatorStudent).mockResolvedValue({ data: { id: 1, identification: '0926687856', name: 'Ana Nueva', email: 'ana@ueb.edu.ec', is_active: true, tutoring_count: 0, tutorings: [] } })
+
+    render(<TutoringStudentsPage />)
+    await user.click(await screen.findByRole('button', { name: 'Nuevo estudiante' }))
+    const form = screen.getByRole('form', { name: 'Registrar Nuevo Estudiante' })
+    await user.type(within(form).getByLabelText(/Cédula de Identidad/i), '0926687856')
+    await user.type(within(form).getByLabelText(/Nombres y Apellidos/i), 'Ana Nueva')
+    await user.type(within(form).getByLabelText(/Correo Institucional/i), 'ana@ueb.edu.ec')
+
+    // Sin ciclo no se puede registrar.
+    const submit = within(form).getByRole('button', { name: 'Registrar estudiante' })
+    expect(submit).toBeDisabled()
+
+    // Tercero es el último ciclo de la carrera: titulación, sin tutorías.
+    await user.selectOptions(within(form).getByLabelText(/Ciclo/i), '21')
+    expect(within(form).getByRole('option', { name: /Tercero - Paralelo A · Titulación/ })).toBeInTheDocument()
+    expect(within(form).getByLabelText(/Tutoría/i)).toBeDisabled()
+
+    await user.click(submit)
+    await waitFor(() => expect(tutoringApi.createCoordinatorStudent).toHaveBeenCalledWith({
+      identification: '0926687856', name: 'Ana Nueva', email: 'ana@ueb.edu.ec', phone: null, cycle_id: 21, tutoring_id: undefined, career_id: 10,
+    }))
+  })
+
+  it('no permite matricular en titulación a un estudiante de un ciclo anterior al último', async () => {
+    const user = userEvent.setup()
+    const student = {
+      id: 102, student_id: 102, identification: '0201777777', name: 'Pedro Quinto', email: 'pedro@ueb.edu.ec', phone: null,
+      cycle_number: 5, academic_stage: 'tutorias' as const,
+      is_degree_enrolled: false, degree_enrollment_id: null, enrolled_at: null, period_id: 50, period_name: '2026-2',
+    }
+    vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([]))
+    vi.mocked(tutoringApi.degreeStudents).mockResolvedValue({ data: [student], meta: { ...paginated([student]).meta, current_period: { id: 50, name: '2026-2' } } })
+
+    render(<TutoringStudentsPage />)
+    await user.click(await screen.findByRole('tab', { name: /Titulación/i }))
+
+    expect(await screen.findByText('Ciclo 5')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Matricular en Titulación' })).toBeDisabled()
   })
 
   it('permite al coordinador de carrera cambiar a la pestaña de titulación y matricular a un estudiante', async () => {

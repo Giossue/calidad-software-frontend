@@ -221,6 +221,13 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await user.selectOptions(await screen.findByLabelText('Facultad'), '1')
     await user.selectOptions(screen.getByLabelText('Carrera'), '10')
 
+    // El ciclo es obligatorio para estudiantes; el último de la carrera es titulación.
+    const cycleSelect = screen.getByLabelText('Ciclo')
+    expect(screen.getByRole('option', { name: 'Ciclo 8 · Titulación' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Ciclo 7 · Tutorías' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Ciclo 9/ })).not.toBeInTheDocument()
+    await user.selectOptions(cycleSelect, '8')
+
     await user.click(screen.getByRole('button', { name: 'Registrar Usuario' }))
 
     await waitFor(() => {
@@ -233,6 +240,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
           role: 'estudiante',
           faculty_id: 1,
           career_id: 10,
+          cycle_number: 8,
         })
       )
     })
@@ -274,6 +282,32 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
       )
     })
   }, 15000)
+
+  it('permite mostrar y ocultar la nueva contraseña al editar un usuario', async () => {
+    const user = userEvent.setup()
+    render(<UsersPage />)
+    await screen.findByText('Carlos Docente')
+
+    await user.click(screen.getAllByTitle('Editar usuario')[0])
+    expect(await screen.findByText('Editar Usuario')).toBeInTheDocument()
+
+    const password = screen.getByLabelText('Nueva Contraseña (Opcional)')
+    const confirmation = screen.getByLabelText('Confirmar nueva contraseña')
+    await user.type(password, 'Clave$egura1')
+    expect(password).toHaveAttribute('type', 'password')
+
+    const [showPassword, showConfirmation] = screen.getAllByRole('button', { name: 'Mostrar contraseña' })
+    await user.click(showPassword)
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveValue('Clave$egura1')
+    expect(confirmation).toHaveAttribute('type', 'password')
+
+    await user.click(showConfirmation)
+    expect(confirmation).toHaveAttribute('type', 'text')
+
+    await user.click(screen.getAllByRole('button', { name: 'Ocultar contraseña' })[0])
+    expect(password).toHaveAttribute('type', 'password')
+  })
 
   it('registra un docente sin requerir ni enviar facultad ni carrera', async () => {
     const user = userEvent.setup()

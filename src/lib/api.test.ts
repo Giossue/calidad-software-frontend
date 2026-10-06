@@ -148,20 +148,20 @@ describe('API de administración', () => {
       .mockResolvedValueOnce(jsonResponse({ data: [period], meta: { current_page: 2, last_page: 3, per_page: 15, total: 45, active_count: 40, inactive_count: 5 } }))
       .mockResolvedValueOnce(jsonResponse({ data: period }, 201))
       .mockResolvedValueOnce(jsonResponse({ data: period }))
-      .mockResolvedValueOnce(jsonResponse({ data: { ...period, is_active: false } }))
+      .mockResolvedValueOnce(jsonResponse({ data: { ...period, is_active: true } }))
     vi.stubGlobal('fetch', fetchMock)
 
     const response = await api.listAcademicPeriods({ page: 2 })
     await api.createAcademicPeriod({ name: period.name, start_date: period.start_date, end_date: period.end_date })
     await api.updateAcademicPeriod(3, { name: period.name, start_date: period.start_date, end_date: period.end_date })
-    await api.deactivateAcademicPeriod(3)
+    await api.activateAcademicPeriod(3)
 
     expect(response.meta?.last_page).toBe(3)
     expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
       ['http://localhost:8000/api/v1/admin/academic-periods?page=2', undefined],
       ['http://localhost:8000/api/v1/admin/academic-periods', 'POST'],
       ['http://localhost:8000/api/v1/admin/academic-periods/3', 'PATCH'],
-      ['http://localhost:8000/api/v1/admin/academic-periods/3/deactivate', 'PATCH'],
+      ['http://localhost:8000/api/v1/admin/academic-periods/3/activate', 'PATCH'],
     ])
   })
 

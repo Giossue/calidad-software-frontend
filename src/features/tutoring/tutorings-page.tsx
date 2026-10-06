@@ -5,7 +5,6 @@ import {
   MoreVerticalIcon,
   PencilIcon,
   PowerIcon,
-  PowerOffIcon,
   UserPlusIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -13,7 +12,6 @@ import { toast } from 'sonner'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -21,7 +19,8 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { DAY_LABELS, tutoringApi, WEEK_DAYS, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule } from '@/lib/tutoring-api'
+import { findScheduleConflicts, type ScheduleConflict } from '@/lib/schedule-conflicts'
+import { DAY_LABELS, tutoringApi, WEEK_DAYS, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule, type TutoringScheduleItem } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { TutoringDetail } from './tutoring-detail'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
@@ -90,7 +89,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [subjects, setSubjects] = useState<readonly Subject[]>([])
   const [subjectsRevision, setSubjectsRevision] = useState(0)
   const [detail, setDetail] = useState<Tutoring | null>(null)
-  const [deactivating, setDeactivating] = useState<Tutoring | null>(null)
 
   // Create Tutoring per Subject modal state
   const [creatingTutoringSubject, setCreatingTutoringSubject] = useState<Subject | null>(null)
@@ -119,6 +117,19 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   })
   const [editOriginalSchedules, setEditOriginalSchedules] = useState<readonly TutoringSchedule[]>([])
   const [editParallelIds, setEditParallelIds] = useState<string[]>([])
+
+  // Aviso previo de choques: el mismo docente no puede tener dos tutorías a la misma hora.
+  const createSchedules = toScheduleItems(createScheduleDays, createDayTimes)
+  const createConflicts = findScheduleConflicts(
+    createTeachers.find((t) => String(t.id) === createTeacherId)?.busy_schedules ?? [],
+    createSchedules,
+  )
+  const editSchedules = toScheduleItems(editScheduleDays, editDayTimes)
+  const editConflicts = findScheduleConflicts(
+    editTeachers.find((t) => String(t.id) === editTeacherId)?.busy_schedules ?? [],
+    editSchedules,
+    editingTutoringItem?.tutoring?.id,
+  )
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -188,7 +199,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     const directParallelIds = (subject.parallel_ids ?? []).map(String)
     const allRegisteredIds = Array.from(new Set([...subjParallelIds, ...directParallelIds]))
 
-    setCreateParallelIds(allRegisteredIds)
+    // Cada paralelo es una tutoría con su propio docente: se elige uno solo.
+    setCreateParallelIds(allRegisteredIds.length === 1 ? allRegisteredIds : [])
   }
 
   async function handleCreateTutoringSubmit(event: FormEvent<HTMLFormElement>) {
@@ -221,7 +233,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       }
     }
     if (createParallelIds.length === 0) {
-      setCreateError('Selecciona al menos un paralelo para la tutoría.')
+      setCreateError('Selecciona el paralelo de la tutoría.')
+      return
+    }
+
+    if (createConflicts.length > 0) {
+      setCreateError(describeConflicts(createConflicts))
       return
     }
 
@@ -235,28 +252,16 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       const periodId = Number(creatingTutoringSubject.period_id || activePeriod?.id)
       const modalityId = Number(creatingTutoringSubject.modality_id || activeModality?.id)
 
-      // 1. Create the tutoring
-      const created = await tutoringApi.createTutoring({
+      // Tutoría, docente y horarios se guardan juntos: si algo falla, no se crea nada.
+      await tutoringApi.createTutoring({
         subject_id: creatingTutoringSubject.id,
         cycle_id: creatingTutoringCycle.id,
         parallel_ids: createParallelIds.map(Number),
         period_id: periodId,
         modality_id: modalityId,
+        teacher_id: Number(createTeacherId),
+        schedules: createSchedules,
       })
-
-      // 2. Assign the selected teacher
-      await tutoringApi.assignTeacher(created.id, Number(createTeacherId))
-
-      // 3. Create the schedule for each selected day
-      for (const day of createScheduleDays) {
-        const times = createDayTimes[day] ?? { start_time: '08:00', end_time: '10:00' }
-        await tutoringApi.createSchedule(created.id, {
-          day,
-          start_time: times.start_time.slice(0, 5),
-          end_time: times.end_time.slice(0, 5),
-          room: 'Por asignar',
-        })
-      }
 
       toast.success('Tutoría creada con éxito con docente y horario asignados.')
       setCreatingTutoringSubject(null)
@@ -364,7 +369,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         parallelIds.push(String(cycleMatch.paralelo_id))
       }
     })
-    setEditParallelIds(parallelIds)
+    setEditParallelIds(parallelIds.slice(0, 1))
   }
 
   async function handleEditTutoringSubmit(event: FormEvent<HTMLFormElement>) {
@@ -393,7 +398,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       }
     }
     if (editSubjectParallels.length > 0 && editParallelIds.length === 0) {
-      setEditError('Selecciona al menos un paralelo para la tutoría.')
+      setEditError('Selecciona el paralelo de la tutoría.')
+      return
+    }
+
+    if (editConflicts.length > 0) {
+      setEditError(describeConflicts(editConflicts))
       return
     }
 
@@ -401,56 +411,20 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setEditError(null)
 
     try {
-      // 1. Assign/change teacher if changed
-      if (Number(editTeacherId) !== currentTutoring.teacher_id) {
-        await tutoringApi.assignTeacher(currentTutoring.id, Number(editTeacherId))
-      }
+      const targetParallelId = Number(editParallelIds[0])
+      const matchingCycle = editParallelIds.length > 0
+        ? catalogs.cycles.find((c) => c.career_id === editingTutoringItem.career_id && c.paralelo_id === targetParallelId)
+        : undefined
 
-      // 2. Assign/change parallel if changed
-      if (editParallelIds.length > 0) {
-        const targetParallelId = Number(editParallelIds[0])
-        const matchingCycle = catalogs.cycles.find(
-          (c) =>
-            c.career_id === editingTutoringItem.career_id &&
-            c.paralelo_id === targetParallelId,
-        )
-        if (matchingCycle && matchingCycle.id !== currentTutoring.cycle_id) {
-          await tutoringApi.assignTutoringCycle(currentTutoring.id, matchingCycle.id)
-        }
-      }
-
-      // 3. Update schedules
-      const daysToKeep = new Set(editScheduleDays)
-      for (const orig of editOriginalSchedules) {
-        if (!daysToKeep.has(orig.day)) {
-          await tutoringApi.deactivateSchedule(currentTutoring.id, orig.id)
-        }
-      }
-
-      for (const day of editScheduleDays) {
-        const times = editDayTimes[day] ?? { start_time: '08:00', end_time: '10:00' }
-        const existing = editOriginalSchedules.find((s) => s.day === day && s.is_active)
-        const startTime = times.start_time.slice(0, 5)
-        const endTime = times.end_time.slice(0, 5)
-
-        if (existing) {
-          if (existing.start_time.slice(0, 5) !== startTime || existing.end_time.slice(0, 5) !== endTime) {
-            await tutoringApi.updateSchedule(currentTutoring.id, existing.id, {
-              day,
-              start_time: startTime,
-              end_time: endTime,
-              room: existing.room || 'Por asignar',
-            })
-          }
-        } else {
-          await tutoringApi.createSchedule(currentTutoring.id, {
-            day,
-            start_time: startTime,
-            end_time: endTime,
-            room: 'Por asignar',
-          })
-        }
-      }
+      // Docente, paralelo y horarios se guardan juntos: si algo falla, no cambia nada.
+      await tutoringApi.configureTutoring(currentTutoring.id, {
+        teacher_id: Number(editTeacherId),
+        ...(matchingCycle && matchingCycle.id !== currentTutoring.cycle_id ? { cycle_id: matchingCycle.id } : {}),
+        schedules: editSchedules.map((schedule) => ({
+          ...schedule,
+          room: editOriginalSchedules.find((s) => s.day === schedule.day && s.is_active)?.room || undefined,
+        })),
+      })
 
       toast.success('Tutoría actualizada con éxito.')
       setEditingTutoringItem(null)
@@ -713,15 +687,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                 <DropdownMenuItem onSelect={() => openEditTutoring(item)}>
                   <PencilIcon />Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => {
-                    operation.clearError()
-                    setDeactivating(item.tutoring)
-                  }}
-                >
-                  <PowerOffIcon />Desactivar
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : item.tutoring && (
@@ -787,7 +752,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     </>}
 
 
-    <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar tutoría?" description={`La tutoría de «${deactivating?.subject_name ?? ''}» dejará de recibir nuevas asignaciones. Podrás seguir consultando sus asistencias e informes.`} confirmLabel="Desactivar tutoría" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateTutoring(deactivating.id), 'Tutoría desactivada.', async () => { setDeactivating(null); await list.reload() }) }} />
 
     {/* Create Tutoring per Subject Dialog */}
     <Dialog
@@ -863,6 +827,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             {!createTeachersLoading && createTeachers.length === 0 && (
               <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
             )}
+            <ScheduleConflictNotice conflicts={createConflicts} />
           </div>
 
           {/* Horario (selección de días y horas) */}
@@ -986,11 +951,11 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           {/* Paralelo(s) de la asignatura registrados previamente */}
           <Field>
             <FieldLabel htmlFor="create-tutoring-parallels">
-              Paralelo(s) de la asignatura <span className="text-xs font-normal text-muted-foreground">(registrados previamente al crear la asignatura)</span>
+              Paralelo de la tutoría <span className="text-xs font-normal text-muted-foreground">(cada paralelo es una tutoría con su propio docente)</span>
             </FieldLabel>
 
             {subjectParallelsForModal.length > 0 ? (
-              <div id="create-tutoring-parallels" className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Paralelos">
+              <div id="create-tutoring-parallels" className="flex flex-wrap gap-2 pt-1" role="radiogroup" aria-label="Paralelo">
                 {subjectParallelsForModal.map((parallel) => {
                   const isChecked = createParallelIds.includes(String(parallel.id))
                   return (
@@ -1004,17 +969,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                       )}
                     >
                       <input
-                        type="checkbox"
+                        type="radio"
+                        name="create-tutoring-parallel"
                         value={parallel.id}
                         checked={isChecked}
-                        onChange={() => {
-                          setCreateParallelIds((prev) =>
-                            prev.includes(String(parallel.id))
-                              ? prev.filter((id) => id !== String(parallel.id))
-                              : [...prev, String(parallel.id)],
-                          )
-                        }}
-                        className="size-4 rounded border-input text-primary focus:ring-primary/20"
+                        onChange={() => setCreateParallelIds([String(parallel.id)])}
+                        className="size-4 border-input text-primary focus:ring-primary/20"
                       />
                       <span>Paralelo {parallel.name}</span>
                     </label>
@@ -1028,7 +988,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             )}
 
             {subjectParallelsForModal.length > 0 && createParallelIds.length === 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Selecciona al menos un paralelo para la tutoría.</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Selecciona el paralelo de la tutoría.</p>
             )}
           </Field>
 
@@ -1046,7 +1006,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                   const t = createDayTimes[d]
                   return t && t.start_time && t.end_time && t.start_time < t.end_time
                 }) ||
-                createParallelIds.length === 0
+                createParallelIds.length === 0 ||
+                createConflicts.length > 0
               }
               className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"
             >
@@ -1120,6 +1081,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             {!editTeachersLoading && editTeachers.length === 0 && (
               <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
             )}
+            <ScheduleConflictNotice conflicts={editConflicts} />
           </div>
 
           {/* Horario (selección de días y horas) */}
@@ -1243,11 +1205,11 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           {/* Paralelo(s) de la asignatura registrados previamente */}
           <Field>
             <FieldLabel htmlFor="edit-tutoring-parallels">
-              Paralelo(s) de la asignatura <span className="text-xs font-normal text-muted-foreground">(registrados previamente al crear la asignatura)</span>
+              Paralelo de la tutoría <span className="text-xs font-normal text-muted-foreground">(cada paralelo es una tutoría con su propio docente)</span>
             </FieldLabel>
 
             {editSubjectParallels.length > 0 ? (
-              <div id="edit-tutoring-parallels" className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Paralelos">
+              <div id="edit-tutoring-parallels" className="flex flex-wrap gap-2 pt-1" role="radiogroup" aria-label="Paralelo">
                 {editSubjectParallels.map((parallel) => {
                   const isChecked = editParallelIds.includes(String(parallel.id))
                   return (
@@ -1261,17 +1223,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                       )}
                     >
                       <input
-                        type="checkbox"
+                        type="radio"
+                        name="edit-tutoring-parallel"
                         value={parallel.id}
                         checked={isChecked}
-                        onChange={() => {
-                          setEditParallelIds((prev) =>
-                            prev.includes(String(parallel.id))
-                              ? prev.filter((id) => id !== String(parallel.id))
-                              : [...prev, String(parallel.id)],
-                          )
-                        }}
-                        className="size-4 rounded border-input text-primary focus:ring-primary/20"
+                        onChange={() => setEditParallelIds([String(parallel.id)])}
+                        className="size-4 border-input text-primary focus:ring-primary/20"
                       />
                       <span>Paralelo {parallel.name}</span>
                     </label>
@@ -1285,7 +1242,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             )}
 
             {editSubjectParallels.length > 0 && editParallelIds.length === 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Selecciona al menos un paralelo para la tutoría.</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Selecciona el paralelo de la tutoría.</p>
             )}
           </Field>
 
@@ -1303,7 +1260,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                   const t = editDayTimes[d]
                   return t && t.start_time && t.end_time && t.start_time < t.end_time
                 }) ||
-                (editSubjectParallels.length > 0 && editParallelIds.length === 0)
+                (editSubjectParallels.length > 0 && editParallelIds.length === 0) ||
+                editConflicts.length > 0
               }
               className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"
             >
@@ -1375,4 +1333,39 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     </Dialog>
     <ErrorModal open={Boolean(operation.errorModal)} onClose={operation.clearErrorModal} title={operation.errorModal?.title} description={operation.errorModal?.description} />
   </section>
+}
+
+function toScheduleItems(
+  days: readonly string[],
+  times: Readonly<Record<string, { start_time: string; end_time: string } | undefined>>,
+): TutoringScheduleItem[] {
+  return days.map((day) => ({
+    day,
+    start_time: (times[day]?.start_time ?? '08:00').slice(0, 5),
+    end_time: (times[day]?.end_time ?? '10:00').slice(0, 5),
+  }))
+}
+
+function describeConflict(conflict: ScheduleConflict): string {
+  return `${conflict.tutoring_name} (${DAY_LABELS[conflict.day] ?? conflict.day} de ${conflict.start_time} a ${conflict.end_time})`
+}
+
+function describeConflicts(conflicts: readonly ScheduleConflict[]): string {
+  return `El docente ya tiene tutoría en ese horario: ${conflicts.map(describeConflict).join('; ')}. Elige otro horario u otro docente.`
+}
+
+function ScheduleConflictNotice({ conflicts }: Readonly<{ conflicts: readonly ScheduleConflict[] }>) {
+  if (conflicts.length === 0) return null
+
+  return (
+    <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+      <p className="font-semibold">El docente ya tiene tutoría en ese horario:</p>
+      <ul className="mt-1 list-disc pl-4">
+        {conflicts.map((conflict) => (
+          <li key={`${conflict.tutoring_id}-${conflict.day}-${conflict.start_time}`}>{describeConflict(conflict)}</li>
+        ))}
+      </ul>
+      <p className="mt-1">Elige otro horario u otro docente.</p>
+    </div>
+  )
 }

@@ -105,7 +105,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       .then(([loadedCycles, loadedTutorings]) => {
         if (cancelled) return
         if (loadedCycles.length > 0) {
-          setCycles(loadedCycles.filter((c) => c.status))
+          // Solo los ciclos de la carrera elegida: el ciclo del estudiante debe pertenecer a ella.
+          setCycles(loadedCycles.filter((c) => c.status && c.career_id === careerId))
         } else {
           const derived = Array.from(
             new Map(
@@ -165,7 +166,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       name: form.name.trim(),
       email: form.email.trim().toLowerCase(),
       phone: form.phone.trim() || null,
-      tutoring_id: form.tutoring_id ? Number(form.tutoring_id) : undefined,
+      cycle_id: Number(form.cycle_id),
+      tutoring_id: form.tutoring_id && !isDegreeCycle ? Number(form.tutoring_id) : undefined,
       career_id: careerId,
     }
 
@@ -240,6 +242,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const availableTutoringsForCycle = form.cycle_id
     ? allTutorings.filter((t) => t.cycle_id === Number(form.cycle_id))
     : []
+  // El último ciclo de cada carrera es titulación: esos estudiantes no se inscriben en tutorías.
+  const lastCycleByCareer = cycles.reduce<Record<number, number>>((acc, cycle) => ({
+    ...acc,
+    [cycle.career_id]: Math.max(acc[cycle.career_id] ?? 0, cycle.number),
+  }), {})
+  const isLastCycle = (cycle: Cycle) => cycle.number === lastCycleByCareer[cycle.career_id]
+  const selectedCycle = cycles.find((cycle) => String(cycle.id) === form.cycle_id)
+  const isDegreeCycle = selectedCycle ? isLastCycle(selectedCycle) : false
 
   const filteredAvailableTutorings = availableTutorings.filter((t) => {
     if (!tutoringSearch.trim()) return true
@@ -440,7 +450,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateSubmit}
         submitLabel="Registrar estudiante"
-        submitDisabled={!isCedulaValid || !isEmailValid || !form.name.trim()}
+        submitDisabled={!isCedulaValid || !isEmailValid || !form.name.trim() || !form.cycle_id}
       >
         <Field>
           <FieldLabel htmlFor="new-student-cedula">Cédula de Identidad *</FieldLabel>
@@ -514,22 +524,23 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="new-student-cycle">Ciclo (opcional)</FieldLabel>
+          <FieldLabel htmlFor="new-student-cycle">Ciclo *</FieldLabel>
           <NativeSelect
             id="new-student-cycle"
             value={form.cycle_id}
             onChange={(e) => handleCycleChange(e.target.value)}
             disabled={loadingCycles}
+            required
           >
             <option value="">-- Selecciona un ciclo --</option>
             {cycles.map((cycle) => (
               <option key={cycle.id} value={cycle.id}>
-                {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}
+                {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}{isLastCycle(cycle) ? ' · Titulación' : ''}
               </option>
             ))}
           </NativeSelect>
           <FieldDescription>
-            Selecciona el ciclo para ver las tutorías disponibles.
+            Ciclo que cursa el estudiante. El último ciclo de la carrera habilita titulación; los anteriores, tutorías.
           </FieldDescription>
         </Field>
 
@@ -539,12 +550,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             id="new-student-tutoring"
             value={form.tutoring_id}
             onChange={(e) => setForm({ ...form, tutoring_id: e.target.value })}
-            disabled={!form.cycle_id || loadingTutorings}
+            disabled={!form.cycle_id || isDegreeCycle || loadingTutorings}
           >
             <option value="">
               {!form.cycle_id
                 ? '-- Primero selecciona un ciclo --'
-                : availableTutoringsForCycle.length === 0
+                : isDegreeCycle
+                  ? '-- Ciclo de titulación: sin tutorías --'
+                  : availableTutoringsForCycle.length === 0
                   ? '-- No hay tutorías activas en este ciclo --'
                   : '-- No asignar tutoría por ahora --'}
             </option>
@@ -557,7 +570,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             ))}
           </NativeSelect>
           <FieldDescription>
-            {form.cycle_id
+            {isDegreeCycle
+              ? 'Los estudiantes del último ciclo solo acceden a titulación; el coordinador de titulación gestiona su matrícula.'
+              : form.cycle_id
               ? 'Puedes inscribir al estudiante en una tutoría de este ciclo de inmediato o hacerlo después.'
               : 'Selecciona primero un ciclo para habilitar las tutorías.'}
           </FieldDescription>
@@ -773,6 +788,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 ),
               },
               {
+                label: 'Ciclo',
+                render: (student) => (
+                  <span className="text-sm text-muted-foreground">
+                    {student.cycle_number ? `Ciclo ${student.cycle_number}${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}` : 'Sin registrar'}
+                  </span>
+                ),
+              },
+              {
                 label: 'Estado en Titulación',
                 render: (student) =>
                   student.is_degree_enrolled ? (
@@ -814,7 +837,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                         type="button"
                         size="sm"
                         onClick={() => setEnrollTarget(student)}
-                        disabled={degreeOperation.pending}
+                        disabled={degreeOperation.pending || student.academic_stage === 'tutorias'}
+                        title={student.academic_stage === 'tutorias' ? `Cursa el ciclo ${student.cycle_number}: solo el último ciclo de la carrera se matricula en titulación.` : undefined}
                         className="gap-1.5 text-xs font-medium"
                       >
                         <GraduationCapIcon className="size-3.5" />

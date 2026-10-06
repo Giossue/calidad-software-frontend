@@ -16,9 +16,19 @@ export function isTutoringSection(section?: string): section is TutoringSection 
     section === 'tutoring-reports'
   )
 }
-export function dashboardSection(role?: string, section?: string): AdminSection | TutoringSection | DegreeSection | TeacherSection | StudentSection | 'home' {
+export function dashboardSection(
+  role?: string,
+  section?: string,
+  studentStage: 'tutorias' | 'titulacion' | null = null,
+): AdminSection | TutoringSection | DegreeSection | TeacherSection | StudentSection | 'home' {
   if (role === 'docente') return isTeacherSection(section) ? section : 'teacher-tutorings'
-  if (role === 'estudiante') return isStudentSection(section) ? section : 'student-tutorings'
+  if (role === 'estudiante') {
+    // En el último ciclo de la carrera el estudiante solo tiene titulación.
+    if (studentStage === 'titulacion') {
+      return isStudentSection(section) && section !== 'student-tutorings' ? section : 'student-degree-topics'
+    }
+    return isStudentSection(section) ? section : 'student-tutorings'
+  }
   if (role === 'administrador' && isAdminSection(section)) return section
   if (canCoordinateTutorings(role) && isTutoringSection(section)) return section
   if (canCoordinateDegrees(role) && isDegreeSection(section)) return section
