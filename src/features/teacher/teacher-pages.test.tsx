@@ -88,7 +88,7 @@ describe('Módulo Docente', () => {
     workspace('students')
     await screen.findByText('Ana Pérez')
     await user.click(screen.getByRole('tab', { name: 'Calificaciones' }))
-    expect(await screen.findByRole('button', { name: 'Diagnóstico' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^Diagnóstico/ })).toBeInTheDocument()
     expect(teacherApi.allStudents).toHaveBeenLastCalledWith(40)
     await user.click(screen.getByRole('tab', { name: 'Horarios' }))
     expect(await screen.findByText('Sin horarios registrados')).toBeInTheDocument()
@@ -128,11 +128,10 @@ describe('Módulo Docente', () => {
     expect(await screen.findByText('09:00 – 11:00')).toBeInTheDocument()
   })
 
-  it('vuelve a la lista de tutorías desde el espacio de trabajo', async () => {
-    const user = userEvent.setup()
+  it('no muestra un botón de volver en el espacio de trabajo: se vuelve desde el menú Mis tutorías', async () => {
     workspace('students')
-    await user.click(await screen.findByRole('button', { name: 'Volver a mis tutorías' }))
-    expect(await screen.findByRole('searchbox', { name: 'Buscar' })).toBeInTheDocument()
+    await screen.findByRole('tablist', { name: 'Secciones de la tutoría' })
+    expect(screen.queryByRole('button', { name: 'Volver a mis tutorías' })).not.toBeInTheDocument()
   })
 
   it('no consulta estudiantes cuando la tutoría ya no está asignada al docente', async () => {
@@ -207,7 +206,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.allStudents).mockResolvedValue([student, second])
     vi.mocked(teacherApi.saveGrades).mockResolvedValue([student, second])
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: 'Diagnóstico' }))
+    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
     const first = await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })
     const other = screen.getByRole('textbox', { name: 'Diagnóstico de Luis Mora' })
     const save = screen.getByRole('button', { name: 'Guardar Diagnóstico' })
@@ -232,17 +231,22 @@ describe('Módulo Docente', () => {
     expect(JSON.parse(sessionStorage.getItem('grades-draft:40') ?? '{}')[70]?.diagnostic).toBeUndefined()
   })
 
-  it('abre en modo consulta sin etapa elegida y deja volver a él', async () => {
+  it('abre en "Todas las etapas", indica el estado de cada etapa en su botón y deja volver a la consulta', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '8.00' }])
     workspace('grades')
     expect(await screen.findByText('8.00')).toBeInTheDocument()
-    expect(screen.getByText(/modo consulta/)).toBeInTheDocument()
+    expect(screen.queryByText(/modo consulta/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Cargar notas de:')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Todas las etapas' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Guardar/ })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Parcial 1' }))
+    expect(screen.getByRole('button', { name: 'Diagnóstico Completo' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Parcial 1 Pendiente' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Parcial 1/ }))
     expect(screen.getByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Parcial 1' }))
+    expect(screen.getByRole('button', { name: /^Parcial 1/ })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Todas las etapas' }))
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
@@ -261,12 +265,11 @@ describe('Módulo Docente', () => {
   it('cancela la carga de una etapa y vuelve a modo consulta, descartando lo no guardado tras confirmar', async () => {
     const user = userEvent.setup()
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: 'Diagnóstico' }))
+    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
     await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.getByText(/modo consulta/)).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Diagnóstico' }))
+    await user.click(screen.getByRole('button', { name: /^Diagnóstico/ }))
     await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '7.5')
     await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     await user.click(await screen.findByRole('button', { name: 'Seguir editando' }))
@@ -275,18 +278,18 @@ describe('Módulo Docente', () => {
     await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     await user.click(await screen.findByRole('button', { name: 'Sí, descartar' }))
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Diagnóstico' }))
+    await user.click(screen.getByRole('button', { name: /^Diagnóstico/ }))
     expect(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('')
   })
 
   it('conserva las notas escritas como borrador si el docente sale de la página', async () => {
     const user = userEvent.setup()
     const view = workspace('grades')
-    await user.click(await screen.findByRole('button', { name: 'Diagnóstico' }))
+    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
     await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '7.5')
     view.unmount()
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: 'Diagnóstico' }))
+    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
     expect(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('7.5')
   })
 
@@ -294,7 +297,7 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.saveGrades).mockRejectedValue(new ApiError(422, { message: 'La nota supera la escala.' }))
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: 'Diagnóstico' }))
+    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
     await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '8.5')
     await user.click(screen.getByRole('button', { name: 'Guardar Diagnóstico' }))
     expect(await screen.findByText('La nota supera la escala.')).toBeInTheDocument()
@@ -384,8 +387,7 @@ describe('Módulo Docente', () => {
     const saved = { id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false }] }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
     attendance()
-    expect(await screen.findByText('Editar asistencia')).toBeInTheDocument()
-    expect(screen.getByText(/La lista de hoy ya se tomó/)).toBeInTheDocument()
+    expect(await screen.findByText(/La lista de hoy ya se tomó/)).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Presente: Ana Pérez' })).not.toBeChecked()
   })
 
@@ -397,7 +399,7 @@ describe('Módulo Docente', () => {
     expect(await screen.findByText('La lista de hoy ya se tomó')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar asistencia' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Modificar lista de hoy' }))
-    expect(await screen.findByText('Editar asistencia')).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'Registrar asistencia' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Presente: Ana Pérez' })).toBeChecked()
   })
 

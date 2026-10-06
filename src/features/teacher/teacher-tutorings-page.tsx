@@ -17,7 +17,7 @@ export function TeacherTutoringsPage() {
   const selectedId = Number(params.get('tutoring'))
 
   if (Number.isInteger(selectedId) && selectedId > 0) {
-    return <TeacherTutoringWorkspace tutoringId={selectedId} onBack={() => setParams({})} />
+    return <TeacherTutoringWorkspace tutoringId={selectedId} />
   }
   return <TutoringsList onOpen={(id) => setParams({ tutoring: String(id) })} />
 }
