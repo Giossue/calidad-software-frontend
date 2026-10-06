@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Spinner } from '@/components/ui/spinner'
 import { api, ApiError } from '@/lib/api'
 import { AuthFeedback } from './auth-feedback'
@@ -40,11 +40,11 @@ export function ResetPasswordPage() {
         <FieldGroup>
           <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor="password">Nueva contraseña</FieldLabel>
-            <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} required />
+            <PasswordInput id="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} required />
           </Field>
           <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor="confirmation">Confirma la contraseña</FieldLabel>
-            <Input id="confirmation" type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-invalid={Boolean(error)} required />
+            <PasswordInput id="confirmation" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-invalid={Boolean(error)} required />
             <FieldError>{error}</FieldError>
           </Field>
           <Button type="submit" disabled={pending || !email || !token} className="w-full">

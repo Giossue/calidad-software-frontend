@@ -274,7 +274,7 @@ export function AcademicPeriodsPage() {
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
       <AdminSectionHeader
         title="Períodos Académicos"
-        description="Configura los lapsos académicos en los que se organizan las materias, tutorías y titulaciones. Solo un período puede estar activo y se desactiva automáticamente al pasar su fecha de finalización."
+        description="Configura los lapsos académicos en los que se organizan las materias, tutorías y titulaciones. Solo un período puede estar activo al mismo tiempo; se habilita automáticamente en su fecha de inicio y se cierra en su fecha de finalización."
         titleId="academic-periods-title"
         actions={
           <div className="flex items-center gap-3">
@@ -411,14 +411,44 @@ export function AcademicPeriodsPage() {
                             <Edit2Icon className="size-4" />
                           </button>
                           {!active && (
-                            <button
-                              type="button"
-                              onClick={() => setPeriodToActivate(period)}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
-                              title="Habilitar período"
-                            >
-                              <PowerIcon className="size-4" />
-                            </button>
+                            (() => {
+                              const todayStr = new Date().toISOString().slice(0, 10)
+                              const isExpired = period.end_date.slice(0, 10) < todayStr
+                              const isFuture = period.start_date.slice(0, 10) > todayStr
+
+                              if (isExpired) {
+                                return (
+                                  <span
+                                    className="cursor-not-allowed rounded-lg p-2 text-slate-300 dark:text-slate-600"
+                                    title={`Período finalizado el ${formatDate(period.end_date)}. No se puede reactivar.`}
+                                  >
+                                    <PowerIcon className="size-4 opacity-40" />
+                                  </span>
+                                )
+                              }
+
+                              if (isFuture) {
+                                return (
+                                  <span
+                                    className="cursor-not-allowed rounded-lg p-2 text-slate-300 dark:text-slate-600"
+                                    title={`Se habilitará automáticamente en su fecha de inicio (${formatDate(period.start_date)}).`}
+                                  >
+                                    <PowerIcon className="size-4 opacity-40" />
+                                  </span>
+                                )
+                              }
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setPeriodToActivate(period)}
+                                  className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                                  title="Habilitar como período vigente"
+                                >
+                                  <PowerIcon className="size-4" />
+                                </button>
+                              )
+                            })()
                           )}
                         </div>
                       </TableCell>
@@ -566,7 +596,7 @@ export function AcademicPeriodsPage() {
         onClose={() => setPeriodToActivate(null)}
         onConfirm={() => void handleConfirmActivate()}
         title="¿Habilitar período académico?"
-        description={`¿Deseas habilitar el período "${periodToActivate?.name}"? Será el período vigente hasta su fecha de finalización (${periodToActivate ? formatDate(periodToActivate.end_date) : ''}), cuando se desactivará automáticamente.`}
+        description={`¿Deseas habilitar el período "${periodToActivate?.name}"? Será el único período vigente hasta su fecha de finalización (${periodToActivate ? formatDate(periodToActivate.end_date) : ''}). Cualquier otro período que estuviera activo se cerrará automáticamente.`}
         confirmLabel="Habilitar período"
         cancelLabel="Cancelar"
         variant="default"
