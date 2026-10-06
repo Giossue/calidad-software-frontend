@@ -38,7 +38,7 @@ export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }
 }
 
 export function RecordTable<T extends { readonly id: number | string }>({ rows, columns, loading, empty, onRowClick, rowTitle }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string }>) {
-  return <div className="rounded-xl border bg-card max-md:border-0 max-md:bg-transparent" aria-busy={loading}>
+  return <div className="overflow-hidden rounded-xl border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent" aria-busy={loading}>
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody>
       {loading ? <TableRow><TableCell colSpan={columns.length}><span role="status" className="flex items-center gap-2 py-5"><Spinner aria-hidden="true" />Cargando…</span></TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), className: 'cursor-pointer', onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && event.key === 'Enter') onRowClick(row) } } : {})}>{columns.map((column) => <TableCell key={column.label} className="whitespace-normal">{column.render(row)}</TableCell>)}</TableRow>)}
     </TableBody></Table>

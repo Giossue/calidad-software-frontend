@@ -32,6 +32,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-table-header: var(--table-header);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -59,6 +60,7 @@
   --destructive-foreground: #FFFFFF;
   --success: #17854E;
   --success-foreground: #12663C;
+  --table-header: #FAFBFC;
   --border: #CBD5DC;
   --input: #B9C6CF;
   --ring: var(--brand-red);
@@ -94,6 +96,7 @@
   --destructive-foreground: #FFFFFF;
   --success: #6FE0A4;
   --success-foreground: #A9F2C7;
+  --table-header: #1D4260;
   --border: #28475D;
   --input: #36576D;
   --ring: #E06C67;

@@ -7,7 +7,6 @@ import {
   PowerIcon,
   PowerOffIcon,
   RefreshCwIcon,
-  SearchIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -27,6 +26,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { FilterBar } from '@/features/tutoring/filter-bar'
 
 const PAO_NUMBERS = ['I', 'II', 'III'] as const
 type PaoNumber = (typeof PAO_NUMBERS)[number]
@@ -115,7 +115,8 @@ function formatDate(value: string): string {
 }
 
 export function AcademicPeriodsPage() {
-  const fetchPeriods = useCallback((page: number, search: string) => api.listAcademicPeriods({ page, search }), [])
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
+  const fetchPeriods = useCallback((page: number, search: string) => api.listAcademicPeriods({ page, search, status: statusFilter || undefined }), [statusFilter])
   const {
     data: periods,
     meta,
@@ -127,7 +128,7 @@ export function AcademicPeriodsPage() {
     isFetching,
     error: pageError,
     reload,
-  } = usePaginatedCatalog(fetchPeriods)
+  } = usePaginatedCatalog(fetchPeriods, statusFilter)
 
   const [editingPeriod, setEditingPeriod] = useState<AcademicPeriod | null>(null)
   const [form, setForm] = useState<AcademicPeriodForm>(INITIAL_FORM)
@@ -305,49 +306,45 @@ export function AcademicPeriodsPage() {
       )}
 
       {/* Contenedor Principal: Filtro + Tabla */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none dark:border-slate-800 dark:bg-slate-900 max-md:dark:bg-transparent">
-        {/* Barra de Búsqueda */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="relative flex flex-1 items-center sm:max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Buscar período por nombre…"
-              className="pl-10"
-            />
-          </div>
-          <p className="shrink-0 text-sm text-muted-foreground">
-            Mostrando {periods.length} de {meta?.total ?? 0} períodos
-          </p>
-        </div>
+      <div className="flex flex-col gap-4">
+        <FilterBar
+          id="academic-periods"
+          search={searchInput}
+          onSearch={setSearchInput}
+          searchLabel="Buscar período"
+          searchPlaceholder="Buscar período por nombre…"
+          filters={[
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+          ]}
+          onClear={() => { setSearchInput(''); setStatusFilter('') }}
+        />
 
         {/* Tabla de Períodos */}
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity max-md:rounded-none max-md:border-0 dark:border-slate-800',
+            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
           <Table stacked cardTitle>
-            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-5 py-3.5 whitespace-normal">Nombre del Período</TableHead>
-                <TableHead className="px-5 py-3.5">Fecha Inicio</TableHead>
-                <TableHead className="px-5 py-3.5">Fecha Finalización</TableHead>
-                <TableHead className="px-5 py-3.5">Estado</TableHead>
-                <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre del Período</TableHead>
+                <TableHead>Fecha Inicio</TableHead>
+                <TableHead>Fecha Finalización</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
-                    <TableCell className="px-5 py-4"><div className="h-5 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-5 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : periods.length === 0 ? (
@@ -370,7 +367,7 @@ export function AcademicPeriodsPage() {
                   return (
                     <TableRow key={period.id}>
                       {/* Nombre con icono */}
-                      <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
+                      <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-normal">
                         <div className="flex items-center gap-3">
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-red/10 text-brand-red dark:bg-brand-red/20 dark:text-brand-red-contrast">
                             <CalendarIcon className="size-4" />
@@ -380,17 +377,17 @@ export function AcademicPeriodsPage() {
                       </TableCell>
 
                       {/* Fecha Inicio */}
-                      <TableCell className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                      <TableCell className="text-slate-600 dark:text-slate-300">
                         {formatDate(period.start_date)}
                       </TableCell>
 
                       {/* Fecha Fin */}
-                      <TableCell className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                      <TableCell className="text-slate-600 dark:text-slate-300">
                         {formatDate(period.end_date)}
                       </TableCell>
 
                       {/* Estado Pulsante */}
-                      <TableCell className="px-5 py-4">
+                      <TableCell>
                         <span
                           className={cn(
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -410,8 +407,8 @@ export function AcademicPeriodsPage() {
                       </TableCell>
 
                       {/* Acciones */}
-                      <TableCell className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <TableCell>
+                        <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => openEditModal(period)}
@@ -450,13 +447,18 @@ export function AcademicPeriodsPage() {
         </div>
 
         {/* Paginación */}
-        <CatalogPagination
-          label="períodos"
-          page={page}
-          lastPage={meta?.last_page ?? 1}
-          disabled={isFetching}
-          onChange={setPage}
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {periods.length} de {meta?.total ?? periods.length} {meta?.total ?? periods.length === 1 ? 'período' : 'períodos'}
+          </p>
+          <CatalogPagination
+            label="períodos"
+            page={page}
+            lastPage={meta?.last_page ?? 1}
+            disabled={isFetching}
+            onChange={setPage}
+          />
+        </div>
       </div>
 
       {/* Modal Dialog para Crear / Editar Período */}
