@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronRightIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -38,7 +37,6 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
       { label: 'Período y ciclo', render: (item) => <div className="flex flex-col gap-1"><span>{item.period_name}</span><span className="text-xs text-muted-foreground">{item.cycle_name} · {item.section_name ?? 'Sin paralelo'}</span></div> },
       { label: 'Estudiantes', render: (item) => <Badge variant="secondary">{item.active_enrollment_count} inscritos</Badge> },
       { label: 'Estado', render: (item) => <StatusBadge active={item.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" /> },
-      { label: '', render: () => <ChevronRightIcon className="size-5 text-muted-foreground" aria-hidden="true" /> },
     ]} />
     <CatalogPagination label="tutorías" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
   </section>

@@ -5,7 +5,6 @@ import {
   CalendarDaysIcon,
   CheckCheckIcon,
   CheckCircle2Icon,
-  ChevronRightIcon,
   ClipboardListIcon,
   PencilIcon,
   PlusIcon,
@@ -344,7 +343,6 @@ function SessionsList({
             render: (session) => <span className="font-medium">{formatDate(session.date)}</span>,
           },
           { label: 'Asistencia', render: (session) => attendanceSummary(session) },
-          { label: '', render: () => <ChevronRightIcon className="size-5 text-muted-foreground" aria-hidden="true" /> },
         ]}
       />
       <CatalogPagination label="sesiones" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />

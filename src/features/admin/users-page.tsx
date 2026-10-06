@@ -451,13 +451,14 @@ export function UsersPage() {
       )}
 
       {/* Tarjetas KPI de Estadísticas Resumidas */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="@container">
+      <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-3 @7xl:grid-cols-6 sm:gap-4">
         <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
             <UsersIcon className="size-6" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex min-w-0 flex-col">
+            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
               Total Cuentas
             </span>
             <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -470,8 +471,8 @@ export function UsersPage() {
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
             <ShieldCheckIcon className="size-6" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex min-w-0 flex-col">
+            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
               Administradores
             </span>
             <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -484,8 +485,8 @@ export function UsersPage() {
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
             <BriefcaseIcon className="size-6" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex min-w-0 flex-col">
+            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
               Coord. Carrera
             </span>
             <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -498,8 +499,8 @@ export function UsersPage() {
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
             <AwardIcon className="size-6" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex min-w-0 flex-col">
+            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
               Coord. Titulación
             </span>
             <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -512,8 +513,8 @@ export function UsersPage() {
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
             <UserCheckIcon className="size-6" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex min-w-0 flex-col">
+            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
               Docentes
             </span>
             <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -526,8 +527,8 @@ export function UsersPage() {
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
             <GraduationCapIcon className="size-6" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <div className="flex min-w-0 flex-col">
+            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
               Estudiantes
             </span>
             <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
@@ -535,6 +536,7 @@ export function UsersPage() {
             </span>
           </div>
         </Card>
+      </div>
       </div>
 
       {/* Contenedor Principal: Filtros + Tabla */}

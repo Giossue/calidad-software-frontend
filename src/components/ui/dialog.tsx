@@ -170,12 +170,12 @@ export function Dialog({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+                <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-end dark:border-slate-800">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowConfirm(false)}
-                    className="font-medium"
+                    className="font-medium max-sm:w-full"
                   >
                     Seguir editando
                   </Button>
@@ -183,7 +183,7 @@ export function Dialog({
                     type="button"
                     variant="destructive"
                     onClick={handleConfirmDiscard}
-                    className="font-semibold"
+                    className="font-semibold max-sm:w-full"
                   >
                     Sí, descartar y salir
                   </Button>

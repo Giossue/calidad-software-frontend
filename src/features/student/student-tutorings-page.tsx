@@ -1,5 +1,4 @@
 import { useSearchParams } from 'react-router-dom'
-import { ChevronRightIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,7 +32,6 @@ function TutoringRow({ enrollment, onOpen }: Readonly<{ enrollment: StudentTutor
         <ContextPills source={subject} />
       </span>
       <StatusBadge active={enrollment.is_active && subject.is_active} activeLabel="En curso" inactiveLabel="Finalizada" />
-      <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
     </button>
   </li>
 }
