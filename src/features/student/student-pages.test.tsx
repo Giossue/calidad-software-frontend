@@ -46,16 +46,20 @@ describe('Módulo Estudiante', () => {
     expect(dashboardSection('docente', 'student-grades')).toBe('teacher-tutorings')
   })
 
-  it('lista las tutorías y abre el espacio de la elegida al tocar la tarjeta', async () => {
+  it('lista las tutorías en una tabla con búsqueda y abre el espacio de la elegida al tocar la fila', async () => {
     const user = userEvent.setup()
     vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
     vi.mocked(studentApi.content).mockResolvedValue(content)
     show(<StudentTutoringsPage />)
-    await user.click(await screen.findByRole('button', { name: 'Abrir Calidad de software' }))
+    expect(await screen.findByText('Mostrando 1 de 1 tutoría')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Buscar tutoría' })).toBeInTheDocument()
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar tutoría' }), 'zzz')
+    expect(screen.getByText('No hay tutorías que coincidan con tu búsqueda.')).toBeInTheDocument()
+    await user.clear(screen.getByRole('searchbox', { name: 'Buscar tutoría' }))
+    await user.click(await screen.findByTitle('Abrir Calidad de software'))
     expect(await screen.findByRole('heading', { name: /calidad de software/i })).toBeInTheDocument()
     expect(await screen.findByText('1 de 2 temas completados')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Volver a mis tutorías' }))
-    expect(await screen.findByRole('button', { name: 'Abrir Calidad de software' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Volver a mis tutorías' })).not.toBeInTheDocument()
   })
 
   it('muestra estado vacío y permite reintentar tras un error', async () => {
@@ -89,9 +93,9 @@ describe('Módulo Estudiante', () => {
     vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
     vi.mocked(studentApi.content).mockResolvedValue({ ...content, topics: many })
     workspace('content')
-    expect(await screen.findByText('Mostrando 1 a 5 de 7 temas')).toBeInTheDocument()
+    expect(await screen.findByText('Mostrando 5 de 7 temas')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Siguiente/ }))
-    expect(screen.getByText('Mostrando 6 a 7 de 7 temas')).toBeInTheDocument()
+    expect(screen.getByText('Mostrando 2 de 7 temas')).toBeInTheDocument()
   })
 
   it('presenta el récord y el porcentaje de asistencia de la tutoría abierta', async () => {
@@ -121,9 +125,15 @@ describe('Módulo Estudiante', () => {
   it('muestra docente y horarios en su pestaña', async () => {
     vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
     workspace('schedules')
-    expect(await screen.findByText('Contacto del docente')).toBeInTheDocument()
-    expect(screen.getByText('maria@ueb.edu.ec')).toBeInTheDocument()
-    expect(screen.getByText('Lunes · 08:00 – 10:00')).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Docente' })).toBeInTheDocument()
+    expect(screen.getByText('Información de contacto de tu tutor.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'maria@ueb.edu.ec' })).toHaveAttribute('href', 'mailto:maria@ueb.edu.ec')
+    expect(screen.getByText('1 sesión semanal')).toBeInTheDocument()
+    expect(screen.getByText('2 h por sesión')).toBeInTheDocument()
+    expect(screen.getByText('Frecuencia de clases')).toBeInTheDocument()
+    const row = screen.getByText('Lunes').closest('tr') as HTMLElement
+    expect(within(row).getByText('08:00 – 10:00')).toBeInTheDocument()
+    expect(within(row).getByText('2 h')).toBeInTheDocument()
   })
 
   it('avisa cuando la tutoría abierta ya finalizó', async () => {
