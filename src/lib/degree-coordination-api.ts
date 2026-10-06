@@ -97,10 +97,18 @@ export interface DegreeTopic {
   readonly observations: readonly DegreeObservation[]
   readonly tracking?: DegreeTracking | null
 }
+export interface DegreeTeacherCareer {
+  readonly id: number
+  readonly name: string
+  readonly faculty_id: number | null
+  readonly faculty_name: string | null
+}
 export interface DegreeTeacher extends DegreeStudent {
   readonly is_active: boolean
   readonly active_tutorships_count: number
   readonly active_peer_reviews_count: number
+  /** Carreras (con su facultad) en las que enseña; la búsqueda abarca todas las facultades. */
+  readonly careers?: readonly DegreeTeacherCareer[]
 }
 export interface AcademicPeer {
   readonly assignment_id: number

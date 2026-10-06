@@ -48,7 +48,18 @@ export interface Teacher {
   readonly can_manage: boolean
 }
 
-export type AvailableTeacher = Pick<Teacher, 'id' | 'name' | 'email' | 'is_active'>
+/** Franja ocupada por una tutoría activa del docente en el período vigente. */
+export interface BusySchedule {
+  readonly tutoring_id: number
+  readonly tutoring_name: string
+  readonly day: string
+  readonly start_time: string
+  readonly end_time: string
+}
+
+export type AvailableTeacher = Pick<Teacher, 'id' | 'name' | 'email' | 'is_active'> & {
+  readonly busy_schedules?: readonly BusySchedule[]
+}
 
 export interface Tutoring {
   readonly id: number
@@ -124,7 +135,12 @@ export type TutoringInput = {
   modality_id?: number
   parallel_ids?: readonly number[]
   parallel_id?: number
+  teacher_id?: number
+  schedules: readonly TutoringScheduleItem[]
 }
+/** Horario semanal de una tutoría (uno por día); el aula es opcional. */
+export type TutoringScheduleItem = { day: string; start_time: string; end_time: string; room?: string }
+export type TutoringConfigurationInput = { teacher_id: number; cycle_id?: number; schedules: readonly TutoringScheduleItem[] }
 
 async function collection<T>(path: string): Promise<readonly T[]> {
   return (await request<Collection<T>>(`${ROOT}/${path}`)).data
@@ -161,7 +177,7 @@ export const tutoringApi = {
   tutorings: (params?: TutoringListParams) => list<Tutoring>('tutorings', params),
   createTutoring: (input: TutoringInput) => mutate<Tutoring>('tutorings', 'POST', input),
   updateTutoring: (id: number, input: Pick<TutoringInput, 'period_id' | 'modality_id'>) => mutate<Tutoring>(`tutorings/${id}`, 'PATCH', input),
-  deactivateTutoring: (id: number) => mutate<Tutoring>(`tutorings/${id}/deactivate`, 'PATCH'),
+  configureTutoring: (id: number, input: TutoringConfigurationInput) => mutate<Tutoring>(`tutorings/${id}/configuration`, 'PUT', input),
   activateTutoring: (id: number) => mutate<Tutoring>(`tutorings/${id}/activate`, 'PATCH'),
   assignTutoringCycle: (id: number, cycleId: number) => mutate<Tutoring>(`tutorings/${id}/cycle`, 'PUT', { cycle_id: cycleId }),
   assignTeacher: (id: number, teacherId: number) => mutate<Tutoring>(`tutorings/${id}/teacher`, 'PUT', { teacher_id: teacherId }),
@@ -188,7 +204,7 @@ export const tutoringApi = {
 
   allStudents: (params?: { page?: number; search?: string }) =>
     request<PaginatedResourceCollection<CoordinatorStudent>>(`${ROOT}/students${buildQuery(params ?? {})}`),
-  createCoordinatorStudent: (input: { identification: string; name: string; email: string; phone?: string | null; tutoring_id?: number }) =>
+  createCoordinatorStudent: (input: { identification: string; name: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number }) =>
     request<{ data: CoordinatorStudent }>(`${ROOT}/students`, { method: 'POST', body: JSON.stringify(input) }),
   availableTutoringsForStudent: (studentId: number, search?: string) =>
     request<{ data: readonly Tutoring[] }>(`${ROOT}/students/${studentId}/available-tutorings${buildQuery({ search: search ?? '' })}`),
@@ -226,6 +242,9 @@ export interface DegreeStudent {
   readonly name: string
   readonly email: string
   readonly phone: string | null
+  /** Ciclo que cursa; el último ciclo de la carrera es titulación. */
+  readonly cycle_number?: number | null
+  readonly academic_stage?: 'tutorias' | 'titulacion' | null
   readonly is_degree_enrolled: boolean
   readonly degree_enrollment_id: number | null
   readonly enrolled_at: string | null

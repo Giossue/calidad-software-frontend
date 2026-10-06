@@ -28,6 +28,7 @@ import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -46,6 +47,7 @@ type UserForm = {
   role: string
   facultyId: string
   careerId: string
+  cycleNumber: string
   password: string
   password_confirmation: string
 }
@@ -62,6 +64,7 @@ type UserFormInput = {
   role: string
   faculty_id?: number | null
   career_id?: number | null
+  cycle_number?: number | null
   password?: string
   password_confirmation?: string
 }
@@ -82,6 +85,7 @@ const INITIAL_USER_FORM: UserForm = {
   role: '',
   facultyId: '',
   careerId: '',
+  cycleNumber: '',
   password: '',
   password_confirmation: '',
 }
@@ -153,6 +157,8 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
     if (!form.careerId) errors.careerId = 'Selecciona la carrera.'
   }
 
+  if (form.role === 'estudiante' && !form.cycleNumber) errors.cycleNumber = 'Selecciona el ciclo que cursa el estudiante.'
+
   if (editing && form.password) {
     const passwordHint = getPasswordRequirementHint(form.password)
     if (passwordHint) errors.password = passwordHint
@@ -219,6 +225,7 @@ export function UsersPage() {
     if (!userForm.facultyId) return []
     return careers.filter((c) => String(c.faculty_id) === userForm.facultyId)
   }, [careers, userForm.facultyId])
+  const cycleLevels = careers.find((c) => String(c.id) === userForm.careerId)?.cycle_levels ?? 0
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -238,6 +245,10 @@ export function UsersPage() {
       }
       if (field === 'facultyId') {
         next.careerId = ''
+      }
+      // El ciclo depende del rol y de la carrera elegida.
+      if ((field === 'role' && value !== 'estudiante') || field === 'facultyId' || field === 'careerId') {
+        next.cycleNumber = ''
       }
       return next
     })
@@ -282,6 +293,7 @@ export function UsersPage() {
       role: user.role,
       facultyId: (user.role !== 'administrador' && user.role !== 'docente') ? initialFacultyId : '',
       careerId: (user.role !== 'administrador' && user.role !== 'docente') ? initialCareerId : '',
+      cycleNumber: user.role === 'estudiante' && user.cycle_number ? String(user.cycle_number) : '',
       password: '',
       password_confirmation: '',
     }
@@ -329,6 +341,7 @@ export function UsersPage() {
         role: userForm.role,
         faculty_id: userForm.role !== 'administrador' && userForm.role !== 'docente' && userForm.facultyId ? Number(userForm.facultyId) : null,
         career_id: userForm.role !== 'administrador' && userForm.role !== 'docente' && userForm.careerId ? Number(userForm.careerId) : null,
+        ...(userForm.role === 'estudiante' && userForm.cycleNumber ? { cycle_number: Number(userForm.cycleNumber) } : {}),
       }
 
       if (editingUser) {
@@ -932,6 +945,37 @@ export function UsersPage() {
                   </NativeSelect>
                   <FieldError>{userErrors.careerId}</FieldError>
                 </Field>
+
+                {userForm.role === 'estudiante' && (
+                  <Field data-invalid={Boolean(userErrors.cycleNumber)}>
+                    <FieldLabel htmlFor="user-cycle">Ciclo</FieldLabel>
+                    <NativeSelect
+                      id="user-cycle"
+                      name="cycleNumber"
+                      value={userForm.cycleNumber}
+                      onChange={(e) => updateUserField('cycleNumber', e.target.value)}
+                      disabled={formDisabled || catalogsLoading || cycleLevels === 0}
+                      required
+                    >
+                      <option value="">
+                        {!userForm.careerId
+                          ? 'Primero selecciona una carrera'
+                          : cycleLevels === 0
+                            ? 'La carrera no tiene ciclos registrados'
+                            : 'Selecciona el ciclo'}
+                      </option>
+                      {Array.from({ length: cycleLevels }, (_, index) => index + 1).map((number) => (
+                        <option key={number} value={String(number)}>
+                          {number === cycleLevels ? `Ciclo ${number} · Titulación` : `Ciclo ${number} · Tutorías`}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                    <FieldDescription className="text-xs">
+                      El último ciclo de la carrera habilita el módulo de titulación; los anteriores, el de tutorías.
+                    </FieldDescription>
+                    <FieldError>{userErrors.cycleNumber}</FieldError>
+                  </Field>
+                )}
               </div>
             )}
 
@@ -940,10 +984,9 @@ export function UsersPage() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field data-invalid={Boolean(userErrors.password)}>
                   <FieldLabel htmlFor="user-password">Nueva Contraseña (Opcional)</FieldLabel>
-                  <Input
+                  <PasswordInput
                     id="user-password"
                     name="password"
-                    type="password"
                     value={userForm.password}
                     onChange={(e) => updateUserField('password', e.target.value)}
                     autoComplete="new-password"
@@ -960,10 +1003,9 @@ export function UsersPage() {
 
                 <Field data-invalid={Boolean(userErrors.password_confirmation)}>
                   <FieldLabel htmlFor="user-password-confirmation">Confirmar nueva contraseña</FieldLabel>
-                  <Input
+                  <PasswordInput
                     id="user-password-confirmation"
                     name="password_confirmation"
-                    type="password"
                     value={userForm.password_confirmation}
                     onChange={(e) => updateUserField('password_confirmation', e.target.value)}
                     autoComplete="new-password"

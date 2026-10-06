@@ -115,3 +115,48 @@ describe('DashboardPage - Pestaña de Titulación condicional para Estudiantes',
     expect(screen.getAllByText('Mis tutorías').length).toBeGreaterThan(0)
   })
 })
+
+describe('DashboardPage - Módulos del estudiante según su ciclo', () => {
+  const baseStudent = {
+    id: 11,
+    name: 'Estudiante Ciclo',
+    email: 'ciclo@ueb.edu.ec',
+    identification: '0201234567',
+    role: 'estudiante',
+    phone: null,
+    email_verified_at: null,
+    has_two_factor: false,
+    is_active: true,
+  }
+
+  function renderAs(user: typeof baseStudent & { cycle_number: number; academic_stage: 'tutorias' | 'titulacion' }) {
+    vi.mocked(useAuth).mockReturnValue({ user, logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn() })
+    // Aunque estuviera matriculado, el ciclo decide qué módulo se muestra.
+    vi.mocked(tutoringApi.studentDegreeEnrollmentStatus).mockResolvedValue({ is_enrolled: true, period_id: 2, period_name: 'PAO II 2027' })
+    render(
+      <MemoryRouter initialEntries={['/panel/student-tutorings']}>
+        <Routes>
+          <Route path="/panel/:section" element={<DashboardPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('de primero a séptimo ciclo solo muestra tutorías', async () => {
+    renderAs({ ...baseStudent, cycle_number: 7, academic_stage: 'tutorias' })
+
+    expect(await screen.findByText('Vista Mis Tutorías')).toBeInTheDocument()
+    expect(screen.getAllByText('Mis tutorías').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Mis propuestas')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tutor y pares')).not.toBeInTheDocument()
+  })
+
+  it('en el último ciclo solo muestra titulación y abre sus propuestas', async () => {
+    renderAs({ ...baseStudent, cycle_number: 8, academic_stage: 'titulacion' })
+
+    expect(await screen.findByText('Vista Mis Propuestas de Titulación')).toBeInTheDocument()
+    expect(screen.getAllByText('Mis propuestas').length).toBeGreaterThan(0)
+    expect(screen.getByText('Tutor y pares')).toBeInTheDocument()
+    expect(screen.queryByText('Mis tutorías')).not.toBeInTheDocument()
+  })
+})

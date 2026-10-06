@@ -6,18 +6,35 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { SearchSelect } from '@/components/ui/search-select'
 import { Spinner } from '@/components/ui/spinner'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, MutationDialog, SelectField } from '@/features/tutoring/tutoring-shared'
-import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
+import { ErrorNotice, MutationDialog } from '@/features/tutoring/tutoring-shared'
+import { degreeCoordinationApi, type DegreeTeacher } from '@/lib/degree-coordination-api'
 import { formatDegreeDate } from './degree-format'
-import { useDegreeResource } from './degree-hooks'
+import { useDegreeResource, useDegreeSearch } from './degree-hooks'
 import { DegreeObservationField, DegreeStatusBadge, InitialsAvatar, SectionCard } from './degree-shared'
 
 type ReviewAction = 'approve' | 'reject' | 'observe' | 'peers'
 const ACTION_LABELS: Record<ReviewAction, string> = { approve: 'Aprobar propuesta', reject: 'Rechazar propuesta', observe: 'Registrar observación', peers: 'Gestionar pares académicos' }
 type ReviewDraft = { tutorId: string; peerIds: readonly number[]; observation: string }
 const EMPTY_DRAFT: ReviewDraft = { tutorId: '', peerIds: [], observation: '' }
+type PickedTeacher = Pick<DegreeTeacher, 'id' | 'name'> & Partial<Pick<DegreeTeacher, 'careers' | 'active_tutorships_count' | 'active_peer_reviews_count'>>
+
+function describeCareers(teacher: PickedTeacher): string {
+  if (!teacher.careers) return ''
+  return teacher.careers.length > 0
+    ? teacher.careers.map((career) => career.faculty_name ? `${career.name} · ${career.faculty_name}` : career.name).join(', ')
+    : 'Sin carrera registrada'
+}
+
+function describePeer(teacher: PickedTeacher): string {
+  return [
+    describeCareers(teacher),
+    teacher.active_peer_reviews_count === undefined ? '' : `${teacher.active_peer_reviews_count} revisiones asignadas`,
+  ].filter(Boolean).join(' · ')
+}
 
 export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; onBack: () => void }>) {
   const resource = useDegreeResource(() => degreeCoordinationApi.topic(topicId), String(topicId))
@@ -26,18 +43,39 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
   const [action, setAction] = useState<ReviewAction | null>(null)
   const [draft, setDraft] = useState<ReviewDraft>(EMPTY_DRAFT)
   const [initialDraft, setInitialDraft] = useState<ReviewDraft>(EMPTY_DRAFT)
+  // Búsqueda en tiempo real de docentes de todas las carreras y facultades.
+  const tutorSearch = useDegreeSearch()
+  const peerSearch = useDegreeSearch()
+  const tutorResults = useDegreeResource(
+    () => action === 'approve' ? degreeCoordinationApi.teachers(tutorSearch.search) : Promise.resolve([]),
+    `tutor:${action}:${tutorSearch.search}`,
+  )
+  const peerResults = useDegreeResource(
+    () => action === 'approve' || action === 'peers' ? degreeCoordinationApi.teachers(peerSearch.search) : Promise.resolve([]),
+    `peers:${action}:${peerSearch.search}`,
+  )
+  const [picked, setPicked] = useState<Readonly<Record<number, PickedTeacher>>>({})
   const topic = resource.data
   const activeTeachers = (teachers.data ?? []).filter((teacher) => teacher.is_active)
   const assignments = topic?.assignments.filter((assignment) => assignment.is_active !== false) ?? []
   const tutor = assignments.find((assignment) => assignment.role === 'tutor')?.teacher
   const peers = assignments.filter((assignment) => assignment.role === 'par_academico')
-  const availablePeers = activeTeachers.filter((teacher) => teacher.id !== Number(draft.tutorId))
-  const selectedPeersValid = draft.peerIds.length > 0 && draft.peerIds.every((id) => availablePeers.some((teacher) => teacher.id === id))
+  const selectedTutor = draft.tutorId ? picked[Number(draft.tutorId)] ?? null : null
+  // Los pares elegidos se mantienen visibles aunque la búsqueda ya no los incluya.
+  const selectedPeers = draft.peerIds.flatMap((id) => {
+    const teacher = peerResults.data?.find((item) => item.id === id) ?? picked[id]
+    return teacher ? [teacher] : []
+  })
+  const peerOptions: readonly PickedTeacher[] = [
+    ...selectedPeers,
+    ...(peerResults.data ?? []).filter((teacher) => teacher.is_active && !draft.peerIds.includes(teacher.id)),
+  ].filter((teacher) => teacher.id !== Number(draft.tutorId))
+  const selectedPeersValid = draft.peerIds.length > 0 && !draft.peerIds.includes(Number(draft.tutorId))
   const approvalPossible = !teachers.loading && !teachers.error && activeTeachers.length >= 2
   const peerChangePossible = !teachers.loading && !teachers.error && activeTeachers.some((teacher) => teacher.id !== tutor?.id)
   const hasUnavailablePeers = peers.some((assignment) => assignment.teacher && !activeTeachers.some((teacher) => teacher.id === assignment.teacher?.id))
   const canSubmit = action === 'approve'
-    ? approvalPossible && activeTeachers.some((teacher) => teacher.id === Number(draft.tutorId)) && selectedPeersValid
+    ? approvalPossible && selectedTutor !== null && selectedPeersValid
     : action === 'peers' ? peerChangePossible && selectedPeersValid
       : action === 'observe' ? draft.observation.trim().length >= 3 && draft.observation.length <= 1000
         : action === 'reject' && draft.observation.length <= 1000
@@ -50,6 +88,9 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
     } : EMPTY_DRAFT
     setDraft(next)
     setInitialDraft(next)
+    setPicked(Object.fromEntries(peers.flatMap((assignment) => assignment.teacher ? [[assignment.teacher.id, assignment.teacher]] : [])))
+    tutorSearch.setInput('')
+    peerSearch.setInput('')
     operation.clearError()
     setAction(nextAction)
   }
@@ -104,11 +145,52 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
       </SectionCard>
     </>}
     <MutationDialog open={Boolean(action)} title={action ? ACTION_LABELS[action] : ''} description={topic?.title} pending={operation.pending} error={operation.error} dirty={JSON.stringify(draft) !== JSON.stringify(initialDraft)} onClose={() => setAction(null)} onSubmit={submit} submitLabel={action === 'peers' ? 'Guardar pares académicos' : action ? ACTION_LABELS[action] : 'Guardar'} submitDisabled={!canSubmit}>
-      {action === 'approve' && <SelectField id="degree-tutor" label="Docente tutor" value={draft.tutorId} onChange={(value) => setDraft({ ...draft, tutorId: value, peerIds: draft.peerIds.filter((id) => id !== Number(value)) })}><option value="">Selecciona un tutor</option>{activeTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name} · {teacher.active_tutorships_count} tutorías asignadas</option>)}</SelectField>}
+      {action === 'approve' && <Field>
+        <FieldLabel htmlFor="degree-tutor">Docente tutor</FieldLabel>
+        <SearchSelect
+          id="degree-tutor"
+          query={tutorSearch.input}
+          onQueryChange={tutorSearch.setInput}
+          loading={tutorResults.loading}
+          placeholder="Busca por nombre, cédula, carrera o facultad"
+          emptyMessage="No se encontraron docentes activos."
+          options={(tutorResults.data ?? []).filter((teacher) => teacher.is_active).map((teacher) => ({
+            value: String(teacher.id),
+            label: teacher.name,
+            description: [describeCareers(teacher), `${teacher.active_tutorships_count} tutorías asignadas`].filter(Boolean).join(' · '),
+          }))}
+          selected={selectedTutor ? { value: String(selectedTutor.id), label: selectedTutor.name } : null}
+          onSelect={(option) => {
+            const teacher = option ? tutorResults.data?.find((item) => String(item.id) === option.value) : undefined
+            if (teacher) setPicked((current) => ({ ...current, [teacher.id]: teacher }))
+            setDraft({ ...draft, tutorId: teacher ? String(teacher.id) : '', peerIds: draft.peerIds.filter((id) => id !== teacher?.id) })
+          }}
+        />
+        <FieldDescription>Incluye docentes de todas las carreras y facultades.</FieldDescription>
+        <ErrorNotice message={tutorResults.error} retry={tutorResults.reload} />
+      </Field>}
       {(action === 'approve' || action === 'peers') && <>
         {action === 'peers' && <p className="text-sm text-muted-foreground">Tutor actual: {tutor?.name ?? 'Sin tutor asignado'}.</p>}
         {action === 'peers' && hasUnavailablePeers && <Alert><AlertDescription>Los pares que ya no están activos deben reemplazarse. Selecciona los docentes que mantendrán la asignación.</AlertDescription></Alert>}
-        <FieldSet><FieldLegend>Pares académicos</FieldLegend><FieldDescription>Selecciona al menos un docente diferente del tutor.</FieldDescription><FieldGroup className="max-h-64 gap-4 overflow-y-auto">{availablePeers.map((teacher) => <Field key={teacher.id} orientation="horizontal"><Checkbox id={`degree-peer-${teacher.id}`} checked={draft.peerIds.includes(teacher.id)} onCheckedChange={(checked) => setDraft({ ...draft, peerIds: checked === true ? [...draft.peerIds, teacher.id] : draft.peerIds.filter((id) => id !== teacher.id) })} /><FieldLabel htmlFor={`degree-peer-${teacher.id}`}><span className="flex flex-col gap-1"><span>{teacher.name}</span><span className="text-xs font-normal text-muted-foreground">{teacher.active_peer_reviews_count} revisiones asignadas</span></span></FieldLabel></Field>)}</FieldGroup></FieldSet>
+        <FieldSet>
+          <FieldLegend>Pares académicos</FieldLegend>
+          <FieldDescription>Selecciona al menos un docente diferente del tutor. Puedes buscar en todas las carreras y facultades.</FieldDescription>
+          <Field>
+            <FieldLabel htmlFor="degree-peer-search" className="sr-only">Buscar pares académicos</FieldLabel>
+            <div className="relative flex items-center">
+              <Input id="degree-peer-search" type="search" placeholder="Buscar por nombre, cédula, carrera o facultad" value={peerSearch.input} onChange={(event) => peerSearch.setInput(event.target.value)} />
+              {peerResults.loading && <Spinner aria-hidden="true" className="absolute right-3 size-4" />}
+            </div>
+          </Field>
+          <ErrorNotice message={peerResults.error} retry={peerResults.reload} />
+          <FieldGroup className="max-h-64 gap-4 overflow-y-auto">
+            {peerOptions.length === 0 && !peerResults.loading && <p className="text-sm text-muted-foreground">No se encontraron docentes con esa búsqueda.</p>}
+            {peerOptions.map((teacher) => <Field key={teacher.id} orientation="horizontal"><Checkbox id={`degree-peer-${teacher.id}`} checked={draft.peerIds.includes(teacher.id)} onCheckedChange={(checked) => {
+              if (checked === true) setPicked((current) => ({ ...current, [teacher.id]: teacher }))
+              setDraft({ ...draft, peerIds: checked === true ? [...draft.peerIds, teacher.id] : draft.peerIds.filter((id) => id !== teacher.id) })
+            }} /><FieldLabel htmlFor={`degree-peer-${teacher.id}`}><span className="flex flex-col gap-1"><span>{teacher.name}</span>{describePeer(teacher) && <span className="text-xs font-normal text-muted-foreground">{describePeer(teacher)}</span>}</span></FieldLabel></Field>)}
+          </FieldGroup>
+        </FieldSet>
       </>}
       {(action === 'reject' || action === 'observe') && <DegreeObservationField value={draft.observation} onChange={(value) => setDraft({ ...draft, observation: value })} rejection={action === 'reject'} />}
       {action === 'reject' && <Alert><AlertDescription>La propuesta quedará rechazada. Revisa el motivo antes de confirmar.</AlertDescription></Alert>}

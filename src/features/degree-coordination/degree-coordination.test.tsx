@@ -150,10 +150,10 @@ describe('Coordinación de titulación', () => {
     const form = screen.getByRole('form', { name: 'Aprobar propuesta' })
     const submit = within(form).getByRole('button', { name: 'Aprobar propuesta' })
     expect(submit).toBeDisabled()
-    await user.selectOptions(screen.getByLabelText('Docente tutor'), '1')
+    await chooseTutor(user, 'Ana Torres')
     expect(screen.queryByRole('checkbox', { name: /Ana Torres/ })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('checkbox', { name: /Luis Pérez/ }))
-    await user.selectOptions(screen.getByLabelText('Docente tutor'), '2')
+    await user.click(await screen.findByRole('checkbox', { name: /Luis Pérez/ }))
+    await chooseTutor(user, 'Luis Pérez')
     expect(submit).toBeDisabled()
     expect(screen.queryByRole('checkbox', { name: /Luis Pérez/ })).not.toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: /María Rojas/ }))
@@ -162,6 +162,33 @@ describe('Coordinación de titulación', () => {
     expect(await screen.findByText('Aprobado')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Aprobar propuesta' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gestionar pares académicos' })).toBeInTheDocument()
+  })
+
+  it('busca docentes de todas las facultades en tiempo real para tutor y pares', async () => {
+    const user = userEvent.setup()
+    const health: DegreeTeacher = { ...teachers[2], careers: [{ id: 9, name: 'Enfermería', faculty_id: 4, faculty_name: 'Ciencias de la Salud' }] }
+    vi.mocked(degreeCoordinationApi.teachers).mockImplementation(async (search = '') =>
+      search === '' ? [...teachers.slice(0, 2), health] : search === 'salud' ? [health] : [])
+    render(<DegreeTopicDetail topicId={30} onBack={vi.fn()} />)
+    const approveButton = await screen.findByRole('button', { name: 'Aprobar propuesta' })
+    await waitFor(() => expect(approveButton).toBeEnabled())
+    await user.click(approveButton)
+
+    // Al escribir se consulta al servidor sin pulsar ningún botón.
+    await user.type(screen.getByLabelText('Docente tutor'), 'salud')
+    await waitFor(() => expect(degreeCoordinationApi.teachers).toHaveBeenCalledWith('salud'))
+    const option = await screen.findByRole('option', { name: /María Rojas/ })
+    expect(option).toHaveTextContent('Enfermería · Ciencias de la Salud')
+    await user.click(option)
+    expect(screen.getByLabelText('Docente tutor')).toHaveValue('María Rojas')
+
+    // El par elegido sigue visible aunque la búsqueda cambie.
+    await user.click(await screen.findByRole('checkbox', { name: /Ana Torres/ }))
+    await user.type(screen.getByLabelText('Buscar pares académicos'), 'zzz')
+    await waitFor(() => expect(degreeCoordinationApi.teachers).toHaveBeenCalledWith('zzz'))
+    expect(screen.getByRole('checkbox', { name: /Ana Torres/ })).toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: /Luis Pérez/ })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('form', { name: 'Aprobar propuesta' })).getByRole('button', { name: 'Aprobar propuesta' })).toBeEnabled()
   })
 
   it('registra el rechazo con la observación destinada al estudiante', async () => {
@@ -291,3 +318,10 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(degreeCoordinationApi.enrollDegreeStudent).toHaveBeenCalledWith(50))
   })
 })
+
+async function chooseTutor(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const input = screen.getByLabelText('Docente tutor')
+  await user.clear(input)
+  await user.click(input)
+  await user.click(await screen.findByRole('option', { name: new RegExp(name) }))
+}

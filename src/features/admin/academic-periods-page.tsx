@@ -5,7 +5,6 @@ import {
   Edit2Icon,
   PlusIcon,
   PowerIcon,
-  PowerOffIcon,
   RefreshCwIcon,
   SearchIcon,
   ShieldAlertIcon,
@@ -39,8 +38,7 @@ type AcademicPeriodForm = {
 }
 
 type AcademicPeriodFormErrors = Partial<Record<keyof AcademicPeriodForm, string>>
-type PendingAction = 'period' | 'toggle-period' | null
-type ToggleTarget = { period: AcademicPeriod; action: 'activate' | 'deactivate' }
+type PendingAction = 'period' | 'activate-period' | null
 
 const INITIAL_FORM: AcademicPeriodForm = {
   paoNumber: '',
@@ -143,7 +141,7 @@ export function AcademicPeriodsPage() {
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [periodToToggle, setPeriodToToggle] = useState<ToggleTarget | null>(null)
+  const [periodToActivate, setPeriodToActivate] = useState<AcademicPeriod | null>(null)
 
   async function handleRefresh() {
     const ok = await reload()
@@ -239,23 +237,18 @@ export function AcademicPeriodsPage() {
     }
   }
 
-  async function handleConfirmToggle() {
-    if (!periodToToggle || pending !== null) return
+  async function handleConfirmActivate() {
+    if (!periodToActivate || pending !== null) return
 
-    const { period, action } = periodToToggle
-    setPending('toggle-period')
+    const period = periodToActivate
+    setPending('activate-period')
     try {
-      if (action === 'activate') {
-        await api.activateAcademicPeriod(period.id)
-        toast.success('Período habilitado', { description: `El período "${period.name}" fue habilitado.` })
-      } else {
-        await api.deactivateAcademicPeriod(period.id)
-        toast.info('Período deshabilitado', { description: `Se desactivó el período "${period.name}".` })
-      }
-      setPeriodToToggle(null)
+      await api.activateAcademicPeriod(period.id)
+      toast.success('Período habilitado', { description: `El período "${period.name}" fue habilitado.` })
+      setPeriodToActivate(null)
       await reload()
     } catch (error: unknown) {
-      setPeriodToToggle(null)
+      setPeriodToActivate(null)
       const friendly = getFriendlyError(error)
       setErrorModal({
         open: true,
@@ -280,7 +273,7 @@ export function AcademicPeriodsPage() {
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
       <AdminSectionHeader
         title="Períodos Académicos"
-        description="Configura los lapsos académicos en los que se organizan las materias, tutorías y titulaciones."
+        description="Configura los lapsos académicos en los que se organizan las materias, tutorías y titulaciones. Solo un período puede estar activo y se desactiva automáticamente al pasar su fecha de finalización."
         titleId="academic-periods-title"
         actions={
           <div className="flex items-center gap-3">
@@ -420,19 +413,10 @@ export function AcademicPeriodsPage() {
                           >
                             <Edit2Icon className="size-4" />
                           </button>
-                          {active ? (
+                          {!active && (
                             <button
                               type="button"
-                              onClick={() => setPeriodToToggle({ period, action: 'deactivate' })}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
-                              title="Desactivar período"
-                            >
-                              <PowerOffIcon className="size-4" />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setPeriodToToggle({ period, action: 'activate' })}
+                              onClick={() => setPeriodToActivate(period)}
                               className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                               title="Habilitar período"
                             >
@@ -574,21 +558,17 @@ export function AcademicPeriodsPage() {
         </form>
       </Dialog>
 
-      {/* ConfirmModal para Habilitar / Desactivar Período */}
+      {/* ConfirmModal para Habilitar Período; la desactivación es automática por fecha */}
       <ConfirmModal
-        open={Boolean(periodToToggle)}
-        onClose={() => setPeriodToToggle(null)}
-        onConfirm={() => void handleConfirmToggle()}
-        title={periodToToggle?.action === 'activate' ? '¿Habilitar período académico?' : '¿Desactivar período académico?'}
-        description={
-          periodToToggle?.action === 'activate'
-            ? `¿Deseas habilitar el período "${periodToToggle?.period.name}"? Volverá a estar disponible en el sistema.`
-            : `¿Estás seguro de desactivar el período "${periodToToggle?.period.name}"? Se marcará como inactivo en el sistema.`
-        }
-        confirmLabel={periodToToggle?.action === 'activate' ? 'Habilitar período' : 'Desactivar período'}
+        open={Boolean(periodToActivate)}
+        onClose={() => setPeriodToActivate(null)}
+        onConfirm={() => void handleConfirmActivate()}
+        title="¿Habilitar período académico?"
+        description={`¿Deseas habilitar el período "${periodToActivate?.name}"? Será el período vigente hasta su fecha de finalización (${periodToActivate ? formatDate(periodToActivate.end_date) : ''}), cuando se desactivará automáticamente.`}
+        confirmLabel="Habilitar período"
         cancelLabel="Cancelar"
-        variant={periodToToggle?.action === 'activate' ? 'default' : 'destructive'}
-        pending={pending === 'toggle-period'}
+        variant="default"
+        pending={pending === 'activate-period'}
       />
 
       {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
