@@ -8,9 +8,7 @@ import {
   PowerIcon,
   PowerOffIcon,
   RefreshCwIcon,
-  SearchIcon,
   ShieldAlertIcon,
-  XIcon,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -31,6 +29,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Cycle, type Faculty, type Modality } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
+import { FilterBar } from '@/features/tutoring/filter-bar'
 
 
 type CareerFormErrors = { facultyId?: string; name?: string }
@@ -74,11 +73,11 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   const [searchParams, setSearchParams] = useSearchParams()
   const facultyParam = Number(searchParams.get('faculty'))
   const facultyFilterId = Number.isInteger(facultyParam) && facultyParam > 0 ? facultyParam : undefined
-  const facultyFilterName = searchParams.get('facultyName') || 'Facultad seleccionada'
 
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
   const fetchCareers = useCallback(
-    (page: number, search: string) => api.listCareers({ page, search, facultyId: facultyFilterId }),
-    [facultyFilterId],
+    (page: number, search: string) => api.listCareers({ page, search, facultyId: facultyFilterId, status: statusFilter || undefined }),
+    [facultyFilterId, statusFilter],
   )
   const {
     data: careers,
@@ -91,7 +90,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     isFetching,
     error: pageError,
     reload,
-  } = usePaginatedCatalog(fetchCareers, String(facultyFilterId ?? ''))
+  } = usePaginatedCatalog(fetchCareers, `${facultyFilterId ?? ''}|${statusFilter}`)
 
   const [activeFaculties, setActiveFaculties] = useState<readonly Faculty[]>([])
   const [modalities, setModalities] = useState<readonly Modality[]>([])
@@ -300,64 +299,46 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         </Alert>
       )}
 
-      {facultyFilterId !== undefined && (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-3 pr-1.5 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-            Facultad: {facultyFilterName}
-            <button
-              type="button"
-              onClick={() => setSearchParams({})}
-              className="rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-white"
-              aria-label="Quitar filtro de facultad"
-            >
-              <XIcon className="size-3.5" />
-            </button>
-          </span>
-        </div>
-      )}
-
       {/* Tabla de Carreras */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex flex-1 items-center max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Buscar carrera por nombre o facultad…"
-              className="pl-10"
-            />
-          </div>
-          <p className="shrink-0 text-sm text-muted-foreground">
-            Mostrando {careers.length} de {meta?.total ?? 0} carreras
-          </p>
-        </div>
+      <div className="flex flex-col gap-4">
+        <FilterBar
+          id="careers"
+          search={searchInput}
+          onSearch={setSearchInput}
+          searchLabel="Buscar carrera"
+          searchPlaceholder="Buscar carrera por nombre o facultad…"
+          filters={[
+            { id: 'faculty', label: 'Facultad', value: facultyFilterId ? String(facultyFilterId) : '', onChange: (value) => setSearchParams(value ? { faculty: value } : {}), allLabel: 'Todas', options: activeFaculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name })) },
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todas', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+          ]}
+          onClear={() => { setSearchInput(''); setStatusFilter(''); setSearchParams({}) }}
+        />
 
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
-          <Table>
-            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-5 py-3.5 whitespace-normal">Carrera Universitaria</TableHead>
-                <TableHead className="px-5 py-3.5 whitespace-normal">Facultad Perteneciente</TableHead>
-                <TableHead className="px-5 py-3.5 whitespace-normal">Modalidad</TableHead>
-                <TableHead className="px-5 py-3.5">Estado</TableHead>
-                <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
+          <Table stacked cardTitle>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Carrera Universitaria</TableHead>
+                <TableHead>Facultad Perteneciente</TableHead>
+                <TableHead>Modalidad</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
-                    <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : careers.length === 0 ? (
@@ -374,7 +355,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               ) : (
                 careers.map((career) => (
                   <TableRow key={career.id}>
-                    <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
+                    <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-normal">
                       <div className="flex items-center gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                           <BookOpenIcon className="size-4" />
@@ -389,13 +370,13 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
+                    <TableCell className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
                       {career.faculty_name ?? `Facultad #${career.faculty_id}`}
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
+                    <TableCell className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
                       {career.modality_name ?? 'Sin modalidad'}
                     </TableCell>
-                    <TableCell className="px-5 py-4">
+                    <TableCell>
                       <span
                         className={cn(
                           'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -408,8 +389,8 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                         {career.status ? 'Activa' : 'Inactiva'}
                       </span>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <TableCell>
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => onSelectCareer(career)}
@@ -454,7 +435,12 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
           </Table>
         </div>
 
-        <CatalogPagination label="carreras" page={page} lastPage={meta?.last_page ?? 1} disabled={isFetching} onChange={setPage} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {careers.length} de {meta?.total ?? careers.length} {(meta?.total ?? careers.length) === 1 ? 'carrera' : 'carreras'}
+          </p>
+          <CatalogPagination label="carreras" page={page} lastPage={meta?.last_page ?? 1} disabled={isFetching} onChange={setPage} />
+        </div>
       </div>
 
       {/* Modal Dialog para Registrar / Editar Carrera */}
@@ -596,9 +582,10 @@ type CyclePendingAction = 'cycle' | 'toggle-cycle' | null
 type CycleToggleTarget = { cycle: Cycle; action: 'activate' | 'deactivate' }
 
 function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBack: () => void }>) {
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
   const fetchCycles = useCallback(
-    (page: number, search: string) => api.listCycles({ page, search, careerId: career.id }),
-    [career.id],
+    (page: number, search: string) => api.listCycles({ page, search, careerId: career.id, status: statusFilter || undefined }),
+    [career.id, statusFilter],
   )
   const {
     data: cycles,
@@ -611,7 +598,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     isFetching,
     error: pageError,
     reload,
-  } = usePaginatedCatalog(fetchCycles)
+  } = usePaginatedCatalog(fetchCycles, statusFilter)
 
   const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
   const [cycleErrors, setCycleErrors] = useState<CycleFormErrors>({})
@@ -774,43 +761,40 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       )}
 
       {/* Tabla de Ciclos */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex flex-1 items-center max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Buscar ciclo por nombre…"
-              className="pl-10"
-            />
-          </div>
-          <p className="shrink-0 text-sm text-muted-foreground">
-            Mostrando {cycles.length} de {meta?.total ?? 0} ciclos
-          </p>
-        </div>
+      <div className="flex flex-col gap-4">
+        <FilterBar
+          id="cycles"
+          search={searchInput}
+          onSearch={setSearchInput}
+          searchLabel="Buscar ciclo"
+          searchPlaceholder="Buscar ciclo por nombre…"
+          filters={[
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+          ]}
+          onClear={() => { setSearchInput(''); setStatusFilter('') }}
+        />
 
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
-          <Table>
-            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-5 py-3.5 whitespace-normal">Ciclo Académico</TableHead>
-                <TableHead className="px-5 py-3.5">Estado</TableHead>
-                <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
+          <Table stacked cardTitle>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Ciclo Académico</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
-                    <TableCell className="px-5 py-4"><div className="h-5 w-40 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-5 w-40 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : cycles.length === 0 ? (
@@ -827,7 +811,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               ) : (
                 cycles.map((cycle) => (
                   <TableRow key={cycle.id}>
-                    <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
+                    <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-normal">
                       <div className="flex items-center gap-3">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                           <Layers3Icon className="size-4" />
@@ -835,7 +819,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                         <span>{cycle.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4">
+                    <TableCell>
                       <span
                         className={cn(
                           'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -848,8 +832,8 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                         {cycle.status ? 'Activo' : 'Inactivo'}
                       </span>
                     </TableCell>
-                    <TableCell className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <TableCell>
+                      <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => startCycleEdit(cycle)}
@@ -886,7 +870,12 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
           </Table>
         </div>
 
-        <CatalogPagination label="ciclos" page={page} lastPage={meta?.last_page ?? 1} disabled={isFetching} onChange={setPage} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {cycles.length} de {meta?.total ?? cycles.length} {(meta?.total ?? cycles.length) === 1 ? 'ciclo' : 'ciclos'}
+          </p>
+          <CatalogPagination label="ciclos" page={page} lastPage={meta?.last_page ?? 1} disabled={isFetching} onChange={setPage} />
+        </div>
       </div>
 
       {/* Modal Dialog para Registrar / Editar Ciclo */}

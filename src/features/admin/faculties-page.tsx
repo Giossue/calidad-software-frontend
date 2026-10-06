@@ -6,7 +6,6 @@ import {
   PowerIcon,
   PowerOffIcon,
   RefreshCwIcon,
-  SearchIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -28,6 +27,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Faculty } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
+import { FilterBar } from '@/features/tutoring/filter-bar'
 
 type FacultyFormErrors = { name?: string }
 type PendingAction = 'faculty' | 'toggle-faculty' | null
@@ -40,7 +40,8 @@ function careersPath(faculty: Faculty): string {
 
 export function FacultiesPage() {
   const navigate = useNavigate()
-  const fetchFaculties = useCallback((page: number, search: string) => api.listFaculties({ page, search }), [])
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
+  const fetchFaculties = useCallback((page: number, search: string) => api.listFaculties({ page, search, status: statusFilter || undefined }), [statusFilter])
   const {
     data: faculties,
     meta,
@@ -52,7 +53,7 @@ export function FacultiesPage() {
     isFetching,
     error: pageError,
     reload,
-  } = usePaginatedCatalog(fetchFaculties)
+  } = usePaginatedCatalog(fetchFaculties, statusFilter)
 
   const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null)
   const [name, setName] = useState('')
@@ -205,47 +206,43 @@ export function FacultiesPage() {
       )}
 
       {/* Contenedor Principal: Filtro + Tabla */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-        {/* Barra de Búsqueda */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex flex-1 items-center max-w-md">
-            <SearchIcon className="absolute left-3.5 size-4 text-slate-400" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Buscar facultad por nombre…"
-              className="pl-10"
-            />
-          </div>
-          <p className="shrink-0 text-sm text-muted-foreground">
-            Mostrando {faculties.length} de {meta?.total ?? 0} facultades
-          </p>
-        </div>
+      <div className="flex flex-col gap-4">
+        <FilterBar
+          id="faculties"
+          search={searchInput}
+          onSearch={setSearchInput}
+          searchLabel="Buscar facultad"
+          searchPlaceholder="Buscar facultad por nombre…"
+          filters={[
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todas', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+          ]}
+          onClear={() => { setSearchInput(''); setStatusFilter('') }}
+        />
 
         {/* Tabla de Facultades */}
         <div
           className={cn(
-            'overflow-x-auto rounded-xl border border-slate-100 transition-opacity dark:border-slate-800',
+            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
-          <Table>
-            <TableHeader className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="px-5 py-3.5 whitespace-normal">Nombre de la Facultad</TableHead>
-                <TableHead className="px-5 py-3.5 whitespace-normal">Código Institucional</TableHead>
-                <TableHead className="px-5 py-3.5">Estado</TableHead>
-                <TableHead className="px-5 py-3.5 text-right">Acciones</TableHead>
+          <Table stacked cardTitle>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre de la Facultad</TableHead>
+                <TableHead>Código Institucional</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i} className="animate-pulse">
-                    <TableCell className="px-5 py-4"><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4"><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell className="px-5 py-4 text-right"><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : faculties.length === 0 ? (
@@ -278,7 +275,7 @@ export function FacultiesPage() {
                       title="Ver carreras de esta facultad"
                     >
                       {/* Nombre con icono */}
-                      <TableCell className="px-5 py-4 font-semibold text-slate-900 dark:text-white whitespace-normal">
+                      <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-normal">
                         <div className="flex items-center gap-3">
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
                             <Building2Icon className="size-4" />
@@ -288,7 +285,7 @@ export function FacultiesPage() {
                       </TableCell>
 
                       {/* Código */}
-                      <TableCell className="px-5 py-4 text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-normal">
+                      <TableCell className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-normal">
                         <div className="flex flex-col gap-0.5">
                           <span>Facultad #{faculty.id}</span>
                           <span>
@@ -300,7 +297,7 @@ export function FacultiesPage() {
                       </TableCell>
 
                       {/* Estado Pulsante */}
-                      <TableCell className="px-5 py-4">
+                      <TableCell>
                         <span
                           className={cn(
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
@@ -320,8 +317,8 @@ export function FacultiesPage() {
                       </TableCell>
 
                       {/* Acciones */}
-                      <TableCell className="px-5 py-4 text-right" onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
+                      <TableCell onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => openEditModal(faculty)}
@@ -387,13 +384,18 @@ export function FacultiesPage() {
         </div>
 
         {/* Paginación */}
-        <CatalogPagination
-          label="facultades"
-          page={page}
-          lastPage={meta?.last_page ?? 1}
-          disabled={isFetching}
-          onChange={setPage}
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {faculties.length} de {meta?.total ?? faculties.length} {meta?.total ?? faculties.length === 1 ? 'facultad' : 'facultades'}
+          </p>
+          <CatalogPagination
+            label="facultades"
+            page={page}
+            lastPage={meta?.last_page ?? 1}
+            disabled={isFetching}
+            onChange={setPage}
+          />
+        </div>
       </div>
 
       {/* Modal Dialog para Crear / Editar Facultad */}

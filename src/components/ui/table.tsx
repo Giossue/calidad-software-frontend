@@ -2,14 +2,45 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+// Copia el texto de cada encabezado como etiqueta de su celda (data-label). En móvil, las
+// tablas `stacked` se muestran como tarjetas y esa etiqueta nombra cada dato (ver index.css).
+function labelCells(table: HTMLTableElement) {
+  const labels = Array.from(table.querySelectorAll('thead th'), (th) => th.textContent?.trim() ?? '')
+  table.querySelectorAll('tbody tr').forEach((row) => {
+    let column = 0
+    Array.from(row.children).forEach((cell) => {
+      const span = (cell as HTMLTableCellElement).colSpan || 1
+      const label = span === 1 ? labels[column] : undefined
+      if (label) cell.setAttribute('data-label', label)
+      else cell.removeAttribute('data-label')
+      column += span
+    })
+  })
+}
+
+function Table({ className, stacked = false, cardTitle = false, ...props }: React.ComponentProps<"table"> & {
+  // En pantallas pequeñas, cada fila se muestra como una tarjeta en lugar de una tabla.
+  stacked?: boolean
+  // Con `stacked`, la primera celda se usa como título de la tarjeta (ancho completo y sin etiqueta).
+  cardTitle?: boolean
+}) {
+  const ref = React.useRef<HTMLTableElement>(null)
+
+  // Sin dependencias: las filas llegan como `children` y cambian con cada render.
+  React.useEffect(() => {
+    if (stacked && ref.current) labelCells(ref.current)
+  })
+
   return (
     <div
       data-slot="table-container"
       className="relative w-full overflow-x-auto"
     >
       <table
+        ref={ref}
         data-slot="table"
+        data-stacked={stacked ? "" : undefined}
+        data-card-title={stacked && cardTitle ? "" : undefined}
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
       />
@@ -21,7 +52,10 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(
+        "bg-table-header font-semibold [&_tr]:border-b [&_tr:hover]:bg-transparent",
+        className
+      )}
       {...props}
     />
   )

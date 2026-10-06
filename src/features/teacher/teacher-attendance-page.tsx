@@ -5,7 +5,6 @@ import {
   CalendarDaysIcon,
   CheckCheckIcon,
   CheckCircle2Icon,
-  ChevronRightIcon,
   ClipboardListIcon,
   PencilIcon,
   PlusIcon,
@@ -133,6 +132,9 @@ function clearDraft(tutoringId: number, date: string) {
   try { sessionStorage.removeItem(draftKey(tutoringId, date)) } catch { /* nada que limpiar */ }
 }
 
+// Pestañas internas como control segmentado: sin subrayado, para no repetir el separador de las pestañas principales.
+const SECTION_TRIGGER = 'mb-0 rounded-md border-b-0 px-3 py-2 data-[state=active]:border-transparent data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:shadow-sm'
+
 // --- Panel: dos secciones (Registrar asistencia y Consultar asistencia) ---
 
 export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
@@ -202,13 +204,13 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
   return (
     <div className="flex flex-col gap-6">
       <Tabs value={section} onValueChange={handleSectionChange}>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b pb-1">
-          <TabsList aria-label="Secciones de asistencia">
-            <TabsTrigger value="consult">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList aria-label="Secciones de asistencia" className="w-fit gap-1 rounded-lg border-b-0 bg-muted p-1">
+            <TabsTrigger value="consult" className={SECTION_TRIGGER}>
               <ClipboardListIcon data-icon="inline-start" />
               Consultar asistencia
             </TabsTrigger>
-            <TabsTrigger value="register">
+            <TabsTrigger value="register" className={SECTION_TRIGGER}>
               <UserCheckIcon data-icon="inline-start" />
               Registrar asistencia
             </TabsTrigger>
@@ -344,7 +346,6 @@ function SessionsList({
             render: (session) => <span className="font-medium">{formatDate(session.date)}</span>,
           },
           { label: 'Asistencia', render: (session) => attendanceSummary(session) },
-          { label: '', render: () => <ChevronRightIcon className="size-5 text-muted-foreground" aria-hidden="true" /> },
         ]}
       />
       <CatalogPagination label="sesiones" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
@@ -418,17 +419,6 @@ function SessionFlow({
 
   return (
     <div className="flex flex-col gap-5">
-      {!resource.data && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="-ml-2 w-fit text-muted-foreground"
-          onClick={onClose}
-        >
-          <ArrowLeftIcon data-icon="inline-start" />Volver a consultar asistencias
-        </Button>
-      )}
       <ErrorNotice message={resource.error} retry={resource.reload} />
       {resource.loading ? (
         <Skeleton className="h-64 w-full" aria-label="Cargando asistencia" />
@@ -577,50 +567,6 @@ function SessionForm({
       aria-label="Registrar asistencia"
       className="flex flex-col gap-5"
     >
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Volver a las sesiones"
-            title="Volver a las sesiones"
-            onClick={onClose}
-          >
-            <ArrowLeftIcon />
-          </Button>
-          <div className="flex flex-col">
-            <h3 className="font-display text-xl font-semibold leading-tight">
-              {session ? 'Editar asistencia' : 'Registrar asistencia'}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Toca una fila para marcar quién asistió en la fecha seleccionada
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5 sm:w-56">
-          <FieldLabel htmlFor="teacher-session-date">Fecha de la sesión</FieldLabel>
-          <div className="flex items-center gap-2">
-            <Input
-              id="teacher-session-date"
-              type="date"
-              min={minDate}
-              max={maxDate}
-              value={date}
-              onChange={(event) => event.target.value && onDateChange(event.target.value)}
-              required
-              disabled={operation.pending}
-            />
-            {selectedDay && (
-              <Badge variant={isDayAllowed ? 'secondary' : 'destructive'} className="shrink-0 font-medium">
-                {DAY_LABELS[selectedDay] ?? selectedDay}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Validación de coincidencia de días */}
       {allowedDays.length > 0 && !isDayAllowed && (
         <Alert variant="destructive">
@@ -654,20 +600,39 @@ function SessionForm({
       )}
 
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {presentCount} de {active.length} presentes
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={readOnly || active.length === 0}
-            onClick={() => markAll(!allPresent)}
-          >
-            <CheckCheckIcon data-icon="inline-start" />
-            {allPresent ? 'Desmarcar todos' : 'Marcar todos'}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex items-center gap-2">
+            <FieldLabel htmlFor="teacher-session-date" className="sr-only">Fecha de la sesión</FieldLabel>
+            <Input
+              id="teacher-session-date"
+              type="date"
+              min={minDate}
+              max={maxDate}
+              value={date}
+              onChange={(event) => event.target.value && onDateChange(event.target.value)}
+              required
+              disabled={operation.pending}
+              className="w-auto"
+            />
+            {selectedDay && isDayAllowed && (
+              <span className="text-sm text-muted-foreground">{DAY_LABELS[selectedDay] ?? selectedDay}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {presentCount} de {active.length} presentes
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={readOnly || active.length === 0}
+              onClick={() => markAll(!allPresent)}
+            >
+              <CheckCheckIcon data-icon="inline-start" />
+              {allPresent ? 'Desmarcar todos' : 'Marcar todos'}
+            </Button>
+          </div>
         </div>
 
         <DataTable
@@ -682,7 +647,7 @@ function SessionForm({
 
         <ErrorNotice message={operation.error} />
 
-        <div className="sticky bottom-0 z-10 flex items-center justify-end gap-3 border-t bg-background/95 py-3 backdrop-blur">
+        <div className="flex items-center justify-end">
           <Button
             type="submit"
             disabled={!isDayAllowed || active.length === 0 || operation.pending}

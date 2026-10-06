@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
@@ -26,7 +25,7 @@ export function GradesPanel({ tutoringId }: Readonly<{ tutoringId: number }>) {
     {resource.loading ? <Skeleton role="status" aria-label="Cargando calificaciones" className="h-48 w-full" /> : !resource.error && (!item ? <StudentEmpty title="Aún no tienes calificaciones" description="Cuando tu docente registre notas de esta tutoría, las verás aquí." /> : <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{item.knowledge_metric ? `Tu diagnóstico te ubica en el rango ${item.knowledge_metric.min_score} – ${item.knowledge_metric.max_score}.` : 'Tu grupo de conocimiento se define con la nota diagnóstica.'}</p>
-        <Badge variant="secondary" className="px-3 py-1">{item.knowledge_metric ? `Grupo de conocimiento: ${item.knowledge_metric.group}` : 'Sin clasificar'}</Badge>
+        <span className="text-sm font-medium text-foreground">{item.knowledge_metric ? `Grupo de conocimiento: ${item.knowledge_metric.group}` : 'Sin clasificar'}</span>
       </div>
       <dl className="grid gap-4 sm:grid-cols-3">
         <GradeTile label="Diagnóstico" entry={item.grades.diagnostic} maximum={item.scale_settings.maximum} />

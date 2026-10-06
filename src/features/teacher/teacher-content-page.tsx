@@ -5,7 +5,7 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -450,7 +450,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     <MutationDialog open={Boolean(editing)} title={dialogTitle} description={activity?.name ?? topic?.name ?? tutoring.subject_name} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initial)} onClose={() => setEditing(null)} onSubmit={submit} submitLabel={editing?.record ? 'Guardar cambios' : `Registrar ${editing ? LABELS[editing.kind] : ''}`}>
       {editing?.kind !== 'methodology' && (
         <Field>
-          <FieldLabel htmlFor="teacher-content-name">Nombre</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-content-name">Nombre</FieldLabel>
+            <FieldCounter current={form.name.length} max={150} />
+          </div>
           <Input
             id="teacher-content-name"
             value={form.name}
@@ -534,7 +537,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       )}
       {editing?.kind === 'methodology' && (
         <Field>
-          <FieldLabel htmlFor="teacher-content-description">Descripción</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-content-description">Descripción</FieldLabel>
+            <FieldCounter current={form.description.length} max={255} />
+          </div>
           <Textarea
             id="teacher-content-description"
             value={form.description}

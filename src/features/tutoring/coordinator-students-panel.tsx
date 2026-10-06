@@ -4,7 +4,7 @@ import { PencilIcon, PlusIcon, PowerOffIcon, RotateCcwIcon } from 'lucide-react'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -170,10 +170,10 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         {(editing || mode === 'new') && (
           <>
             {!editing && <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>}
-            <Field><FieldLabel htmlFor="coord-student-identification">Cédula</FieldLabel><Input id="coord-student-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeDigits(event.target.value, 10) })} inputMode="numeric" pattern="[0-9]{10}" maxLength={10} required disabled={Boolean(editing)} placeholder="10 dígitos" /></Field>
-            <Field><FieldLabel htmlFor="coord-student-name">Nombre completo</FieldLabel><Input id="coord-student-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} maxLength={150} required placeholder="Apellidos y nombres" /></Field>
-            <Field><FieldLabel htmlFor="coord-student-email">Correo institucional</FieldLabel><Input id="coord-student-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} maxLength={150} required disabled={Boolean(editing)} placeholder="estudiante@ueb.edu.ec" /></Field>
-            <Field><FieldLabel htmlFor="coord-student-phone">Teléfono</FieldLabel><Input id="coord-student-phone" type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: sanitizeDigits(event.target.value, 10) })} maxLength={10} pattern="[0-9]{10}" placeholder="Opcional, 10 dígitos" /></Field>
+            <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="coord-student-identification">Cédula</FieldLabel><FieldCounter current={form.identification.length} max={10} /></div><Input id="coord-student-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeDigits(event.target.value, 10) })} inputMode="numeric" pattern="[0-9]{10}" maxLength={10} required disabled={Boolean(editing)} placeholder="10 dígitos" /></Field>
+            <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="coord-student-name">Nombre completo</FieldLabel><FieldCounter current={form.name.length} max={150} /></div><Input id="coord-student-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} maxLength={150} required placeholder="Apellidos y nombres" /></Field>
+            <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="coord-student-email">Correo institucional</FieldLabel><FieldCounter current={form.email.length} max={150} /></div><Input id="coord-student-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} maxLength={150} required disabled={Boolean(editing)} placeholder="estudiante@ueb.edu.ec" /></Field>
+            <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="coord-student-phone">Teléfono</FieldLabel><FieldCounter current={form.phone.length} max={10} /></div><Input id="coord-student-phone" type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: sanitizeDigits(event.target.value, 10) })} maxLength={10} pattern="[0-9]{10}" placeholder="Opcional, 10 dígitos" /></Field>
           </>
         )}
       </MutationDialog>

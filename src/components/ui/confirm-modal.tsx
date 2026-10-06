@@ -43,14 +43,15 @@ export function ConfirmModal({
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-          <Button variant="outline" onClick={onClose} disabled={pending}>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
+          <Button variant="outline" onClick={onClose} disabled={pending} className="max-sm:w-full">
             {cancelLabel}
           </Button>
           <Button
             variant={variant}
             onClick={onConfirm}
             disabled={pending}
+            className="max-sm:w-full"
           >
             {pending && <Spinner data-icon="inline-start" />}
             {confirmLabel}

@@ -24,8 +24,8 @@ export function DataTable<TData, TValue>({ columns, data, getRowId, emptyMessage
   const table = useReactTable({ data: data as TData[], columns, getCoreRowModel: getCoreRowModel(), getRowId, meta })
 
   return (
-    <div className={cn('overflow-hidden rounded-xl border bg-card', className)}>
-      <Table>
+    <div className={cn('overflow-hidden rounded-xl border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent', className)}>
+      <Table stacked>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>

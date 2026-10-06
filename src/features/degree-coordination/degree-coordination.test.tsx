@@ -86,7 +86,7 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(degreeCoordinationApi.topics).toHaveBeenLastCalledWith({ status: 'aprobado', section_id: 20, search: 'Carlos' }))
   })
 
-  it('calcula las estadísticas del período y limpia los filtros', async () => {
+  it('limpia los filtros', async () => {
     const user = userEvent.setup()
     const secondStudent = { id: 6, name: 'Lucía Vera', identification: '0202222222', email: 'lucia@ueb.edu.ec', phone: null }
     const secondTopic: DegreeTopic = { ...topic, id: 31, title: 'Sistema de biblioteca', student: secondStudent, status: 'aprobado' }
@@ -94,10 +94,7 @@ describe('Coordinación de titulación', () => {
     render(<DegreeTopicsPage />)
     await screen.findByText('Plataforma de seguimiento')
 
-    await screen.findByText('Propuestas')
-    expect(screen.getByText('Propuestas').previousElementSibling).toHaveTextContent('2')
-    expect(screen.getByText('Estudiantes únicos').previousElementSibling).toHaveTextContent('2')
-    expect(screen.getByText('En revisión').previousElementSibling).toHaveTextContent('1')
+    expect(screen.queryByText('Estudiantes únicos')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Filtros/ }))
     const clearButton = screen.getByRole('button', { name: 'Limpiar filtros' })

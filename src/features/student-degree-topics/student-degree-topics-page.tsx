@@ -5,7 +5,7 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
@@ -86,8 +86,8 @@ function ProposalDialog({ mode, onClose, onSaved }: Readonly<{ mode: ProposalMod
   }
 
   return <MutationDialog open={mode !== null} title={mode?.kind === 'edit' ? 'Cambiar propuesta' : mode?.kind === 'replace' ? 'Proponer una alternativa' : 'Nueva propuesta de titulación'} description={mode?.kind === 'replace' ? 'Tu propuesta pendiente quedará reemplazada por esta nueva.' : 'Coordinación revisará tu propuesta y te notificará el resultado.'} pending={operation.pending} error={operation.error} dirty={form.title !== initial.title || form.description !== initial.description} onClose={onClose} onSubmit={submit} submitLabel={mode?.kind === 'edit' ? 'Guardar cambios' : 'Enviar propuesta'} submitDisabled={title.length < 5}>
-    <Field><FieldLabel htmlFor="student-topic-title">Título del tema</FieldLabel><Input id="student-topic-title" placeholder="Ej.: Plataforma web para el seguimiento de tutorías académicas" required minLength={5} maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /><FieldDescription>Entre 5 y 255 caracteres.</FieldDescription></Field>
-    <Field><FieldLabel htmlFor="student-topic-description">Descripción</FieldLabel><Textarea id="student-topic-description" placeholder="Describe el problema que resuelve tu tema, su alcance y los resultados esperados." maxLength={2000} rows={5} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><FieldDescription>Opcional. Explica el alcance y el objetivo del tema.</FieldDescription></Field>
+    <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="student-topic-title">Título del tema</FieldLabel><FieldCounter current={form.title.length} max={255} /></div><Input id="student-topic-title" placeholder="Ej.: Plataforma web para el seguimiento de tutorías académicas" required minLength={5} maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /><FieldDescription>Entre 5 y 255 caracteres.</FieldDescription></Field>
+    <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="student-topic-description">Descripción</FieldLabel><FieldCounter current={form.description.length} max={2000} /></div><Textarea id="student-topic-description" placeholder="Describe el problema que resuelve tu tema, su alcance y los resultados esperados." maxLength={2000} rows={5} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><FieldDescription>Opcional. Explica el alcance y el objetivo del tema.</FieldDescription></Field>
   </MutationDialog>
 }
 

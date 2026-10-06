@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
@@ -485,9 +485,13 @@ export function TeacherDegreeTrackingPage() {
         >
           <div className="flex flex-col gap-4">
             <Field>
-              <FieldLabel htmlFor="activity-desc">Descripción de la tarea o entrega</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="activity-desc">Descripción de la tarea o entrega</FieldLabel>
+                <FieldCounter current={newActivityDesc.length} max={1000} />
+              </div>
               <Textarea
                 id="activity-desc"
+                maxLength={1000}
                 placeholder="Ejemplo: Presentar avances del capítulo 2 y correcciones del marco metodológico..."
                 value={newActivityDesc}
                 onChange={(e) => setNewActivityDesc(e.target.value)}

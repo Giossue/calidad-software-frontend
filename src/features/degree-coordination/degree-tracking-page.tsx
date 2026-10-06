@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
@@ -252,9 +252,13 @@ export function DegreeTrackingPage() {
         >
           <div className="space-y-4">
             <Field>
-              <FieldLabel htmlFor="new-activity-desc">Descripción de la actividad / entregable</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="new-activity-desc">Descripción de la actividad / entregable</FieldLabel>
+                <FieldCounter current={newActivityDesc.length} max={1000} />
+              </div>
               <Textarea
                 id="new-activity-desc"
+                maxLength={1000}
                 rows={3}
                 placeholder="Ej. Entrega del Capítulo 1: Marco Metodológico y diseño de prototipo..."
                 value={newActivityDesc}
@@ -285,9 +289,13 @@ export function DegreeTrackingPage() {
         >
           <div className="space-y-4">
             <Field>
-              <FieldLabel htmlFor="report-obs">Observaciones y conclusiones finales</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="report-obs">Observaciones y conclusiones finales</FieldLabel>
+                <FieldCounter current={reportObservations.length} max={2000} />
+              </div>
               <Textarea
                 id="report-obs"
+                maxLength={2000}
                 rows={4}
                 placeholder="Detalla el estado general, recomendaciones y cumplimiento del trabajo de titulación..."
                 value={reportObservations}

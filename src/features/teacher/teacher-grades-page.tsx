@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { CheckIcon, MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react'
+import { ClipboardCheckIcon, MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -308,22 +308,24 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
   return <>
   <form onSubmit={submit} aria-label="Calificaciones" className="flex flex-col gap-4">
     {readOnly && <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>}
-    {!readOnly && <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Etapa de calificación">
-        <span className="text-sm text-muted-foreground">Cargar notas de:</span>
-        {GRADE_FIELDS.map(({ type, label: name }) => {
-          const done = active.every((student) => saved[student.id]?.[type])
-          return <Button key={type} type="button" size="sm" variant={stage === type ? 'default' : 'outline'} aria-pressed={stage === type} disabled={operation.pending} onClick={() => setStage(stage === type ? null : type)}>{name}{done && <CheckIcon data-icon="inline-end" aria-label="Completo" />}</Button>
-        })}
-      </div>
-      <p className="text-sm text-muted-foreground">{stage ? `Escribe la nota de ${label} de cada estudiante (de 0 a ${settings.maximum}, con hasta dos decimales, por ejemplo 9.42). Se guardan todas juntas y lo que escribas se conserva hasta que guardes. Toca de nuevo la etapa para volver a solo consulta.` : 'Estás en modo consulta. Elige una etapa para cargar o corregir sus notas.'}</p>
+    {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2">
+      <span className="mr-1 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground"><ClipboardCheckIcon className="size-4 text-muted-foreground" aria-hidden="true" />Etapa:</span>
+      <Button type="button" size="sm" variant={stage === null ? 'default' : 'outline'} aria-pressed={stage === null} disabled={operation.pending} className={stage === null ? undefined : 'bg-card'} onClick={() => { if (stage) { if (changed) setConfirmCancel(true); else leaveStage() } }}>Todas las etapas</Button>
+      {GRADE_FIELDS.map(({ type, label: name }) => {
+        const done = active.every((student) => saved[student.id]?.[type])
+        const selected = stage === type
+        return <Button key={type} type="button" size="sm" variant={selected ? 'default' : 'outline'} aria-pressed={selected} disabled={operation.pending} className={selected ? undefined : 'bg-card'} onClick={() => setStage(type)}>
+          {name}{' '}
+          <span className={`rounded-full px-1.5 text-[11px] font-medium ${selected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{done ? 'Completo' : 'Pendiente'}</span>
+        </Button>
+      })}
     </div>}
     <DataTable dense columns={GRADE_COLUMNS} meta={tableMeta} data={active} getRowId={(student) => String(student.id)} />
     <ErrorNotice message={operation.error} />
     {stage && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 py-3 backdrop-blur">
       <div className="flex flex-col">
         <p className="text-sm font-medium" aria-live="polite">{filled} de {total} notas de {label} ingresadas</p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="text-xs text-muted-foreground"><span>{hint}</span> <span>Escala de 0 a {settings.maximum}, hasta dos decimales (ej. 9.42).</span></p>
       </div>
       <div className="flex items-center gap-2">
         <Button type="button" variant="outline" disabled={operation.pending} onClick={() => (changed ? setConfirmCancel(true) : leaveStage())}>Cancelar</Button>

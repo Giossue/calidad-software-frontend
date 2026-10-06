@@ -502,6 +502,7 @@ function SidebarMenuButton({
   size = "default",
   tooltip,
   className,
+  onClick,
   ...props
 }: React.ComponentProps<"button"> & {
   asChild?: boolean
@@ -509,11 +510,16 @@ function SidebarMenuButton({
   tooltip?: string | React.ComponentProps<typeof TooltipContent>
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot.Root : "button"
-  const { isMobile, state } = useSidebar()
+  const { isMobile, state, setOpenMobile } = useSidebar()
 
   const button = (
     <Comp
       data-slot="sidebar-menu-button"
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+        onClick?.(event)
+        // En móvil el panel cubre la pantalla: se cierra al elegir una opción para ver el cambio.
+        if (isMobile) setOpenMobile(false)
+      }}
       data-sidebar="menu-button"
       data-size={size}
       data-active={isActive}

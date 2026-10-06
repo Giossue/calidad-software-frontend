@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { ClipboardListIcon, ClockIcon, FileTextIcon, RefreshCwIcon, UsersIcon } from 'lucide-react'
+import { ClipboardListIcon, RefreshCwIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { FilterBar } from '@/features/tutoring/filter-bar'
@@ -9,20 +10,8 @@ import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeTopicStatus } from '@/lib/degree-coordination-api'
 import { DEGREE_STATUS_LABELS, formatDegreeDate } from './degree-format'
 import { useDegreePeriod, useDegreeResource, useDegreeSearch } from './degree-hooks'
-import { DegreePeriodCard, DegreeStatusBadge } from './degree-shared'
+import { DegreeStatusBadge } from './degree-shared'
 import { DegreeTopicDetail } from './degree-topic-detail'
-
-function OverviewStat({ icon: Icon, tone, label, value }: Readonly<{ icon: typeof ClockIcon; tone: 'green' | 'blue' | 'muted'; label: string; value: number }>) {
-  const toneClass = tone === 'green'
-    ? 'bg-success/10 text-success-foreground'
-    : tone === 'blue'
-      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-      : 'bg-muted text-muted-foreground'
-  return <div className="flex items-center gap-3">
-    <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${toneClass}`}><Icon className="size-5" /></div>
-    <div className="flex flex-col"><span className="text-lg font-semibold leading-none">{value}</span><span className="text-sm text-muted-foreground">{label}</span></div>
-  </div>
-}
 
 export function DegreeTopicsPage() {
   const period = useDegreePeriod()
@@ -60,17 +49,9 @@ export function DegreeTopicsPage() {
     setSectionId('')
   }
 
-  const overviewRows = overview.data?.data ?? []
-  const uniqueStudents = new Set(overviewRows.flatMap((topic) => topic.student ? [topic.student.id] : [])).size
-  const pendingCount = overviewRows.filter((topic) => topic.status === 'pendiente').length
-
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Propuestas de titulación" description="Revisa las propuestas del período vigente, registra observaciones y organiza las asignaciones académicas." actions={<Button type="button" variant="outline" disabled={table.loading || period.loading} onClick={reloadAll}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
-    <DegreePeriodCard resource={period} extra={period.status !== 404 && !overview.error && <div className="flex flex-wrap gap-6">
-      <OverviewStat icon={FileTextIcon} tone="green" label="Propuestas" value={overviewRows.length} />
-      <OverviewStat icon={UsersIcon} tone="blue" label="Estudiantes únicos" value={uniqueStudents} />
-      <OverviewStat icon={ClockIcon} tone="muted" label="En revisión" value={pendingCount} />
-    </div>} />
+    {period.status === 404 && <Alert><AlertDescription>No existe un período académico vigente. Administración debe configurar y activar un período para continuar con la coordinación de titulación.</AlertDescription></Alert>}
     <FilterBar
       id="degree-topics"
       search={search.input}
@@ -97,6 +78,6 @@ export function DegreeTopicsPage() {
       { label: 'Estado', render: (topic) => <DegreeStatusBadge status={topic.status} /> },
       { label: 'Acciones', render: (topic) => <Button type="button" variant="outline" size="sm" onClick={() => setSelectedTopicId(topic.id)} aria-label={`Revisar ${topic.title}`}>Ver detalle</Button> },
     ]} />}
-    {!table.loading && !table.error && <p className="text-sm text-muted-foreground">Mostrando {table.rows.length} propuesta{table.rows.length === 1 ? '' : 's'} en esta consulta.</p>}
+    {!table.loading && !table.error && <p className="text-sm text-muted-foreground">Mostrando {table.rows.length} de {table.rows.length} propuesta{table.rows.length === 1 ? '' : 's'}</p>}
   </section>
 }

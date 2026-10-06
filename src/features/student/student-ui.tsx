@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { BookOpenIcon, GraduationCapIcon, SearchIcon, UserIcon, UsersIcon } from 'lucide-react'
+import { BookOpenIcon, SearchIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Input } from '@/components/ui/input'
@@ -10,22 +10,6 @@ type IconType = ComponentType<{ className?: string }>
 /** Ícono de tutoría: cuadro con tinte azul suave. */
 export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ icon?: IconType; className?: string }>) {
   return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', className)}><Icon className="size-5" /></span>
-}
-
-type ContextSource = {
-  readonly cycle?: { readonly name: string } | null
-  readonly section?: { readonly name: string } | null
-  readonly teacher?: { readonly name: string } | null
-}
-
-/** Ciclo, paralelo y docente como píldoras discretas, para que no compitan con el título. */
-export function ContextPills({ source }: Readonly<{ source: ContextSource | null | undefined }>) {
-  const items = [
-    { icon: GraduationCapIcon, text: source?.cycle?.name ?? 'Sin ciclo' },
-    { icon: UsersIcon, text: source?.section ? `Paralelo ${source.section.name}` : 'Sin paralelo' },
-    { icon: UserIcon, text: source?.teacher?.name ?? 'Sin docente' },
-  ]
-  return <ul className="flex flex-wrap gap-2">{items.map(({ icon: Icon, text }) => <li key={text} className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"><Icon aria-hidden="true" className="size-3.5 shrink-0" /><span className="truncate">{text}</span></li>)}</ul>
 }
 
 export function RedProgress({ value, label, className }: Readonly<{ value: number; label: string; className?: string }>) {
@@ -49,10 +33,10 @@ export function SearchField({ id, label, value, onChange, placeholder }: Readonl
   </div>
 }
 
-export function ListFooter({ noun, total, start, shown, page, lastPage, onPage }: Readonly<{ noun: string; total: number; start: number; shown: number; page: number; lastPage: number; onPage: (page: number) => void }>) {
+export function ListFooter({ noun, total, shown, page, lastPage, onPage }: Readonly<{ noun: string; total: number; start?: number; shown: number; page: number; lastPage: number; onPage: (page: number) => void }>) {
   if (total === 0) return null
   return <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <p className="text-sm text-muted-foreground">Mostrando {start + 1} a {start + shown} de {total} {noun}</p>
+    <p className="text-sm text-muted-foreground">Mostrando {shown} de {total} {noun}</p>
     <CatalogPagination label={noun} page={page} lastPage={lastPage} disabled={false} onChange={onPage} />
   </div>
 }

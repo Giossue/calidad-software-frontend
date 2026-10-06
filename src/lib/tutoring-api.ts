@@ -5,7 +5,7 @@ export type { Cycle }
 const ROOT = '/api/v1/tutoring-coordination'
 type Collection<T> = { readonly data: readonly T[] }
 type Resource<T> = { readonly data: T }
-export type TutoringListParams = { page?: number; search?: string; career_id?: number; cycle_id?: number; status?: 'active' | 'inactive'; per_page?: number }
+export type TutoringListParams = { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; status?: 'active' | 'inactive'; per_page?: number }
 
 export interface CoordinatorEnrollment {
   readonly id: number
@@ -187,7 +187,7 @@ export const tutoringApi = {
   deactivateSchedule: (id: number, scheduleId: number) => mutate<TutoringSchedule>(`tutorings/${id}/schedules/${scheduleId}/deactivate`, 'PATCH'),
   attendance: (id: number, page: number) => list<Attendance>(`tutorings/${id}/attendance`, { page }),
   reports: (id: number, page: number) => request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/tutorings/${id}/reports${buildQuery({ page })}`),
-  allReports: (params?: { page?: number; search?: string; career_id?: number; cycle_id?: number; tutoring_id?: number }) =>
+  allReports: (params?: { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; tutoring_id?: number }) =>
     request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/reports${buildQuery(params ?? {})}`),
   students: (id: number, params?: { page?: number; search?: string; status?: string }) =>
     request<PaginatedResourceCollection<CoordinatorEnrollment>>(`${ROOT}/tutorings/${id}/students${buildQuery(params ?? {})}`),
@@ -202,9 +202,9 @@ export const tutoringApi = {
   reenrollStudent: (id: number, enrollmentId: number) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/reenroll`, 'PATCH'),
 
-  allStudents: (params?: { page?: number; search?: string }) =>
+  allStudents: (params?: { page?: number; search?: string; career_id?: number; cycle_number?: number; tutoring_status?: 'with' | 'without' }) =>
     request<PaginatedResourceCollection<CoordinatorStudent>>(`${ROOT}/students${buildQuery(params ?? {})}`),
-  createCoordinatorStudent: (input: { identification: string; name: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number }) =>
+  createCoordinatorStudent: (input: { identification: string; name: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number; career_id?: number }) =>
     request<{ data: CoordinatorStudent }>(`${ROOT}/students`, { method: 'POST', body: JSON.stringify(input) }),
   availableTutoringsForStudent: (studentId: number, search?: string) =>
     request<{ data: readonly Tutoring[] }>(`${ROOT}/students/${studentId}/available-tutorings${buildQuery({ search: search ?? '' })}`),
@@ -212,11 +212,12 @@ export const tutoringApi = {
     request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enroll`, { method: 'POST', body: JSON.stringify({ tutoring_id: tutoringId }) }),
   unenrollStudentFromTutoring: (studentId: number, enrollmentId: number) =>
     request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enrollments/${enrollmentId}`, { method: 'DELETE' }),
-  degreeStudents: (params?: { page?: number; search?: string; enrolled?: boolean }) =>
+  degreeStudents: (params?: { page?: number; search?: string; career_id?: number; enrolled?: boolean }) =>
     request<PaginatedResourceCollection<DegreeStudent, DegreePaginationMeta>>(
       `${ROOT}/degree-students${buildQuery({
         page: params?.page,
         search: params?.search,
+        career_id: params?.career_id,
         enrolled: params?.enrolled !== undefined ? (params.enrolled ? 1 : 0) : undefined,
       })}`,
     ),

@@ -1,9 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -32,7 +29,7 @@ function isTabId(value: string | null): value is TabId {
 // Espacio de trabajo de una tutoría: todo lo que el docente gestiona de ella
 // (estudiantes, notas, asistencia, contenido, informes y horarios) en un solo lugar,
 // sin volver a elegir la tutoría en cada sección.
-export function TeacherTutoringWorkspace({ tutoringId, onBack }: Readonly<{ tutoringId: number; onBack: () => void }>) {
+export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: number }>) {
   const [params, setParams] = useSearchParams()
   const resource = useDegreeResource(() => teacherApi.allTutorings())
   const requestedTab = params.get('tab')
@@ -47,7 +44,6 @@ export function TeacherTutoringWorkspace({ tutoringId, onBack }: Readonly<{ tuto
   }
 
   return <section className="flex flex-col gap-6">
-    <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit text-muted-foreground" onClick={onBack}><ArrowLeftIcon data-icon="inline-start" />Volver a mis tutorías</Button>
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {resource.loading ? <div role="status" aria-label="Cargando tutoría" className="flex flex-col gap-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
       : resource.error ? null
@@ -74,10 +70,8 @@ function TutoringHeader({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
       <h2 className="font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{tutoring.subject_name}</h2>
       <StatusBadge active={tutoring.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" />
     </div>
-    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-      <span>{tutoring.career_name}</span>
-      <Badge variant="secondary">{tutoring.cycle_name}{tutoring.section_name ? ` · ${tutoring.section_name}` : ''}</Badge>
-      <Badge variant="secondary">{tutoring.modality_name}</Badge>
-    </div>
+    <p className="text-sm text-muted-foreground">
+      {[tutoring.career_name, `${tutoring.cycle_name}${tutoring.section_name ? ` · ${tutoring.section_name}` : ''}`, tutoring.modality_name].filter(Boolean).join(' · ')}
+    </p>
   </header>
 }
