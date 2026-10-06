@@ -19,7 +19,7 @@ const STATUS_ICONS = { aprobado: CheckCircle2Icon, rechazado: XCircleIcon, pendi
 
 export function DegreeStatusBadge({ status }: Readonly<{ status: DegreeTopicStatus }>) {
   const Icon = STATUS_ICONS[status]
-  return <Badge variant={status === 'aprobado' ? 'success' : status === 'rechazado' ? 'destructive' : 'secondary'} className="gap-1.5 px-3 py-1"><Icon aria-hidden="true" />{DEGREE_STATUS_LABELS[status]}</Badge>
+  return <Badge variant={status === 'aprobado' ? 'success' : status === 'rechazado' ? 'danger' : 'secondary'} className="gap-1.5 px-3 py-1"><Icon aria-hidden="true" />{DEGREE_STATUS_LABELS[status]}</Badge>
 }
 
 type IconType = ComponentType<{ className?: string }>

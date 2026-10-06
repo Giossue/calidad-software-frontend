@@ -16,7 +16,7 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
@@ -146,7 +146,10 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         submitLabel="Enviar informe"
       >
         <Field>
-          <FieldLabel htmlFor="teacher-report-title">Título del informe</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-report-title">Título del informe</FieldLabel>
+            <FieldCounter current={form.title.length} max={100} />
+          </div>
           <Input
             id="teacher-report-title"
             value={form.title}
@@ -156,7 +159,10 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="teacher-report-observations">Resultados y observaciones</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-report-observations">Resultados y observaciones</FieldLabel>
+            <FieldCounter current={form.observations.length} max={10000} />
+          </div>
           <Textarea
             id="teacher-report-observations"
             value={form.observations}

@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
-  CalendarDaysIcon,
   CheckCircle2Icon,
   GraduationCapIcon,
   PlusIcon,
@@ -35,7 +34,8 @@ import {
   type Tutoring,
 } from '@/lib/tutoring-api'
 import { FilterBar } from './filter-bar'
-import { useOperation } from './tutoring-hooks'
+import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
+import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable } from './tutoring-shared'
 
 const EMPTY_STUDENT_FORM = {
@@ -48,8 +48,28 @@ const EMPTY_STUDENT_FORM = {
 }
 
 export function TutoringStudentsPage() {
-  const list = usePaginatedCatalog((page, search) => tutoringApi.allStudents({ page, search }))
+  const catalogs = useTutoringCatalogs()
+  const selection = useSelectedCareer(catalogs.careers)
+
+  if (selection.career) {
+    return <StudentsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
+  }
+
+  return <CareerPicker catalogs={catalogs} title="Estudiantes" description="Elige una carrera para gestionar sus estudiantes, las tutorías asignadas y la matrícula de titulación." rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+}
+
+function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
+  const [cycleFilter, setCycleFilter] = useState('')
+  const [tutoringStatus, setTutoringStatus] = useState<'' | 'with' | 'without'>('')
+  const list = usePaginatedCatalog(
+    (page, search) => tutoringApi.allStudents({ page, search, career_id: careerId, cycle_number: Number(cycleFilter) || undefined, tutoring_status: tutoringStatus || undefined }),
+    `${careerId}|${cycleFilter}|${tutoringStatus}`,
+  )
   const operation = useOperation()
+  const careerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Estudiantes'
+  const cycleLevels = Array.from(
+    new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId).map((cycle) => [cycle.number, cycle])).values(),
+  ).sort((a, b) => a.number - b.number)
 
   // Modal: Crear Estudiante
   const [createOpen, setCreateOpen] = useState(false)
@@ -146,6 +166,7 @@ export function TutoringStudentsPage() {
       email: form.email.trim().toLowerCase(),
       phone: form.phone.trim() || null,
       tutoring_id: form.tutoring_id ? Number(form.tutoring_id) : undefined,
+      career_id: careerId,
     }
 
     void operation.run(
@@ -238,9 +259,10 @@ export function TutoringStudentsPage() {
       tutoringApi.degreeStudents({
         page,
         search,
+        career_id: careerId,
         enrolled: degreeFilter === '' ? undefined : degreeFilter === 'enrolled',
       }),
-    degreeFilter,
+    `${careerId}|${degreeFilter}`,
   )
   const degreeOperation = useOperation()
   const [enrollTarget, setEnrollTarget] = useState<DegreeStudent | null>(null)
@@ -272,6 +294,7 @@ export function TutoringStudentsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
       <Tabs defaultValue="tutorings" className="w-full">
         <TabsList className="mb-2">
           <TabsTrigger value="tutorings" className="gap-2">
@@ -286,8 +309,8 @@ export function TutoringStudentsPage() {
 
         <TabsContent value="tutorings" className="flex flex-col gap-6">
       <ModuleHeader
-        title="Estudiantes"
-        description="Gestión global de estudiantes y asignación a las tutorías de la carrera."
+        title={careerName}
+        description="Gestiona los estudiantes de la carrera y su asignación a tutorías."
         createLabel="Nuevo estudiante"
         onCreate={openCreateModal}
       />
@@ -299,8 +322,11 @@ export function TutoringStudentsPage() {
           onSearch={list.setSearchInput}
           searchLabel="Buscar estudiante"
           searchPlaceholder="Busca por nombre, cédula o correo…"
-          filters={[]}
-          onClear={() => list.setSearchInput('')}
+          filters={[
+            { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
+            { id: 'tutoring-status', label: 'Tutorías', value: tutoringStatus, onChange: (value) => setTutoringStatus(value as '' | 'with' | 'without'), allLabel: 'Todos', options: [{ value: 'with', label: 'Con tutorías' }, { value: 'without', label: 'Sin tutorías' }] },
+          ]}
+          onClear={() => { list.setSearchInput(''); setCycleFilter(''); setTutoringStatus('') }}
         />
       </div>
 
@@ -342,38 +368,30 @@ export function TutoringStudentsPage() {
             ),
           },
           {
-            label: 'Cédula',
-            render: (student) => <span className="font-mono text-sm">{student.identification}</span>,
-          },
-          {
-            label: 'Teléfono',
+            label: 'Cédula / Teléfono',
             render: (student) => (
-              <span className="text-sm text-muted-foreground">{student.phone || '—'}</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="font-mono text-sm">{student.identification}</span>
+                <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
+              </div>
             ),
           },
           {
-            label: 'Tutorías Asignadas',
+            label: 'Tutorías',
             render: (student) => {
               if (student.tutorings.length === 0) {
-                return <span className="text-xs italic text-muted-foreground">Sin tutorías</span>
+                return <span className="text-sm text-muted-foreground">Sin tutorías</span>
               }
+              const shown = student.tutorings.slice(0, 2)
+              const hidden = student.tutorings.length - shown.length
               return (
-                <div className="flex flex-wrap gap-1.5 max-w-md">
-                  {student.tutorings.map((tutoring) => (
-                    <Badge
-                      key={tutoring.enrollment_id}
-                      variant="secondary"
-                      className="text-[11px] py-0.5 px-2 flex items-center gap-1.5"
-                    >
-                      <GraduationCapIcon className="size-3 text-muted-foreground" />
-                      <span>{tutoring.subject_name}</span>
-                      {tutoring.section_name && (
-                        <span className="text-[10px] text-muted-foreground">
-                          ({tutoring.section_name})
-                        </span>
-                      )}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {shown.map((tutoring) => (
+                    <Badge key={tutoring.enrollment_id} variant="secondary" className="text-xs">
+                      {tutoring.subject_name}{tutoring.section_name ? ` · ${tutoring.section_name}` : ''}
                     </Badge>
                   ))}
+                  {hidden > 0 && <Badge variant="outline" className="text-xs" title={student.tutorings.slice(2).map((tutoring) => tutoring.subject_name).join(', ')}>+{hidden}</Badge>}
                 </div>
               )
             },
@@ -390,7 +408,7 @@ export function TutoringStudentsPage() {
                   className="gap-1.5 text-xs font-medium"
                 >
                   <GraduationCapIcon className="size-3.5" />
-                  Gestionar tutorías ({student.tutoring_count})
+                  Gestionar tutorías
                 </Button>
               </div>
             ),
@@ -398,13 +416,18 @@ export function TutoringStudentsPage() {
         ]}
       />
 
-      <CatalogPagination
-        label="estudiantes"
-        page={list.page}
-        lastPage={list.meta?.last_page ?? 1}
-        disabled={list.isFetching}
-        onChange={list.setPage}
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'estudiante' : 'estudiantes'}
+        </p>
+        <CatalogPagination
+          label="estudiantes"
+          page={list.page}
+          lastPage={list.meta?.last_page ?? 1}
+          disabled={list.isFetching}
+          onChange={list.setPage}
+        />
+      </div>
 
       {/* Modal: Registrar Nuevo Estudiante */}
       <MutationDialog
@@ -439,7 +462,10 @@ export function TutoringStudentsPage() {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="new-student-name">Nombres y Apellidos *</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="new-student-name">Nombres y Apellidos *</FieldLabel>
+            <FieldCounter current={form.name.length} max={150} />
+          </div>
           <Input
             id="new-student-name"
             required
@@ -452,7 +478,10 @@ export function TutoringStudentsPage() {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="new-student-email">Correo Institucional *</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="new-student-email">Correo Institucional *</FieldLabel>
+            <FieldCounter current={form.email.length} max={150} />
+          </div>
           <Input
             id="new-student-email"
             type="email"
@@ -471,7 +500,10 @@ export function TutoringStudentsPage() {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="new-student-phone">Teléfono (opcional)</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="new-student-phone">Teléfono (opcional)</FieldLabel>
+            <FieldCounter current={form.phone.length} max={10} />
+          </div>
           <Input
             id="new-student-phone"
             maxLength={10}
@@ -671,20 +703,9 @@ export function TutoringStudentsPage() {
                 Matrícula en Titulación
               </h2>
               <p className="text-sm text-muted-foreground">
-                Matricula a los estudiantes de la carrera en el período académico actual para habilitarles el acceso a la pestaña y módulo de titulación.
+                Matricula a los estudiantes de la carrera para habilitarles el acceso al módulo de titulación.
               </p>
             </div>
-            {degreeList.meta?.current_period ? (
-              <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground shadow-2xs">
-                <CalendarDaysIcon className="size-4 text-primary shrink-0" />
-                <span>Período actual:</span>
-                <span className="font-semibold text-primary">{degreeList.meta.current_period.name}</span>
-              </div>
-            ) : !degreeList.isInitialLoading ? (
-              <div className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-                <span>Sin período académico activo</span>
-              </div>
-            ) : null}
           </div>
 
           <div className="flex flex-col gap-3">
@@ -743,13 +764,12 @@ export function TutoringStudentsPage() {
                 ),
               },
               {
-                label: 'Cédula',
-                render: (student) => <span className="font-mono text-sm">{student.identification}</span>,
-              },
-              {
-                label: 'Teléfono',
+                label: 'Cédula / Teléfono',
                 render: (student) => (
-                  <span className="text-sm text-muted-foreground">{student.phone || '—'}</span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-mono text-sm">{student.identification}</span>
+                    <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
+                  </div>
                 ),
               },
               {
@@ -761,7 +781,7 @@ export function TutoringStudentsPage() {
                       className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 gap-1.5 font-medium text-xs py-1 px-2.5"
                     >
                       <CheckCircle2Icon className="size-3.5 text-emerald-600" />
-                      Matriculado
+                      Matriculado{student.enrolled_at ? ` · ${student.enrolled_at}` : ''}
                     </Badge>
                   ) : (
                     <Badge
@@ -772,12 +792,6 @@ export function TutoringStudentsPage() {
                       No matriculado
                     </Badge>
                   ),
-              },
-              {
-                label: 'Fecha Matrícula',
-                render: (student) => (
-                  <span className="text-sm text-muted-foreground">{student.enrolled_at || '—'}</span>
-                ),
               },
               {
                 label: 'Acciones',
@@ -813,13 +827,18 @@ export function TutoringStudentsPage() {
             ]}
           />
 
-          <CatalogPagination
-            label="estudiantes de titulación"
-            page={degreeList.page}
-            lastPage={degreeList.meta?.last_page ?? 1}
-            disabled={degreeList.isFetching}
-            onChange={degreeList.setPage}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {degreeList.data.length} de {degreeList.meta?.total ?? degreeList.data.length} {(degreeList.meta?.total ?? degreeList.data.length) === 1 ? 'estudiante' : 'estudiantes'}
+            </p>
+            <CatalogPagination
+              label="estudiantes de titulación"
+              page={degreeList.page}
+              lastPage={degreeList.meta?.last_page ?? 1}
+              disabled={degreeList.isFetching}
+              onChange={degreeList.setPage}
+            />
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -827,7 +846,7 @@ export function TutoringStudentsPage() {
       <ConfirmModal
         open={Boolean(enrollTarget)}
         title={`¿Matricular a ${enrollTarget?.name} en Titulación?`}
-        description={`El estudiante quedará matriculado en titulación para el período ${degreeList.meta?.current_period?.name ?? 'actual'}. Se le habilitará inmediatamente la pestaña de titulación para presentar sus propuestas de grado.`}
+        description={`El estudiante quedará matriculado en titulación. Se le habilitará inmediatamente la pestaña de titulación para presentar sus propuestas de grado.`}
         confirmLabel="Confirmar matrícula"
         pending={degreeOperation.pending}
         onClose={() => setEnrollTarget(null)}

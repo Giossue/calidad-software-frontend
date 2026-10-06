@@ -1,12 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { BookOpenIcon, CheckIcon, ChevronDownIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PlusIcon, PowerOffIcon, XIcon } from 'lucide-react'
+import { CheckIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PlusIcon, PowerOffIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Dialog } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -16,26 +15,43 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
+import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
-import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
+import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, SelectField } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '' }
 
 export function TutoringSubjectsPage() {
   const catalogs = useTutoringCatalogs()
-  const [careerFilter, setCareerFilter] = useState('')
-  const [cycleFilter, setCycleFilter] = useState('')
+  const selection = useSelectedCareer(catalogs.careers)
+
+  if (selection.career) {
+    return <SubjectsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
+  }
+
+  return <CareerPicker catalogs={catalogs} title="Asignaturas" description="Elige una carrera para gestionar sus asignaturas por ciclo y vincularlas con los grupos que recibirán tutorías." rowTitle={(career) => `Ver asignaturas de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+}
+
+type TutoringCatalogsState = ReturnType<typeof useTutoringCatalogs>
+
+function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: TutoringCatalogsState; careerId: number; onBack?: () => void }>) {
+  const [cycleSelection, setCycleSelection] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
+  const activeCareerId = String(careerId)
+  const cycleLevels = Array.from(
+    new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === Number(activeCareerId)).map((cycle) => [cycle.number, cycle])).values(),
+  ).sort((a, b) => a.number - b.number)
+  const activeCycle = cycleLevels.some((level) => String(level.number) === cycleSelection) ? cycleSelection : 'all'
   const list = usePaginatedCatalog(
     (page, search) => tutoringApi.subjects({
       page,
       search,
-      career_id: Number(careerFilter) || undefined,
-      cycle_id: Number(cycleFilter) || undefined,
+      career_id: Number(activeCareerId) || undefined,
+      cycle_number: activeCycle === 'all' ? undefined : Number(activeCycle),
       status: statusFilter || undefined,
     }),
-    `${careerFilter}|${cycleFilter}|${statusFilter}`,
+    `${activeCareerId}|${activeCycle}|${statusFilter}`,
   )
   const operation = useOperation()
   const [open, setOpen] = useState(false)
@@ -48,8 +64,6 @@ export function TutoringSubjectsPage() {
   const [isAddingParallelInModal, setIsAddingParallelInModal] = useState(false)
   const [newModalParallelName, setNewModalParallelName] = useState('')
   const [modalParallelError, setModalParallelError] = useState<string | null>(null)
-  const [viewingParallelsSubject, setViewingParallelsSubject] = useState<{ subject: Subject; cycleIds?: number[] } | null>(null)
-  const [expandedCycles, setExpandedCycles] = useState<Record<string, boolean>>({})
 
   const [isAddingSection, setIsAddingSection] = useState(false)
   const [newSectionName, setNewSectionName] = useState('')
@@ -57,8 +71,8 @@ export function TutoringSubjectsPage() {
   const [sectionError, setSectionError] = useState<string | null>(null)
 
   function edit(subject: Subject | null, preselectedCycleId?: number | string) {
-    const defaultCareerId = (careerFilter && catalogs.careers.some((c) => String(c.id) === careerFilter))
-      ? careerFilter
+    const defaultCareerId = (activeCareerId && catalogs.careers.some((c) => String(c.id) === activeCareerId))
+      ? activeCareerId
       : (catalogs.careers[0] ? String(catalogs.careers[0].id) : '')
     const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
     const next = subject
@@ -72,35 +86,6 @@ export function TutoringSubjectsPage() {
     setSectionError(null)
     operation.clearError()
     setOpen(true)
-  }
-
-  function isExpanded(cycleKey: string) {
-    return expandedCycles[cycleKey] ?? true
-  }
-
-  function toggleExpand(cycleKey: string) {
-    setExpandedCycles((prev) => ({
-      ...prev,
-      [cycleKey]: !(prev[cycleKey] ?? true),
-    }))
-  }
-
-  function expandAll() {
-    const next: Record<string, boolean> = {}
-    uniqueCycleLevels.forEach((c) => {
-      next[String(c.number || c.name)] = true
-    })
-    next['unassigned'] = true
-    setExpandedCycles(next)
-  }
-
-  function collapseAll() {
-    const next: Record<string, boolean> = {}
-    uniqueCycleLevels.forEach((c) => {
-      next[String(c.number || c.name)] = false
-    })
-    next['unassigned'] = false
-    setExpandedCycles(next)
   }
 
   function toggleParallel(id: string) {
@@ -146,7 +131,7 @@ export function TutoringSubjectsPage() {
       code: trimmedCode || undefined,
       name: form.name.trim(),
     }
-    const careerId = Number(form.career_id) || Number(careerFilter) || (catalogs.careers[0]?.id ?? 0)
+    const careerId = Number(form.career_id) || Number(activeCareerId) || (catalogs.careers[0]?.id ?? 0)
     const newParallel = isAddingSection && newSectionName.trim() ? newSectionName.trim() : undefined
     const selectedParallelIds = form.parallel_ids.map(Number).filter(Boolean)
     const chosenCycleId = form.cycle_id ? Number(form.cycle_id) : undefined
@@ -173,34 +158,18 @@ export function TutoringSubjectsPage() {
       editing ? 'Asignatura actualizada.' : 'Asignatura registrada.',
       async () => {
         setOpen(false)
-        if (chosenCycleId) {
-          const chosen = catalogs.cycles.find((c) => c.id === chosenCycleId)
-          if (chosen) {
-            const key = String(chosen.number || chosen.name)
-            setExpandedCycles((prev) => ({ ...prev, [key]: true }))
-          }
-        }
         await list.reload()
         catalogs.reload()
       },
     )
   }
 
-  function onCareerFilterChange(value: string) {
-    setCareerFilter(value)
-    const current = cycleFilter ? catalogs.cycles.find((cycle) => String(cycle.id) === cycleFilter) : null
-    if (cycleFilter && (!value || !current || current.career_id !== Number(value))) setCycleFilter('')
-  }
-
   function clearFilters() {
-    setCareerFilter('')
-    setCycleFilter('')
     setStatusFilter('')
+    setCycleSelection('')
   }
 
-  const cycleFilterOptions = careerFilter ? catalogs.cycles.filter((cycle) => cycle.career_id === Number(careerFilter)) : []
-
-  const currentCareerId = Number(form.career_id || careerFilter || catalogs.careers[0]?.id)
+  const currentCareerId = Number(form.career_id || activeCareerId || catalogs.careers[0]?.id)
   const currentCareer = catalogs.careers.find((c) => c.id === currentCareerId)
   const currentPeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
   const careerCycles = catalogs.cycles.filter(
@@ -209,51 +178,6 @@ export function TutoringSubjectsPage() {
   const uniqueCycleLevels = Array.from(
     new Map(careerCycles.map((c) => [c.number || c.name, c])).values(),
   ).sort((a, b) => a.number - b.number)
-
-  const cycleGroups = uniqueCycleLevels.map((cycleLevel) => {
-    const cycleIdsForLevel = catalogs.cycles
-      .filter(
-        (c) =>
-          c.career_id === currentCareerId &&
-          (c.number === cycleLevel.number || c.name === cycleLevel.name),
-      )
-      .map((c) => c.id)
-
-    const subjectsInCycle = list.data.filter(
-      (subj) => subj.cycle_ids && subj.cycle_ids.some((id) => cycleIdsForLevel.includes(id)),
-    )
-
-    const parallelsInLevel = Array.from(
-      new Map(
-        catalogs.cycles
-          .filter(
-            (c) =>
-              c.career_id === currentCareerId &&
-              (c.number === cycleLevel.number || c.name === cycleLevel.name) &&
-              c.paralelo_id &&
-              c.paralelo_name,
-          )
-          .map((c) => [c.paralelo_id!, c.paralelo_name!]),
-      ).values(),
-    )
-
-    return {
-      cycle: cycleLevel,
-      cycleKey: String(cycleLevel.number || cycleLevel.name),
-      cycleIds: cycleIdsForLevel,
-      subjects: subjectsInCycle,
-      parallels: parallelsInLevel,
-    }
-  })
-
-  const allLevelCycleIds = new Set(cycleGroups.flatMap((g) => g.cycleIds))
-  const unassignedSubjects = list.data.filter(
-    (subj) => !subj.cycle_ids || !subj.cycle_ids.some((id) => allLevelCycleIds.has(id)),
-  )
-
-  const displayedGroups = cycleFilter
-    ? cycleGroups.filter((g) => g.cycleIds.includes(Number(cycleFilter)))
-    : cycleGroups
 
   const allParallels = catalogs.sections.length > 0
     ? catalogs.sections.filter((s) => s.is_active)
@@ -356,7 +280,13 @@ export function TutoringSubjectsPage() {
     )
   }
 
-  const renderSubjectColumns = (groupCycleIds?: number[]) => [
+  const currentCareerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Asignaturas'
+  const selectedLevel = cycleLevels.find((level) => String(level.number) === activeCycle)
+  const selectedCycleIds = activeCycle === 'all'
+    ? []
+    : catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId) && cycle.number === Number(activeCycle)).map((cycle) => cycle.id)
+
+  const renderSubjectColumns = () => [
     { label: 'Código', render: (subject: Subject) => subject.code ? <Badge variant="secondary">{subject.code}</Badge> : <span className="text-muted-foreground">—</span> },
     {
       label: 'Asignatura',
@@ -369,21 +299,21 @@ export function TutoringSubjectsPage() {
         </div>
       ),
     },
-    { label: 'Carrera', render: (subject: Subject) => subject.career_name },
+    ...(activeCycle === 'all' ? [{
+      label: 'Ciclo',
+      render: (subject: Subject) => {
+        const level = cycleLevels.find((item) => catalogs.cycles.some((cycle) => cycle.number === item.number && cycle.career_id === item.career_id && subject.cycle_ids.includes(cycle.id)))
+        return level ? <Badge variant="outline">{level.number}°</Badge> : <span className="text-muted-foreground">—</span>
+      },
+    }] : []),
     {
       label: 'Paralelo(s)',
-      render: (subject: Subject) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setViewingParallelsSubject({ subject, cycleIds: groupCycleIds })}
-          aria-label={`Ver paralelos de ${formatSubjectName(subject.name)}`}
-          className="h-7 text-xs font-medium text-primary border-primary/30 hover:bg-primary/10"
-        >
-          Ver Paralelos
-        </Button>
-      ),
+      render: (subject: Subject) => {
+        const names = Array.from(new Set(catalogs.cycles.filter((cycle) => subject.cycle_ids.includes(cycle.id) && cycle.paralelo_name).map((cycle) => cycle.paralelo_name!.replace(/^Paralelo\s+/i, '')))).sort()
+        return names.length > 0
+          ? <div className="flex flex-wrap gap-1.5">{names.map((name) => <Badge key={name} variant="outline" title={`Paralelo ${name}`}>{name}</Badge>)}</div>
+          : <span className="text-muted-foreground">—</span>
+      },
     },
     { label: 'Estado', render: (subject: Subject) => <StatusBadge active={subject.is_active} activeLabel="Activa" inactiveLabel="Inactiva" /> },
     {
@@ -404,8 +334,8 @@ export function TutoringSubjectsPage() {
   ]
 
   return <section className="flex flex-col gap-6">
-    <ModuleHeader title="Asignaturas" description="Gestiona las asignaturas de tus carreras organizadas por ciclos académicos y vincúlalas con los grupos que recibirán tutorías." createLabel="Registrar asignatura" onCreate={() => edit(null)} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
-    <ScopeNotice catalogs={catalogs} />
+    <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
+    <ModuleHeader title={currentCareerName} description="Elige un ciclo para gestionar sus asignaturas y vincularlas con los grupos que recibirán tutorías." createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <FilterBar
       id="subjects"
       search={list.searchInput}
@@ -413,150 +343,24 @@ export function TutoringSubjectsPage() {
       searchPlaceholder="Busca por nombre o código…"
       onClear={clearFilters}
       filters={[
-        { id: 'career', label: 'Carrera', value: careerFilter, onChange: onCareerFilterChange, allLabel: 'Todas mis carreras', options: catalogs.careers.map((career) => ({ value: String(career.id), label: career.name })) },
-        { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: careerFilter ? 'Todos los ciclos' : 'Primero selecciona una carrera', disabled: !careerFilter, disabledReason: 'Selecciona primero una carrera para filtrar por ciclo.', options: cycleFilterOptions.map((cycle) => ({ value: String(cycle.id), label: `${cycle.name}${cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}` })) },
+        { id: 'cycle', label: 'Ciclo', value: activeCycle === 'all' ? '' : activeCycle, onChange: setCycleSelection, allLabel: 'Todos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
         { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
       ]}
     />
     <ErrorNotice message={list.error} retry={list.reload} />
 
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm text-muted-foreground">
-      <div>
-        Mostrando <strong className="text-foreground">{list.data.length}</strong> {list.data.length === 1 ? 'asignatura' : 'asignaturas'} distribuidas en <strong className="text-foreground">{displayedGroups.length}</strong> {displayedGroups.length === 1 ? 'ciclo' : 'ciclos'}
-      </div>
-      {displayedGroups.length > 0 && (
-        <div className="flex items-center gap-1.5 self-end sm:self-auto">
-          <Button type="button" variant="outline" size="sm" onClick={expandAll} className="text-xs h-7 px-2.5">
-            Expandir todos
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={collapseAll} className="text-xs h-7 px-2.5">
-            Colapsar todos
-          </Button>
-        </div>
-      )}
+    <RecordTable
+      rows={list.data}
+      loading={list.isFetching || list.isInitialLoading}
+      empty={activeCycle === 'all' ? 'No se encontraron asignaturas para esta carrera.' : 'No hay asignaturas en este ciclo para la búsqueda actual.'}
+      columns={renderSubjectColumns()}
+    />
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-muted-foreground">
+        Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === 'all' ? '' : ` del ${selectedLevel?.name ?? 'ciclo seleccionado'}`}
+      </p>
+      <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </div>
-
-    {displayedGroups.length > 0 ? (
-      <div className="flex flex-col gap-4">
-        {displayedGroups.map((group) => (
-          <div key={group.cycleKey} className="rounded-xl border bg-card shadow-xs overflow-hidden transition-all duration-200">
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => toggleExpand(group.cycleKey)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(group.cycleKey) } }}
-              className="flex items-center justify-between p-4 sm:p-5 bg-card hover:bg-accent/40 cursor-pointer select-none transition-colors border-b last:border-b-0"
-              aria-expanded={isExpanded(group.cycleKey)}
-            >
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className={cn(
-                    'size-8 rounded-lg flex items-center justify-center text-muted-foreground transition-transform duration-200',
-                    isExpanded(group.cycleKey) && 'rotate-180 text-foreground',
-                  )}>
-                    <ChevronDownIcon className="size-4" />
-                  </div>
-                  <h3 className="font-display font-semibold text-base sm:text-lg tracking-tight text-foreground">
-                    {group.cycle.name}
-                  </h3>
-                </div>
-              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Registrar asignatura en ${group.cycle.name}`}
-                  onClick={() => edit(null, group.cycle.id)}
-                  className="text-xs text-primary hover:text-primary hover:bg-primary/10 gap-1.5 h-8 font-medium"
-                >
-                  <PlusIcon className="size-3.5" /> Añadir asignatura
-                </Button>
-              </div>
-            </div>
-
-            {isExpanded(group.cycleKey) && (
-              <div className="p-3 sm:p-4 bg-muted/10">
-                {group.subjects.length > 0 ? (
-                  <RecordTable
-                    rows={group.subjects}
-                    loading={list.isFetching || list.isInitialLoading}
-                    empty="No hay asignaturas en este ciclo para la búsqueda actual."
-                    columns={renderSubjectColumns(group.cycleIds)}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-6 text-center rounded-lg border border-dashed bg-card/60">
-                    <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-2 text-muted-foreground">
-                      <BookOpenIcon className="size-5" />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">No hay asignaturas registradas en {group.cycle.name}</p>
-                    <p className="text-xs text-muted-foreground max-w-sm mt-0.5 mb-3">
-                      Registra las materias de este ciclo para poder asignar tutorías y paralelos.
-                    </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => edit(null, group.cycle.id)}
-                      className="gap-1.5 text-xs"
-                    >
-                      <PlusIcon className="size-3.5" /> Registrar primera asignatura en este ciclo
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {unassignedSubjects.length > 0 && (
-          <div className="rounded-xl border bg-card shadow-xs overflow-hidden transition-all duration-200">
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => toggleExpand('unassigned')}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand('unassigned') } }}
-              className="flex items-center justify-between p-4 sm:p-5 bg-card hover:bg-accent/40 cursor-pointer select-none transition-colors border-b last:border-b-0"
-              aria-expanded={isExpanded('unassigned')}
-            >
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className={cn(
-                  'size-8 rounded-lg flex items-center justify-center text-muted-foreground transition-transform duration-200',
-                  isExpanded('unassigned') && 'rotate-180 text-foreground',
-                )}>
-                  <ChevronDownIcon className="size-4" />
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <h3 className="font-display font-semibold text-base sm:text-lg tracking-tight text-foreground">
-                    Otras asignaturas / Sin ciclo asignado
-                  </h3>
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  {unassignedSubjects.length} {unassignedSubjects.length === 1 ? 'asignatura' : 'asignaturas'}
-                </Badge>
-              </div>
-            </div>
-
-            {isExpanded('unassigned') && (
-              <div className="p-3 sm:p-4 bg-muted/10">
-                <RecordTable
-                  rows={unassignedSubjects}
-                  loading={list.isFetching || list.isInitialLoading}
-                  empty="No hay asignaturas sin ciclo asignado."
-                  columns={renderSubjectColumns()}
-                />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    ) : (
-      <RecordTable
-        rows={list.data}
-        loading={list.isFetching || list.isInitialLoading}
-        empty="No se encontraron asignaturas para esta búsqueda."
-        columns={renderSubjectColumns()}
-      />
-    )}
-    <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     <MutationDialog
       open={open}
       title={editing ? 'Editar asignatura' : 'Registrar asignatura'}
@@ -623,7 +427,7 @@ export function TutoringSubjectsPage() {
                     setSectionError(null)
                   }}
                   disabled={operation.pending}
-                  className="text-xs h-7 text-primary hover:text-primary gap-1"
+                  className="text-xs h-7 text-foreground hover:text-foreground gap-1"
                 >
                   <PlusIcon className="size-3.5" /> Crear nuevo paralelo
                 </Button>
@@ -800,7 +604,7 @@ export function TutoringSubjectsPage() {
                 setModalParallelError(null)
               }}
               disabled={operation.pending}
-              className="text-xs h-7 text-primary hover:text-primary gap-1"
+              className="text-xs h-7 text-foreground hover:text-foreground gap-1"
             >
               <PlusIcon className="size-3.5" /> Crear nuevo paralelo
             </Button>
@@ -861,65 +665,6 @@ export function TutoringSubjectsPage() {
         )}
       </div>
     </MutationDialog>
-    <Dialog
-      open={Boolean(viewingParallelsSubject)}
-      title="Paralelos de la asignatura"
-      description={viewingParallelsSubject ? formatSubjectName(viewingParallelsSubject.subject.name) : ''}
-      confirmClose={false}
-      onClose={() => setViewingParallelsSubject(null)}
-      maxWidth="max-w-md"
-    >
-      {viewingParallelsSubject && (() => {
-        const { subject, cycleIds } = viewingParallelsSubject
-        const parallels = cycleIds && cycleIds.length > 0
-          ? catalogs.cycles
-              .filter((c) => cycleIds.includes(c.id) && subject.cycle_ids.includes(c.id) && c.paralelo_name)
-              .map((c) => c.paralelo_name!)
-          : catalogs.cycles
-              .filter((c) => subject.cycle_ids.includes(c.id) && c.paralelo_name)
-              .map((c) => c.paralelo_name!)
-
-        const uniqueParallels = Array.from(new Set(parallels)).sort()
-
-        return (
-          <div className="flex flex-col gap-4">
-            {uniqueParallels.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2" role="list" aria-label="Lista de paralelos">
-                {uniqueParallels.map((p) => (
-                  <div
-                    key={p}
-                    role="listitem"
-                    className="flex items-center gap-2.5 p-3 rounded-lg border bg-card text-card-foreground shadow-xs hover:border-primary/40 transition-colors"
-                  >
-                    <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
-                      {p}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-semibold text-foreground truncate">Paralelo {p}</span>
-                      <span className="text-xs text-muted-foreground">Activo en este ciclo</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 rounded-lg bg-muted/30 border border-dashed text-center">
-                <p className="text-sm text-muted-foreground">Esta asignatura no tiene paralelos asignados en este ciclo.</p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end pt-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setViewingParallelsSubject(null)}
-              >
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        )
-      })()}
-    </Dialog>
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar asignatura?" description={`La asignatura «${deactivating?.name ?? ''}» dejará de estar disponible para nuevas tutorías. Sus tutorías existentes se conservarán.`} confirmLabel="Desactivar asignatura" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateSubject(deactivating.id), 'Asignatura desactivada.', async () => { setDeactivating(null); await list.reload() }) }} />
   </section>
 }

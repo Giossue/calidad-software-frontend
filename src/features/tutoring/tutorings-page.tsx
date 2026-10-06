@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  BookOpenIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
-  ChevronDownIcon,
   MoreVerticalIcon,
   PencilIcon,
-  PlusIcon,
   PowerIcon,
   PowerOffIcon,
   UserPlusIcon,
@@ -27,8 +24,9 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { DAY_LABELS, tutoringApi, WEEK_DAYS, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { TutoringDetail } from './tutoring-detail'
+import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
-import { ErrorNotice, ModuleHeader, RecordTable, ScopeNotice, SelectField } from './tutoring-shared'
+import { ErrorNotice, ModuleHeader, RecordTable, SelectField } from './tutoring-shared'
 import { describeError, useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const SCHEDULE_TIME_OPTIONS = [
@@ -63,19 +61,31 @@ export interface TutoringRowItem {
 
 export function TutoringsPage() {
   const catalogs = useTutoringCatalogs()
-  const [careerFilter, setCareerFilter] = useState('')
+  const selection = useSelectedCareer(catalogs.careers)
+
+  if (selection.career) {
+    return <TutoringsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
+  }
+
+  return <CareerPicker catalogs={catalogs} title="Tutorías" description="Elige una carrera para organizar sus tutorías, asignar docentes y supervisar horarios y asistencias." rowTitle={(career) => `Ver tutorías de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+}
+
+function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
   const [cycleFilter, setCycleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog(
     (page, search) => tutoringApi.tutorings({
       page,
       search,
-      career_id: Number(careerFilter) || undefined,
-      cycle_id: Number(cycleFilter) || undefined,
+      career_id: careerId,
+      cycle_number: Number(cycleFilter) || undefined,
       status: statusFilter || undefined,
     }),
-    `${careerFilter}|${cycleFilter}|${statusFilter}`,
+    `${careerId}|${cycleFilter}|${statusFilter}`,
   )
+  const [choosingTutoring, setChoosingTutoring] = useState(false)
+  const [chooserCycle, setChooserCycle] = useState('')
+  const [chooserSubjectId, setChooserSubjectId] = useState('')
   const operation = useOperation()
   const [subjects, setSubjects] = useState<readonly Subject[]>([])
   const [subjectsRevision, setSubjectsRevision] = useState(0)
@@ -113,10 +123,8 @@ export function TutoringsPage() {
   const [editError, setEditError] = useState<string | null>(null)
 
   // Collapsible cycle groups state
-  const [expandedCycles, setExpandedCycles] = useState<Record<string, boolean>>({})
 
   // View Parallels and Schedules modals state
-  const [viewingParallelsItem, setViewingParallelsItem] = useState<TutoringRowItem | null>(null)
   const [viewingScheduleItem, setViewingScheduleItem] = useState<TutoringRowItem | null>(null)
 
   useEffect(() => {
@@ -154,35 +162,6 @@ export function TutoringsPage() {
       .finally(() => { if (!cancelled) setCreateTeachersLoading(false) })
     return () => { cancelled = true }
   }, [creatingTutoringSubject])
-
-  function isExpanded(cycleKey: string) {
-    return expandedCycles[cycleKey] ?? true
-  }
-
-  function toggleExpand(cycleKey: string) {
-    setExpandedCycles((prev) => ({
-      ...prev,
-      [cycleKey]: !(prev[cycleKey] ?? true),
-    }))
-  }
-
-  function expandAll() {
-    const next: Record<string, boolean> = {}
-    uniqueCycleLevels.forEach((c) => {
-      next[String(c.number || c.name)] = true
-    })
-    next['unassigned'] = true
-    setExpandedCycles(next)
-  }
-
-  function collapseAll() {
-    const next: Record<string, boolean> = {}
-    uniqueCycleLevels.forEach((c) => {
-      next[String(c.number || c.name)] = false
-    })
-    next['unassigned'] = false
-    setExpandedCycles(next)
-  }
 
   function openCreateTutoring(subject: Subject, cycle: Cycle) {
     if (!subject.is_active) {
@@ -282,6 +261,7 @@ export function TutoringsPage() {
       toast.success('Tutoría creada con éxito con docente y horario asignados.')
       setCreatingTutoringSubject(null)
       setCreatingTutoringCycle(null)
+      setChoosingTutoring(false)
       await list.reload()
       setSubjectsRevision((prev) => prev + 1)
     } catch (caught) {
@@ -485,193 +465,75 @@ export function TutoringsPage() {
 
 
 
-  function onCareerFilterChange(value: string) {
-    setCareerFilter(value)
-    const current = cycleFilter ? catalogs.cycles.find((cycle) => String(cycle.id) === cycleFilter) : null
-    if (cycleFilter && (!value || !current || current.career_id !== Number(value))) setCycleFilter('')
-  }
-
   function clearFilters() {
-    setCareerFilter('')
     setCycleFilter('')
     setStatusFilter('')
   }
 
-  const currentCareerId = Number(careerFilter || catalogs.careers[0]?.id)
+  const careerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Tutorías'
+  const cycleLevels = Array.from(
+    new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId).map((cycle) => [cycle.number, cycle])).values(),
+  ).sort((a, b) => a.number - b.number)
 
-  const careerCycles = catalogs.cycles.filter(
-    (cycle) => cycle.status && (currentCareerId ? cycle.career_id === currentCareerId : true),
-  )
-  const uniqueCycleLevels = Array.from(
-    new Map(careerCycles.map((c) => [c.number || c.name, c])).values(),
-  ).sort((a, b) => (a.number || 0) - (b.number || 0))
-
-  const cycleGroups = uniqueCycleLevels.map((cycleLevel) => {
-    const cycleIdsForLevel = catalogs.cycles
-      .filter(
-        (c) =>
-          c.career_id === currentCareerId &&
-          (c.number === cycleLevel.number || c.name === cycleLevel.name),
-      )
-      .map((c) => c.id)
-
-    const parallelsInLevel = Array.from(
-      new Map(
-        catalogs.cycles
-          .filter(
-            (c) =>
-              c.career_id === currentCareerId &&
-              (c.number === cycleLevel.number || c.name === cycleLevel.name) &&
-              c.paralelo_id &&
-              c.paralelo_name,
-          )
-          .map((c) => [c.paralelo_id!, c.paralelo_name!]),
-      ).values(),
-    )
-
-    const subjectsInCycle = subjects
-      .filter((subj) => subj.is_active)
-      .filter(
-        (subj) => subj.cycle_ids && subj.cycle_ids.some((id) => cycleIdsForLevel.includes(id)),
-      )
-
-    const items: TutoringRowItem[] = []
-    const attachedTutoringIds = new Set<number>()
-
-    subjectsInCycle.forEach((subj) => {
-      const matchingTutorings = list.data.filter(
-        (t) => (t.subject_id === subj.id || (!t.subject_id && t.subject_name === subj.name)) && cycleIdsForLevel.includes(t.cycle_id),
-      )
-
-      const subjCycleParallels = catalogs.cycles
-        .filter((c) => cycleIdsForLevel.includes(c.id) && subj.cycle_ids.includes(c.id) && c.paralelo_name)
-        .map((c) => c.paralelo_name!)
-
-      const subjDirectParallels = (subj.parallel_ids ?? []).map((id) => {
-        const section = catalogs.sections.find((s) => s.id === id)
-        const cycleMatch = catalogs.cycles.find((c) => c.paralelo_id === id)
-        return section?.name || cycleMatch?.paralelo_name || String(id)
-      })
-
-      const subjParallels = Array.from(new Set([...subjCycleParallels, ...subjDirectParallels]))
-
-      if (matchingTutorings.length > 0) {
-        matchingTutorings.forEach((t) => {
-          attachedTutoringIds.add(t.id)
-          items.push({
-            id: `tutoring-${t.id}`,
-            subject_id: subj.id,
-            subject_name: t.subject_name || subj.name,
-            code: subj.code ?? null,
-            career_id: t.career_id || subj.career_id,
-            career_name: catalogs.careers.find((c) => c.id === (t.career_id || subj.career_id))?.name ?? subj.career_name,
-            cycle_id: t.cycle_id,
-            cycle_name: t.cycle_name,
-            period_name: t.period_name || subj.period_name || '',
-            modality_name: t.modality_name || subj.modality_name || '',
-            section_name: t.section_name ?? null,
-            parallels: subjParallels.length > 0 ? subjParallels : (t.section_name ? [t.section_name] : []),
-            teacher_id: t.teacher_id,
-            teacher_name: t.teacher_name,
-            teacher_is_active: t.teacher_is_active,
-            schedules: t.schedules,
-            is_active: t.is_active,
-            tutoring: t,
-            subject: subj,
-          })
-        })
-      } else {
-        items.push({
-          id: `subject-${subj.id}`,
-          subject_id: subj.id,
-          subject_name: subj.name,
-          code: subj.code ?? null,
-          career_id: subj.career_id,
-          career_name: subj.career_name || (catalogs.careers.find((c) => c.id === subj.career_id)?.name ?? ''),
-          cycle_id: cycleLevel.id,
-          cycle_name: cycleLevel.name,
-          period_name: subj.period_name || '',
-          modality_name: subj.modality_name || '',
-          section_name: null,
-          parallels: subjParallels,
-          teacher_id: null,
-          teacher_name: null,
-          teacher_is_active: null,
-          schedules: [],
-          is_active: subj.is_active,
-          tutoring: null,
-          subject: subj,
-        })
+  const rows: TutoringRowItem[] = list.data
+    .filter((t) => t.subject_is_active !== false)
+    .map((t) => {
+      const subj = subjects.find((item) => item.id === t.subject_id) ?? null
+      const parallelNames = Array.from(new Set([
+        ...catalogs.cycles
+          .filter((c) => c.career_id === careerId && c.number === (catalogs.cycles.find((cycle) => cycle.id === t.cycle_id)?.number) && subj?.cycle_ids.includes(c.id) && c.paralelo_name)
+          .map((c) => c.paralelo_name!),
+        ...(t.section_name ? [t.section_name] : []),
+      ]))
+      return {
+        id: `tutoring-${t.id}`,
+        subject_id: t.subject_id,
+        subject_name: t.subject_name,
+        code: subj?.code ?? null,
+        career_id: t.career_id,
+        career_name: careerName,
+        cycle_id: t.cycle_id,
+        cycle_name: t.cycle_name,
+        period_name: t.period_name,
+        modality_name: t.modality_name,
+        section_name: t.section_name ?? null,
+        parallels: parallelNames,
+        teacher_id: t.teacher_id,
+        teacher_name: t.teacher_name,
+        teacher_is_active: t.teacher_is_active,
+        schedules: t.schedules,
+        is_active: t.is_active,
+        tutoring: t,
+        subject: subj,
       }
     })
 
-    // Also include any tutorings returned for this cycle that were not attached to a subject in `subjects`
-    list.data
-      .filter((t) => cycleIdsForLevel.includes(t.cycle_id) && !attachedTutoringIds.has(t.id) && t.subject_is_active !== false)
-      .forEach((t) => {
-        items.push({
-          id: `tutoring-${t.id}`,
-          subject_id: t.subject_id,
-          subject_name: t.subject_name,
-          code: null,
-          career_id: t.career_id,
-          career_name: catalogs.careers.find((c) => c.id === t.career_id)?.name ?? '',
-          cycle_id: t.cycle_id,
-          cycle_name: t.cycle_name,
-          period_name: t.period_name,
-          modality_name: t.modality_name,
-          section_name: t.section_name ?? null,
-          parallels: t.section_name ? [t.section_name] : [],
-          teacher_id: t.teacher_id,
-          teacher_name: t.teacher_name,
-          teacher_is_active: t.teacher_is_active,
-          schedules: t.schedules,
-          is_active: t.is_active,
-          tutoring: t,
-          subject: null,
-        })
-      })
+  const chooserLevel = cycleLevels.find((level) => String(level.number) === chooserCycle)
+  const chooserCycleIds = chooserLevel
+    ? catalogs.cycles.filter((c) => c.career_id === careerId && c.number === chooserLevel.number).map((c) => c.id)
+    : []
+  const chooserSubjects = subjects.filter((subj) => subj.career_id === careerId && subj.is_active && subj.cycle_ids.some((id) => chooserCycleIds.includes(id)))
 
-    return {
-      cycle: cycleLevel,
-      cycleKey: String(cycleLevel.number || cycleLevel.name),
-      cycleIds: cycleIdsForLevel,
-      items,
-      parallels: parallelsInLevel,
-    }
-  })
+  function openCreateChooser() {
+    setChooserCycle(cycleFilter && cycleLevels.some((level) => String(level.number) === cycleFilter) ? cycleFilter : '')
+    setChooserSubjectId('')
+    setCreateError(null)
+    setChoosingTutoring(true)
+  }
 
-  const allLevelCycleIds = new Set(cycleGroups.flatMap((g) => g.cycleIds))
-  const unassignedTutorings: TutoringRowItem[] = list.data
-    .filter((t) => !allLevelCycleIds.has(t.cycle_id) && t.subject_is_active !== false)
-    .map((t) => ({
-      id: `tutoring-${t.id}`,
-      subject_id: t.subject_id,
-      subject_name: t.subject_name,
-      code: null,
-      career_id: t.career_id,
-      career_name: catalogs.careers.find((c) => c.id === t.career_id)?.name ?? '',
-      cycle_id: t.cycle_id,
-      cycle_name: t.cycle_name,
-      period_name: t.period_name,
-      modality_name: t.modality_name,
-      section_name: t.section_name ?? null,
-      parallels: t.section_name ? [t.section_name] : [],
-      teacher_id: t.teacher_id,
-      teacher_name: t.teacher_name,
-      teacher_is_active: t.teacher_is_active,
-      schedules: t.schedules,
-      is_active: t.is_active,
-      tutoring: t,
-      subject: null,
-    }))
+  function closeCreateDialog() {
+    if (createSaving) return
+    setCreatingTutoringSubject(null)
+    setCreatingTutoringCycle(null)
+    setChoosingTutoring(false)
+    setCreateError(null)
+  }
 
-  const displayedGroups = cycleFilter
-    ? cycleGroups.filter((g) => g.cycleIds.includes(Number(cycleFilter)))
-    : cycleGroups
-
-  const totalItemsCount = displayedGroups.reduce((acc, g) => acc + g.items.length, 0) + unassignedTutorings.length
-
+  function continueCreate() {
+    const subject = chooserSubjects.find((item) => String(item.id) === chooserSubjectId)
+    if (!subject || !chooserLevel) return
+    openCreateTutoring(subject, chooserLevel)
+  }
 
   const subjectParallelsForModal = useMemo(() => {
     if (!creatingTutoringSubject || !creatingTutoringCycle) return []
@@ -766,47 +628,28 @@ export function TutoringsPage() {
   }, [editingTutoringItem, subjects, catalogs.cycles, catalogs.sections])
 
 
-  const cycleFilterOptions = careerFilter ? catalogs.cycles.filter((cycle) => cycle.career_id === Number(careerFilter)) : []
-
-  const renderTutoringColumns = (groupCycle?: Cycle) => [
-    {
-      label: 'Código',
-      render: (item: TutoringRowItem) =>
-        item.code ? (
-          <Badge variant="secondary" className="font-mono text-xs">{item.code}</Badge>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        ),
-    },
+  const columns = [
     {
       label: 'Asignatura',
       render: (item: TutoringRowItem) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-medium text-foreground">{item.subject_name}</span>
-          <span className="text-xs text-muted-foreground">
-            {item.period_name ? `${item.period_name} · ` : ''}{item.modality_name || 'Presencial'}
-          </span>
+          <span className="text-xs text-muted-foreground">{item.modality_name || 'Presencial'}</span>
         </div>
       ),
     },
-    {
-      label: 'Carrera',
-      render: (item: TutoringRowItem) => item.career_name,
-    },
+    ...(cycleFilter === '' ? [{
+      label: 'Ciclo',
+      render: (item: TutoringRowItem) => {
+        const number = catalogs.cycles.find((cycle) => cycle.id === item.cycle_id)?.number
+        return number ? <Badge variant="outline">{number}°</Badge> : <span className="text-muted-foreground">—</span>
+      },
+    }] : []),
     {
       label: 'Paralelo(s)',
-      render: (item: TutoringRowItem) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setViewingParallelsItem(item)}
-          aria-label={`Ver paralelos de ${item.subject_name}`}
-          className="h-7 text-xs font-medium text-primary border-primary/30 hover:bg-primary/10"
-        >
-          Ver Paralelos
-        </Button>
-      ),
+      render: (item: TutoringRowItem) => item.parallels.length > 0
+        ? <div className="flex flex-wrap gap-1.5">{item.parallels.map((name) => <Badge key={name} variant="outline" title={`Paralelo ${name}`}>{name.replace(/^Paralelo\s+/i, '')}</Badge>)}</div>
+        : <span className="text-muted-foreground">—</span>,
     },
     {
       label: 'Docente',
@@ -819,10 +662,8 @@ export function TutoringsPage() {
                 <span className="text-xs text-destructive">Docente inactivo: requiere reasignación</span>
               )}
             </>
-          ) : item.tutoring ? (
-            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Sin docente asignado</span>
           ) : (
-            <span className="text-xs text-muted-foreground italic">Sin tutoría</span>
+            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Sin docente asignado</span>
           )}
         </div>
       ),
@@ -836,7 +677,7 @@ export function TutoringsPage() {
           size="sm"
           onClick={() => setViewingScheduleItem(item)}
           aria-label={`Ver horario de ${item.subject_name}`}
-          className="h-7 text-xs font-medium text-primary border-primary/30 hover:bg-primary/10"
+          className="h-7 text-xs font-medium"
         >
           Ver Horario
         </Button>
@@ -844,121 +685,79 @@ export function TutoringsPage() {
     },
     {
       label: 'Estado',
-      render: (item: TutoringRowItem) =>
-        item.tutoring ? (
-          <StatusBadge active={item.tutoring.is_active} activeLabel="Activa" inactiveLabel="Inactiva" />
-        ) : (
-          <Badge variant="outline" className="text-xs font-normal text-muted-foreground">Sin tutoría</Badge>
-        ),
+      render: (item: TutoringRowItem) => <StatusBadge active={item.is_active} activeLabel="Activa" inactiveLabel="Inactiva" />,
     },
     {
       label: 'Acciones',
-      render: (item: TutoringRowItem) => {
-        const targetCycle = groupCycle || catalogs.cycles.find((c) => c.id === item.cycle_id) || catalogs.cycles[0]
-        const targetSubject: Subject = item.subject || {
-          id: item.subject_id ?? 0,
-          career_id: item.career_id,
-          career_name: item.career_name,
-          code: item.code,
-          name: item.subject_name,
-          is_active: item.is_active,
-          cycle_ids: [item.cycle_id],
-          modality_name: item.modality_name,
-          period_name: item.period_name,
-        }
-
-        return (
-          <div className="flex items-center gap-1">
-            {targetSubject.is_active && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => openCreateTutoring(targetSubject, targetCycle)}
-                aria-label={`Crear tutoría para ${item.subject_name}`}
-                className="h-8 text-xs font-medium gap-1 text-primary border-primary/30 hover:bg-primary/10"
-              >
-                <PlusIcon className="size-3.5" />
-                Crear tutoría
-              </Button>
-            )}
-
-            {item.tutoring && (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Supervisar"
-                  aria-label={`Supervisar ${item.subject_name}`}
-                  disabled={operation.pending}
-                  onClick={() => setDetail(item.tutoring)}
-                >
-                  <CalendarDaysIcon />
+      render: (item: TutoringRowItem) => (
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            title="Supervisar"
+            aria-label={`Supervisar ${item.subject_name}`}
+            disabled={operation.pending}
+            onClick={() => setDetail(item.tutoring)}
+          >
+            <CalendarDaysIcon />
+          </Button>
+          {item.tutoring?.is_active ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${item.subject_name}`} disabled={operation.pending}>
+                  <MoreVerticalIcon />
                 </Button>
-                {item.tutoring.is_active && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Más acciones para ${item.subject_name}`}
-                        disabled={operation.pending}
-                      >
-                        <MoreVerticalIcon />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => openEditTutoring(item)}>
-                        <PencilIcon />Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={() => {
-                          operation.clearError()
-                          setDeactivating(item.tutoring)
-                        }}
-                      >
-                        <PowerOffIcon />Desactivar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                {!item.tutoring.is_active && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-label={`Activar ${item.subject_name}`}
-                    disabled={operation.pending}
-                    onClick={() =>
-                      void operation.run(
-                        () => tutoringApi.activateTutoring(item.tutoring!.id),
-                        'Tutoría activada.',
-                        list.reload,
-                      )
-                    }
-                  >
-                    <PowerIcon data-icon="inline-start" />
-                    Activar
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        )
-      },
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => openEditTutoring(item)}>
+                  <PencilIcon />Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => {
+                    operation.clearError()
+                    setDeactivating(item.tutoring)
+                  }}
+                >
+                  <PowerOffIcon />Desactivar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : item.tutoring && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={`Activar ${item.subject_name}`}
+              disabled={operation.pending}
+              onClick={() =>
+                void operation.run(
+                  () => tutoringApi.activateTutoring(item.tutoring!.id),
+                  'Tutoría activada.',
+                  list.reload,
+                )
+              }
+            >
+              <PowerIcon data-icon="inline-start" />
+              Activar
+            </Button>
+          )}
+        </div>
+      ),
     },
   ]
 
   return <section className="flex flex-col gap-6">
     {detail ? <TutoringDetail tutoring={detail} onBack={() => setDetail(null)} /> : <>
+      <CareerBreadcrumb root="Tutorías" career={careerName} onBack={onBack} />
       <ModuleHeader
-        title="Tutorías"
-        description="Organiza las tutorías de tus carreras organizadas por ciclo académico, asigna docentes y supervisa horarios y asistencias."
+        title={careerName}
+        description="Organiza las tutorías de la carrera, asigna docentes y supervisa horarios y asistencias."
+        createLabel="Crear tutoría"
+        onCreate={openCreateChooser}
+        disabled={operation.pending || catalogs.loading || subjects.length === 0}
       />
-      <ScopeNotice catalogs={catalogs} />
       <FilterBar
         id="tutorings"
         search={list.searchInput}
@@ -966,130 +765,25 @@ export function TutoringsPage() {
         searchPlaceholder="Busca por asignatura…"
         onClear={clearFilters}
         filters={[
-          { id: 'career', label: 'Carrera', value: careerFilter, onChange: onCareerFilterChange, allLabel: 'Todas mis carreras', options: catalogs.careers.map((career) => ({ value: String(career.id), label: career.name })) },
-          { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: careerFilter ? 'Todos los ciclos' : 'Primero selecciona una carrera', disabled: !careerFilter, disabledReason: 'Selecciona primero una carrera para filtrar por ciclo.', options: cycleFilterOptions.map((cycle) => ({ value: String(cycle.id), label: `${cycle.name}${cycle.paralelo_name ? ` · ${cycle.paralelo_name}` : ''}` })) },
+          { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
           { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
         ]}
       />
       <ErrorNotice message={list.error} retry={list.reload} />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm text-muted-foreground">
-        <div>
-          Mostrando <strong className="text-foreground">{totalItemsCount}</strong> {totalItemsCount === 1 ? 'materia' : 'materias'} distribuidas en <strong className="text-foreground">{displayedGroups.length}</strong> {displayedGroups.length === 1 ? 'ciclo' : 'ciclos'}
-        </div>
-        {displayedGroups.length > 0 && (
-          <div className="flex items-center gap-1.5 self-end sm:self-auto">
-            <Button type="button" variant="outline" size="sm" onClick={expandAll} className="text-xs h-7 px-2.5">
-              Expandir todos
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={collapseAll} className="text-xs h-7 px-2.5">
-              Colapsar todos
-            </Button>
-          </div>
-        )}
+      <RecordTable
+        rows={rows}
+        loading={list.isFetching || list.isInitialLoading}
+        empty="Aún no hay tutorías para esta búsqueda. Usa «Crear tutoría» para registrar una."
+        columns={columns}
+      />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Mostrando {rows.length} de {list.meta?.total ?? rows.length} {(list.meta?.total ?? rows.length) === 1 ? 'tutoría' : 'tutorías'}
+        </p>
+        <CatalogPagination label="tutorías" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
       </div>
-
-      {displayedGroups.length > 0 ? (
-        <div className="flex flex-col gap-4">
-          {displayedGroups.map((group) => (
-            <div key={group.cycleKey} className="rounded-xl border bg-card shadow-xs overflow-hidden transition-all duration-200">
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => toggleExpand(group.cycleKey)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(group.cycleKey) } }}
-                className="flex items-center justify-between p-4 sm:p-5 bg-card hover:bg-accent/40 cursor-pointer select-none transition-colors border-b last:border-b-0"
-                aria-expanded={isExpanded(group.cycleKey)}
-              >
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className={cn(
-                    'size-8 rounded-lg flex items-center justify-center text-muted-foreground transition-transform duration-200',
-                    isExpanded(group.cycleKey) && 'rotate-180 text-foreground',
-                  )}>
-                    <ChevronDownIcon className="size-4" />
-                  </div>
-                  <h3 className="font-display font-semibold text-base sm:text-lg tracking-tight text-foreground">
-                    {group.cycle.name}
-                  </h3>
-                </div>
-              </div>
-
-              {isExpanded(group.cycleKey) && (
-                <div className="p-3 sm:p-4 bg-muted/10">
-                  {group.items.length > 0 ? (
-                    <RecordTable
-                      rows={group.items}
-                      loading={list.isFetching || list.isInitialLoading}
-                      empty="No hay asignaturas en este ciclo para la búsqueda actual."
-                      columns={renderTutoringColumns(group.cycle)}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-6 text-center rounded-lg border border-dashed bg-card/60">
-                      <div className="size-10 rounded-full bg-muted flex items-center justify-center mb-2 text-muted-foreground">
-                        <BookOpenIcon className="size-5" />
-                      </div>
-                      <p className="text-sm font-medium text-foreground">No hay materias registradas en {group.cycle.name}</p>
-                      <p className="text-xs text-muted-foreground max-w-sm mt-0.5">
-                        Las asignaturas de este ciclo aparecerán aquí para gestionar sus tutorías.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {unassignedTutorings.length > 0 && (
-            <div className="rounded-xl border bg-card shadow-xs overflow-hidden transition-all duration-200">
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => toggleExpand('unassigned')}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand('unassigned') } }}
-                className="flex items-center justify-between p-4 sm:p-5 bg-card hover:bg-accent/40 cursor-pointer select-none transition-colors border-b last:border-b-0"
-                aria-expanded={isExpanded('unassigned')}
-              >
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className={cn(
-                    'size-8 rounded-lg flex items-center justify-center text-muted-foreground transition-transform duration-200',
-                    isExpanded('unassigned') && 'rotate-180 text-foreground',
-                  )}>
-                    <ChevronDownIcon className="size-4" />
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="font-display font-semibold text-base sm:text-lg tracking-tight text-foreground">
-                      Otras tutorías / Sin ciclo asignado
-                    </h3>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {unassignedTutorings.length} {unassignedTutorings.length === 1 ? 'tutoría' : 'tutorías'}
-                  </Badge>
-                </div>
-              </div>
-
-              {isExpanded('unassigned') && (
-                <div className="p-3 sm:p-4 bg-muted/10">
-                  <RecordTable
-                    rows={unassignedTutorings}
-                    loading={list.isFetching || list.isInitialLoading}
-                    empty="No hay tutorías sin ciclo asignado."
-                    columns={renderTutoringColumns()}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <RecordTable
-          rows={[]}
-          loading={list.isFetching || list.isInitialLoading}
-          empty="No se encontraron asignaturas ni tutorías para esta búsqueda."
-          columns={renderTutoringColumns()}
-        />
-      )}
-
-      <CatalogPagination label="tutorías" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </>}
 
 
@@ -1097,19 +791,30 @@ export function TutoringsPage() {
 
     {/* Create Tutoring per Subject Dialog */}
     <Dialog
-      open={Boolean(creatingTutoringSubject && creatingTutoringCycle)}
+      open={choosingTutoring}
       title="Crear tutoría"
-      description={`${creatingTutoringSubject?.name ?? ''} · ${creatingTutoringCycle?.name ?? ''}`}
+      description={creatingTutoringSubject && creatingTutoringCycle ? `${creatingTutoringSubject.name} · ${creatingTutoringCycle.name}` : 'Elige el ciclo y la asignatura de la tutoría.'}
       confirmClose={false}
-      onClose={() => {
-        if (!createSaving) {
-          setCreatingTutoringSubject(null)
-          setCreatingTutoringCycle(null)
-          setCreateError(null)
-        }
-      }}
+      onClose={closeCreateDialog}
       maxWidth="max-w-2xl"
     >
+      {!(creatingTutoringSubject && creatingTutoringCycle) && (
+        <div className="flex flex-col gap-4">
+          <SelectField id="create-tutoring-cycle" label="Ciclo" value={chooserCycle} onChange={(value) => { setChooserCycle(value); setChooserSubjectId('') }}>
+            <option value="">Selecciona un ciclo</option>
+            {cycleLevels.map((level) => <option key={level.number} value={level.number}>{level.number}° {level.name}</option>)}
+          </SelectField>
+          <SelectField id="create-tutoring-subject" label="Asignatura" value={chooserSubjectId} onChange={setChooserSubjectId} disabled={!chooserCycle}>
+            <option value="">{chooserCycle ? 'Selecciona una asignatura' : 'Primero elige un ciclo'}</option>
+            {chooserSubjects.map((subj) => <option key={subj.id} value={subj.id}>{subj.name}</option>)}
+          </SelectField>
+          {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en Asignaturas.</p>}
+          <div className="flex items-center justify-end gap-3 border-t pt-4">
+            <DialogCancelButton onClick={closeCreateDialog}>Cancelar</DialogCancelButton>
+            <Button type="button" disabled={!chooserSubjectId} onClick={continueCreate}>Continuar</Button>
+          </div>
+        </div>
+      )}
       {creatingTutoringSubject && creatingTutoringCycle && (
         <form onSubmit={(e) => void handleCreateTutoringSubmit(e)} aria-label="Crear tutoría" className="flex flex-col gap-4">
           <div className="rounded-lg bg-muted/40 p-3.5 border flex flex-col gap-1.5">
@@ -1328,7 +1033,7 @@ export function TutoringsPage() {
           </Field>
 
           <div className="flex items-center justify-end gap-2 pt-2 border-t">
-            <DialogCancelButton onClick={() => setCreatingTutoringSubject(null)}>
+            <DialogCancelButton onClick={closeCreateDialog}>
               Cancelar
             </DialogCancelButton>
             <Button
@@ -1608,60 +1313,6 @@ export function TutoringsPage() {
           </div>
         </form>
       )}
-    </Dialog>
-
-    {/* View Parallels Modal */}
-    <Dialog
-      open={Boolean(viewingParallelsItem)}
-      title="Paralelos de la asignatura"
-      description={viewingParallelsItem ? `${viewingParallelsItem.subject_name} · ${viewingParallelsItem.cycle_name}` : ''}
-      confirmClose={false}
-      onClose={() => setViewingParallelsItem(null)}
-      maxWidth="max-w-md"
-    >
-      {viewingParallelsItem && (() => {
-        const parallels = viewingParallelsItem.parallels.length > 0
-          ? viewingParallelsItem.parallels
-          : (viewingParallelsItem.section_name ? [viewingParallelsItem.section_name] : [])
-
-        return (
-          <div className="flex flex-col gap-4">
-            {parallels.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2" role="list" aria-label="Lista de paralelos">
-                {parallels.map((p) => (
-                  <div
-                    key={p}
-                    role="listitem"
-                    className="flex items-center gap-2.5 p-3 rounded-lg border bg-card text-card-foreground shadow-xs hover:border-primary/40 transition-colors"
-                  >
-                    <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
-                      {p}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-semibold text-foreground truncate">Paralelo {p}</span>
-                      <span className="text-xs text-muted-foreground">Activo en este ciclo</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 rounded-lg bg-muted/30 border border-dashed text-center">
-                <p className="text-sm text-muted-foreground">Esta asignatura no tiene paralelos registrados previamente en este ciclo.</p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end pt-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setViewingParallelsItem(null)}
-              >
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        )
-      })()}
     </Dialog>
 
     {/* View Schedules Modal */}

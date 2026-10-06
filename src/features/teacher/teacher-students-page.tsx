@@ -173,7 +173,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       {mode === 'new' && <>
         <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>
         <Field>
-          <FieldLabel htmlFor="teacher-student-identification">Cédula de Identidad *</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-student-identification">Cédula de Identidad *</FieldLabel>
+            <FieldCounter current={form.identification.length} max={10} />
+          </div>
           <Input
             id="teacher-student-identification"
             value={form.identification}
@@ -192,7 +195,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="teacher-student-name">Nombres y Apellidos *</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-student-name">Nombres y Apellidos *</FieldLabel>
+            <FieldCounter current={form.name.length} max={150} />
+          </div>
           <Input
             id="teacher-student-name"
             value={form.name}
@@ -205,7 +211,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="teacher-student-email">Correo Institucional *</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-student-email">Correo Institucional *</FieldLabel>
+            <FieldCounter current={form.email.length} max={150} />
+          </div>
           <Input
             id="teacher-student-email"
             type="email"
@@ -224,7 +233,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="teacher-student-phone">Teléfono (opcional)</FieldLabel>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="teacher-student-phone">Teléfono (opcional)</FieldLabel>
+            <FieldCounter current={form.phone.length} max={10} />
+          </div>
           <Input
             id="teacher-student-phone"
             value={form.phone}
