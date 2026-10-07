@@ -46,13 +46,13 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <div className="relative flex flex-1 items-center">
-          <SearchIcon className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" aria-hidden="true" />
-          <Input id={`${id}-search`} type="search" aria-label={searchLabel} disabled={disabled} placeholder={searchPlaceholder} value={search} onChange={(event) => onSearch(event.target.value)} className="h-10 bg-white pl-10 dark:bg-slate-900" />
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="relative flex min-w-0 flex-1 items-center">
+          <SearchIcon className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+          <Input id={`${id}-search`} type="search" aria-label={searchLabel} disabled={disabled} placeholder={searchPlaceholder} value={search} onChange={(event) => onSearch(event.target.value)} className="h-10 w-full min-w-0 bg-white pl-10 text-xs sm:text-sm dark:bg-slate-900" />
         </div>
         {filters.length > 0 && (
-          <Button type="button" variant="outline" disabled={disabled} className="h-10 shrink-0 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800" onClick={() => setOpen(true)}>
+          <Button type="button" variant="outline" disabled={disabled} className="h-10 shrink-0 bg-white px-3 text-xs sm:text-sm hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800" onClick={() => setOpen(true)}>
             <SlidersHorizontalIcon data-icon="inline-start" />
             Filtros
             {active.length > 0 && <Badge variant="secondary" className="ml-1 rounded-full px-1.5" aria-label={`${active.length} filtros activos`}>{active.length}</Badge>}

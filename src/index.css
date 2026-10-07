@@ -117,9 +117,24 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: Arial, Helvetica, sans-serif;
+    max-width: 100%;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  @supports (overflow: clip) {
+    html,
+    body {
+      overflow-x: clip;
+    }
   }
 }
 
@@ -182,11 +197,18 @@ html.reduce-motion *::after {
 
 /* Tablas `stacked`: en móvil cada fila pasa a ser una tarjeta y cada celda muestra su etiqueta. */
 @media (max-width: 47.999rem) {
+  table[data-stacked] {
+    width: 100%;
+    max-width: 100%;
+  }
+
   table[data-stacked],
   table[data-stacked] tbody,
   table[data-stacked] tr,
   table[data-stacked] td {
     display: block;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   /* El encabezado se oculta visualmente pero sigue disponible para lectores de pantalla. */

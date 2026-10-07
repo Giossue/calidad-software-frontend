@@ -294,46 +294,46 @@ export function DashboardPage() {
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-xs md:px-6">
-          <div className="flex items-center gap-3">
-            <SidebarTrigger className="md:hidden" />
-            <span className="text-xs font-medium text-muted-foreground md:text-sm">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-2.5 backdrop-blur-xs sm:gap-3 sm:px-4 sm:py-3 md:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <SidebarTrigger className="size-8 shrink-0 sm:size-9 md:hidden" />
+            <span className="min-w-0 truncate text-xs font-medium text-muted-foreground md:text-sm">
               <span className="max-md:sr-only">{userRoleText} &rsaquo; Tutorías y Titulación{sectionLabel && <> &rsaquo; </>}</span>
-              {sectionLabel && <span aria-current="page" className="font-semibold text-foreground max-md:text-base">{sectionLabel}</span>}
+              {sectionLabel && <span aria-current="page" className="truncate font-semibold text-foreground max-md:text-sm">{sectionLabel}</span>}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
             <button
               type="button"
               onClick={() => setPwaInstallOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-border bg-card p-2 px-3 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted"
+              className="flex size-8 items-center justify-center rounded-full border border-border bg-card p-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted sm:size-9 sm:p-2 lg:h-9 lg:w-auto lg:px-3"
               title="Instalar acceso directo en el Escritorio"
             >
-              <MonitorDownIcon className="size-4 text-brand-blue" />
-              <span className="hidden lg:inline">Instalar App</span>
+              <MonitorDownIcon className="size-4 shrink-0 text-brand-blue" />
+              <span className="hidden lg:inline lg:ml-1.5">Instalar App</span>
             </button>
 
             <button
               type="button"
               onClick={() => setAccessibilityOpen(true)}
-              className="flex items-center gap-2 rounded-full border border-border bg-card p-2 px-3 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted"
+              className="flex size-8 items-center justify-center rounded-full border border-border bg-card p-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted sm:size-9 sm:p-2"
               title="Configuración de Accesibilidad"
             >
-              <Settings2Icon className="size-4 text-muted-foreground" />
+              <Settings2Icon className="size-4 shrink-0 text-muted-foreground" />
             </button>
 
             <ThemeToggle />
 
-            <div className="flex items-center gap-3 rounded-full border border-border bg-card p-1.5 pr-4 shadow-2xs max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-card p-1 shadow-2xs max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none sm:gap-3 sm:p-1.5 sm:pr-4">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white sm:size-9">
                 {initials}
               </div>
               <div className="hidden flex-col text-left sm:flex">
-                <span className="text-xs font-bold leading-tight text-foreground">
+                <span className="max-w-[120px] truncate text-xs font-bold leading-tight text-foreground lg:max-w-none">
                   {user?.name ?? 'Usuario'}
                 </span>
-                <span className="text-[11px] font-medium text-muted-foreground">
+                <span className="max-w-[120px] truncate text-[11px] font-medium text-muted-foreground lg:max-w-none">
                   {user?.email ?? ''}
                 </span>
               </div>
@@ -341,7 +341,7 @@ export function DashboardPage() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <div className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 lg:p-8">
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (
@@ -416,7 +416,7 @@ export function DashboardPage() {
               <CardHeader><CardTitle>Bienvenido, {user?.name ?? 'usuario'}</CardTitle><CardDescription>No hay módulos disponibles para el rol actual de tu cuenta.</CardDescription></CardHeader>
             </Card>
           )}
-        </main>
+        </div>
       </SidebarInset>
 
       <AccessibilityModal open={accessibilityOpen} onClose={() => setAccessibilityOpen(false)} />

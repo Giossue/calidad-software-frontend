@@ -279,13 +279,13 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         title="Oferta de Carreras"
         description="Gestiona las carreras profesionales ofertadas por cada facultad. Entra a una carrera para administrar sus ciclos."
         actions={
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
-            <BulkImportButton type="careers" title="Carga masiva de carreras" onFinished={reload} />
-            <Button onClick={openCreateCareerModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <BulkImportButton type="careers" title="Carga masiva de carreras" onFinished={reload} className="flex-1 sm:flex-none" />
+            <Button onClick={openCreateCareerModal} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nueva carrera
             </Button>
@@ -741,13 +741,13 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         title={`Ciclos de ${career.name}`}
         description="Define la estructura de ciclos y niveles dentro de esta carrera."
         actions={
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
-            <BulkImportButton type="cycles" title="Carga masiva de ciclos" onFinished={reload} />
-            <Button onClick={openCreateCycleModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <BulkImportButton type="cycles" title="Carga masiva de ciclos" onFinished={reload} className="flex-1 sm:flex-none" />
+            <Button onClick={openCreateCycleModal} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nuevo ciclo
             </Button>

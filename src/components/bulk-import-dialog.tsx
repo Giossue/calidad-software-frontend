@@ -9,6 +9,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { ApiError, importsApi, type BulkImport, type BulkImportType } from '@/lib/api'
 import { BULK_IMPORT_COLUMNS, BULK_IMPORT_POLL_MS } from '@/lib/bulk-import'
 
+import { cn } from '@/lib/utils'
+
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.firstValidationMessage ?? error.message
   return 'No fue posible conectar con el servidor.'
@@ -20,11 +22,13 @@ export function BulkImportButton({
   title,
   description,
   onFinished,
+  className,
 }: Readonly<{
   type: BulkImportType
   title: string
   description?: string
   onFinished?: () => unknown
+  className?: string
 }>) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
@@ -80,7 +84,7 @@ export function BulkImportButton({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="outline" onClick={() => setOpen(true)} className={cn('whitespace-nowrap', className)}>
         <FileUpIcon data-icon="inline-start" />
         Cargar datos masivos
       </Button>

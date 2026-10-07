@@ -27,7 +27,7 @@ export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs 
 }
 
 export function ModuleHeader({ title, description, createLabel, onCreate, disabled, extraActions }: Readonly<{ title: string; description: string; createLabel?: string; onCreate?: () => void; disabled?: boolean; extraActions?: ReactNode }>) {
-  return <AdminSectionHeader title={title} description={description} actions={<div className="flex flex-wrap items-center gap-3">{extraActions}{onCreate && createLabel && <Button type="button" disabled={disabled} onClick={onCreate} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"><PlusIcon data-icon="inline-start" />{createLabel}</Button>}</div>} />
+  return <AdminSectionHeader title={title} description={description} actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">{extraActions}{onCreate && createLabel && <Button type="button" disabled={disabled} onClick={onCreate} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold"><PlusIcon data-icon="inline-start" />{createLabel}</Button>}</div>} />
 }
 
 export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }: Readonly<{ search: string; onSearch: (value: string) => void; careerId?: string; onCareer?: (value: string) => void; careers?: readonly Career[] }>) {

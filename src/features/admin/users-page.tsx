@@ -444,11 +444,12 @@ export function UsersPage() {
         title="Gestión de Usuarios"
         description="Administra los permisos, roles y cuentas del personal administrativo y académico."
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             <Button
               variant="outline"
               onClick={() => void handleRefresh()}
               disabled={isFetching}
+              className="flex-1 sm:flex-none"
             >
               {isFetching ? (
                 <Spinner data-icon="inline-start" />
@@ -457,8 +458,17 @@ export function UsersPage() {
               )}
               Actualizar
             </Button>
-            <BulkImportButton type="users" title="Carga masiva de usuarios" description="Cada usuario recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={reload} />
-            <Button onClick={openCreateModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <BulkImportButton
+              type="users"
+              title="Carga masiva de usuarios"
+              description="Cada usuario recibirá su contraseña provisional por correo y completará sus datos al ingresar."
+              onFinished={reload}
+              className="flex-1 sm:flex-none"
+            />
+            <Button
+              onClick={openCreateModal}
+              className="w-full bg-brand-red font-semibold text-white hover:bg-brand-red/90 sm:w-auto"
+            >
               <PlusIcon data-icon="inline-start" />
               Nuevo usuario
             </Button>
@@ -476,91 +486,91 @@ export function UsersPage() {
 
       {/* Tarjetas KPI de Estadísticas Resumidas */}
       <div className="@container">
-      <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-3 @7xl:grid-cols-6 sm:gap-4">
-        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-            <UsersIcon className="size-6" />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Total Cuentas
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalUsers}
-            </span>
-          </div>
-        </Card>
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 @3xl:grid-cols-3 @7xl:grid-cols-6">
+          <Card className="flex flex-col items-start gap-2 p-3 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 sm:size-12 sm:rounded-2xl dark:bg-slate-800 dark:text-slate-300">
+              <UsersIcon className="size-5 sm:size-6" />
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
+                Total Cuentas
+              </span>
+              <span className="text-2xl font-bold tracking-tight text-slate-900 max-sm:text-xl dark:text-white">
+                {totalUsers}
+              </span>
+            </div>
+          </Card>
 
-        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-            <ShieldCheckIcon className="size-6" />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Administradores
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalAdmins}
-            </span>
-          </div>
-        </Card>
+          <Card className="flex flex-col items-start gap-2 p-3 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive sm:size-12 sm:rounded-2xl">
+              <ShieldCheckIcon className="size-5 sm:size-6" />
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
+                Administradores
+              </span>
+              <span className="text-2xl font-bold tracking-tight text-slate-900 max-sm:text-xl dark:text-white">
+                {totalAdmins}
+              </span>
+            </div>
+          </Card>
 
-        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
-            <BriefcaseIcon className="size-6" />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Coord. Carrera
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalCoordinadoresCarrera}
-            </span>
-          </div>
-        </Card>
+          <Card className="flex flex-col items-start gap-2 p-3 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 sm:size-12 sm:rounded-2xl dark:bg-amber-950/60 dark:text-amber-400">
+              <BriefcaseIcon className="size-5 sm:size-6" />
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
+                Coord. Carrera
+              </span>
+              <span className="text-2xl font-bold tracking-tight text-slate-900 max-sm:text-xl dark:text-white">
+                {totalCoordinadoresCarrera}
+              </span>
+            </div>
+          </Card>
 
-        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-            <AwardIcon className="size-6" />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Coord. Titulación
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalCoordinadoresTitulacion}
-            </span>
-          </div>
-        </Card>
+          <Card className="flex flex-col items-start gap-2 p-3 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 sm:size-12 sm:rounded-2xl dark:bg-indigo-950/60 dark:text-indigo-400">
+              <AwardIcon className="size-5 sm:size-6" />
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
+                Coord. Titulación
+              </span>
+              <span className="text-2xl font-bold tracking-tight text-slate-900 max-sm:text-xl dark:text-white">
+                {totalCoordinadoresTitulacion}
+              </span>
+            </div>
+          </Card>
 
-        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
-            <UserCheckIcon className="size-6" />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Docentes
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalDocentes}
-            </span>
-          </div>
-        </Card>
+          <Card className="flex flex-col items-start gap-2 p-3 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 sm:size-12 sm:rounded-2xl dark:bg-blue-950/60 dark:text-blue-400">
+              <UserCheckIcon className="size-5 sm:size-6" />
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
+                Docentes
+              </span>
+              <span className="text-2xl font-bold tracking-tight text-slate-900 max-sm:text-xl dark:text-white">
+                {totalDocentes}
+              </span>
+            </div>
+          </Card>
 
-        <Card className="flex flex-col items-start gap-2 p-4 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-            <GraduationCapIcon className="size-6" />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            <span className="break-words text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Estudiantes
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {totalEstudiantes}
-            </span>
-          </div>
-        </Card>
-      </div>
+          <Card className="flex flex-col items-start gap-2 p-3 border-slate-200/80 sm:flex-row sm:items-center sm:gap-4 sm:p-5 dark:border-slate-800">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 sm:size-12 sm:rounded-2xl dark:bg-emerald-950/60 dark:text-emerald-400">
+              <GraduationCapIcon className="size-5 sm:size-6" />
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
+                Estudiantes
+              </span>
+              <span className="text-2xl font-bold tracking-tight text-slate-900 max-sm:text-xl dark:text-white">
+                {totalEstudiantes}
+              </span>
+            </div>
+          </Card>
+        </div>
       </div>
 
       {/* Contenedor Principal: Filtros + Tabla */}

@@ -185,13 +185,13 @@ export function FacultiesPage() {
         title="Estructura de Facultades"
         description="Gestiona las unidades académicas principales de la universidad."
         actions={
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching}>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
-            <BulkImportButton type="faculties" title="Carga masiva de facultades" onFinished={reload} />
-            <Button onClick={openCreateModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <BulkImportButton type="faculties" title="Carga masiva de facultades" onFinished={reload} className="flex-1 sm:flex-none" />
+            <Button onClick={openCreateModal} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nueva facultad
             </Button>
