@@ -11,6 +11,8 @@ interface AuthContextValue {
   readonly login: (email: string, password: string) => Promise<void>
   readonly completeTwoFactor: (input: { code?: string; recovery_code?: string }) => Promise<void>
   readonly logout: () => Promise<void>
+  /** Reemplaza el usuario en sesión, p. ej. tras completar el perfil. */
+  readonly replaceUser: (user: User) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -70,6 +72,7 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
         setStatus('anonymous')
       }
     },
+    replaceUser: setUser,
   }), [status, user])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

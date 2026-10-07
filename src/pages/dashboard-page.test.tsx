@@ -59,6 +59,7 @@ describe('DashboardPage - Pestaña de Titulación condicional para Estudiantes',
       status: 'authenticated',
       login: vi.fn(),
       completeTwoFactor: vi.fn(),
+      replaceUser: vi.fn(),
     })
     vi.mocked(tutoringApi.studentDegreeEnrollmentStatus).mockResolvedValue({
       is_enrolled: false,
@@ -93,6 +94,7 @@ describe('DashboardPage - Pestaña de Titulación condicional para Estudiantes',
       status: 'authenticated',
       login: vi.fn(),
       completeTwoFactor: vi.fn(),
+      replaceUser: vi.fn(),
     })
     vi.mocked(tutoringApi.studentDegreeEnrollmentStatus).mockResolvedValue({
       is_enrolled: true,
@@ -130,7 +132,7 @@ describe('DashboardPage - Módulos del estudiante según su ciclo', () => {
   }
 
   function renderAs(user: typeof baseStudent & { cycle_number: number; academic_stage: 'tutorias' | 'titulacion' }) {
-    vi.mocked(useAuth).mockReturnValue({ user, logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn() })
+    vi.mocked(useAuth).mockReturnValue({ user, logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), replaceUser: vi.fn() })
     // Aunque estuviera matriculado, el ciclo decide qué módulo se muestra.
     vi.mocked(tutoringApi.studentDegreeEnrollmentStatus).mockResolvedValue({ is_enrolled: true, period_id: 2, period_name: 'PAO II 2027' })
     render(

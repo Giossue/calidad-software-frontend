@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
+import { CompleteProfilePage } from '@/features/auth/complete-profile-page'
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page'
 import { LoginPage } from '@/features/auth/login-page'
 import { ResetPasswordPage } from '@/features/auth/reset-password-page'
@@ -13,10 +14,11 @@ import { applyAccessibilitySettings, getStoredAccessibility } from '@/lib/access
 import { DashboardPage } from '@/pages/dashboard-page'
 
 function ProtectedDashboard() {
-  const { status } = useAuth()
+  const { status, user } = useAuth()
   if (status === 'loading') return null
+  if (status !== 'authenticated') return <Navigate to="/login" replace />
 
-  return status === 'authenticated' ? <DashboardPage /> : <Navigate to="/login" replace />
+  return user?.must_complete_profile ? <CompleteProfilePage /> : <DashboardPage />
 }
 
 function GuestRoute({ children }: Readonly<{ children: React.ReactNode }>) {
