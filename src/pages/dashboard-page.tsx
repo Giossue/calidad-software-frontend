@@ -8,6 +8,7 @@ import {
   GraduationCapIcon,
   FileTextIcon,
   LogOutIcon,
+  MonitorDownIcon,
   Settings2Icon,
   TrendingUpIcon,
   UserCheckIcon,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import uebLogo from '@/assets/ueb-logo.png'
+import { PwaInstallDialog } from '@/components/pwa-install-dialog'
 import { AccessibilityModal } from '@/components/ui/accessibility-modal'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -142,6 +144,7 @@ export function DashboardPage() {
   const { section } = useParams<{ section: string }>()
   const [pending, setPending] = useState(false)
   const [accessibilityOpen, setAccessibilityOpen] = useState(false)
+  const [pwaInstallOpen, setPwaInstallOpen] = useState(false)
   const [studentDegreeEnrolled, setStudentDegreeEnrolled] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -267,6 +270,15 @@ export function DashboardPage() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
+                tooltip="Instalar en el Escritorio"
+                onClick={() => setPwaInstallOpen(true)}
+              >
+                <MonitorDownIcon />
+                <span>Instalar en el Escritorio</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
                 tooltip={pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
                 onClick={() => void signOut()}
                 disabled={pending}
@@ -291,7 +303,17 @@ export function DashboardPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            <button
+              type="button"
+              onClick={() => setPwaInstallOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-card p-2 px-3 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted"
+              title="Instalar acceso directo en el Escritorio"
+            >
+              <MonitorDownIcon className="size-4 text-brand-blue" />
+              <span className="hidden lg:inline">Instalar App</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setAccessibilityOpen(true)}
@@ -398,6 +420,8 @@ export function DashboardPage() {
       </SidebarInset>
 
       <AccessibilityModal open={accessibilityOpen} onClose={() => setAccessibilityOpen(false)} />
+      <PwaInstallDialog open={pwaInstallOpen} onClose={() => setPwaInstallOpen(false)} />
     </SidebarProvider>
   )
 }
+
