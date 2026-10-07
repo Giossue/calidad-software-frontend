@@ -13,6 +13,7 @@ import {
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -283,6 +284,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
+            <BulkImportButton type="careers" title="Carga masiva de carreras" onFinished={reload} />
             <Button onClick={openCreateCareerModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nueva carrera
@@ -744,6 +746,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
+            <BulkImportButton type="cycles" title="Carga masiva de ciclos" onFinished={reload} />
             <Button onClick={openCreateCycleModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nuevo ciclo

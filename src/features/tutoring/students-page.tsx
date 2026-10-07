@@ -10,6 +10,7 @@ import {
   XCircleIcon,
 } from 'lucide-react'
 
+import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -323,6 +324,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         description="Gestiona los estudiantes de la carrera y su asignación a tutorías."
         createLabel="Nuevo estudiante"
         onCreate={openCreateModal}
+        extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} />}
       />
 
       <div className="flex flex-col gap-3">

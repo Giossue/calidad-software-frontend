@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { CheckIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PlusIcon, PowerOffIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -335,7 +336,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   return <section className="flex flex-col gap-6">
     <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-    <ModuleHeader title={currentCareerName} description="Elige un ciclo para gestionar sus asignaturas y vincularlas con los grupos que recibirán tutorías." createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title={currentCareerName} description="Elige un ciclo para gestionar sus asignaturas y vincularlas con los grupos que recibirán tutorías." createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <FilterBar
       id="subjects"
       search={list.searchInput}

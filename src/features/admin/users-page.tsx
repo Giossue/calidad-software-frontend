@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -133,8 +134,9 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
   const email = form.email.trim()
   const phone = form.phone.trim()
 
-  if (!identification) errors.identification = 'La cédula o pasaporte es obligatorio.'
-  else if (/^\d{10}$/.test(identification) && !isValidIdentification(identification)) errors.identification = 'La cédula ingresada no es válida.'
+  if (!identification) {
+    if (!editing) errors.identification = 'La cédula o pasaporte es obligatorio.'
+  } else if (/^\d{10}$/.test(identification) && !isValidIdentification(identification)) errors.identification = 'La cédula ingresada no es válida.'
   else if (!isValidIdentification(identification)) errors.identification = 'Ingresa una cédula de 10 dígitos o un pasaporte de 6 a 9 letras o números.'
 
   if (!name) errors.name = 'El nombre es obligatorio.'
@@ -296,7 +298,7 @@ export function UsersPage() {
     const initialCareerId = userCareerId ? String(userCareerId) : ''
 
     const initial: UserForm = {
-      identification: user.identification,
+      identification: user.identification ?? '',
       name: user.name,
       email: user.email,
       phone: user.phone ?? '',
@@ -357,6 +359,8 @@ export function UsersPage() {
       if (editingUser) {
         const input = {
           ...baseInput,
+          // Una cuenta importada puede no tener cédula aún: si queda vacía, no se envía.
+          identification: baseInput.identification || undefined,
           ...(userForm.password
             ? {
                 password: userForm.password,
@@ -453,6 +457,7 @@ export function UsersPage() {
               )}
               Actualizar
             </Button>
+            <BulkImportButton type="users" title="Carga masiva de usuarios" description="Cada usuario recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={reload} />
             <Button onClick={openCreateModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nuevo usuario
@@ -612,7 +617,7 @@ export function UsersPage() {
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     <div className="flex flex-col">
                       <dt className="text-xs text-slate-500 dark:text-slate-400">Cédula / Pasaporte</dt>
-                      <dd className="font-medium text-slate-900 dark:text-slate-100">{user.identification}</dd>
+                      <dd className="font-medium text-slate-900 dark:text-slate-100">{user.identification ?? '—'}</dd>
                     </div>
                     <div className="flex flex-col">
                       <dt className="text-xs text-slate-500 dark:text-slate-400">Teléfono</dt>
@@ -777,7 +782,7 @@ export function UsersPage() {
                       <TableCell className="whitespace-normal">
                         <div className="flex flex-col text-xs">
                           <span className="font-medium text-slate-800 dark:text-slate-200">
-                            Cédula: {user.identification}
+                            Cédula: {user.identification ?? '—'}
                           </span>
                           <span className="text-slate-500 dark:text-slate-400">
                             {user.phone ? `Tel: ${user.phone}` : 'Sin teléfono'}

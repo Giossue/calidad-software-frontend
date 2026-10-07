@@ -3,7 +3,7 @@ const TOKEN_KEY = 'calidad-software.access-token'
 
 export interface User {
   readonly id: number
-  readonly identification: string
+  readonly identification: string | null
   readonly name: string
   readonly email: string
   readonly phone: string | null
@@ -20,6 +20,8 @@ export interface User {
   readonly is_active: boolean
   readonly email_verified_at: string | null
   readonly has_two_factor: boolean
+  /** Cuenta creada por carga masiva que aún debe completar sus datos y cambiar la contraseña provisional. */
+  readonly must_complete_profile?: boolean
 }
 
 export interface Faculty {
@@ -236,7 +238,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     ...init,
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
+      ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
@@ -294,6 +296,20 @@ export const api = {
   verifyEmail: (id: string, hash: string, query: string) => request<{ message: string }>(
     `/api/v1/auth/email/verify/${encodeURIComponent(id)}/${encodeURIComponent(hash)}?${query}`,
   ),
+
+  async completeProfile(input: {
+    identification: string
+    name: string
+    phone: string
+    password: string
+    password_confirmation: string
+  }): Promise<User> {
+    const response = await request<Resource<User>>('/api/v1/auth/profile/complete', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    })
+    return response.data
+  },
 
   async currentUser(): Promise<User> {
     const response = await request<Resource<User>>('/api/v1/auth/user')
@@ -575,5 +591,46 @@ export const api = {
       method: 'PATCH',
     })
     return response.data
+  },
+}
+
+export type BulkImportType = 'users' | 'faculties' | 'careers' | 'cycles' | 'academic-periods' | 'subjects' | 'teachers' | 'students' | 'sections'
+
+export interface BulkImport {
+  readonly id: number
+  readonly type: BulkImportType
+  readonly status: 'pending' | 'processing' | 'done' | 'failed'
+  readonly total_rows: number
+  readonly created_count: number
+  readonly failed_count: number
+  readonly errors: readonly { readonly row: number; readonly messages: readonly string[] }[]
+}
+
+export const importsApi = {
+  async upload(type: BulkImportType, file: File): Promise<BulkImport> {
+    const body = new FormData()
+    body.append('file', file)
+    const response = await request<Resource<BulkImport>>(`/api/v1/imports/${type}`, { method: 'POST', body })
+    return response.data
+  },
+
+  async status(id: number): Promise<BulkImport> {
+    const response = await request<Resource<BulkImport>>(`/api/v1/imports/${id}`)
+    return response.data
+  },
+
+  async downloadTemplate(type: BulkImportType): Promise<void> {
+    const token = tokenStore.get()
+    const response = await fetch(`${API_URL}/api/v1/imports/${type}/template`, {
+      headers: { Accept: 'text/csv', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    })
+    if (!response.ok) throw new ApiError(response.status, {})
+
+    const url = URL.createObjectURL(await response.blob())
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `plantilla-${type}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   },
 }

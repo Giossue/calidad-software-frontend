@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { CheckCircle2Icon, GraduationCapIcon, LinkIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, XCircleIcon, XIcon } from 'lucide-react'
 
+import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -106,7 +107,7 @@ export function TutoringTeachersPage() {
   }
 
   return <section className="flex flex-col gap-6">
-    <ModuleHeader title="Docentes" description="Registra y consulta los docentes vinculados con las carreras que coordinas." createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<Button type="button" variant="outline" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title="Docentes" description="Registra y consulta los docentes vinculados con las carreras que coordinas." createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="outline" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <ScopeNotice catalogs={catalogs} />
     <FilterBar
       id="teachers"

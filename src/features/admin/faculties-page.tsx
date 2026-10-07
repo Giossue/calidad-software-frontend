@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -189,6 +190,7 @@ export function FacultiesPage() {
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
+            <BulkImportButton type="faculties" title="Carga masiva de facultades" onFinished={reload} />
             <Button onClick={openCreateModal} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
               <PlusIcon data-icon="inline-start" />
               Nueva facultad
