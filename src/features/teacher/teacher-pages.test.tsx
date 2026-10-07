@@ -167,7 +167,7 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
     expect(within(form).getByRole('button', { name: 'Inscribir estudiante' })).toBeDisabled()
-    expect(within(form).queryByLabelText('Cédula')).not.toBeInTheDocument()
+    expect(within(form).queryByLabelText('Cédula o pasaporte')).not.toBeInTheDocument()
 
     await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
     expect(within(form).queryByLabelText('Estudiante')).not.toBeInTheDocument()

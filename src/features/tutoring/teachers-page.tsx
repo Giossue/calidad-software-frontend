@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { isValidEcuadorianCedula } from '@/lib/cedula'
+import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { tutoringApi, type AvailableTeacher, type Teacher } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
@@ -194,13 +194,13 @@ export function TutoringTeachersPage() {
     </MutationDialog>
     <MutationDialog open={open} title={editing ? 'Editar docente' : 'Registrar docente'} pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}>
       <Field>
-        <div className="flex items-center justify-between"><FieldLabel htmlFor="teacher-identification">Cédula</FieldLabel><FieldCounter current={form.identification.length} max={10} /></div>
+        <div className="flex items-center justify-between"><FieldLabel htmlFor="teacher-identification">Cédula o pasaporte</FieldLabel><FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} /></div>
         <div className="relative flex items-center">
-          <Input id="teacher-identification" inputMode="numeric" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeDigits(event.target.value, 10) })} required maxLength={10} autoComplete="off" placeholder="0102030405" className={cn(form.identification.length === 10 && 'pr-9')} />
-          {form.identification.length === 10 && (
-            isValidEcuadorianCedula(form.identification)
-              ? <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Cédula válida" />
-              : <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Cédula inválida" />
+          <Input id="teacher-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
+          {shouldShowIdentificationStatus(form.identification) && (
+            isValidIdentification(form.identification)
+              ? <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
+              : <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
           )}
         </div>
       </Field>

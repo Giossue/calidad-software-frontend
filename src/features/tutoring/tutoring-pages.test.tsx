@@ -354,10 +354,10 @@ describe('Coordinación de tutorías', () => {
     await user.click(screen.getByRole('button', { name: 'Registrar docente nuevo' }))
     const form = screen.getByRole('form', { name: 'Registrar docente' })
 
-    const identification = within(form).getByLabelText('Cédula')
-    await user.type(identification, 'abc1710034065xyz')
+    const identification = within(form).getByLabelText('Cédula o pasaporte')
+    await user.type(identification, '17-1003 4065.')
     expect(identification).toHaveValue('1710034065')
-    expect(within(form).getByLabelText('Cédula válida')).toBeInTheDocument()
+    expect(within(form).getByLabelText('Identificación válida')).toBeInTheDocument()
 
     const name = within(form).getByLabelText('Nombre completo')
     await user.type(name, 'Ana123 Torres')
@@ -369,7 +369,12 @@ describe('Coordinación de tutorías', () => {
 
     await user.clear(identification)
     await user.type(identification, '0201234567')
-    expect(within(form).getByLabelText('Cédula inválida')).toBeInTheDocument()
+    expect(within(form).getByLabelText('Identificación inválida')).toBeInTheDocument()
+
+    await user.clear(identification)
+    await user.type(identification, 'ab-1234567890')
+    expect(identification).toHaveValue('AB1234567')
+    expect(within(form).getByLabelText('Identificación válida')).toBeInTheDocument()
   })
 
   it('edita y desactiva un docente gestionable desde el ícono y el menú de la fila', async () => {
@@ -835,7 +840,7 @@ describe('Coordinación de tutorías', () => {
     await user.click(newBtn)
 
     expect(screen.getByRole('form', { name: 'Registrar Nuevo Estudiante' })).toBeInTheDocument()
-    expect(screen.getByLabelText(/Cédula de Identidad/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Cédula o pasaporte/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Nombres y Apellidos/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Correo Institucional/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Teléfono/i)).toBeInTheDocument()
@@ -859,7 +864,7 @@ describe('Coordinación de tutorías', () => {
     render(<TutoringStudentsPage />)
     await user.click(await screen.findByRole('button', { name: 'Nuevo estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar Nuevo Estudiante' })
-    await user.type(within(form).getByLabelText(/Cédula de Identidad/i), '0926687856')
+    await user.type(within(form).getByLabelText(/Cédula o pasaporte/i), '0926687856')
     await user.type(within(form).getByLabelText(/Nombres y Apellidos/i), 'Ana Nueva')
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'ana@ueb.edu.ec')
 

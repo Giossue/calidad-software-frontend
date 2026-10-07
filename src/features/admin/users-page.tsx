@@ -36,7 +36,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
-import { isValidEcuadorianCedula } from '@/lib/cedula'
+import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { getInitials } from '@/lib/format'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
@@ -133,9 +133,9 @@ function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
   const email = form.email.trim()
   const phone = form.phone.trim()
 
-  if (!identification) errors.identification = 'La cédula es obligatoria.'
-  else if (!/^\d{10}$/.test(identification)) errors.identification = 'La cédula debe tener 10 dígitos numéricos.'
-  else if (!isValidEcuadorianCedula(identification)) errors.identification = 'La cédula ingresada no es válida.'
+  if (!identification) errors.identification = 'La cédula o pasaporte es obligatorio.'
+  else if (/^\d{10}$/.test(identification) && !isValidIdentification(identification)) errors.identification = 'La cédula ingresada no es válida.'
+  else if (!isValidIdentification(identification)) errors.identification = 'Ingresa una cédula de 10 dígitos o un pasaporte de 6 a 9 letras o números.'
 
   if (!name) errors.name = 'El nombre es obligatorio.'
   else if (name.length > 150) errors.name = 'El nombre no puede superar 150 caracteres.'
@@ -611,7 +611,7 @@ export function UsersPage() {
 
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     <div className="flex flex-col">
-                      <dt className="text-xs text-slate-500 dark:text-slate-400">Cédula</dt>
+                      <dt className="text-xs text-slate-500 dark:text-slate-400">Cédula / Pasaporte</dt>
                       <dd className="font-medium text-slate-900 dark:text-slate-100">{user.identification}</dd>
                     </div>
                     <div className="flex flex-col">
@@ -884,28 +884,27 @@ export function UsersPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <Field data-invalid={Boolean(userErrors.identification)}>
                 <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="user-identification">Cédula</FieldLabel>
-                  <FieldCounter current={userForm.identification.length} max={10} />
+                  <FieldLabel htmlFor="user-identification">Cédula o pasaporte</FieldLabel>
+                  <FieldCounter current={userForm.identification.length} max={identificationMaxLength(userForm.identification)} />
                 </div>
                 <div className="relative flex items-center">
                   <Input
                     id="user-identification"
                     name="identification"
-                    inputMode="numeric"
                     value={userForm.identification}
-                    onChange={(e) => updateUserField('identification', sanitizeDigits(e.target.value, 10))}
+                    onChange={(e) => updateUserField('identification', sanitizeIdentification(e.target.value))}
                     maxLength={10}
                     autoComplete="off"
-                    placeholder="Ej. 1710034065"
+                    placeholder="Ej. 1710034065 o AB1234567"
                     disabled={formDisabled}
                     required
-                    className={cn(userForm.identification.length === 10 && 'pr-9')}
+                    className={cn(shouldShowIdentificationStatus(userForm.identification) && 'pr-9')}
                   />
-                  {userForm.identification.length === 10 && (
-                    isValidEcuadorianCedula(userForm.identification) ? (
-                      <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Cédula válida" />
+                  {shouldShowIdentificationStatus(userForm.identification) && (
+                    isValidIdentification(userForm.identification) ? (
+                      <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
                     ) : (
-                      <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Cédula inválida" />
+                      <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
                     )
                   )}
                 </div>

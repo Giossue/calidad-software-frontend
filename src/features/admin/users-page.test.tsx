@@ -212,7 +212,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
 
-    await user.type(screen.getByLabelText('Cédula'), '1710034065')
+    await user.type(screen.getByLabelText('Cédula o pasaporte'), '1710034065')
     await user.type(screen.getByLabelText('Nombre completo'), 'Estudiante Nuevo')
     await user.type(screen.getByLabelText('Correo electrónico institucional'), 'estudiante@ueb.edu.ec')
     await user.type(screen.getByLabelText('Teléfono'), '0987654321')
@@ -329,7 +329,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     expect(await screen.findByText('Registrar Nuevo Usuario')).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('Cédula'), '1710034065')
+    await user.type(screen.getByLabelText('Cédula o pasaporte'), '1710034065')
     await user.type(screen.getByLabelText('Nombre completo'), 'Docente Nuevo')
     await user.type(screen.getByLabelText('Correo electrónico institucional'), 'docente_nuevo@ueb.edu.ec')
     await user.type(screen.getByLabelText('Teléfono'), '0987654321')

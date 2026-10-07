@@ -13,7 +13,7 @@ import { useDegreeResource, useDegreeSearch } from '@/features/degree-coordinati
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { isValidEcuadorianCedula } from '@/lib/cedula'
+import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { teacherApi, type AvailableStudent, type Enrollment, type GradeEntry, type GradeSettings, type TeacherTutoring } from '@/lib/teacher-api'
@@ -99,7 +99,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
     )
   }
 
-  const isCedulaValid = form.identification.length === 10 && isValidEcuadorianCedula(form.identification)
+  const isCedulaValid = isValidIdentification(form.identification)
   const isEmailValid = form.email.endsWith('@ueb.edu.ec')
 
   const isDiagnosticValid = !gradesForm.diagnostic || isValidGrade(gradesForm.diagnostic, settings.maximum)
@@ -174,23 +174,23 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>
         <Field>
           <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-student-identification">Cédula de Identidad *</FieldLabel>
-            <FieldCounter current={form.identification.length} max={10} />
+            <FieldLabel htmlFor="teacher-student-identification">Cédula o pasaporte *</FieldLabel>
+            <FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} />
           </div>
           <Input
             id="teacher-student-identification"
             value={form.identification}
-            onChange={(event) => setForm({ ...form, identification: sanitizeDigits(event.target.value, 10) })}
+            onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })}
             maxLength={10}
             required
-            placeholder="0201234567"
+            placeholder="0201234567 o AB1234567"
           />
           <div className="flex justify-between items-center text-xs mt-1">
-            <FieldDescription>Cédula ecuatoriana de 10 dígitos.</FieldDescription>
-            <FieldCounter current={form.identification.length} max={10} />
+            <FieldDescription>Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres.</FieldDescription>
+            <FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} />
           </div>
-          {form.identification.length === 10 && !isCedulaValid && (
-            <p className="text-xs text-destructive font-medium mt-1">La cédula no es válida.</p>
+          {shouldShowIdentificationStatus(form.identification) && !isCedulaValid && (
+            <p className="text-xs text-destructive font-medium mt-1">La cédula o pasaporte no es válido.</p>
           )}
         </Field>
 

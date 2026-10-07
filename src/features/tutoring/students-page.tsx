@@ -24,7 +24,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import type { Cycle } from '@/lib/api'
-import { isValidEcuadorianCedula } from '@/lib/cedula'
+import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import {
   tutoringApi,
@@ -228,7 +228,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   }
 
   const isFormDirty = JSON.stringify(form) !== JSON.stringify(initialForm)
-  const isCedulaValid = form.identification.length === 10 && isValidEcuadorianCedula(form.identification)
+  const isCedulaValid = isValidIdentification(form.identification)
   const isEmailValid = form.email.endsWith('@ueb.edu.ec')
 
   function handleCycleChange(cycleId: string) {
@@ -453,21 +453,21 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         submitDisabled={!isCedulaValid || !isEmailValid || !form.name.trim() || !form.cycle_id}
       >
         <Field>
-          <FieldLabel htmlFor="new-student-cedula">Cédula de Identidad *</FieldLabel>
+          <FieldLabel htmlFor="new-student-cedula">Cédula o pasaporte *</FieldLabel>
           <Input
             id="new-student-cedula"
             required
             maxLength={10}
             value={form.identification}
-            onChange={(e) => setForm({ ...form, identification: sanitizeDigits(e.target.value, 10) })}
-            placeholder="0201234567"
+            onChange={(e) => setForm({ ...form, identification: sanitizeIdentification(e.target.value) })}
+            placeholder="0201234567 o AB1234567"
           />
           <div className="flex justify-between items-center text-xs mt-1">
-            <FieldDescription>Cédula ecuatoriana de 10 dígitos.</FieldDescription>
-            <FieldCounter current={form.identification.length} max={10} />
+            <FieldDescription>Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres.</FieldDescription>
+            <FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} />
           </div>
-          {form.identification.length === 10 && !isCedulaValid && (
-            <p className="text-xs text-destructive font-medium mt-1">La cédula no es válida.</p>
+          {shouldShowIdentificationStatus(form.identification) && !isCedulaValid && (
+            <p className="text-xs text-destructive font-medium mt-1">La cédula o pasaporte no es válido.</p>
           )}
         </Field>
 
