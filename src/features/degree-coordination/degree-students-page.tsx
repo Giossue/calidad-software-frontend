@@ -72,9 +72,6 @@ export function DegreeStudentsPage() {
             <UserCheckIcon className="size-6 text-primary" />
             Matrícula de Estudiantes en Titulación
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Matricula a los estudiantes de la carrera en el período académico actual para habilitarles el acceso a la postulación de temas de titulación.
-          </p>
         </div>
         {currentPeriodName ? (
           <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground shadow-2xs">

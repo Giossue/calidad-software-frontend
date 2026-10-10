@@ -29,7 +29,6 @@ export function DegreeReportsPage() {
     <section className="flex flex-col gap-6">
       <AdminSectionHeader
         title="Reportes de titulación"
-        description="Consulta y supervisa el historial de informes académicos y dictámenes generados para cada trabajo de titulación."
       />
 
       <FilterBar

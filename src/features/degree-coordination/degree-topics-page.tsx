@@ -50,7 +50,7 @@ export function DegreeTopicsPage() {
   }
 
   return <section className="flex flex-col gap-6">
-    <AdminSectionHeader title="Propuestas de titulación" description="Revisa las propuestas del período vigente, registra observaciones y organiza las asignaciones académicas." actions={<Button type="button" variant="outline" disabled={table.loading || period.loading} onClick={reloadAll}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
+    <AdminSectionHeader title="Propuestas de titulación" actions={<Button type="button" variant="outline" disabled={table.loading || period.loading} onClick={reloadAll}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
     {period.status === 404 && <Alert><AlertDescription>No existe un período académico vigente. Administración debe configurar y activar un período para continuar con la coordinación de titulación.</AlertDescription></Alert>}
     <FilterBar
       id="degree-topics"

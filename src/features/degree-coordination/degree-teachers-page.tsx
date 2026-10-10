@@ -10,7 +10,7 @@ export function DegreeTeachersPage() {
   const resource = useDegreeResource(() => degreeCoordinationApi.teachers(search.search), search.search)
 
   return <section className="flex flex-col gap-6">
-    <AdminSectionHeader title="Docentes de titulación" description="Consulta los docentes activos disponibles para tutorías y revisión como pares académicos." />
+    <AdminSectionHeader title="Docentes de titulación" />
     <Field><FieldLabel htmlFor="degree-teachers-search">Buscar docente</FieldLabel><Input id="degree-teachers-search" type="search" placeholder="Buscar por nombre, cédula, correo, carrera o facultad" value={search.input} onChange={(event) => search.setInput(event.target.value)} /></Field>
     <ErrorNotice message={resource.error} retry={resource.reload} />
     <RecordTable rows={resource.data ?? []} loading={resource.loading} empty="No se encontraron docentes activos con estos criterios." columns={[

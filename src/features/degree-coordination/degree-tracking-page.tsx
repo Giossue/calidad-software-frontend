@@ -322,7 +322,6 @@ export function DegreeTrackingPage() {
     <section className="flex flex-col gap-6">
       <AdminSectionHeader
         title="Seguimiento de titulación"
-        description="Supervisa la evolución de los temas aprobados, actividades realizadas y el porcentaje de avance de los estudiantes."
       />
 
       <DegreePeriodCard resource={period} />
