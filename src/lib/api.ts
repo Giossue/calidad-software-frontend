@@ -20,8 +20,10 @@ export interface User {
   readonly is_active: boolean
   readonly email_verified_at: string | null
   readonly has_two_factor: boolean
-  /** Cuenta creada por carga masiva que aún debe completar sus datos y cambiar la contraseña provisional. */
+  /** Cuenta que debe completar sus datos (creada por carga masiva o sin cédula registrada). */
   readonly must_complete_profile?: boolean
+  /** Además debe reemplazar la contraseña provisional que recibió por correo. */
+  readonly must_change_password?: boolean
 }
 
 export interface Faculty {
@@ -304,8 +306,8 @@ export const api = {
     identification: string
     name: string
     phone: string
-    password: string
-    password_confirmation: string
+    password?: string
+    password_confirmation?: string
   }): Promise<User> {
     const response = await request<Resource<User>>('/api/v1/auth/profile/complete', {
       method: 'PUT',

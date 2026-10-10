@@ -15,7 +15,7 @@ import { useAuth } from './auth-context'
 import { AuthFeedback } from './auth-feedback'
 import { AuthShell } from './auth-shell'
 
-/** Primer ingreso de una cuenta creada por carga masiva: datos faltantes y nueva contraseña. */
+/** Datos faltantes de la cuenta (como la cédula) y, si tiene contraseña provisional, su reemplazo. */
 export function CompleteProfilePage() {
   const { user, replaceUser, logout } = useAuth()
   const [identification, setIdentification] = useState(user?.identification ?? '')
@@ -23,17 +23,19 @@ export function CompleteProfilePage() {
   const identificationLocked = Boolean(user?.identification)
   const [name, setName] = useState(user?.name ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '')
+  // Las cuentas sin contraseña provisional solo registran sus datos faltantes.
+  const mustChangePassword = user?.must_change_password ?? true
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
   const identificationValid = isValidIdentification(identification)
-  const canSubmit = identificationValid && name.trim() !== '' && /^\d{10}$/.test(phone) && password !== '' && confirmation !== ''
+  const canSubmit = identificationValid && name.trim() !== '' && /^\d{10}$/.test(phone) && (!mustChangePassword || (password !== '' && confirmation !== ''))
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (password !== confirmation) {
+    if (mustChangePassword && password !== confirmation) {
       setError('Las contraseñas no coinciden.')
       return
     }
@@ -44,10 +46,9 @@ export function CompleteProfilePage() {
         identification,
         name: name.trim(),
         phone,
-        password,
-        password_confirmation: confirmation,
+        ...(mustChangePassword ? { password, password_confirmation: confirmation } : {}),
       })
-      toast.success('Datos guardados', { description: 'Tu cuenta está lista. Usa tu nueva contraseña en los próximos ingresos.' })
+      toast.success('Datos guardados', { description: mustChangePassword ? 'Tu cuenta está lista. Usa tu nueva contraseña en los próximos ingresos.' : 'Tu cuenta está lista.' })
       replaceUser(updated)
     } catch (caught: unknown) {
       setError(caught instanceof ApiError ? (caught.firstValidationMessage ?? caught.message) : 'No fue posible conectar con el servidor.')
@@ -57,7 +58,7 @@ export function CompleteProfilePage() {
   }
 
   return (
-    <AuthShell title="Completa tu cuenta" description={`Antes de continuar, confirma tus datos y reemplaza la contraseña provisional enviada a ${user?.email ?? 'tu correo'}.`}>
+    <AuthShell title="Completa tu cuenta" description={mustChangePassword ? `Antes de continuar, confirma tus datos y reemplaza la contraseña provisional enviada a ${user?.email ?? 'tu correo'}.` : 'Antes de continuar, registra tu cédula o pasaporte y confirma tus datos.'}>
       <AuthFeedback error={error} />
       <form onSubmit={submit} aria-label="Completar cuenta" noValidate>
         <FieldGroup>
@@ -87,15 +88,19 @@ export function CompleteProfilePage() {
             <FieldLabel htmlFor="profile-phone">Teléfono celular</FieldLabel>
             <Input id="profile-phone" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(sanitizeDigits(event.target.value, 10))} required maxLength={10} autoComplete="tel" placeholder="0991234567" />
           </Field>
-          <Field>
-            <FieldLabel htmlFor="profile-password">Nueva contraseña</FieldLabel>
-            <PasswordInput id="profile-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-            <FieldDescription>Debe ser distinta de la contraseña provisional.</FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="profile-password-confirmation">Confirma la contraseña</FieldLabel>
-            <PasswordInput id="profile-password-confirmation" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />
-          </Field>
+          {mustChangePassword && (
+            <>
+              <Field>
+                <FieldLabel htmlFor="profile-password">Nueva contraseña</FieldLabel>
+                <PasswordInput id="profile-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+                <FieldDescription>Debe ser distinta de la contraseña provisional.</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="profile-password-confirmation">Confirma la contraseña</FieldLabel>
+                <PasswordInput id="profile-password-confirmation" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />
+              </Field>
+            </>
+          )}
           <Button type="submit" disabled={pending || !canSubmit} className="w-full">
             {pending && <Spinner data-icon="inline-start" />}
             Guardar y continuar

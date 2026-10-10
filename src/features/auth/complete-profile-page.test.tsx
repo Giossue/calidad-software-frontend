@@ -44,6 +44,21 @@ describe('CompleteProfilePage', () => {
     expect(replaceUser).toHaveBeenCalledWith(completed)
   })
 
+  it('a una cuenta sin cédula solo le pide sus datos, sin cambiar la contraseña', async () => {
+    const user = userEvent.setup()
+    const account = { ...imported, phone: '0991234567', must_change_password: false }
+    vi.mocked(useAuth).mockReturnValue({ user: account, status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), logout: vi.fn(), replaceUser: vi.fn() })
+    vi.spyOn(api, 'completeProfile').mockResolvedValue({ ...account, identification: '0926687856', must_complete_profile: false })
+
+    render(<CompleteProfilePage />)
+    expect(screen.queryByLabelText('Nueva contraseña')).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Cédula o pasaporte'), '0926687856')
+    await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
+
+    await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith({ identification: '0926687856', name: 'Ana Torres', phone: '0991234567' }))
+  })
+
   it('muestra los errores de validación del servidor', async () => {
     const user = userEvent.setup()
     vi.mocked(useAuth).mockReturnValue({ user: { ...imported, identification: '0926687856', phone: '0991234567' }, status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), logout: vi.fn(), replaceUser: vi.fn() })
