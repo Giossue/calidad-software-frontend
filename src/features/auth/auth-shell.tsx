@@ -1,8 +1,3 @@
-import { useState } from 'react'
-import { MonitorDownIcon } from 'lucide-react'
-
-import { PwaInstallDialog } from '@/components/pwa-install-dialog'
-
 interface AuthShellProps {
   readonly title: string
   readonly description: string
@@ -10,21 +5,8 @@ interface AuthShellProps {
 }
 
 export function AuthShell({ title, description, children }: AuthShellProps) {
-  const [pwaInstallOpen, setPwaInstallOpen] = useState(false)
-
   return (
     <main className="relative flex min-h-svh items-center justify-center bg-slate-100 p-4 sm:p-6 lg:p-10 dark:bg-slate-950">
-      <div className="absolute top-4 right-4 z-20">
-        <button
-          type="button"
-          onClick={() => setPwaInstallOpen(true)}
-          className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs backdrop-blur-xs transition-colors hover:bg-white hover:text-brand-blue dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-900 dark:hover:text-sky-400"
-          title="Instalar acceso directo en el Escritorio"
-        >
-          <MonitorDownIcon className="size-3.5 text-brand-blue dark:text-sky-400" />
-          <span>Instalar App</span>
-        </button>
-      </div>
       <div className="grid w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1.1fr_0.9fr]">
 
         {/* Panel Azul Oscuro (Izquierda) */}
@@ -107,7 +89,6 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
           </div>
         </section>
       </div>
-      <PwaInstallDialog open={pwaInstallOpen} onClose={() => setPwaInstallOpen(false)} />
     </main>
   )
 }
