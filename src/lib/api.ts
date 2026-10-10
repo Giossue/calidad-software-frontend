@@ -202,7 +202,10 @@ export class ApiError extends Error {
   readonly payload: ErrorPayload
 
   constructor(status: number, payload: ErrorPayload) {
-    super(payload.message ?? 'No fue posible completar la solicitud.')
+    // El límite de intentos de Laravel responde en inglés ("Too Many Attempts.").
+    super(status === 429 && (!payload.message || payload.message === 'Too Many Attempts.')
+      ? 'Demasiados intentos. Espera un minuto e inténtalo de nuevo.'
+      : (payload.message ?? 'No fue posible completar la solicitud.'))
     this.status = status
     this.payload = payload
   }
