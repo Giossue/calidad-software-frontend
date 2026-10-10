@@ -353,18 +353,6 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     })
   })
 
-  it('muestra tarjetas estadísticas para coordinadores de carrera y titulación', async () => {
-    render(<UsersPage />)
-
-    const coordCarreraLabel = await screen.findByText('Coord. Carrera')
-    expect(coordCarreraLabel).toBeInTheDocument()
-    expect(coordCarreraLabel.closest('div')?.querySelector('.text-2xl')?.textContent).toBe('3')
-
-    const coordTitulacionLabel = screen.getByText('Coord. Titulación')
-    expect(coordTitulacionLabel).toBeInTheDocument()
-    expect(coordTitulacionLabel.closest('div')?.querySelector('.text-2xl')?.textContent).toBe('2')
-  })
-
   it('permite editar a un usuario con teléfono vacío manteniendo el teléfono anterior', async () => {
     const user = userEvent.setup()
     const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue(mockUsers[0])

@@ -270,15 +270,6 @@ export function DashboardPage() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                tooltip="Instalar en el Escritorio"
-                onClick={() => setPwaInstallOpen(true)}
-              >
-                <MonitorDownIcon />
-                <span>Instalar en el Escritorio</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
                 tooltip={pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
                 onClick={() => void signOut()}
                 disabled={pending}
