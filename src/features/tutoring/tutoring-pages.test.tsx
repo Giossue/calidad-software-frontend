@@ -84,11 +84,11 @@ describe('Coordinación de tutorías', () => {
     fireEvent.submit(form)
     fireEvent.submit(form)
     expect(tutoringApi.createSubject).toHaveBeenCalledTimes(1)
-    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'Programación', period_id: 50 })
+    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', period_id: 50 })
     expect(within(form).getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     await act(async () => reject(new ApiError(422, { message: 'No se pudo guardar.', errors: { code: ['El código ya existe.'] } })))
     expect(await screen.findByText('El código ya existe.')).toBeInTheDocument()
-    expect(screen.getByLabelText('Nombre')).toHaveValue('Programación')
+    expect(screen.getByLabelText('Nombre')).toHaveValue('PROGRAMACIÓN')
     expect(within(form).getByRole('button', { name: 'Registrar asignatura' })).toBeEnabled()
   })
 
@@ -105,7 +105,7 @@ describe('Coordinación de tutorías', () => {
     await user.type(within(form).getByLabelText('Nombre'), 'Programación')
     await user.selectOptions(within(form).getByLabelText('Ciclo'), '20')
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'Programación', cycle_id: 20, period_id: 50 }))
+    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'PROGRAMACIÓN', cycle_id: 20, period_id: 50 }))
   })
 
   it('muestra el período académico actual sobre los demás campos de solo lectura y lo asocia automáticamente al registrar una asignatura', async () => {
@@ -128,7 +128,7 @@ describe('Coordinación de tutorías', () => {
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
     await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({
       career_id: 10,
-      name: 'Estructura de Datos',
+      name: 'ESTRUCTURA DE DATOS',
       cycle_id: 20,
       modality_id: 60,
       period_id: 50,
@@ -165,7 +165,7 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({
       career_id: 10,
       code: 'SW-201',
-      name: 'Estructuras de Datos',
+      name: 'ESTRUCTURAS DE DATOS',
       cycle_id: 20,
       parallel_ids: [1, 2],
       period_id: 50,
@@ -185,7 +185,7 @@ describe('Coordinación de tutorías', () => {
 
     const name = within(form).getByLabelText('Nombre')
     await user.type(name, 'Cálculo 3 (avanzado)')
-    expect(name).toHaveValue('Cálculo  avanzado')
+    expect(name).toHaveValue('CÁLCULO  AVANZADO')
   })
 
   it('consulta la página siguiente de asignaturas en el servidor', async () => {

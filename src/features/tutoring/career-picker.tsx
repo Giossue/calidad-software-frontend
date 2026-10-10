@@ -26,7 +26,7 @@ export function useSelectedCareer(careers: readonly Career[]) {
 export function CareerPicker({ catalogs, title, description, rowTitle, onSelect }: Readonly<{
   catalogs: Catalogs
   title: string
-  description: string
+  description?: string
   rowTitle: (career: Career) => string
   onSelect: (career: Career) => void
 }>) {

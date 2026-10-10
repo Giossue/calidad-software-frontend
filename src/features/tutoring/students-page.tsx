@@ -56,7 +56,7 @@ export function TutoringStudentsPage() {
     return <StudentsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Estudiantes" description="Elige una carrera para gestionar sus estudiantes, las tutorías asignadas y la matrícula de titulación." rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Estudiantes" rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
 function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
@@ -321,7 +321,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         <TabsContent value="tutorings" className="flex flex-col gap-6">
       <ModuleHeader
         title={careerName}
-        description="Gestiona los estudiantes de la carrera y su asignación a tutorías."
         createLabel="Nuevo estudiante"
         onCreate={openCreateModal}
         extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} />}

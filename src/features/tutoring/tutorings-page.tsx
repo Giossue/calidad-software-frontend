@@ -66,7 +66,7 @@ export function TutoringsPage() {
     return <TutoringsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Tutorías" description="Elige una carrera para organizar sus tutorías, asignar docentes y supervisar horarios y asistencias." rowTitle={(career) => `Ver tutorías de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Tutorías" rowTitle={(career) => `Ver tutorías de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
 function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
@@ -718,7 +718,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       <CareerBreadcrumb root="Tutorías" career={careerName} onBack={onBack} />
       <ModuleHeader
         title={careerName}
-        description="Organiza las tutorías de la carrera, asigna docentes y supervisa horarios y asistencias."
         createLabel="Crear tutoría"
         onCreate={openCreateChooser}
         disabled={operation.pending || catalogs.loading || subjects.length === 0}

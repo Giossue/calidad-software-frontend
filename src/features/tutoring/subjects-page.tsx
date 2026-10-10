@@ -31,7 +31,7 @@ export function TutoringSubjectsPage() {
     return <SubjectsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Asignaturas" description="Elige una carrera para gestionar sus asignaturas por ciclo y vincularlas con los grupos que recibirán tutorías." rowTitle={(career) => `Ver asignaturas de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Asignaturas" rowTitle={(career) => `Ver asignaturas de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
 type TutoringCatalogsState = ReturnType<typeof useTutoringCatalogs>
@@ -336,7 +336,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   return <section className="flex flex-col gap-6">
     <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-    <ModuleHeader title={currentCareerName} description="Elige un ciclo para gestionar sus asignaturas y vincularlas con los grupos que recibirán tutorías." createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title={currentCareerName} createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <FilterBar
       id="subjects"
       search={list.searchInput}
@@ -540,7 +540,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       </Field>
       <Field>
         <div className="flex items-center justify-between"><FieldLabel htmlFor="subject-name">Nombre</FieldLabel><FieldCounter current={form.name.length} max={150} /></div>
-        <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} required maxLength={150} placeholder="Ej. Algoritmos y lógica de programación" />
+        <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150).toLocaleUpperCase('es') })} required maxLength={150} placeholder="Ej. ALGORITMOS Y LÓGICA DE PROGRAMACIÓN" />
       </Field>
     </MutationDialog>
     <MutationDialog

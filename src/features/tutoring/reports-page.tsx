@@ -30,7 +30,7 @@ export function TutoringReportsPage() {
     return <ReportsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Informes" description="Elige una carrera para consultar los informes académicos generados por los docentes en sus tutorías." rowTitle={(career) => `Ver informes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Informes" rowTitle={(career) => `Ver informes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
 function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
@@ -63,7 +63,6 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
       <CareerBreadcrumb root="Informes" career={careerName} onBack={onBack} />
       <ModuleHeader
         title={careerName}
-        description="Consulta y supervisa los informes académicos generados por los docentes en las tutorías de la carrera."
       />
 
       <FilterBar
