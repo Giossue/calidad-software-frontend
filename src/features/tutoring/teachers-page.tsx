@@ -97,7 +97,8 @@ export function TutoringTeachersPage() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const careerId = Number(form.career_id) || Number(careerFilter) || (catalogs.careers[0]?.id ?? 0)
-    const input = { identification: form.identification.trim(), name: form.name.trim(), email: form.email.trim().toLowerCase(), phone: form.phone.trim() }
+    // La cédula de un docente ya registrado no se modifica.
+    const input = { identification: editing ? editing.identification : form.identification.trim(), name: form.name.trim(), email: form.email.trim().toLowerCase(), phone: form.phone.trim() }
     void operation.run(() => editing ? tutoringApi.updateTeacher(editing.id, input) : tutoringApi.createTeacher({ ...input, career_id: careerId }), editing ? 'Docente actualizado.' : 'Docente registrado.', async () => { setOpen(false); await list.reload() })
   }
 
@@ -197,13 +198,14 @@ export function TutoringTeachersPage() {
       <Field>
         <div className="flex items-center justify-between"><FieldLabel htmlFor="teacher-identification">Cédula o pasaporte</FieldLabel><FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} /></div>
         <div className="relative flex items-center">
-          <Input id="teacher-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
+          <Input id="teacher-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required disabled={Boolean(editing)} maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
           {shouldShowIdentificationStatus(form.identification) && (
             isValidIdentification(form.identification)
               ? <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
               : <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
           )}
         </div>
+        {editing && <FieldDescription>La cédula o pasaporte ya registrado no se puede modificar.</FieldDescription>}
       </Field>
       <Field>
         <div className="flex items-center justify-between"><FieldLabel htmlFor="teacher-name">Nombre completo</FieldLabel><FieldCounter current={form.name.length} max={150} /></div>

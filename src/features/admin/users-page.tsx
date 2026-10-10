@@ -127,14 +127,16 @@ function getRoleBadgeStyle(role: string): string {
   }
 }
 
-function validateUserForm(form: UserForm, editing: boolean): UserFormErrors {
+function validateUserForm(form: UserForm, editing: boolean, identificationLocked = false): UserFormErrors {
   const errors: UserFormErrors = {}
   const identification = form.identification.trim()
   const name = form.name.trim()
   const email = form.email.trim()
   const phone = form.phone.trim()
 
-  if (!identification) {
+  if (identificationLocked) {
+    // La identificación ya registrada no se modifica ni se vuelve a validar.
+  } else if (!identification) {
     if (!editing) errors.identification = 'La cédula o pasaporte es obligatorio.'
   } else if (/^\d{10}$/.test(identification) && !isValidIdentification(identification)) errors.identification = 'La cédula ingresada no es válida.'
   else if (!isValidIdentification(identification)) errors.identification = 'Ingresa una cédula de 10 dígitos o un pasaporte de 6 a 9 letras o números.'
@@ -202,6 +204,8 @@ export function UsersPage() {
   } = usePaginatedCatalog<User, UserPaginationMeta>(fetchUsers, `${roleFilter}|${statusFilter}|${careerFilter}`)
 
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  // Una vez registrada, la cédula o pasaporte no puede cambiarse.
+  const identificationLocked = Boolean(editingUser?.identification)
   const [userForm, setUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [initialUserForm, setInitialUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [userErrors, setUserErrors] = useState<UserFormErrors>({})
@@ -327,7 +331,7 @@ export function UsersPage() {
     event.preventDefault()
     if (pending !== null) return
 
-    const errors = validateUserForm(userForm, editingUser !== null)
+    const errors = validateUserForm(userForm, editingUser !== null, identificationLocked)
     setUserErrors(errors)
     if (Object.keys(errors).length > 0) {
       setErrorModal({
@@ -359,8 +363,8 @@ export function UsersPage() {
       if (editingUser) {
         const input = {
           ...baseInput,
-          // Una cuenta importada puede no tener cédula aún: si queda vacía, no se envía.
-          identification: baseInput.identification || undefined,
+          // La cédula ya registrada no se envía; una cuenta importada sin cédula puede registrarla una vez.
+          identification: identificationLocked ? undefined : (baseInput.identification || undefined),
           ...(userForm.password
             ? {
                 password: userForm.password,
@@ -911,7 +915,7 @@ export function UsersPage() {
                     maxLength={10}
                     autoComplete="off"
                     placeholder="Ej. 1710034065 o AB1234567"
-                    disabled={formDisabled}
+                    disabled={formDisabled || identificationLocked}
                     required
                     className={cn(shouldShowIdentificationStatus(userForm.identification) && 'pr-9')}
                   />
@@ -923,6 +927,7 @@ export function UsersPage() {
                     )
                   )}
                 </div>
+                {identificationLocked && <FieldDescription>La cédula o pasaporte ya registrado no se puede modificar.</FieldDescription>}
                 <FieldError>{userErrors.identification}</FieldError>
               </Field>
 

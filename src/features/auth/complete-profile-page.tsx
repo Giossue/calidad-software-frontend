@@ -19,6 +19,8 @@ import { AuthShell } from './auth-shell'
 export function CompleteProfilePage() {
   const { user, replaceUser, logout } = useAuth()
   const [identification, setIdentification] = useState(user?.identification ?? '')
+  // Si la cuenta ya trae cédula o pasaporte registrado, no puede cambiarse.
+  const identificationLocked = Boolean(user?.identification)
   const [name, setName] = useState(user?.name ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '')
   const [password, setPassword] = useState('')
@@ -65,13 +67,14 @@ export function CompleteProfilePage() {
               <FieldCounter current={identification.length} max={identificationMaxLength(identification)} />
             </div>
             <div className="relative flex items-center">
-              <Input id="profile-identification" value={identification} onChange={(event) => setIdentification(sanitizeIdentification(event.target.value))} required maxLength={10} autoComplete="off" placeholder="0201234567 o AB1234567" className={cn(shouldShowIdentificationStatus(identification) && 'pr-9')} />
+              <Input id="profile-identification" value={identification} onChange={(event) => setIdentification(sanitizeIdentification(event.target.value))} required disabled={identificationLocked} maxLength={10} autoComplete="off" placeholder="0201234567 o AB1234567" className={cn(shouldShowIdentificationStatus(identification) && 'pr-9')} />
               {shouldShowIdentificationStatus(identification) && (
                 identificationValid
                   ? <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
                   : <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
               )}
             </div>
+            {identificationLocked && <FieldDescription>La cédula o pasaporte ya registrado no se puede modificar.</FieldDescription>}
           </Field>
           <Field>
             <div className="flex items-center justify-between">
