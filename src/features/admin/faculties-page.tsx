@@ -183,7 +183,6 @@ export function FacultiesPage() {
     <section className="flex flex-col gap-8">
       <AdminSectionHeader
         title="Estructura de Facultades"
-        description="Gestiona las unidades académicas principales de la universidad."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">

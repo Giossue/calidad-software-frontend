@@ -275,7 +275,6 @@ export function AcademicPeriodsPage() {
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
       <AdminSectionHeader
         title="Períodos Académicos"
-        description="Configura los lapsos académicos en los que se organizan las materias, tutorías y titulaciones. Solo un período puede estar activo al mismo tiempo; se habilita automáticamente en su fecha de inicio y se cierra en su fecha de finalización."
         titleId="academic-periods-title"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">

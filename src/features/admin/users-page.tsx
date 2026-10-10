@@ -446,7 +446,6 @@ export function UsersPage() {
     <section className="flex flex-col gap-8">
       <AdminSectionHeader
         title="Gestión de Usuarios"
-        description="Administra los permisos, roles y cuentas del personal administrativo y académico."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             <Button

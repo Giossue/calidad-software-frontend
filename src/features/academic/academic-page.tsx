@@ -277,7 +277,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     <section className="flex flex-col gap-8">
       <AdminSectionHeader
         title="Oferta de Carreras"
-        description="Gestiona las carreras profesionales ofertadas por cada facultad. Entra a una carrera para administrar sus ciclos."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
