@@ -711,7 +711,9 @@ export function UsersPage() {
               <TableRow>
                 <TableHead>Usuario</TableHead>
                 <TableHead>Rol</TableHead>
-                <TableHead>Cédula / Teléfono</TableHead>
+                <TableHead>Carrera</TableHead>
+                <TableHead>Cédula</TableHead>
+                <TableHead>Teléfono</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
@@ -730,14 +732,16 @@ export function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell><div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-32 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : users.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={7} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
                       <UsersIcon className="size-8 text-slate-300 dark:text-slate-600" />
                       <span className="font-medium">
@@ -773,35 +777,39 @@ export function UsersPage() {
                       </TableCell>
 
                       <TableCell>
-                        <div className="flex flex-col items-start gap-1">
-                          <span
-                            className={cn(
-                              'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold',
-                              badgeStyle,
-                            )}
-                          >
-                            {getRoleLabel(user.role)}
-                          </span>
-                          {user.career_name && (
-                            <span
-                              className="text-[11px] text-slate-500 dark:text-slate-400 font-medium max-w-[200px] truncate"
-                              title={`${user.career_name}${user.faculty_name ? ` · ${user.faculty_name}` : ''}`}
-                            >
-                              {user.career_name}
-                            </span>
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold',
+                            badgeStyle,
                           )}
-                        </div>
+                        >
+                          {getRoleLabel(user.role)}
+                        </span>
                       </TableCell>
 
                       <TableCell className="whitespace-normal">
-                        <div className="flex flex-col text-xs">
-                          <span className="font-medium text-slate-800 dark:text-slate-200">
-                            Cédula: {user.identification ?? '—'}
+                        {user.career_name ? (
+                          <span
+                            className="block max-w-[220px] text-xs font-medium text-slate-700 dark:text-slate-300"
+                            title={`${user.career_name}${user.faculty_name ? ` · ${user.faculty_name}` : ''}`}
+                          >
+                            {user.career_name}
                           </span>
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {user.phone ? `Tel: ${user.phone}` : 'Sin teléfono'}
-                          </span>
-                        </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                          {user.identification ?? '—'}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className={cn('text-xs', user.phone ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500')}>
+                          {user.phone ?? 'Sin teléfono'}
+                        </span>
                       </TableCell>
 
                       <TableCell>
