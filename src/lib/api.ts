@@ -323,7 +323,7 @@ export const api = {
 
   logout: () => request<void>('/api/v1/auth/logout', { method: 'DELETE' }),
 
-  async listUsers(params?: ListParams & { role?: string; careerId?: number }): Promise<PaginatedResourceCollection<User, UserPaginationMeta>> {
+  async listUsers(params?: Omit<ListParams, 'status'> & { role?: string; careerId?: number; status?: 'active' | 'pending' | 'inactive' }): Promise<PaginatedResourceCollection<User, UserPaginationMeta>> {
     const query = buildQuery({ page: params?.page, search: params?.search, role: params?.role, status: params?.status, career_id: params?.careerId })
     return request<PaginatedResourceCollection<User, UserPaginationMeta>>(`/api/v1/users${query}`)
   },

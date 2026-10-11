@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -131,6 +131,27 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     expect(await screen.findByText('Carlos Docente')).toBeInTheDocument()
     expect(screen.getByText('Ingeniería de Software')).toBeInTheDocument()
+  })
+
+  it('muestra como pendientes a las cuentas que aún no completan sus datos', async () => {
+    const base = mockUsers[0]
+    vi.mocked(api.listUsers).mockResolvedValue({
+      data: [
+        base,
+        { ...base, id: 3, name: 'Ana Importada', identification: null, must_complete_profile: true, must_change_password: true },
+        { ...base, id: 4, name: 'Luis Sin Cedula', identification: null, must_complete_profile: true, must_change_password: false },
+        { ...base, id: 5, name: 'Eva Inactiva', is_active: false },
+      ],
+      meta: { current_page: 1, last_page: 1, per_page: 15, total: 4, from: 1, to: 4, active_count: 3, inactive_count: 1, admin_count: 0, career_coordinator_count: 0, degree_coordinator_count: 0, teacher_count: 4, student_count: 0 },
+    })
+
+    render(<UsersPage />)
+    const rowOf = async (name: string) => within((await screen.findByText(name)).closest('tr') as HTMLElement)
+
+    expect((await rowOf('Carlos Docente')).getByText('Activo')).toBeInTheDocument()
+    expect((await rowOf('Ana Importada')).getByText('Correo enviado')).toBeInTheDocument()
+    expect((await rowOf('Luis Sin Cedula')).getByText('Datos pendientes')).toBeInTheDocument()
+    expect((await rowOf('Eva Inactiva')).getByText('Inactivo')).toBeInTheDocument()
   })
 
   it('muestra los selectores de facultad y carrera al elegir rol estudiante, pero no para administrador ni docente', async () => {

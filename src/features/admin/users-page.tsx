@@ -106,6 +106,32 @@ function getRoleLabel(role: string): string {
   return ROLE_OPTIONS.find((option) => option.value === role)?.label ?? role
 }
 
+/**
+ * Estado visible de la cuenta. "Pendiente" es una cuenta habilitada que aún no ingresa
+ * a completar sus datos: recibió el correo con la contraseña provisional o le falta la cédula.
+ */
+function UserStatusBadge({ user, pulse = false }: Readonly<{ user: User; pulse?: boolean }>) {
+  const status = !user.is_active
+    ? { label: 'Inactivo', title: 'La cuenta está deshabilitada.', badge: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400', dot: 'bg-slate-400' }
+    : user.must_complete_profile
+      ? {
+          label: user.must_change_password ? 'Correo enviado' : 'Datos pendientes',
+          title: user.must_change_password
+            ? 'Se envió el correo de acceso; el usuario aún no ingresa a completar sus datos.'
+            : 'El usuario debe registrar su cédula y completar sus datos al ingresar.',
+          badge: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+          dot: 'bg-amber-500',
+        }
+      : { label: 'Activo', title: 'La cuenta está habilitada y con sus datos completos.', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300', dot: cn('bg-emerald-500', pulse && 'animate-pulse') }
+
+  return (
+    <span title={status.title} className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold', status.badge)}>
+      <span className={cn('size-1.5 rounded-full', status.dot)} />
+      {status.label}
+    </span>
+  )
+}
+
 function getRoleBadgeStyle(role: string): string {
   switch (role) {
     case 'administrador':
@@ -175,7 +201,7 @@ function validateUserForm(form: UserForm, editing: boolean, identificationLocked
 export function UsersPage() {
   const isMobile = useIsMobile()
   const [roleFilter, setRoleFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
+  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'pending' | 'inactive'>('')
   const [careerFilter, setCareerFilter] = useState('')
   const [filterCareers, setFilterCareers] = useState<readonly Career[]>([])
   useEffect(() => {
@@ -484,7 +510,7 @@ export function UsersPage() {
           searchPlaceholder="Buscar usuario por nombre, correo o cédula…"
           filters={[
             { id: 'role', label: 'Rol', value: roleFilter, onChange: setRoleFilter, allLabel: 'Todos los roles', options: ROLE_OPTIONS.map((option) => ({ value: option.value, label: option.label })) },
-            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'pending' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'pending', label: 'Pendientes de completar datos' }, { value: 'inactive', label: 'Inactivos' }] },
             { id: 'career', label: 'Carrera', value: careerFilter, onChange: setCareerFilter, allLabel: 'Todas las carreras', options: filterCareers.map((career) => ({ value: String(career.id), label: career.name })) },
           ]}
           onClear={() => { setSearchInput(''); setRoleFilter(''); setStatusFilter(''); setCareerFilter('') }}
@@ -545,17 +571,7 @@ export function UsersPage() {
                   </dl>
 
                   <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                        active
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                          : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
-                      )}
-                    >
-                      <span className={cn('size-1.5 rounded-full', active ? 'bg-emerald-500' : 'bg-slate-400')} />
-                      {active ? 'Activo' : 'Inactivo'}
-                    </span>
+                    <UserStatusBadge user={user} />
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -710,22 +726,7 @@ export function UsersPage() {
                       </TableCell>
 
                       <TableCell>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                            active
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'size-1.5 rounded-full',
-                              active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400',
-                            )}
-                          />
-                          {active ? 'Activo' : 'Inactivo'}
-                        </span>
+                        <UserStatusBadge user={user} pulse />
                       </TableCell>
 
                       <TableCell>
