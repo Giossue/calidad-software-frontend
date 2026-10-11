@@ -607,8 +607,17 @@ export interface BulkImport {
   readonly status: 'pending' | 'processing' | 'done' | 'failed'
   readonly total_rows: number
   readonly created_count: number
+  /** Filas omitidas porque sus datos ya están registrados en el sistema. */
+  readonly skipped_count?: number
   readonly failed_count: number
-  readonly errors: readonly { readonly row: number; readonly messages: readonly string[] }[]
+  readonly errors: readonly BulkImportRowMessage[]
+  /** Avisos de las filas omitidas por estar ya registradas. */
+  readonly warnings?: readonly BulkImportRowMessage[]
+}
+
+export interface BulkImportRowMessage {
+  readonly row: number
+  readonly messages: readonly string[]
 }
 
 export const importsApi = {

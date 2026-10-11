@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,7 +18,7 @@ afterEach(() => {
 })
 
 describe('BulkImportButton', () => {
-  it('sube el CSV, consulta el progreso y muestra los errores por fila', async () => {
+  it('sube el CSV, consulta el progreso y separa los avisos de datos ya registrados de los errores', async () => {
     const user = userEvent.setup()
     const onFinished = vi.fn()
     vi.spyOn(importsApi, 'upload').mockResolvedValue(base)
@@ -26,8 +26,10 @@ describe('BulkImportButton', () => {
       ...base,
       status: 'done',
       created_count: 2,
+      skipped_count: 1,
       failed_count: 1,
-      errors: [{ row: 3, messages: ['El correo ana@ueb.edu.ec ya está registrado.'] }],
+      errors: [{ row: 4, messages: ['El rol rector no existe.'] }],
+      warnings: [{ row: 3, messages: ['El correo ana@ueb.edu.ec ya está registrado.'] }],
     })
 
     render(<BulkImportButton type="users" title="Carga masiva de usuarios" onFinished={onFinished} />)
@@ -40,8 +42,9 @@ describe('BulkImportButton', () => {
     await user.click(screen.getByRole('button', { name: 'Importar' }))
 
     expect(importsApi.upload).toHaveBeenCalledWith('users', file)
-    expect(await screen.findByText(/2 registros creados y 1 con errores/)).toBeInTheDocument()
-    expect(screen.getByText('El correo ana@ueb.edu.ec ya está registrado.')).toBeInTheDocument()
+    expect(await screen.findByText(/2 registros creados, 1 ya estaba registrado y 1 con errores/)).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Ya registrados en el sistema' })).getByText('El correo ana@ueb.edu.ec ya está registrado.')).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Filas con errores' })).getByText('El rol rector no existe.')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))
     expect(onFinished).toHaveBeenCalledTimes(1)

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, DownloadIcon, FileUpIcon, UploadIcon } from 'lucide-react'
+import { CheckCircle2Icon, DownloadIcon, FileUpIcon, InfoIcon, TriangleAlertIcon, UploadIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { ApiError, importsApi, type BulkImport, type BulkImportType } from '@/lib/api'
+import { ApiError, importsApi, type BulkImport, type BulkImportRowMessage, type BulkImportType } from '@/lib/api'
 import { BULK_IMPORT_COLUMNS, BULK_IMPORT_POLL_MS } from '@/lib/bulk-import'
 
 import { cn } from '@/lib/utils'
@@ -143,27 +143,24 @@ export function BulkImportButton({
             ) : (
               <p className="flex items-center gap-2 text-sm font-medium">
                 <CheckCircle2Icon className="size-5 text-emerald-600" aria-hidden="true" />
-                Importación terminada: {result.created_count} {result.created_count === 1 ? 'registro creado' : 'registros creados'} y {result.failed_count} con errores.
+                Importación terminada: {[
+                  `${result.created_count} ${result.created_count === 1 ? 'registro creado' : 'registros creados'}`,
+                  ...((result.skipped_count ?? 0) > 0 ? [`${result.skipped_count} ya ${result.skipped_count === 1 ? 'estaba registrado' : 'estaban registrados'}`] : []),
+                  `${result.failed_count} con errores`,
+                ].join(', ').replace(/, ([^,]*)$/, ' y $1')}.
               </p>
             )}
             {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
+            {(result.warnings?.length ?? 0) > 0 && (
+              <ImportRowsTable
+                tone="warning"
+                title="Ya registrados en el sistema"
+                description="Estas filas se omitieron porque sus datos ya existen; no es necesario volver a cargarlas."
+                rows={result.warnings ?? []}
+              />
+            )}
             {result.errors.length > 0 && (
-              <div className="max-h-72 overflow-auto rounded-lg border">
-                <table className="w-full text-left text-sm">
-                  <caption className="sr-only">Filas con errores</caption>
-                  <thead className="sticky top-0 bg-muted">
-                    <tr><th scope="col" className="w-20 px-3 py-2">Fila</th><th scope="col" className="px-3 py-2">Error</th></tr>
-                  </thead>
-                  <tbody>
-                    {result.errors.map((rowError) => (
-                      <tr key={rowError.row} className="border-t align-top">
-                        <td className="px-3 py-2 font-mono">{rowError.row}</td>
-                        <td className="px-3 py-2">{rowError.messages.join(' ')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ImportRowsTable tone="error" title="Filas con errores" rows={result.errors} />
             )}
             {!processing && result.errors.length > 0 && (
               <p className="text-xs text-muted-foreground">Corrige solo esas filas en un archivo nuevo y vuelve a cargarlo; las demás ya quedaron registradas.</p>
@@ -175,5 +172,35 @@ export function BulkImportButton({
         )}
       </Dialog>
     </>
+  )
+}
+
+function ImportRowsTable({ tone, title, description, rows }: Readonly<{ tone: 'warning' | 'error'; title: string; description?: string; rows: readonly BulkImportRowMessage[] }>) {
+  const Icon = tone === 'warning' ? InfoIcon : TriangleAlertIcon
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className={cn('flex items-center gap-2 text-sm font-semibold', tone === 'warning' ? 'text-amber-700 dark:text-amber-300' : 'text-destructive')}>
+        <Icon className="size-4" aria-hidden="true" />
+        {title} ({rows.length})
+      </h3>
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      <div className={cn('max-h-56 overflow-auto rounded-lg border', tone === 'warning' && 'border-amber-200 dark:border-amber-900')}>
+        <table className="w-full text-left text-sm">
+          <caption className="sr-only">{title}</caption>
+          <thead className={cn('sticky top-0', tone === 'warning' ? 'bg-amber-50 dark:bg-amber-950/60' : 'bg-muted')}>
+            <tr><th scope="col" className="w-20 px-3 py-2">Fila</th><th scope="col" className="px-3 py-2">{tone === 'warning' ? 'Aviso' : 'Error'}</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.row} className="border-t align-top">
+                <td className="px-3 py-2 font-mono">{row.row}</td>
+                <td className="px-3 py-2">{row.messages.join(' ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
