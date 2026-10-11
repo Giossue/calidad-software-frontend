@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import uebLogo from '@/assets/ueb-logo.png'
+import { NotificationBell } from '@/components/notification-bell'
 import { PwaInstallDialog } from '@/components/pwa-install-dialog'
 import { AccessibilityModal } from '@/components/ui/accessibility-modal'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -304,6 +305,8 @@ export function DashboardPage() {
               <MonitorDownIcon className="size-4 shrink-0 text-brand-blue" />
               <span className="hidden lg:inline lg:ml-1.5">Instalar App</span>
             </button>
+
+            <NotificationBell />
 
             <button
               type="button"

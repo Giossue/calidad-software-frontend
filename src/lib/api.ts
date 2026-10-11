@@ -648,3 +648,34 @@ export const importsApi = {
     URL.revokeObjectURL(url)
   },
 }
+
+/** Aviso de una acción del sistema que afecta al usuario (campana). */
+export interface AppNotification {
+  readonly id: string
+  readonly kind: string
+  readonly title: string
+  readonly body: string
+  /** Pantalla del panel a la que lleva el aviso, p. ej. /panel/student-tutorings. */
+  readonly url: string | null
+  readonly read_at: string | null
+  readonly created_at: string | null
+}
+
+export const notificationsApi = {
+  async list(): Promise<{ data: readonly AppNotification[]; unreadCount: number }> {
+    const response = await request<{ data: AppNotification[]; meta: { unread_count: number } }>('/api/v1/notifications?per_page=20')
+    return { data: response.data, unreadCount: response.meta.unread_count }
+  },
+
+  async unreadCount(): Promise<number> {
+    const response = await request<Resource<{ unread_count: number }>>('/api/v1/notifications/unread-count')
+    return response.data.unread_count
+  },
+
+  async markAsRead(id: string): Promise<AppNotification> {
+    const response = await request<Resource<AppNotification>>(`/api/v1/notifications/${id}/read`, { method: 'PATCH' })
+    return response.data
+  },
+
+  markAllAsRead: () => request<void>('/api/v1/notifications/read-all', { method: 'PATCH' }),
+}
