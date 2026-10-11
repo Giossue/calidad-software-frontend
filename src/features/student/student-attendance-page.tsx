@@ -7,6 +7,7 @@ import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { formatDate } from '@/lib/format'
 import { studentApi, type StudentAttendance } from '@/lib/student-api'
+import { AbsenceNotices } from './student-absence-notices'
 import { StudentEmpty } from './student-shared'
 import { FilterChips, ListFooter, RedProgress } from './student-ui'
 import { usePagedList } from './student-hooks'
@@ -42,11 +43,12 @@ function AttendanceView({ item }: Readonly<{ item: StudentAttendance }>) {
 }
 
 // Récord de asistencia de una tutoría.
-export function AttendancePanel({ tutoringId }: Readonly<{ tutoringId: number }>) {
+export function AttendancePanel({ tutoringId, canNotify = false }: Readonly<{ tutoringId: number; canNotify?: boolean }>) {
   const resource = useDegreeResource(studentApi.attendance)
   const item = resource.data?.find((attendance) => attendance.tutoring?.id === tutoringId)
 
   return <div className="flex flex-col gap-5">
+    <AbsenceNotices tutoringId={tutoringId} canNotify={canNotify} />
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {resource.loading ? <Skeleton role="status" aria-label="Cargando asistencia" className="h-48 w-full" /> : !resource.error && (!item ? <StudentEmpty title="Aún no tienes asistencia registrada" description="Tu récord aparecerá cuando tu docente registre la primera sesión." /> : <AttendanceView item={item} />)}
   </div>

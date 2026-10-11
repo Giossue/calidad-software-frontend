@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,7 +32,10 @@ function show(component: React.ReactNode, path = '/panel/student-tutorings') {
   return render(<MemoryRouter initialEntries={[path]}>{component}</MemoryRouter>)
 }
 
-beforeEach(() => { vi.resetAllMocks() })
+beforeEach(() => {
+  vi.resetAllMocks()
+  vi.mocked(studentApi.absenceNotices).mockResolvedValue([])
+})
 afterEach(cleanup)
 
 beforeEach(() => { vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }) })
@@ -107,6 +110,24 @@ describe('Módulo Estudiante', () => {
     expect(screen.getByText('Pruebas unitarias')).toBeInTheDocument()
     expect(screen.getByText('Ausente')).toBeInTheDocument()
     expect(screen.queryByText('Otra tutoría')).not.toBeInTheDocument()
+  })
+
+  it('permite avisar una inasistencia al docente y muestra el estado del aviso', async () => {
+    const user = userEvent.setup()
+    vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
+    vi.mocked(studentApi.attendance).mockResolvedValue([attendance])
+    vi.mocked(studentApi.absenceNotices).mockResolvedValueOnce([]).mockResolvedValue([{ id: 1, date: '2026-12-01', reason: 'Cita médica programada', created_at: null, status: 'ausente' }])
+    vi.mocked(studentApi.createAbsenceNotice).mockResolvedValue({ id: 1, date: '2026-12-01', reason: 'Cita médica programada', created_at: null, status: 'pendiente' })
+    workspace('attendance')
+
+    await user.click(await screen.findByRole('button', { name: 'Avisar inasistencia' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Avisar inasistencia' })
+    fireEvent.change(within(dialog).getByLabelText('Fecha de la clase'), { target: { value: '2026-12-01' } })
+    await user.type(within(dialog).getByLabelText('Motivo'), 'Cita médica programada')
+    await user.click(within(dialog).getByRole('button', { name: 'Enviar aviso' }))
+
+    await waitFor(() => expect(studentApi.createAbsenceNotice).toHaveBeenCalledWith(tutoring.subject!.id, { date: '2026-12-01', reason: 'Cita médica programada' }))
+    expect(await screen.findByText('Registrado: ausente')).toBeInTheDocument()
   })
 
   it('presenta las tres notas y el grupo de conocimiento, sin historial', async () => {

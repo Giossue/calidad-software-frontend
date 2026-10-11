@@ -53,6 +53,7 @@ beforeEach(() => {
   vi.mocked(teacherApi.topics).mockResolvedValue(paginated([topic]))
   vi.mocked(teacherApi.allTopics).mockResolvedValue([topic])
   vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([]))
+  vi.mocked(teacherApi.absenceNotices).mockResolvedValue([])
   vi.mocked(teacherApi.attendance).mockResolvedValue(paginated([]))
   vi.mocked(teacherApi.allAttendance).mockResolvedValue([])
   vi.mocked(teacherApi.reports).mockResolvedValue(paginated([]))
@@ -313,6 +314,25 @@ describe('Módulo Docente', () => {
     await user.click(save)
     await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledWith(40, { date: today, topics_covered: false, topic_ids: [], attendance: [{ enrollment_id: 70, present: false }] }))
     expect(sessionStorage.getItem(`attendance-draft:40:${today}`)).toBeNull()
+  })
+
+  it('muestra el aviso de inasistencia del estudiante y el docente decide presente o ausente', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([student, { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222' }])
+    vi.mocked(teacherApi.absenceNotices).mockResolvedValue([{ id: 1, enrollment_id: 70, student_name: 'Ana Pérez', date: today, reason: 'Cita médica' }])
+    vi.mocked(teacherApi.saveSession).mockResolvedValue({ id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [] })
+    attendance()
+
+    expect(await screen.findByText('Avisó que no asistirá: Cita médica')).toBeInTheDocument()
+    expect(screen.getByText(/Ana Pérez avisó que no asistirá en esta fecha/)).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Justificar' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: 'Presente: Luis Mora' }))
+
+    await user.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
+    await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledWith(40, expect.objectContaining({ attendance: [
+      { enrollment_id: 70, present: false },
+      { enrollment_id: 71, present: true },
+    ] })))
   })
 
   it('ordena a los estudiantes alfabéticamente, ignorando tildes y mayúsculas', async () => {

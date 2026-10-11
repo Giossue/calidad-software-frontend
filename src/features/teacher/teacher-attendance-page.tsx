@@ -6,6 +6,7 @@ import {
   CheckCheckIcon,
   CheckCircle2Icon,
   ClipboardListIcon,
+  MailWarningIcon,
   PencilIcon,
   PlusIcon,
   SaveIcon,
@@ -30,7 +31,7 @@ import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { compareNames, formatDate } from '@/lib/format'
 import { DAY_LABELS } from '@/lib/tutoring-api'
-import { teacherApi, type Enrollment, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
+import { teacherApi, type Enrollment, type TeacherAbsenceNotice, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
 import { TeacherEmpty } from './teacher-shared'
 
 const SESSION_PARAM = 'session'
@@ -353,11 +354,34 @@ function SessionsList({
   )
 }
 
-type AttendanceTableMeta = { marks: Marks; disabled: boolean; onMark: (studentId: number, present: boolean) => void }
+type AttendanceTableMeta = {
+  marks: Marks
+  notices: ReadonlyMap<number, TeacherAbsenceNotice>
+  disabled: boolean
+  onMark: (studentId: number, present: boolean) => void
+}
 
 const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
   { id: 'number', header: 'N.°', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
-  { id: 'name', header: 'Estudiante', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+  {
+    id: 'name',
+    header: 'Estudiante',
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as AttendanceTableMeta
+      const notice = meta.notices.get(row.original.id)
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="font-medium">{row.original.name}</span>
+          {notice && (
+            <span className="flex items-start gap-1.5 whitespace-normal text-xs text-amber-700 dark:text-amber-300">
+              <MailWarningIcon className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+              <span>Avisó que no asistirá: {notice.reason}</span>
+            </span>
+          )}
+        </div>
+      )
+    },
+  },
   {
     id: 'present',
     header: () => <div className="text-center">Asistió</div>,
@@ -410,11 +434,12 @@ function SessionFlow({
   onClose: () => void
 }>) {
   const resource = useDegreeResource(async () => {
-    const [students, sessions] = await Promise.all([
+    const [students, sessions, notices] = await Promise.all([
       teacherApi.allStudents(tutoring.id),
       teacherApi.sessions(tutoring.id, { date }),
+      teacherApi.absenceNotices(tutoring.id, date),
     ])
-    return { students, session: sessions.data[0] ?? null }
+    return { students, session: sessions.data[0] ?? null, notices }
   }, `${tutoring.id}:${date}`)
 
   return (
@@ -492,6 +517,7 @@ function SessionForm({
   onClose,
   students,
   session,
+  notices,
 }: Readonly<{
   tutoring: TeacherTutoring
   date: string
@@ -500,6 +526,7 @@ function SessionForm({
   onClose: () => void
   students: readonly Enrollment[]
   session: TutoringSession | null
+  notices: readonly TeacherAbsenceNotice[]
 }>) {
   const operation = useOperation()
   const active = useMemo(
@@ -514,6 +541,8 @@ function SessionForm({
   const [draft] = useState(() => readDraft(tutoring.id, date))
   const [marks, setMarks] = useState<Marks>(() => draft?.marks ?? Object.fromEntries((session?.attendance ?? []).map((record) => [record.enrollment_id, record.present])))
   const [touched, setTouched] = useState(false)
+  const noticesByEnrollment = useMemo(() => new Map(notices.map((notice) => [notice.enrollment_id, notice])), [notices])
+  const noticedStudents = active.filter((student) => noticesByEnrollment.has(student.id))
 
   useEffect(() => {
     if (touched) writeDraft(tutoring.id, date, { marks })
@@ -558,7 +587,9 @@ function SessionForm({
     )
   }
 
-  const tableMeta: AttendanceTableMeta = { marks, disabled: readOnly || operation.pending, onMark: mark }
+  const tableMeta: AttendanceTableMeta = {
+    marks, notices: noticesByEnrollment, disabled: readOnly || operation.pending, onMark: mark,
+  }
 
   return (
     <form
@@ -595,6 +626,18 @@ function SessionForm({
             {date === todayDate()
               ? 'La lista de hoy ya se tomó. Estás modificándola: al guardar se reemplaza ese registro.'
               : 'Ya existe una sesión registrada para esta fecha. Lo que guardes la reemplazará.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {noticedStudents.length > 0 && (
+        <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200">
+          <MailWarningIcon />
+          <AlertDescription>
+            {noticedStudents.length === 1
+              ? `${noticedStudents[0].name} avisó que no asistirá en esta fecha.`
+              : `${noticedStudents.length} estudiantes avisaron que no asistirán en esta fecha.`}{' '}
+            Revisa el motivo y marca si asistió o no.
           </AlertDescription>
         </Alert>
       )}

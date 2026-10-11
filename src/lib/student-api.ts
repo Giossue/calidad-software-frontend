@@ -126,11 +126,23 @@ async function mutate<T>(path: string, method: string, input: unknown): Promise<
   return (await request<Resource<T>>(`${ROOT}/${path}`, { method, body: JSON.stringify(input) })).data
 }
 
+/** Aviso de inasistencia enviado por el estudiante. */
+export interface StudentAbsenceNotice {
+  readonly id: number
+  readonly date: string
+  readonly reason: string
+  readonly created_at: string | null
+  /** pendiente: aún no se toma lista de esa fecha; luego, lo que registró el docente. */
+  readonly status: 'pendiente' | 'presente' | 'ausente'
+}
+
 export const studentApi = {
   tutorings: async () => (await request<Collection<StudentTutoring>>(`${ROOT}/tutoring`)).data,
   grades: async () => (await request<Collection<StudentGrades>>(`${ROOT}/tutoring/grades`)).data,
   attendance: async () => (await request<Collection<StudentAttendance>>(`${ROOT}/tutoring/attendance`)).data,
   content: async (tutoringId: number) => (await request<Resource<StudentContent>>(`${ROOT}/tutoring/${tutoringId}/topics`)).data,
+  absenceNotices: async (tutoringId: number) => (await request<Collection<StudentAbsenceNotice>>(`${ROOT}/tutoring/${tutoringId}/absence-notices`)).data,
+  createAbsenceNotice: (tutoringId: number, input: { date: string; reason: string }) => mutate<StudentAbsenceNotice>(`tutoring/${tutoringId}/absence-notices`, 'POST', input),
   sessions: async (tutoringId: number) => (await request<Collection<StudentClassSession>>(`${ROOT}/tutoring/${tutoringId}/sessions`)).data,
   degreeAssignments: async (topicId: number) => (await request<Resource<StudentDegreeAssignments>>(`${ROOT}/degree-topics/${topicId}/assignments`)).data,
   createTopic: (input: StudentTopicInput & { replace_pending?: boolean }) => mutate<DegreeTopic>('degree-topics', 'POST', input),

@@ -77,6 +77,15 @@ export interface SessionAttendanceRecord {
   readonly student_email?: string
   readonly present: boolean
 }
+
+/** Aviso del estudiante de que no asistirá a la clase de una fecha. */
+export interface TeacherAbsenceNotice {
+  readonly id: number
+  readonly enrollment_id: number
+  readonly student_name: string
+  readonly date: string
+  readonly reason: string
+}
 export interface TutoringSession {
   readonly id: number
   readonly tutoring_id: number
@@ -163,6 +172,7 @@ export const teacherApi = {
   allSessions: (id: number) => collectPages((page) => list<TutoringSession>(`tutorings/${id}/sessions`, { page, per_page: 100 })),
   attendance: (id: number, params?: TeacherListParams) => list<TeacherAttendance>(`tutorings/${id}/attendance`, params),
   allAttendance: (id: number, date: string) => collectPages((page) => list<TeacherAttendance>(`tutorings/${id}/attendance`, { page, date, per_page: 100 })),
+  absenceNotices: async (id: number, date: string) => (await request<{ data: TeacherAbsenceNotice[] }>(`${ROOT}/tutorings/${id}/absence-notices${buildQuery({ date })}`)).data,
   saveSession: (id: number, input: SessionInput) => mutate<TutoringSession>(`tutorings/${id}/sessions`, 'PUT', input),
   updateSessionTopics: (id: number, sessionId: number, topic_ids: readonly number[]) => mutate<TutoringSession>(`tutorings/${id}/sessions/${sessionId}/topics`, 'PATCH', { topic_ids }),
   reports: (id: number, params?: TeacherListParams) => list<TeacherReport>(`tutorings/${id}/reports`, params),

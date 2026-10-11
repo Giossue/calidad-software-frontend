@@ -62,7 +62,7 @@ export function StudentTutoringWorkspace({ subjectId }: Readonly<{ subjectId: nu
         <Tabs value={tab} onValueChange={selectTab}>
           <TabsList aria-label="Secciones de la tutoría">{TABS.map((item) => <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>)}</TabsList>
           <TabsContent value="content"><ContentPanel tutoringId={subject.id} /></TabsContent>
-          <TabsContent value="attendance"><AttendancePanel tutoringId={subject.id} /></TabsContent>
+          <TabsContent value="attendance"><AttendancePanel tutoringId={subject.id} canNotify={enrollment.is_active && subject.is_active} /></TabsContent>
           <TabsContent value="grades"><GradesPanel tutoringId={subject.id} /></TabsContent>
           <TabsContent value="schedules"><SchedulesPanel enrollment={enrollment} /></TabsContent>
         </Tabs>
