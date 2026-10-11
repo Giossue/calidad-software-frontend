@@ -9,7 +9,6 @@ import {
   FileTextIcon,
   LogOutIcon,
   MonitorDownIcon,
-  Settings2Icon,
   TrendingUpIcon,
   UserCheckIcon,
   UsersIcon,
@@ -18,6 +17,7 @@ import {
 import uebLogo from '@/assets/ueb-logo.png'
 import { NotificationBell } from '@/components/notification-bell'
 import { PwaInstallDialog } from '@/components/pwa-install-dialog'
+import { UserMenu } from '@/components/user-menu'
 import { AccessibilityModal } from '@/components/ui/accessibility-modal'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -38,7 +38,6 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { Spinner } from '@/components/ui/spinner'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
   AdminSectionContent,
   isAdminSection,
@@ -308,30 +307,15 @@ export function DashboardPage() {
 
             <NotificationBell />
 
-            <button
-              type="button"
-              onClick={() => setAccessibilityOpen(true)}
-              className="flex size-8 items-center justify-center rounded-full border border-border bg-card p-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted sm:size-9 sm:p-2"
-              title="Configuración de Accesibilidad"
-            >
-              <Settings2Icon className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-
-            <ThemeToggle />
-
-            <div className="flex items-center gap-2 rounded-full border border-border bg-card p-1 shadow-2xs max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none sm:gap-3 sm:p-1.5 sm:pr-4">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-blue font-bold text-xs text-white sm:size-9">
-                {initials}
-              </div>
-              <div className="hidden flex-col text-left sm:flex">
-                <span className="max-w-[120px] truncate text-xs font-bold leading-tight text-foreground lg:max-w-none">
-                  {user?.name ?? 'Usuario'}
-                </span>
-                <span className="max-w-[120px] truncate text-[11px] font-medium text-muted-foreground lg:max-w-none">
-                  {user?.email ?? ''}
-                </span>
-              </div>
-            </div>
+            <UserMenu
+              name={user?.name ?? 'Usuario'}
+              email={user?.email ?? ''}
+              roleLabel={userRoleText}
+              initials={initials}
+              onOpenAccessibility={() => setAccessibilityOpen(true)}
+              onSignOut={() => void signOut()}
+              signingOut={pending}
+            />
           </div>
         </header>
 

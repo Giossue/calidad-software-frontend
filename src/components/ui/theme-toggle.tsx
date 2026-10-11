@@ -5,7 +5,11 @@ import { MoonIcon, SunIcon } from 'lucide-react'
 import { getStoredAccessibility, saveAccessibilitySettings } from '@/lib/accessibility'
 import { cn } from '@/lib/utils'
 
-export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
+/**
+ * Alterna entre modo claro y oscuro. La animación circular parte desde el
+ * elemento que se pasa como origen (el botón o la opción de menú pulsada).
+ */
+export function useThemeToggle() {
   const [isDark, setIsDark] = useState(() => getStoredAccessibility().darkMode)
   const isTransitioning = useRef(false)
 
@@ -16,7 +20,7 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
     setIsDark(next.darkMode)
   }
 
-  function toggle(event: MouseEvent<HTMLButtonElement>) {
+  function toggle(origin: Element) {
     if (isTransitioning.current) return
 
     const reduceMotion =
@@ -28,7 +32,7 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
       return
     }
 
-    const { left, top, width, height } = event.currentTarget.getBoundingClientRect()
+    const { left, top, width, height } = origin.getBoundingClientRect()
     const x = left + width / 2
     const y = top + height / 2
     const endRadius = Math.hypot(
@@ -67,10 +71,16 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
     )
   }
 
+  return { isDark, toggle }
+}
+
+export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
+  const { isDark, toggle } = useThemeToggle()
+
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={(event: MouseEvent<HTMLButtonElement>) => toggle(event.currentTarget)}
       aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       title={isDark ? 'Modo claro' : 'Modo oscuro'}
       className={cn(
