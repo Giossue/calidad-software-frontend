@@ -273,7 +273,7 @@ export function DashboardPage() {
                 tooltip="Instalar App"
                 onClick={() => setPwaInstallOpen(true)}
               >
-                <MonitorDownIcon className="text-brand-blue" />
+                <MonitorDownIcon />
                 <span>Instalar App</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
