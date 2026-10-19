@@ -26,6 +26,8 @@ import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
+import { PasswordStrength } from '@/components/ui/password-strength'
+import { getPasswordRequirementHint, PASSWORD_MIN_LENGTH } from '@/lib/password-rules'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -92,14 +94,6 @@ const INITIAL_USER_FORM: UserForm = {
 
 function isRole(value: string): boolean {
   return ROLE_OPTIONS.some((option) => option.value === value)
-}
-
-function getPasswordRequirementHint(password: string): string | null {
-  if (password.length < 8) return 'Debe tener al menos 8 caracteres.'
-  if (!/[a-z]/.test(password)) return 'Debe incluir al menos una minúscula.'
-  if (!/[A-Z]/.test(password)) return 'Debe incluir al menos una mayúscula.'
-  if (!/[^A-Za-z0-9]/.test(password)) return 'Debe incluir al menos un carácter especial.'
-  return null
 }
 
 function getRoleLabel(role: string): string {
@@ -1020,14 +1014,11 @@ export function UsersPage() {
                     value={userForm.password}
                     onChange={(e) => updateUserField('password', e.target.value)}
                     autoComplete="new-password"
-                    placeholder="Mínimo 8 caracteres"
+                    placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
                     disabled={formDisabled}
+                    aria-describedby={userForm.password ? 'user-password-strength' : undefined}
                   />
-                  {userForm.password && getPasswordRequirementHint(userForm.password) && (
-                    <FieldDescription className="text-xs">
-                      {getPasswordRequirementHint(userForm.password)}
-                    </FieldDescription>
-                  )}
+                  {userForm.password && <PasswordStrength id="user-password-strength" password={userForm.password} />}
                   <FieldError>{userErrors.password}</FieldError>
                 </Field>
 

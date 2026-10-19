@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldCounter, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
+import { PasswordStrength } from '@/components/ui/password-strength'
 import { Spinner } from '@/components/ui/spinner'
 import { api, ApiError } from '@/lib/api'
+import { isPasswordValid } from '@/lib/password-rules'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
@@ -31,7 +33,7 @@ export function CompleteProfilePage() {
   const [pending, setPending] = useState(false)
 
   const identificationValid = isValidIdentification(identification)
-  const canSubmit = identificationValid && name.trim() !== '' && /^\d{10}$/.test(phone) && (!mustChangePassword || (password !== '' && confirmation !== ''))
+  const canSubmit = identificationValid && name.trim() !== '' && /^\d{10}$/.test(phone) && (!mustChangePassword || (isPasswordValid(password) && confirmation !== ''))
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -92,8 +94,9 @@ export function CompleteProfilePage() {
             <>
               <Field>
                 <FieldLabel htmlFor="profile-password">Nueva contraseña</FieldLabel>
-                <PasswordInput id="profile-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+                <PasswordInput id="profile-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby="profile-password-strength" required />
                 <FieldDescription>Debe ser distinta de la contraseña provisional.</FieldDescription>
+                <PasswordStrength id="profile-password-strength" password={password} />
               </Field>
               <Field>
                 <FieldLabel htmlFor="profile-password-confirmation">Confirma la contraseña</FieldLabel>

@@ -4,8 +4,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { PasswordInput } from '@/components/ui/password-input'
+import { PasswordStrength } from '@/components/ui/password-strength'
 import { Spinner } from '@/components/ui/spinner'
 import { api, ApiError } from '@/lib/api'
+import { isPasswordValid } from '@/lib/password-rules'
 import { AuthFeedback } from './auth-feedback'
 import { AuthShell } from './auth-shell'
 
@@ -21,6 +23,10 @@ export function ResetPasswordPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (password !== confirmation) {
+      setError('Las contraseñas no coinciden.')
+      return
+    }
     setError(null)
     setPending(true)
     try {
@@ -40,14 +46,15 @@ export function ResetPasswordPage() {
         <FieldGroup>
           <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor="password">Nueva contraseña</FieldLabel>
-            <PasswordInput id="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} required />
+            <PasswordInput id="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} aria-describedby="password-strength" required />
+            <PasswordStrength id="password-strength" password={password} />
           </Field>
           <Field data-invalid={Boolean(error)}>
             <FieldLabel htmlFor="confirmation">Confirma la contraseña</FieldLabel>
             <PasswordInput id="confirmation" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-invalid={Boolean(error)} required />
             <FieldError>{error}</FieldError>
           </Field>
-          <Button type="submit" disabled={pending || !email || !token} className="w-full">
+          <Button type="submit" disabled={pending || !email || !token || !isPasswordValid(password) || confirmation === ''} className="w-full">
             {pending && <Spinner data-icon="inline-start" />}
             Restablecer contraseña
           </Button>
