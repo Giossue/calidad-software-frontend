@@ -270,6 +270,15 @@ export function DashboardPage() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
+                tooltip="Instalar App"
+                onClick={() => setPwaInstallOpen(true)}
+              >
+                <MonitorDownIcon className="text-brand-blue" />
+                <span>Instalar App</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
                 tooltip={pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
                 onClick={() => void signOut()}
                 disabled={pending}
@@ -295,16 +304,6 @@ export function DashboardPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
-            <button
-              type="button"
-              onClick={() => setPwaInstallOpen(true)}
-              className="flex size-8 items-center justify-center rounded-full border border-border bg-card p-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted sm:size-9 sm:p-2 lg:h-9 lg:w-auto lg:px-3"
-              title="Instalar acceso directo en el Escritorio"
-            >
-              <MonitorDownIcon className="size-4 shrink-0 text-brand-blue" />
-              <span className="hidden lg:inline lg:ml-1.5">Instalar App</span>
-            </button>
-
             <NotificationBell />
 
             <UserMenu
