@@ -126,22 +126,6 @@ function UserStatusBadge({ user, pulse = false }: Readonly<{ user: User; pulse?:
   )
 }
 
-function getRoleBadgeStyle(role: string): string {
-  switch (role) {
-    case 'administrador':
-      return 'bg-destructive/10 text-destructive border-destructive/25'
-    case 'docente':
-      return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
-    case 'estudiante':
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-    case 'coordinador_carrera':
-    case 'coordinador_titulacion':
-      return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
-    default:
-      return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
-  }
-}
-
 function validateUserForm(form: UserForm, editing: boolean, identificationLocked = false): UserFormErrors {
   const errors: UserFormErrors = {}
   const identification = form.identification.trim()
@@ -540,7 +524,7 @@ export function UsersPage() {
                       <span className="font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] dark:text-white">{user.name}</span>
                       <span className="text-xs text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400">{user.email}</span>
                     </div>
-                    <span className={cn('inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold', getRoleBadgeStyle(user.role))}>
+                    <span className="shrink-0 text-xs font-medium text-slate-800 dark:text-slate-200">
                       {getRoleLabel(user.role)}
                     </span>
                   </div>
@@ -662,7 +646,6 @@ export function UsersPage() {
               ) : (
                 users.map((user) => {
                   const active = user.is_active
-                  const badgeStyle = getRoleBadgeStyle(user.role)
                   const initials = getInitials(user.name)
 
                   return (
@@ -684,12 +667,7 @@ export function UsersPage() {
                       </TableCell>
 
                       <TableCell>
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold',
-                            badgeStyle,
-                          )}
-                        >
+                        <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
                           {getRoleLabel(user.role)}
                         </span>
                       </TableCell>
