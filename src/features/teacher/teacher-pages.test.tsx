@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api'
 import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
+import type { FinalPaoReportSummary } from '@/lib/final-pao-report'
+import type { FollowUpReportSummary } from '@/lib/follow-up-report'
 import { teacherApi, type Enrollment, type TeacherTutoring, type TutoringTopic } from '@/lib/teacher-api'
 import { dashboardSection } from '@/features/tutoring/tutoring-navigation'
 import { TeacherDegreeAssignmentsPage } from './teacher-degree-assignments-page'
@@ -606,6 +608,100 @@ describe('Módulo Docente', () => {
 
     expect(await screen.findByText(/Aún no hay calificaciones diagnósticas registradas/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Enviar a coordinación' })).toBeDisabled()
+  })
+
+  it('prepara el reporte de seguimiento de un parcial con el formato oficial y lo envía a coordinación', async () => {
+    const user = userEvent.setup()
+    const summary: FollowUpReportSummary = {
+      format: 'tutoring_follow_up', faculty: 'Ciencias Administrativas', career: 'Software', subject: 'Calidad de software',
+      academic_period: '2026-2', section: 'A', coordinator: 'Galuth García', teacher: 'María López', date: today,
+      partial: 1, partial_label: 'primer parcial', partial_title: 'Primer Parcial', from: '2026-01-01', to: today,
+      background: 'Tras la evaluación diagnóstica inicial, se implementaron tutorías individuales y grupales en la CARRERA DE SOFTWARE como apoyo pedagógico.',
+      session_count: 1,
+      activities: [
+        { date: '2026-03-19', topic: 'Regla del Trapecio', activity: 'Resolución de ejercicios', methodology: 'Aprendizaje basado en problemas (ABP)' },
+        { date: '2026-03-19', topic: 'Integración de Romberg', activity: null, methodology: null },
+      ],
+      attendance: { at_risk_total: 10, at_risk_attending: 9, not_at_risk_attending: 2, unclassified_attending: 1 },
+      improved: [{ number: 1, name: 'Ana Pérez', diagnostic: 3, partial: 6 }],
+      observations: null,
+    }
+    const report = { id: 130, type: 'Reporte de seguimiento de tutorías (primer parcial)', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'REPORTE', summary: { ...summary, observations: 'Temas elegidos por los estudiantes.' } }
+    vi.mocked(teacherApi.followUpReportPreview).mockResolvedValue(summary)
+    vi.mocked(teacherApi.sendFollowUpReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
+
+    show(<TeacherReportsStandalonePage />)
+    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('button', { name: 'Reporte de seguimiento' }))
+
+    const form = screen.getByRole('form', { name: 'Reporte de seguimiento a las tutorías' })
+    const activities = await within(form).findByRole('table', { name: 'Actividades programadas' })
+    expect(within(activities).getAllByText('2026/03/19')).toHaveLength(2)
+    expect(within(activities).getByText('Aprendizaje basado en problemas (ABP)')).toBeInTheDocument()
+    const attendanceTable = within(form).getByRole('table', { name: 'Número de estudiantes que asisten a tutorías' })
+    expect(within(attendanceTable).getAllByRole('cell').map((node) => node.textContent)).toEqual(['10', '9', '2'])
+    expect(within(form).getByText(/Además asistieron 1 estudiante sin evaluación diagnóstica/)).toBeInTheDocument()
+    const improved = within(form).getByRole('table', { name: 'Estudiantes que mejoraron su rendimiento' })
+    expect(within(improved).getByRole('columnheader', { name: 'Evaluación Primer Parcial' })).toBeInTheDocument()
+    expect(within(improved).getByText('3,00')).toBeInTheDocument()
+    expect(within(improved).getByText('6,00')).toBeInTheDocument()
+
+    await user.selectOptions(within(form).getByLabelText('Parcial'), '2')
+    await waitFor(() => expect(teacherApi.followUpReportPreview).toHaveBeenLastCalledWith(40, { partial: 2, from: '2026-01-01', to: today, date: today }))
+    await user.type(within(form).getByLabelText('Observación'), 'Temas elegidos por los estudiantes.')
+    await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
+
+    expect(teacherApi.sendFollowUpReport).toHaveBeenCalledWith(40, { partial: 2, from: '2026-01-01', to: today, date: today, observations: 'Temas elegidos por los estudiantes.' })
+    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+    expect(within(screen.getByRole('article', { name: 'Contenido del informe' })).getByRole('table', { name: 'Actividades programadas' })).toHaveTextContent('Regla del Trapecio')
+  })
+
+  it('prepara el informe final PAO con la matriz oficial y lo envía a coordinación', async () => {
+    const user = userEvent.setup()
+    const row = { tutoring_id: 40, subject: 'Calidad de software', cycle: 2, cycle_name: 'Segundo', section: 'A', weekly_hours: 3, hours_done: 4.5, enrolled: 4, at_risk: 3, at_risk_attending: 2, at_risk_attending_passed: 1, at_risk_improved: 2, effectiveness: 50, observation: null }
+    const summary: FinalPaoReportSummary = {
+      format: 'final_pao', faculty: 'Ciencias Administrativas', career: 'Software', academic_period: '2026-2', date: today, report_number: '01-TA-2026',
+      teacher: { name: 'María López', email: 'maria.lopez@ueb.edu.ec', extension: null, position: 'Docente' },
+      coordinator: { name: 'Galuth García', email: 'galuth@ueb.edu.ec', extension: null, position: 'Coordinador/a de Carrera' },
+      subject_line: 'Informe de ejecución de tutorías académicas PAO 2026-2',
+      objective: 'Presentar los resultados de las tutorías académicas ejecutadas en las asignaturas de Calidad de software de la carrera de Software en el periodo académico 2026-2.',
+      background: 'Basado en la normativa vigente, la tutoría académica se consolida como un mecanismo estratégico.',
+      schedule: [{ subject: 'Calidad de software', section: 'A', day: 'miercoles', start: '14:00', end: '15:00', room: null }],
+      matrix: [row], conclusions: null, recommendations: null,
+      improved: [{ subject: 'Calidad de software', section: 'A', students: [{ number: 1, name: 'Ana Pérez', first: 6, second: 8 }] }],
+      register: [{ subject: 'Calidad de software', section: 'A', sessions: [{ date: '2026-09-21', topics: ['Pruebas unitarias'], present: 3, total: 4 }] }],
+      passing_grade: 7,
+      available_tutorings: [{ id: 40, subject: 'Calidad de software', cycle: 2, section: 'A' }, { id: 41, subject: 'Métodos Numéricos', cycle: 2, section: 'A' }],
+    }
+    const report = { id: 140, type: 'Informe final de tutorías PAO 2026-2', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'INFORME', summary: { ...summary, matrix: [{ ...row, observation: 'Asistencia constante.' }], available_tutorings: undefined } }
+    vi.mocked(teacherApi.finalPaoReportPreview).mockResolvedValue(summary)
+    vi.mocked(teacherApi.sendFinalPaoReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
+
+    show(<TeacherReportsStandalonePage />)
+    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('button', { name: 'Informe final PAO' }))
+
+    const form = screen.getByRole('form', { name: 'Informe final PAO' })
+    const matrix = await within(form).findByRole('table', { name: 'Matriz de operacionalización de tutorías' })
+    expect(within(matrix).getByRole('columnheader', { name: '% Efectividad de las tutorías' })).toBeInTheDocument()
+    expect(within(matrix).getByText('50%')).toBeInTheDocument()
+    expect(within(matrix).getByText('4,5')).toBeInTheDocument()
+    expect(within(form).getByRole('table', { name: 'Horario de tutorías' })).toHaveTextContent('Miércoles')
+    expect(within(form).getByRole('table', { name: 'Estudiantes que mejoraron su rendimiento en Calidad de software' })).toHaveTextContent('8,00')
+    expect(within(form).getByLabelText('Calidad de software · Paralelo A', { selector: 'button' })).toBeDisabled()
+
+    await user.click(within(form).getByLabelText('Métodos Numéricos · Paralelo A', { selector: 'button' }))
+    await waitFor(() => expect(teacherApi.finalPaoReportPreview).toHaveBeenLastCalledWith(40, { date: today, tutoring_ids: [40, 41] }))
+    await user.type(within(form).getByLabelText('Calidad de software · Paralelo A', { selector: 'input' }), 'Asistencia constante.')
+    expect(within(matrix).getByText('Asistencia constante.')).toBeInTheDocument()
+    await user.type(within(form).getByLabelText('Conclusiones'), 'Se redujo el riesgo.')
+    await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
+
+    expect(teacherApi.sendFinalPaoReport).toHaveBeenCalledWith(40, {
+      date: today, report_number: '01-TA-2026', tutoring_ids: [40], observations: { 40: 'Asistencia constante.' }, conclusions: 'Se redujo el riesgo.', recommendations: '',
+    })
+    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+    expect(within(screen.getByRole('article', { name: 'Contenido del informe' })).getByRole('table', { name: 'Matriz de operacionalización de tutorías' })).toHaveTextContent('Asistencia constante.')
   })
 
   it('permite revisar las actividades y estudiantes presentes en la pestaña Revisión de actividades de informes', async () => {

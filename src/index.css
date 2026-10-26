@@ -316,11 +316,12 @@ html.reduce-motion *::after {
     display: block;
   }
 
-  .print-root .diagnostic-sheet {
+  .print-root .report-sheet {
     padding: 0;
+    min-height: 0;
   }
 
-  .print-root .diagnostic-annex {
+  .print-root .report-page-break {
     break-before: page;
   }
 

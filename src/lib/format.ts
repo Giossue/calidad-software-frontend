@@ -19,3 +19,9 @@ export function formatDate(value: string, time = false): string {
 export function compareNames(a: string, b: string): number {
   return a.localeCompare(b, 'es', { sensitivity: 'base' })
 }
+
+// Fecha local de hoy en formato ISO (YYYY-MM-DD), para campos `type="date"`.
+export function todayIsoDate(): string {
+  const date = new Date()
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}

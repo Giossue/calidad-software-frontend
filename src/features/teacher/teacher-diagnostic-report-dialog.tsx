@@ -8,18 +8,15 @@ import { Field, FieldCounter, FieldGroup, FieldLabel } from '@/components/ui/fie
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { DiagnosticReportDocument, PrintDiagnosticReport } from '@/features/reports/diagnostic-report-document'
+import { DiagnosticReportDocument } from '@/features/reports/diagnostic-report-document'
+import { PrintReport, SheetFrame } from '@/features/reports/report-sheet'
 import { describeError, useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
 import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
+import { todayIsoDate } from '@/lib/format'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
 
 const MAX_OBSERVATIONS = 5000
-
-function todayDate(): string {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
 
 /** Prepara, revisa e imprime el "Reporte de la Evaluación Diagnóstica" y lo envía a coordinación. */
 export function DiagnosticReportDialog({
@@ -29,7 +26,7 @@ export function DiagnosticReportDialog({
   onSent,
 }: Readonly<{ tutoring: TeacherTutoring; open: boolean; onClose: () => void; onSent: () => Promise<unknown> }>) {
   const operation = useOperation()
-  const [date, setDate] = useState(todayDate)
+  const [date, setDate] = useState(todayIsoDate)
   const [observations, setObservations] = useState('')
   const [preview, setPreview] = useState<DiagnosticReportSummary | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -56,7 +53,7 @@ export function DiagnosticReportDialog({
   const hasGrades = Boolean(preview && preview.students_evaluated > 0)
 
   function close() {
-    setDate(todayDate())
+    setDate(todayIsoDate())
     setObservations('')
     setPreview(null)
     setLoadError(null)
@@ -95,7 +92,7 @@ export function DiagnosticReportDialog({
                   id="diagnostic-report-date"
                   type="date"
                   value={date}
-                  max={todayDate()}
+                  max={todayIsoDate()}
                   onChange={(event) => setDate(event.target.value)}
                   required
                 />
@@ -131,15 +128,15 @@ export function DiagnosticReportDialog({
               </Alert>
             )}
             {summary && (
-              <div className="rounded-xl border border-border bg-slate-100 p-2 sm:p-4 dark:bg-slate-800">
+              <SheetFrame>
                 <DiagnosticReportDocument summary={summary} />
-              </div>
+              </SheetFrame>
             )}
 
             <ErrorNotice message={operation.error} />
             <div className="flex flex-wrap justify-end gap-3">
               <DialogCancelButton disabled={operation.pending}>Cancelar</DialogCancelButton>
-              {summary && <PrintDiagnosticReport summary={summary} disabled={operation.pending} />}
+              {summary && <PrintReport disabled={operation.pending}><DiagnosticReportDocument summary={summary} /></PrintReport>}
               <Button type="submit" disabled={operation.pending || !hasGrades || !tutoring.can_manage}>
                 {operation.pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SendIcon data-icon="inline-start" />}
                 {operation.pending ? 'Enviando…' : 'Enviar a coordinación'}

@@ -1,49 +1,10 @@
-import type { ReactNode } from 'react'
-import { createPortal } from 'react-dom'
-import { PrinterIcon } from 'lucide-react'
-
-import { Button } from '@/components/ui/button'
 import { formatDecimal, type DiagnosticReportSummary } from '@/lib/diagnostic-report'
 import { cn } from '@/lib/utils'
+import { cell, head } from './report-styles'
+import { Letterhead, Sheet, Signature } from './report-sheet'
 
 // Reproduce el formato oficial "1. Reporte Evaluación Diagnóstica" y, como anexo,
-// "1.a Calificaciones Diagnóstica". Se ve como una hoja de papel también en modo oscuro.
-
-const cell = 'border border-slate-800 px-2 py-1.5 align-top'
-const head = cn(cell, 'bg-slate-100 font-semibold uppercase')
-
-function Sheet({ children, className }: Readonly<{ children: ReactNode; className?: string }>) {
-  return (
-    <section className={cn('diagnostic-sheet flex flex-col gap-5 bg-white p-5 text-[13px] leading-snug text-slate-900 sm:p-8', className)}>
-      {children}
-    </section>
-  )
-}
-
-function Letterhead({ summary, title }: Readonly<{ summary: DiagnosticReportSummary; title: string }>) {
-  return (
-    <header className="flex flex-col gap-3">
-      <div className="flex items-center gap-3 border-b border-slate-300 pb-3">
-        <img src="/ueb-logo.png" alt="Universidad Estatal de Bolívar" className="size-12 object-contain" />
-        <div className="flex flex-col gap-0.5">
-          <p><span className="font-semibold">FACULTAD:</span> {summary.faculty ?? '—'}</p>
-          <p><span className="font-semibold">CARRERA:</span> {summary.career ?? '—'}</p>
-        </div>
-      </div>
-      <h3 className="text-center text-base font-bold tracking-wide">{title}</h3>
-    </header>
-  )
-}
-
-function Signature({ name, role }: Readonly<{ name: string | null; role: string }>) {
-  return (
-    <div className="flex min-w-48 flex-1 flex-col items-center gap-1 pt-10 text-center">
-      <span className="w-full border-t border-slate-800" />
-      <span className="font-medium">{name ?? ' '}</span>
-      <span className="text-xs font-semibold uppercase">{role}</span>
-    </div>
-  )
-}
+// "1.a Calificaciones Diagnóstica".
 
 export function DiagnosticReportDocument({ summary }: Readonly<{ summary: DiagnosticReportSummary }>) {
   const cycle = summary.cycle ?? summary.cycle_name ?? '—'
@@ -51,7 +12,7 @@ export function DiagnosticReportDocument({ summary }: Readonly<{ summary: Diagno
   return (
     <div className="diagnostic-report flex flex-col gap-4">
       <Sheet>
-        <Letterhead summary={summary} title="REPORTE DE LA EVALUACIÓN DIAGNÓSTICA" />
+        <Letterhead faculty={summary.faculty} career={summary.career} title="REPORTE DE LA EVALUACIÓN DIAGNÓSTICA" />
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[32rem] border-collapse" aria-label="Datos generales">
@@ -121,8 +82,8 @@ export function DiagnosticReportDocument({ summary }: Readonly<{ summary: Diagno
         </div>
       </Sheet>
 
-      <Sheet className="diagnostic-annex">
-        <Letterhead summary={summary} title="CALIFICACIONES EVALUACIÓN DIAGNÓSTICA" />
+      <Sheet className="report-page-break">
+        <Letterhead faculty={summary.faculty} career={summary.career} title="CALIFICACIONES EVALUACIÓN DIAGNÓSTICA" />
         <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
           <div><dt className="inline font-semibold">PERÍODO ACADÉMICO: </dt><dd className="inline">{summary.academic_period ?? '—'}</dd></div>
           <div><dt className="inline font-semibold">DOCENTE: </dt><dd className="inline">{summary.teacher}</dd></div>
@@ -159,26 +120,5 @@ export function DiagnosticReportDocument({ summary }: Readonly<{ summary: Diagno
         </div>
       </Sheet>
     </div>
-  )
-}
-
-/**
- * Botón para imprimir o guardar en PDF. El documento se copia fuera de los diálogos
- * (directamente en <body>) para que la hoja de estilos de impresión lo muestre solo a él.
- */
-export function PrintDiagnosticReport({ summary, disabled = false }: Readonly<{ summary: DiagnosticReportSummary; disabled?: boolean }>) {
-  return (
-    <>
-      <Button type="button" variant="outline" disabled={disabled} onClick={() => window.print()}>
-        <PrinterIcon data-icon="inline-start" />
-        Imprimir o guardar PDF
-      </Button>
-      {createPortal(
-        <div className="print-root" aria-hidden="true">
-          <DiagnosticReportDocument summary={summary} />
-        </div>,
-        document.body,
-      )}
-    </>
   )
 }

@@ -8,8 +8,10 @@ import {
   ClipboardListIcon,
   ClockIcon,
   EyeIcon,
+  FileCheck2Icon,
   FileTextIcon,
   SendIcon,
+  TrendingUpIcon,
   UsersIcon,
 } from 'lucide-react'
 
@@ -21,16 +23,18 @@ import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { DiagnosticReportDocument, PrintDiagnosticReport } from '@/features/reports/diagnostic-report-document'
+import { PrintStructuredReport, StructuredReport } from '@/features/reports/structured-report'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
-import { isDiagnosticReport } from '@/lib/diagnostic-report'
+import { isStructuredReport } from '@/lib/structured-report'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { teacherApi, type TeacherReport, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
 import { getDayOfWeekFromDate } from './teacher-attendance-page'
 import { DiagnosticReportDialog } from './teacher-diagnostic-report-dialog'
+import { FinalPaoReportDialog } from './teacher-final-pao-report-dialog'
+import { FollowUpReportDialog } from './teacher-follow-up-report-dialog'
 import { TeacherEmpty } from './teacher-shared'
 
 const INITIAL = { title: 'Informe de tutorías', observations: '' }
@@ -71,7 +75,9 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   const [form, setForm] = useState(INITIAL)
   const [reading, setReading] = useState<TeacherReport | null>(null)
   const [diagnosticOpen, setDiagnosticOpen] = useState(false)
-  const readingDiagnostic = reading && isDiagnosticReport(reading.summary) ? reading.summary : null
+  const [followUpOpen, setFollowUpOpen] = useState(false)
+  const [finalOpen, setFinalOpen] = useState(false)
+  const readingStructured = Boolean(reading && isStructuredReport(reading.summary))
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -87,14 +93,22 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <p className="text-sm text-muted-foreground">
-          Los informes conservan los datos de la tutoría al momento del envío. El reporte de evaluación diagnóstica sigue el formato oficial.
+          Los informes conservan los datos de la tutoría al momento del envío. Los reportes de evaluación diagnóstica, de seguimiento y el informe final PAO siguen el formato oficial.
         </p>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button variant="outline" disabled={!tutoring.can_manage} onClick={() => setDiagnosticOpen(true)}>
             <ClipboardListIcon data-icon="inline-start" />
             Reporte de evaluación diagnóstica
+          </Button>
+          <Button variant="outline" disabled={!tutoring.can_manage} onClick={() => setFollowUpOpen(true)}>
+            <TrendingUpIcon data-icon="inline-start" />
+            Reporte de seguimiento
+          </Button>
+          <Button variant="outline" disabled={!tutoring.can_manage} onClick={() => setFinalOpen(true)}>
+            <FileCheck2Icon data-icon="inline-start" />
+            Informe final PAO
           </Button>
           <Button
             disabled={!tutoring.can_manage || operation.pending}
@@ -111,6 +125,8 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
       </div>
 
       <DiagnosticReportDialog tutoring={tutoring} open={diagnosticOpen} onClose={() => setDiagnosticOpen(false)} onSent={list.reload} />
+      <FollowUpReportDialog tutoring={tutoring} open={followUpOpen} onClose={() => setFollowUpOpen(false)} onSent={list.reload} />
+      <FinalPaoReportDialog tutoring={tutoring} open={finalOpen} onClose={() => setFinalOpen(false)} onSent={list.reload} />
 
       <ErrorNotice message={list.error} retry={list.reload} />
 
@@ -193,20 +209,18 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         description={reading ? `${reading.author_name} · ${formatDate(reading.generated_at, true)}` : undefined}
         confirmClose={false}
         onClose={() => setReading(null)}
-        maxWidth={readingDiagnostic ? 'max-w-5xl' : undefined}
+        maxWidth={readingStructured ? 'max-w-5xl' : undefined}
       >
         <div className="flex flex-col gap-5">
           <article aria-label="Contenido del informe" className="max-h-[60vh] overflow-y-auto">
-            {readingDiagnostic ? (
-              <div className="rounded-xl border border-border bg-slate-100 p-2 sm:p-4 dark:bg-slate-800">
-                <DiagnosticReportDocument summary={readingDiagnostic} />
-              </div>
+            {readingStructured ? (
+              <StructuredReport summary={reading?.summary} />
             ) : (
               <p className="whitespace-pre-wrap break-words text-sm leading-6">{reading?.content}</p>
             )}
           </article>
           <div className="flex flex-wrap justify-end gap-3">
-            {readingDiagnostic && <PrintDiagnosticReport summary={readingDiagnostic} />}
+            {readingStructured && <PrintStructuredReport summary={reading?.summary} />}
             <DialogCancelButton>Cerrar informe</DialogCancelButton>
           </div>
         </div>

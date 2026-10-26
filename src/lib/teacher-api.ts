@@ -1,6 +1,8 @@
 import { buildQuery, request, type PaginatedResourceCollection } from '@/lib/api'
 import type { DegreeActivity, DegreeTopic } from '@/lib/degree-coordination-api'
 import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
+import type { FinalPaoReportSummary } from '@/lib/final-pao-report'
+import type { FollowUpReportSummary } from '@/lib/follow-up-report'
 import type { Attendance, Tutoring, TutoringReport, TutoringSchedule } from '@/lib/tutoring-api'
 
 const ROOT = '/api/v1/teacher'
@@ -116,8 +118,19 @@ export interface ReportSummary {
   readonly partial_count: number
   readonly knowledge_groups: Readonly<Record<string, number>>
 }
-export interface TeacherReport extends TutoringReport { readonly summary: ReportSummary | DiagnosticReportSummary | null }
+export interface TeacherReport extends TutoringReport { readonly summary: ReportSummary | DiagnosticReportSummary | FollowUpReportSummary | FinalPaoReportSummary | null }
 export type DiagnosticReportInput = { date: string; observations: string }
+export type FollowUpReportParams = { partial: 1 | 2; from: string; to: string; date: string }
+export type FollowUpReportInput = FollowUpReportParams & { observations: string }
+export type FinalPaoReportParams = { date: string; tutoring_ids?: readonly number[] }
+export type FinalPaoReportInput = {
+  date: string
+  report_number: string
+  tutoring_ids: readonly number[]
+  observations: Readonly<Record<number, string>>
+  conclusions: string
+  recommendations: string
+}
 export interface TeacherDegreeAssignment {
   readonly id: number
   readonly role: 'tutor' | 'par_academico'
@@ -182,6 +195,15 @@ export const teacherApi = {
   diagnosticReportPreview: async (id: number, date: string) =>
     (await request<Resource<DiagnosticReportSummary>>(`${ROOT}/tutorings/${id}/reports/diagnostic/preview${buildQuery({ date })}`)).data,
   sendDiagnosticReport: (id: number, input: DiagnosticReportInput) => mutate<TeacherReport>(`tutorings/${id}/reports/diagnostic`, 'POST', input),
+  followUpReportPreview: async (id: number, params: FollowUpReportParams) =>
+    (await request<Resource<FollowUpReportSummary>>(`${ROOT}/tutorings/${id}/reports/follow-up/preview${buildQuery(params)}`)).data,
+  sendFollowUpReport: (id: number, input: FollowUpReportInput) => mutate<TeacherReport>(`tutorings/${id}/reports/follow-up`, 'POST', input),
+  finalPaoReportPreview: async (id: number, { date, tutoring_ids }: FinalPaoReportParams) => {
+    const query = new URLSearchParams({ date })
+    tutoring_ids?.forEach((tutoringId) => query.append('tutoring_ids[]', String(tutoringId)))
+    return (await request<Resource<FinalPaoReportSummary>>(`${ROOT}/tutorings/${id}/reports/final-pao/preview?${query.toString()}`)).data
+  },
+  sendFinalPaoReport: (id: number, input: FinalPaoReportInput) => mutate<TeacherReport>(`tutorings/${id}/reports/final-pao`, 'POST', input),
   degreeAssignments: (params?: TeacherListParams) => list<TeacherDegreeAssignment>('degree-assignments', params),
   degreeTracking: (params?: TeacherListParams) => list<DegreeTopic>('degree-tracking', params),
   degreeTrackingTopic: async (id: number) => (await request<Resource<DegreeTopic>>(`${ROOT}/degree-tracking/${id}`)).data,
