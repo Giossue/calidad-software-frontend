@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api'
+import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
 import { teacherApi, type Enrollment, type TeacherTutoring, type TutoringTopic } from '@/lib/teacher-api'
 import { dashboardSection } from '@/features/tutoring/tutoring-navigation'
 import { TeacherDegreeAssignmentsPage } from './teacher-degree-assignments-page'
@@ -545,6 +546,66 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
     expect(screen.getByRole('article', { name: 'Contenido del informe' })).toHaveTextContent('Estudiantes inscritos: 1')
     expect(teacherApi.sendReport).toHaveBeenCalledWith(40, { title: 'Informe de tutorías', observations: 'Avance favorable.' })
+  })
+
+  it('prepara el reporte de evaluación diagnóstica con el formato oficial y lo envía a coordinación', async () => {
+    const user = userEvent.setup()
+    const summary: DiagnosticReportSummary = {
+      format: 'diagnostic_evaluation', faculty: 'Ciencias Administrativas', career: 'Software', date: today, teacher: 'María López',
+      subject: 'Calidad de software', cycle: 2, cycle_name: 'Segundo', academic_period: '2026-2', section: 'A',
+      students_listed: 3, students_evaluated: 2, observations: null, coordinator: 'Galuth García',
+      groups: [
+        { key: 'low', label: 'Bajo', range_label: '0% - 50%', count: 1, percentage: 50, action_plan: ['Semana de adaptación de Conocimientos', 'Tutorías adicionales obligatorias', 'Estudio Autónomo'] },
+        { key: 'medium', label: 'Medio', range_label: '51% - 69%', count: 0, percentage: 0, action_plan: ['Semana de adaptación de Conocimientos', 'Tutorías adicionales obligatorias'] },
+        { key: 'high', label: 'Alto', range_label: '70% - 100%', count: 1, percentage: 50, action_plan: ['Semana de adaptación de Conocimientos'] },
+      ],
+      grades: [
+        { number: 1, identification: '0201234567', name: 'Ana Pérez', grade: 4.5, group: 'Bajo' },
+        { number: 2, identification: '0207654321', name: 'Luis Vera', grade: null, group: null },
+        { number: 3, identification: '0209999999', name: 'Sofía Mora', grade: 8.25, group: 'Alto' },
+      ],
+    }
+    const report = { id: 120, type: 'Reporte de la evaluación diagnóstica', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'REPORTE', summary: { ...summary, observations: 'Refuerzo de derivadas.' } }
+    vi.mocked(teacherApi.diagnosticReportPreview).mockResolvedValue(summary)
+    vi.mocked(teacherApi.sendDiagnosticReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
+
+    show(<TeacherReportsStandalonePage />)
+    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('button', { name: 'Reporte de evaluación diagnóstica' }))
+
+    const form = screen.getByRole('form', { name: 'Reporte de la evaluación diagnóstica' })
+    const parameters = await within(form).findByRole('table', { name: 'Parámetros de la evaluación al estudiante' })
+    expect(within(parameters).getByRole('rowheader', { name: 'Bajo (0% - 50%)' })).toBeInTheDocument()
+    expect(within(parameters).getByText('Estudio Autónomo', { exact: false })).toBeInTheDocument()
+    const grades = within(form).getByRole('table', { name: 'Calificaciones de la evaluación diagnóstica' })
+    expect(within(grades).getByText('No asiste')).toBeInTheDocument()
+    expect(within(grades).getByText('4,5')).toBeInTheDocument()
+    expect(within(form).getByText('Galuth García')).toBeInTheDocument()
+
+    await user.type(within(form).getByLabelText('Observaciones'), 'Refuerzo de derivadas.')
+    expect(within(parameters).getByText('Refuerzo de derivadas.')).toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
+
+    expect(teacherApi.diagnosticReportPreview).toHaveBeenCalledWith(40, today)
+    expect(teacherApi.sendDiagnosticReport).toHaveBeenCalledWith(40, { date: today, observations: 'Refuerzo de derivadas.' })
+    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+    expect(within(screen.getByRole('article', { name: 'Contenido del informe' })).getByRole('table', { name: 'Parámetros de la evaluación al estudiante' })).toHaveTextContent('Refuerzo de derivadas.')
+  })
+
+  it('no permite enviar el reporte diagnóstico sin calificaciones registradas', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.diagnosticReportPreview).mockResolvedValue({
+      format: 'diagnostic_evaluation', faculty: null, career: 'Software', date: today, teacher: 'María López', subject: 'Calidad de software',
+      cycle: 2, cycle_name: 'Segundo', academic_period: '2026-2', section: 'A', students_listed: 1, students_evaluated: 0, observations: null,
+      coordinator: null, groups: [], grades: [{ number: 1, identification: '0201234567', name: 'Ana Pérez', grade: null, group: null }],
+    })
+
+    show(<TeacherReportsStandalonePage />)
+    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('button', { name: 'Reporte de evaluación diagnóstica' }))
+
+    expect(await screen.findByText(/Aún no hay calificaciones diagnósticas registradas/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enviar a coordinación' })).toBeDisabled()
   })
 
   it('permite revisar las actividades y estudiantes presentes en la pestaña Revisión de actividades de informes', async () => {

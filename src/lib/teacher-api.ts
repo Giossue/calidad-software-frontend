@@ -1,5 +1,6 @@
 import { buildQuery, request, type PaginatedResourceCollection } from '@/lib/api'
 import type { DegreeActivity, DegreeTopic } from '@/lib/degree-coordination-api'
+import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
 import type { Attendance, Tutoring, TutoringReport, TutoringSchedule } from '@/lib/tutoring-api'
 
 const ROOT = '/api/v1/teacher'
@@ -115,7 +116,8 @@ export interface ReportSummary {
   readonly partial_count: number
   readonly knowledge_groups: Readonly<Record<string, number>>
 }
-export interface TeacherReport extends TutoringReport { readonly summary: ReportSummary | null }
+export interface TeacherReport extends TutoringReport { readonly summary: ReportSummary | DiagnosticReportSummary | null }
+export type DiagnosticReportInput = { date: string; observations: string }
 export interface TeacherDegreeAssignment {
   readonly id: number
   readonly role: 'tutor' | 'par_academico'
@@ -177,6 +179,9 @@ export const teacherApi = {
   updateSessionTopics: (id: number, sessionId: number, topic_ids: readonly number[]) => mutate<TutoringSession>(`tutorings/${id}/sessions/${sessionId}/topics`, 'PATCH', { topic_ids }),
   reports: (id: number, params?: TeacherListParams) => list<TeacherReport>(`tutorings/${id}/reports`, params),
   sendReport: (id: number, input: { title: string; observations: string }) => mutate<TeacherReport>(`tutorings/${id}/reports`, 'POST', input),
+  diagnosticReportPreview: async (id: number, date: string) =>
+    (await request<Resource<DiagnosticReportSummary>>(`${ROOT}/tutorings/${id}/reports/diagnostic/preview${buildQuery({ date })}`)).data,
+  sendDiagnosticReport: (id: number, input: DiagnosticReportInput) => mutate<TeacherReport>(`tutorings/${id}/reports/diagnostic`, 'POST', input),
   degreeAssignments: (params?: TeacherListParams) => list<TeacherDegreeAssignment>('degree-assignments', params),
   degreeTracking: (params?: TeacherListParams) => list<DegreeTopic>('degree-tracking', params),
   degreeTrackingTopic: async (id: number) => (await request<Resource<DegreeTopic>>(`${ROOT}/degree-tracking/${id}`)).data,

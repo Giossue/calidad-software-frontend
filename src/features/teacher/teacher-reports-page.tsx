@@ -5,6 +5,7 @@ import {
   CalendarCheckIcon,
   CheckCircle2Icon,
   ChevronRightIcon,
+  ClipboardListIcon,
   ClockIcon,
   EyeIcon,
   FileTextIcon,
@@ -20,13 +21,16 @@ import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { DiagnosticReportDocument, PrintDiagnosticReport } from '@/features/reports/diagnostic-report-document'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
+import { isDiagnosticReport } from '@/lib/diagnostic-report'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { teacherApi, type TeacherReport, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
 import { getDayOfWeekFromDate } from './teacher-attendance-page'
+import { DiagnosticReportDialog } from './teacher-diagnostic-report-dialog'
 import { TeacherEmpty } from './teacher-shared'
 
 const INITIAL = { title: 'Informe de tutorías', observations: '' }
@@ -66,6 +70,8 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(INITIAL)
   const [reading, setReading] = useState<TeacherReport | null>(null)
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false)
+  const readingDiagnostic = reading && isDiagnosticReport(reading.summary) ? reading.summary : null
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -83,21 +89,28 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Conserva el consolidado de estudiantes, notas, asistencia y temas al momento del envío.
+          Los informes conservan los datos de la tutoría al momento del envío. El reporte de evaluación diagnóstica sigue el formato oficial.
         </p>
-        <Button
-          className="shrink-0"
-          disabled={!tutoring.can_manage || operation.pending}
-          onClick={() => {
-            operation.clearError()
-            setForm(INITIAL)
-            setOpen(true)
-          }}
-        >
-          <SendIcon data-icon="inline-start" />
-          Enviar informe
-        </Button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button variant="outline" disabled={!tutoring.can_manage} onClick={() => setDiagnosticOpen(true)}>
+            <ClipboardListIcon data-icon="inline-start" />
+            Reporte de evaluación diagnóstica
+          </Button>
+          <Button
+            disabled={!tutoring.can_manage || operation.pending}
+            onClick={() => {
+              operation.clearError()
+              setForm(INITIAL)
+              setOpen(true)
+            }}
+          >
+            <SendIcon data-icon="inline-start" />
+            Enviar informe
+          </Button>
+        </div>
       </div>
+
+      <DiagnosticReportDialog tutoring={tutoring} open={diagnosticOpen} onClose={() => setDiagnosticOpen(false)} onSent={list.reload} />
 
       <ErrorNotice message={list.error} retry={list.reload} />
 
@@ -180,12 +193,20 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         description={reading ? `${reading.author_name} · ${formatDate(reading.generated_at, true)}` : undefined}
         confirmClose={false}
         onClose={() => setReading(null)}
+        maxWidth={readingDiagnostic ? 'max-w-5xl' : undefined}
       >
         <div className="flex flex-col gap-5">
           <article aria-label="Contenido del informe" className="max-h-[60vh] overflow-y-auto">
-            <p className="whitespace-pre-wrap break-words text-sm leading-6">{reading?.content}</p>
+            {readingDiagnostic ? (
+              <div className="rounded-xl border border-border bg-slate-100 p-2 sm:p-4 dark:bg-slate-800">
+                <DiagnosticReportDocument summary={readingDiagnostic} />
+              </div>
+            ) : (
+              <p className="whitespace-pre-wrap break-words text-sm leading-6">{reading?.content}</p>
+            )}
           </article>
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-3">
+            {readingDiagnostic && <PrintDiagnosticReport summary={readingDiagnostic} />}
             <DialogCancelButton>Cerrar informe</DialogCancelButton>
           </div>
         </div>

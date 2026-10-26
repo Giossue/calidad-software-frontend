@@ -289,3 +289,55 @@ html.reduce-motion *::after {
     text-align: left;
   }
 }
+
+/* Reporte de evaluación diagnóstica: la copia para imprimir vive en <body> (ver
+   PrintDiagnosticReport) y es lo único que se imprime; cada hoja va en su página. */
+.print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  html,
+  body {
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body > :not(.print-root) {
+    display: none !important;
+  }
+
+  .print-root {
+    display: block;
+  }
+
+  .print-root .diagnostic-sheet {
+    padding: 0;
+  }
+
+  .print-root .diagnostic-annex {
+    break-before: page;
+  }
+
+  .print-root .overflow-x-auto {
+    overflow: visible;
+  }
+
+  .print-root table {
+    min-width: 0;
+  }
+
+  .print-root tr {
+    break-inside: avoid;
+  }
+
+  .print-root * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

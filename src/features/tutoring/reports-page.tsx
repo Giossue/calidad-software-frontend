@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { DiagnosticReportDocument, PrintDiagnosticReport } from '@/features/reports/diagnostic-report-document'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
+import { isDiagnosticReport } from '@/lib/diagnostic-report'
 import { tutoringApi, type TutoringReport, type TutoringReportMeta } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
@@ -36,6 +38,7 @@ export function TutoringReportsPage() {
 function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
   const [cycleFilter, setCycleFilter] = useState('')
   const [readingReport, setReadingReport] = useState<TutoringReport | null>(null)
+  const readingDiagnostic = readingReport && isDiagnosticReport(readingReport.summary) ? readingReport.summary : null
 
   const list = usePaginatedCatalog<TutoringReport, TutoringReportMeta>(
     (page, search) =>
@@ -180,7 +183,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
         description={readingReport?.subject_name || 'Informe de tutoría'}
         confirmClose={false}
         onClose={() => setReadingReport(null)}
-        maxWidth="max-w-2xl"
+        maxWidth={readingDiagnostic ? 'max-w-5xl' : 'max-w-2xl'}
       >
         {readingReport && (
           <div className="flex min-w-0 flex-col gap-5">
@@ -195,13 +198,20 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
                   <dd className="font-medium text-foreground">{formatDate(readingReport.generated_at, true)}</dd>
                 </div>
               </dl>
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
-                  {readingReport.content}
-                </p>
-              </div>
+              {readingDiagnostic ? (
+                <div className="rounded-xl border border-border bg-slate-100 p-2 sm:p-4 dark:bg-slate-800">
+                  <DiagnosticReportDocument summary={readingDiagnostic} />
+                </div>
+              ) : (
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
+                    {readingReport.content}
+                  </p>
+                </div>
+              )}
             </article>
-            <div className="flex justify-end pt-2 border-t">
+            <div className="flex flex-wrap justify-end gap-3 pt-2 border-t">
+              {readingDiagnostic && <PrintDiagnosticReport summary={readingDiagnostic} />}
               <Button type="button" variant="outline" onClick={() => setReadingReport(null)}>
                 Cerrar informe
               </Button>

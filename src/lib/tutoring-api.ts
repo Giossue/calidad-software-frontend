@@ -105,6 +105,7 @@ export interface TutoringReport {
   readonly author_name: string
   readonly generated_at: string
   readonly content: string | null
+  readonly summary?: unknown
   readonly tutoring_id?: number
   readonly subject_name?: string
   readonly career_name?: string
