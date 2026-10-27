@@ -152,6 +152,14 @@ export function DegreeStudentsPage() {
             ),
           },
           {
+            label: 'Ciclo',
+            render: (student) => (
+              <span className="text-sm text-muted-foreground">
+                {student.cycle_number ? `${student.cycle_number}° ciclo${student.section_name ? ` · ${student.section_name}` : ''}` : '—'}
+              </span>
+            ),
+          },
+          {
             label: 'Estado en Titulación',
             render: (student) =>
               student.is_degree_enrolled ? (

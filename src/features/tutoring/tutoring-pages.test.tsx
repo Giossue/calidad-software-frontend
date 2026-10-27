@@ -802,6 +802,7 @@ describe('Coordinación de tutorías', () => {
 
   it('permite al coordinador listar estudiantes y abrir el formulario de registro', async () => {
     const user = userEvent.setup()
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
     vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([
       {
         id: 101,
@@ -831,7 +832,7 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Software' })).toBeInTheDocument()
     // Una pestaña por ciclo; el último es titulación. Se abre el primero y la lista se pide por ciclo.
     expect(await screen.findByRole('tab', { name: '2° ciclo', selected: true })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '3° Titulación' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '6° ciclo · Titulación' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Sin ciclo' })).toBeInTheDocument()
     await waitFor(() => expect(tutoringApi.allStudents).toHaveBeenCalledWith(expect.objectContaining({ career_id: 10, cycle_number: 2, without_cycle: false })))
     expect(await screen.findByText('Carlos Estudiante')).toBeInTheDocument()
@@ -862,6 +863,7 @@ describe('Coordinación de tutorías', () => {
 
   it('exige el ciclo al registrar un estudiante y no ofrece tutorías en el ciclo de titulación', async () => {
     const user = userEvent.setup()
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
     vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([]))
     vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([tutoring]))
     vi.mocked(tutoringApi.createCoordinatorStudent).mockResolvedValue({ data: { id: 1, identification: '0926687856', name: 'Ana Nueva', email: 'ana@ueb.edu.ec', is_active: true, tutoring_count: 0, tutorings: [] } })
@@ -879,9 +881,9 @@ describe('Coordinación de tutorías', () => {
     const submit = within(form).getByRole('button', { name: 'Registrar estudiante' })
     expect(submit).toBeDisabled()
 
-    // Tercero es el último ciclo de la carrera: titulación, sin tutorías.
+    // Desde 6.º ciclo es titulación: sin tutorías.
     await user.selectOptions(within(form).getByLabelText(/Ciclo/i), '21')
-    expect(within(form).getByRole('option', { name: /Tercero - Paralelo A · Titulación/ })).toBeInTheDocument()
+    expect(within(form).getByRole('option', { name: /Sexto - Paralelo A · Titulación/ })).toBeInTheDocument()
     expect(within(form).getByLabelText(/Tutoría/i)).toBeDisabled()
 
     await user.click(submit)
@@ -892,6 +894,7 @@ describe('Coordinación de tutorías', () => {
 
   it('no permite matricular en titulación a un estudiante de un ciclo anterior al último', async () => {
     const user = userEvent.setup()
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
     const student = {
       id: 102, student_id: 102, identification: '0201777777', name: 'Pedro Quinto', email: 'pedro@ueb.edu.ec', phone: null,
       cycle_number: 5, academic_stage: 'tutorias' as const,
@@ -909,10 +912,11 @@ describe('Coordinación de tutorías', () => {
 
   it('registra al estudiante en el ciclo de la pestaña y permite cambiarlo de ciclo', async () => {
     const user = userEvent.setup()
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
     const student = { id: 103, identification: '0201888888', name: 'Lucía Ciclo', email: 'lucia@ueb.edu.ec', phone: null, is_active: true, cycle_id: 20, cycle_number: 2, section_name: 'A', tutoring_count: 0, tutorings: [] }
     vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([student]))
     vi.mocked(tutoringApi.degreeStudents).mockResolvedValue({ data: [], meta: { ...paginated([]).meta, current_period: { id: 50, name: '2026-2' } } })
-    vi.mocked(tutoringApi.updateStudentCycle).mockResolvedValue({ data: { ...student, cycle_id: 21, cycle_number: 3 } })
+    vi.mocked(tutoringApi.updateStudentCycle).mockResolvedValue({ data: { ...student, cycle_id: 21, cycle_number: 6 } })
 
     render(<TutoringStudentsPage />)
     await user.click(await screen.findByRole('button', { name: 'Cambiar ciclo' }))
@@ -922,11 +926,12 @@ describe('Coordinación de tutorías', () => {
     await user.click(within(form).getByRole('button', { name: 'Guardar ciclo' }))
 
     await waitFor(() => expect(tutoringApi.updateStudentCycle).toHaveBeenCalledWith(103, 21))
-    expect(tutoringApi.degreeStudents).toHaveBeenCalledWith(expect.objectContaining({ cycle_number: 3 }))
+    expect(tutoringApi.updateStudentCycle).toHaveBeenCalledTimes(1)
   })
 
   it('permite al coordinador de carrera cambiar a la pestaña de titulación y matricular a un estudiante', async () => {
     const user = userEvent.setup()
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
     const degreeStudent = {
       id: 101,
       student_id: 101,
@@ -935,6 +940,8 @@ describe('Coordinación de tutorías', () => {
       email: 'maria@ueb.edu.ec',
       phone: '0991234567',
       is_active: true,
+      cycle_number: 6,
+      academic_stage: 'titulacion' as const,
       is_degree_enrolled: false,
       degree_enrollment_id: null,
       enrolled_at: null,

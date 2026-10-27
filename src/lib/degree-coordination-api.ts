@@ -18,6 +18,8 @@ export interface DegreeEnrollmentStudent {
   readonly name: string
   readonly email: string
   readonly phone: string | null
+  readonly cycle_number?: number | null
+  readonly section_name?: string | null
   readonly is_degree_enrolled: boolean
   readonly degree_enrollment_id: number | null
   readonly enrolled_at: string | null
