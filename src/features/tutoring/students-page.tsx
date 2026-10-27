@@ -370,10 +370,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             label: 'Estudiante',
             render: (student) => (
               <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-foreground">{student.name}</span>
-                  <StatusBadge active={student.is_active} />
-                </div>
+                <span className="font-semibold text-foreground">{student.name}</span>
                 <span className="text-xs text-muted-foreground">{student.email}</span>
               </div>
             ),
@@ -407,6 +404,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               )
             },
           },
+          { label: 'Estado', render: (student) => <StatusBadge active={student.is_active} /> },
           {
             label: 'Acciones',
             render: (student) => (
