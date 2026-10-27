@@ -14,8 +14,10 @@ export interface User {
   readonly faculty_id?: number | null
   readonly faculty_name?: string | null
   /** Ciclo que cursa el estudiante. */
+  readonly cycle_id?: number | null
   readonly cycle_number?: number | null
-  /** El último ciclo de la carrera es titulación; los anteriores, tutorías. Nulo si no tiene ciclo. */
+  readonly cycle_name?: string | null
+  /** Desde 6.º ciclo es titulación; los anteriores, tutorías. Nulo si no tiene ciclo. */
   readonly academic_stage?: 'tutorias' | 'titulacion' | null
   readonly is_active: boolean
   readonly email_verified_at: string | null
@@ -24,6 +26,17 @@ export interface User {
   readonly must_complete_profile?: boolean
   /** Además debe reemplazar la contraseña provisional que recibió por correo. */
   readonly must_change_password?: boolean
+}
+
+/** Facultades, carreras y ciclos activos que el estudiante elige al completar su cuenta. */
+export interface AcademicFacultyOption {
+  readonly id: number
+  readonly name: string
+  readonly careers: readonly {
+    readonly id: number
+    readonly name: string
+    readonly cycles: readonly { readonly id: number; readonly number: number; readonly name: string; readonly section_name: string | null }[]
+  }[]
 }
 
 export interface Faculty {
@@ -308,11 +321,20 @@ export const api = {
     phone: string
     password?: string
     password_confirmation?: string
+    /** Obligatorios para los estudiantes. */
+    faculty_id?: number
+    career_id?: number
+    cycle_id?: number
   }): Promise<User> {
     const response = await request<Resource<User>>('/api/v1/auth/profile/complete', {
       method: 'PUT',
       body: JSON.stringify(input),
     })
+    return response.data
+  },
+
+  async academicOptions(): Promise<readonly AcademicFacultyOption[]> {
+    const response = await request<{ data: readonly AcademicFacultyOption[] }>('/api/v1/auth/profile/academic-options')
     return response.data
   },
 
