@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,12 @@ import { useAuth } from './auth-context'
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const location = useLocation()
+  // Tras restablecer la contraseña se llega aquí con el correo de la cuenta.
+  const [email, setEmail] = useState(() => {
+    const state: unknown = location.state
+    return typeof state === 'object' && state !== null && 'email' in state && typeof state.email === 'string' ? state.email : ''
+  })
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)

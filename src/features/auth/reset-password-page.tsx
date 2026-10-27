@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -13,10 +14,10 @@ import { AuthShell } from './auth-shell'
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams()
+  const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const email = params.get('email') ?? ''
   const token = params.get('token') ?? ''
@@ -31,7 +32,9 @@ export function ResetPasswordPage() {
     setPending(true)
     try {
       const response = await api.resetPassword({ email, token, password, password_confirmation: confirmation })
-      setSuccess(response.message)
+      // El enlace ya se usó y no sirve para otro cambio: se continúa en el inicio de sesión.
+      toast.success(response.message, { description: 'Inicia sesión con tu nueva contraseña.' })
+      navigate('/login', { replace: true, state: { email } })
     } catch (caught: unknown) {
       setError(caught instanceof ApiError ? (caught.firstValidationMessage ?? caught.message) : 'No fue posible conectar con el servidor.')
     } finally {
@@ -41,7 +44,7 @@ export function ResetPasswordPage() {
 
   return (
     <AuthShell title="Define una nueva contraseña" description={`Restablecimiento para ${email || 'tu cuenta'}.`}>
-      <AuthFeedback error={error || (!email || !token ? 'El enlace está incompleto.' : null)} success={success} />
+      <AuthFeedback error={error || (!email || !token ? 'El enlace está incompleto.' : null)} />
       <form onSubmit={submit} noValidate>
         <FieldGroup>
           <Field data-invalid={Boolean(error)}>
