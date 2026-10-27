@@ -829,6 +829,11 @@ describe('Coordinación de tutorías', () => {
     render(<TutoringStudentsPage />)
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Software' })).toBeInTheDocument()
+    // Una pestaña por ciclo; el último es titulación. Se abre el primero y la lista se pide por ciclo.
+    expect(await screen.findByRole('tab', { name: '2° ciclo', selected: true })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '3° Titulación' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Sin ciclo' })).toBeInTheDocument()
+    await waitFor(() => expect(tutoringApi.allStudents).toHaveBeenCalledWith(expect.objectContaining({ career_id: 10, cycle_number: 2, without_cycle: false })))
     expect(await screen.findByText('Carlos Estudiante')).toBeInTheDocument()
     expect(screen.getByText('0201999999')).toBeInTheDocument()
     expect(screen.getByText('carlos@ueb.edu.ec')).toBeInTheDocument()
@@ -845,14 +850,14 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByLabelText(/Correo Institucional/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Teléfono/i)).toBeInTheDocument()
 
-    const cycleSelect = screen.getByLabelText(/Ciclo/i)
-    const tutoringSelect = screen.getByLabelText(/Tutoría/i)
-    expect(cycleSelect).toBeInTheDocument()
-    expect(tutoringSelect).toBeDisabled()
-
-    await user.selectOptions(cycleSelect, String(cycle.id))
-    expect(tutoringSelect).toBeEnabled()
-    expect(screen.getByRole('option', { name: /Matemática/i })).toBeInTheDocument()
+    // El ciclo de la pestaña queda elegido y solo se ofrecen sus tutorías.
+    const form = screen.getByRole('form', { name: 'Registrar Nuevo Estudiante' })
+    const cycleSelect = within(form).getByLabelText(/Ciclo/i)
+    expect(cycleSelect).toHaveValue(String(cycle.id))
+    expect(within(cycleSelect).getAllByRole('option')).toHaveLength(2)
+    const tutoringSelect = within(form).getByLabelText(/Tutoría/i)
+    await waitFor(() => expect(tutoringSelect).toBeEnabled())
+    expect(within(form).getByRole('option', { name: /Matemática/i })).toBeInTheDocument()
   })
 
   it('exige el ciclo al registrar un estudiante y no ofrece tutorías en el ciclo de titulación', async () => {
@@ -862,6 +867,8 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.createCoordinatorStudent).mockResolvedValue({ data: { id: 1, identification: '0926687856', name: 'Ana Nueva', email: 'ana@ueb.edu.ec', is_active: true, tutoring_count: 0, tutorings: [] } })
 
     render(<TutoringStudentsPage />)
+    // En «Sin ciclo» hay que elegir el ciclo.
+    await user.click(await screen.findByRole('tab', { name: 'Sin ciclo' }))
     await user.click(await screen.findByRole('button', { name: 'Nuevo estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar Nuevo Estudiante' })
     await user.type(within(form).getByLabelText(/Cédula o pasaporte/i), '0926687856')
@@ -898,6 +905,24 @@ describe('Coordinación de tutorías', () => {
 
     expect(await screen.findByText('Ciclo 5')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Matricular en Titulación' })).toBeDisabled()
+  })
+
+  it('registra al estudiante en el ciclo de la pestaña y permite cambiarlo de ciclo', async () => {
+    const user = userEvent.setup()
+    const student = { id: 103, identification: '0201888888', name: 'Lucía Ciclo', email: 'lucia@ueb.edu.ec', phone: null, is_active: true, cycle_id: 20, cycle_number: 2, section_name: 'A', tutoring_count: 0, tutorings: [] }
+    vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([student]))
+    vi.mocked(tutoringApi.degreeStudents).mockResolvedValue({ data: [], meta: { ...paginated([]).meta, current_period: { id: 50, name: '2026-2' } } })
+    vi.mocked(tutoringApi.updateStudentCycle).mockResolvedValue({ data: { ...student, cycle_id: 21, cycle_number: 3 } })
+
+    render(<TutoringStudentsPage />)
+    await user.click(await screen.findByRole('button', { name: 'Cambiar ciclo' }))
+    const form = screen.getByRole('form', { name: 'Cambiar ciclo' })
+    expect(within(form).getByLabelText(/Ciclo que cursa/i)).toHaveValue('20')
+    await user.selectOptions(within(form).getByLabelText(/Ciclo que cursa/i), '21')
+    await user.click(within(form).getByRole('button', { name: 'Guardar ciclo' }))
+
+    await waitFor(() => expect(tutoringApi.updateStudentCycle).toHaveBeenCalledWith(103, 21))
+    expect(tutoringApi.degreeStudents).toHaveBeenCalledWith(expect.objectContaining({ cycle_number: 3 }))
   })
 
   it('permite al coordinador de carrera cambiar a la pestaña de titulación y matricular a un estudiante', async () => {

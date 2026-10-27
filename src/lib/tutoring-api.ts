@@ -203,8 +203,12 @@ export const tutoringApi = {
   reenrollStudent: (id: number, enrollmentId: number) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/reenroll`, 'PATCH'),
 
-  allStudents: (params?: { page?: number; search?: string; career_id?: number; cycle_number?: number; tutoring_status?: 'with' | 'without' }) =>
-    request<PaginatedResourceCollection<CoordinatorStudent>>(`${ROOT}/students${buildQuery(params ?? {})}`),
+  allStudents: (params?: { page?: number; search?: string; career_id?: number; cycle_number?: number; without_cycle?: boolean; tutoring_status?: 'with' | 'without' }) => {
+    const { without_cycle: withoutCycle, ...rest } = params ?? {}
+    return request<PaginatedResourceCollection<CoordinatorStudent>>(`${ROOT}/students${buildQuery({ ...rest, without_cycle: withoutCycle ? 1 : undefined })}`)
+  },
+  updateStudentCycle: (studentId: number, cycleId: number) =>
+    request<{ data: CoordinatorStudent }>(`${ROOT}/students/${studentId}/cycle`, { method: 'PATCH', body: JSON.stringify({ cycle_id: cycleId }) }),
   createCoordinatorStudent: (input: { identification: string; name: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number; career_id?: number }) =>
     request<{ data: CoordinatorStudent }>(`${ROOT}/students`, { method: 'POST', body: JSON.stringify(input) }),
   availableTutoringsForStudent: (studentId: number, search?: string) =>
@@ -213,12 +217,13 @@ export const tutoringApi = {
     request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enroll`, { method: 'POST', body: JSON.stringify({ tutoring_id: tutoringId }) }),
   unenrollStudentFromTutoring: (studentId: number, enrollmentId: number) =>
     request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enrollments/${enrollmentId}`, { method: 'DELETE' }),
-  degreeStudents: (params?: { page?: number; search?: string; career_id?: number; enrolled?: boolean }) =>
+  degreeStudents: (params?: { page?: number; search?: string; career_id?: number; cycle_number?: number; enrolled?: boolean }) =>
     request<PaginatedResourceCollection<DegreeStudent, DegreePaginationMeta>>(
       `${ROOT}/degree-students${buildQuery({
         page: params?.page,
         search: params?.search,
         career_id: params?.career_id,
+        cycle_number: params?.cycle_number,
         enrolled: params?.enrolled !== undefined ? (params.enrolled ? 1 : 0) : undefined,
       })}`,
     ),
@@ -245,7 +250,10 @@ export interface DegreeStudent {
   readonly email: string
   readonly phone: string | null
   /** Ciclo que cursa; el último ciclo de la carrera es titulación. */
+  readonly cycle_id?: number | null
   readonly cycle_number?: number | null
+  readonly cycle_name?: string | null
+  readonly section_name?: string | null
   readonly academic_stage?: 'tutorias' | 'titulacion' | null
   readonly is_degree_enrolled: boolean
   readonly degree_enrollment_id: number | null
@@ -277,6 +285,12 @@ export interface CoordinatorStudent {
   readonly email: string
   readonly phone?: string | null
   readonly is_active: boolean
+  /** Ciclo que cursa; el último ciclo de la carrera es titulación. */
+  readonly cycle_id?: number | null
+  readonly cycle_number?: number | null
+  readonly cycle_name?: string | null
+  readonly section_name?: string | null
+  readonly academic_stage?: 'tutorias' | 'titulacion' | null
   readonly tutoring_count: number
   readonly tutorings: readonly CoordinatorStudentTutoring[]
 }

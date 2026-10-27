@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
+  ArrowRightLeftIcon,
   CheckCircle2Icon,
   GraduationCapIcon,
   PlusIcon,
@@ -7,6 +8,7 @@ import {
   UserMinusIcon,
   UserPlusIcon,
   UsersIcon,
+  UserXIcon,
   XCircleIcon,
 } from 'lucide-react'
 
@@ -22,7 +24,7 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import type { Cycle } from '@/lib/api'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
@@ -59,18 +61,31 @@ export function TutoringStudentsPage() {
   return <CareerPicker catalogs={catalogs} title="Estudiantes" rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
+const WITHOUT_CYCLE = 'none'
+
 function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
-  const [cycleFilter, setCycleFilter] = useState('')
+  const careerCycles = catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId)
+  // Una pestaña por ciclo de la carrera (los paralelos de un mismo ciclo comparten pestaña).
+  const cycleLevels = Array.from(new Map(careerCycles.map((cycle) => [cycle.number, cycle])).values()).sort((a, b) => a.number - b.number)
+  const lastCycleNumber = cycleLevels.at(-1)?.number
+  const [cycleTab, setCycleTab] = useState('')
+  const activeTab = cycleTab || (cycleLevels[0] ? String(cycleLevels[0].number) : WITHOUT_CYCLE)
+  const tabCycleNumber = activeTab === WITHOUT_CYCLE ? undefined : Number(activeTab)
+  // El último ciclo de la carrera es titulación: se gestiona su matrícula en lugar de tutorías.
+  const isDegreeTab = tabCycleNumber !== undefined && tabCycleNumber === lastCycleNumber
+  const tabLevel = cycleLevels.find((level) => level.number === tabCycleNumber)
+
   const [tutoringStatus, setTutoringStatus] = useState<'' | 'with' | 'without'>('')
   const list = usePaginatedCatalog(
-    (page, search) => tutoringApi.allStudents({ page, search, career_id: careerId, cycle_number: Number(cycleFilter) || undefined, tutoring_status: tutoringStatus || undefined }),
-    `${careerId}|${cycleFilter}|${tutoringStatus}`,
+    (page, search) => tutoringApi.allStudents({ page, search, career_id: careerId, cycle_number: tabCycleNumber, without_cycle: activeTab === WITHOUT_CYCLE, tutoring_status: tutoringStatus || undefined }),
+    `${careerId}|${activeTab}|${tutoringStatus}`,
   )
   const operation = useOperation()
   const careerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Estudiantes'
-  const cycleLevels = Array.from(
-    new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId).map((cycle) => [cycle.number, cycle])).values(),
-  ).sort((a, b) => a.number - b.number)
+
+  // Modal: Cambiar el ciclo de un estudiante
+  const [cycleTarget, setCycleTarget] = useState<{ id: number; name: string; cycle_id?: number | null } | null>(null)
+  const [targetCycleId, setTargetCycleId] = useState('')
 
   // Modal: Crear Estudiante
   const [createOpen, setCreateOpen] = useState(false)
@@ -154,10 +169,32 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   }
 
   function openCreateModal() {
-    setForm(EMPTY_STUDENT_FORM)
-    setInitialForm(EMPTY_STUDENT_FORM)
+    // Con un solo paralelo en el ciclo de la pestaña, el ciclo queda elegido de antemano.
+    const options = careerCycles.filter((cycle) => tabCycleNumber === undefined || cycle.number === tabCycleNumber)
+    const preset = { ...EMPTY_STUDENT_FORM, cycle_id: options.length === 1 ? String(options[0].id) : '' }
+    setForm(preset)
+    setInitialForm(preset)
     operation.clearError()
     setCreateOpen(true)
+  }
+
+  function openCycleModal(student: { id: number; name: string; cycle_id?: number | null }) {
+    setCycleTarget(student)
+    setTargetCycleId(student.cycle_id ? String(student.cycle_id) : '')
+    operation.clearError()
+  }
+
+  function handleCycleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!cycleTarget || !targetCycleId) return
+    void operation.run(
+      () => tutoringApi.updateStudentCycle(cycleTarget.id, Number(targetCycleId)),
+      `Ciclo de ${cycleTarget.name} actualizado.`,
+      async () => {
+        setCycleTarget(null)
+        await Promise.all([list.reload(), degreeList.reload()])
+      },
+    )
   }
 
   function handleCreateSubmit(event: FormEvent<HTMLFormElement>) {
@@ -177,7 +214,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       'Estudiante registrado exitosamente.',
       async () => {
         setCreateOpen(false)
-        await list.reload()
+        await Promise.all([list.reload(), degreeList.reload()])
       },
     )
   }
@@ -271,9 +308,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         page,
         search,
         career_id: careerId,
+        cycle_number: lastCycleNumber,
         enrolled: degreeFilter === '' ? undefined : degreeFilter === 'enrolled',
       }),
-    `${careerId}|${degreeFilter}`,
+    `${careerId}|${lastCycleNumber}|${degreeFilter}`,
   )
   const degreeOperation = useOperation()
   const [enrollTarget, setEnrollTarget] = useState<DegreeStudent | null>(null)
@@ -306,26 +344,37 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   return (
     <div className="flex flex-col gap-6">
       <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
-      <Tabs defaultValue="tutorings" className="w-full">
-        <TabsList className="mb-2">
-          <TabsTrigger value="tutorings" className="gap-2">
-            <UsersIcon className="size-4" />
-            <span>Estudiantes</span>
-          </TabsTrigger>
-          <TabsTrigger value="degree" className="gap-2">
-            <GraduationCapIcon className="size-4" />
-            <span>Titulación</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="tutorings" className="flex flex-col gap-6">
       <ModuleHeader
         title={careerName}
+        description={
+          tabLevel
+            ? `Estudiantes de ${tabLevel.number}° ciclo${tabLevel.name ? ` (${tabLevel.name})` : ''}${isDegreeTab ? ' · Titulación' : ''}.`
+            : 'Estudiantes sin ciclo asignado: asígnales el ciclo que cursan.'
+        }
         createLabel="Nuevo estudiante"
         onCreate={openCreateModal}
-        extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} />}
+        extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. Los importados quedan en «Sin ciclo» hasta que les asignes uno." onFinished={list.reload} />}
       />
 
+      <Tabs value={activeTab} onValueChange={setCycleTab} className="w-full">
+        <div className="overflow-x-auto pb-1">
+          <TabsList aria-label="Ciclos de la carrera" className="w-max">
+            {cycleLevels.map((level) => (
+              <TabsTrigger key={level.number} value={String(level.number)} className="gap-2">
+                {level.number === lastCycleNumber ? <GraduationCapIcon className="size-4" /> : <UsersIcon className="size-4" />}
+                <span>{level.number}° {level.number === lastCycleNumber ? 'Titulación' : 'ciclo'}</span>
+              </TabsTrigger>
+            ))}
+            <TabsTrigger value={WITHOUT_CYCLE} className="gap-2">
+              <UserXIcon className="size-4" />
+              <span>Sin ciclo</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
+      </Tabs>
+
+      {!isDegreeTab && (
+      <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <FilterBar
           id="tutoring-students-filter"
@@ -334,10 +383,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           searchLabel="Buscar estudiante"
           searchPlaceholder="Busca por nombre, cédula o correo…"
           filters={[
-            { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
             { id: 'tutoring-status', label: 'Tutorías', value: tutoringStatus, onChange: (value) => setTutoringStatus(value as '' | 'with' | 'without'), allLabel: 'Todos', options: [{ value: 'with', label: 'Con tutorías' }, { value: 'without', label: 'Sin tutorías' }] },
           ]}
-          onClear={() => { list.setSearchInput(''); setCycleFilter(''); setTutoringStatus('') }}
+          onClear={() => { list.setSearchInput(''); setTutoringStatus('') }}
         />
       </div>
 
@@ -355,9 +403,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             <EmptyDescription>
               {list.searchInput
                 ? 'No hay estudiantes que coincidan con la búsqueda. Intenta con otros términos.'
-                : 'Aún no hay estudiantes registrados. Registra nuevos estudiantes para asignarlos a tutorías.'}
+                : activeTab === WITHOUT_CYCLE
+                  ? 'Todos los estudiantes de la carrera tienen un ciclo asignado.'
+                  : 'Aún no hay estudiantes en este ciclo. Registra estudiantes para asignarlos a tutorías.'}
             </EmptyDescription>
-            {!list.searchInput && (
+            {!list.searchInput && activeTab !== WITHOUT_CYCLE && (
               <Button type="button" onClick={openCreateModal} className="mt-4">
                 <PlusIcon data-icon="inline-start" />
                 Registrar primer estudiante
@@ -419,6 +469,16 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   <GraduationCapIcon className="size-3.5" />
                   Gestionar tutorías
                 </Button>
+                <Button
+                  type="button"
+                  variant={student.cycle_id ? 'ghost' : 'outline'}
+                  size="sm"
+                  onClick={() => openCycleModal(student)}
+                  className="gap-1.5 text-xs font-medium"
+                >
+                  <ArrowRightLeftIcon className="size-3.5" />
+                  {student.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
+                </Button>
               </div>
             ),
           },
@@ -437,6 +497,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           onChange={list.setPage}
         />
       </div>
+
+      </div>
+      )}
 
       {/* Modal: Registrar Nuevo Estudiante */}
       <MutationDialog
@@ -532,7 +595,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             required
           >
             <option value="">-- Selecciona un ciclo --</option>
-            {cycles.map((cycle) => (
+            {cycles.filter((cycle) => tabCycleNumber === undefined || cycle.number === tabCycleNumber).map((cycle) => (
               <option key={cycle.id} value={cycle.id}>
                 {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}{isLastCycle(cycle) ? ' · Titulación' : ''}
               </option>
@@ -708,18 +771,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         onClose={() => setUnlinking(null)}
         onConfirm={handleUnenroll}
       />
-        </TabsContent>
-
-        <TabsContent value="degree" className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                Matrícula en Titulación
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Matricula a los estudiantes de la carrera para habilitarles el acceso al módulo de titulación.
-              </p>
-            </div>
+      {isDegreeTab && (
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">Matrícula en Titulación</h2>
+            <p className="text-sm text-muted-foreground">
+              Matricula a los estudiantes de este ciclo para habilitarles el acceso al módulo de titulación.
+            </p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -763,7 +821,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 <EmptyDescription>
                   {degreeList.searchInput || degreeFilter !== ''
                     ? 'No hay estudiantes que coincidan con los filtros aplicados. Intenta con otros términos.'
-                    : 'Aún no hay estudiantes registrados en la carrera para este período académico.'}
+                    : 'Aún no hay estudiantes en el ciclo de titulación. Registra estudiantes o cámbialos de ciclo.'}
                 </EmptyDescription>
               </Empty>
             }
@@ -844,6 +902,16 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                         Matricular en Titulación
                       </Button>
                     )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openCycleModal({ id: student.student_id, name: student.name, cycle_id: student.cycle_id })}
+                      className="gap-1.5 text-xs font-medium"
+                    >
+                      <ArrowRightLeftIcon className="size-3.5" />
+                      Cambiar ciclo
+                    </Button>
                   </div>
                 ),
               },
@@ -862,8 +930,35 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               onChange={degreeList.setPage}
             />
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
+
+      {/* Modal: Cambiar ciclo del estudiante */}
+      <MutationDialog
+        open={Boolean(cycleTarget)}
+        title={cycleTarget?.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
+        description={cycleTarget?.name}
+        pending={operation.pending}
+        error={operation.error}
+        dirty={targetCycleId !== (cycleTarget?.cycle_id ? String(cycleTarget.cycle_id) : '')}
+        onClose={() => setCycleTarget(null)}
+        onSubmit={handleCycleSubmit}
+        submitLabel="Guardar ciclo"
+        submitDisabled={!targetCycleId || targetCycleId === String(cycleTarget?.cycle_id ?? '')}
+      >
+        <Field>
+          <FieldLabel htmlFor="student-cycle">Ciclo que cursa *</FieldLabel>
+          <NativeSelect id="student-cycle" value={targetCycleId} onChange={(event) => setTargetCycleId(event.target.value)} required>
+            <option value="">-- Selecciona un ciclo --</option>
+            {[...careerCycles].sort((a, b) => a.number - b.number).map((cycle) => (
+              <option key={cycle.id} value={cycle.id}>
+                {cycle.number}° {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}{cycle.number === lastCycleNumber ? ' · Titulación' : ''}
+              </option>
+            ))}
+          </NativeSelect>
+          <FieldDescription>El estudiante pasa a la pestaña de ese ciclo y a su paralelo. Sus tutorías actuales se conservan.</FieldDescription>
+        </Field>
+      </MutationDialog>
 
       {/* Modal Confirmación Matrícula Titulación */}
       <ConfirmModal
