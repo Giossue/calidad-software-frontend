@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { FileTextIcon } from 'lucide-react'
+import { ArrowLeftIcon, FileTextIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
@@ -20,13 +21,16 @@ export function TeacherReportsStandalonePage() {
     return (
       <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <button
+          <Button
             type="button"
-            className="w-fit text-sm text-muted-foreground hover:text-foreground transition-colors"
+            variant="ghost"
+            size="sm"
             onClick={() => setSelected(null)}
+            className="-ml-2 w-fit text-muted-foreground hover:text-foreground"
           >
-            ← Elegir otra tutoría
-          </button>
+            <ArrowLeftIcon className="size-4" />
+            Elegir otra tutoría
+          </Button>
           <h2 className="font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
             {selected.subject_name}
           </h2>

@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   CalendarCheckIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
   ChevronRightIcon,
   ClipboardListIcon,
   ClockIcon,
@@ -19,6 +20,12 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -93,23 +100,37 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Los informes conservan los datos de la tutoría al momento del envío. Los reportes de evaluación diagnóstica, de seguimiento y el informe final PAO siguen el formato oficial.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">Los reportes oficiales siguen el formato institucional.</p>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button variant="outline" disabled={!tutoring.can_manage} onClick={() => setDiagnosticOpen(true)}>
-            <ClipboardListIcon data-icon="inline-start" />
-            Reporte de evaluación diagnóstica
-          </Button>
-          <Button variant="outline" disabled={!tutoring.can_manage} onClick={() => setFollowUpOpen(true)}>
-            <TrendingUpIcon data-icon="inline-start" />
-            Reporte de seguimiento
-          </Button>
-          <Button variant="outline" disabled={!tutoring.can_manage} onClick={() => setFinalOpen(true)}>
-            <FileCheck2Icon data-icon="inline-start" />
-            Informe final PAO
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!tutoring.can_manage}
+                className="bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+              >
+                <FileCheck2Icon data-icon="inline-start" />
+                Reportes oficiales
+                <ChevronDownIcon data-icon="inline-end" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setDiagnosticOpen(true)}>
+                <ClipboardListIcon />
+                Evaluación diagnóstica
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setFollowUpOpen(true)}>
+                <TrendingUpIcon />
+                Seguimiento
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setFinalOpen(true)}>
+                <FileCheck2Icon />
+                Informe final PAO
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             disabled={!tutoring.can_manage || operation.pending}
             onClick={() => {

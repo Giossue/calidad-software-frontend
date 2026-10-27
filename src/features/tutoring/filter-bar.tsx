@@ -55,7 +55,7 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
           <Button type="button" variant="outline" disabled={disabled} className="h-10 shrink-0 bg-white px-3 text-xs sm:text-sm hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800" onClick={() => setOpen(true)}>
             <SlidersHorizontalIcon data-icon="inline-start" />
             Filtros
-            {active.length > 0 && <Badge variant="secondary" className="ml-1 rounded-full px-1.5" aria-label={`${active.length} filtros activos`}>{active.length}</Badge>}
+            {active.length > 0 && <Badge variant="outline" className="ml-1 rounded-full border-border bg-white px-1.5 text-foreground dark:bg-slate-900" aria-label={`${active.length} filtros activos`}>{active.length}</Badge>}
           </Button>
         )}
       </div>

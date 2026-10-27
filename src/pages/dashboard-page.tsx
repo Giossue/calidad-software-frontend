@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   BookOpenIcon,
   Building2Icon,
@@ -32,12 +32,17 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { Spinner } from '@/components/ui/spinner'
+import { cn } from '@/lib/utils'
 import {
   AdminSectionContent,
   isAdminSection,
@@ -63,7 +68,7 @@ import { StudentDegreeAssignmentsPage } from '@/features/student/student-degree-
 import type { TeacherSection } from '@/features/teacher/teacher-navigation'
 import { TeacherTutoringsPage } from '@/features/teacher/teacher-tutorings-page'
 import { TeacherDegreeAssignmentsPage } from '@/features/teacher/teacher-degree-assignments-page'
-import { TeacherDegreeTrackingPage } from '@/features/teacher/teacher-degree-tracking-page'
+import { TEACHER_TRACKING_TABS, TeacherDegreeTrackingPage } from '@/features/teacher/teacher-degree-tracking-page'
 import { TeacherReportsStandalonePage } from '@/features/teacher/teacher-reports-standalone-page'
 import { tutoringApi } from '@/lib/tutoring-api'
 
@@ -105,11 +110,14 @@ const STUDENT_DEGREE_NAV_ITEMS: readonly NavItem[] = [
   { id: 'student-degree-assignments', label: 'Tutor y pares', icon: UsersIcon },
 ]
 
-const TEACHER_NAV_ITEMS: readonly NavItem[] = [
+const TEACHER_TUTORING_NAV_ITEMS: readonly NavItem[] = [
   { id: 'teacher-tutorings', label: 'Mis tutorías', icon: GraduationCapIcon },
+  { id: 'teacher-reports', label: 'Informes', icon: FileTextIcon },
+]
+
+const TEACHER_DEGREE_NAV_ITEMS: readonly NavItem[] = [
   { id: 'teacher-degree-assignments', label: 'Titulación', icon: BookOpenIcon },
   { id: 'teacher-degree-tracking', label: 'Seguimiento', icon: TrendingUpIcon },
-  { id: 'teacher-reports', label: 'Informes', icon: FileTextIcon },
 ]
 
 function getRoleLabel(role?: string): string {
@@ -129,6 +137,32 @@ function getRoleLabel(role?: string): string {
   }
 }
 
+// Sub-apartado del sidebar bajo "Seguimiento" (docente): reemplaza al Tabs que antes
+// aparecía dentro de la pantalla para no desplazar el contenido del tema al entrar.
+function TeacherTrackingSubNav({ activeTab, onSelect }: Readonly<{ activeTab: string; onSelect: (tab: string) => void }>) {
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  return (
+    <SidebarMenuSub className="mt-1">
+      {TEACHER_TRACKING_TABS.map((item) => (
+        <SidebarMenuSubItem key={item.id}>
+          <SidebarMenuSubButton asChild isActive={activeTab === item.id}>
+            <button
+              type="button"
+              onClick={() => {
+                onSelect(item.id)
+                if (isMobile) setOpenMobile(false)
+              }}
+            >
+              {item.label}
+            </button>
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+      ))}
+    </SidebarMenuSub>
+  )
+}
+
 function getInitials(name?: string): string {
   if (!name) return 'US'
   const parts = name.trim().split(/\s+/)
@@ -142,6 +176,7 @@ export function DashboardPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [pending, setPending] = useState(false)
   const [accessibilityOpen, setAccessibilityOpen] = useState(false)
   const [pwaInstallOpen, setPwaInstallOpen] = useState(false)
@@ -190,10 +225,25 @@ export function DashboardPage() {
               ...(studentDegreeEnrolled ? [{ label: 'Titulación', items: STUDENT_DEGREE_NAV_ITEMS }] : []),
             ]
       : []),
-    ...(user?.role === 'docente' ? [{ label: 'Docencia', items: TEACHER_NAV_ITEMS }] : []),
+    ...(user?.role === 'docente'
+      ? [
+          { label: 'Tutorías', items: TEACHER_TUTORING_NAV_ITEMS },
+          { label: 'Titulación', items: TEACHER_DEGREE_NAV_ITEMS },
+        ]
+      : []),
   ]
 
   const sectionLabel = navGroups.flatMap((group) => group.items).find((item) => item.id === activeSection)?.label
+
+  const trackingTopicId = Number(searchParams.get('topic'))
+  const showTrackingSubNav = activeSection === 'teacher-degree-tracking' && Number.isInteger(trackingTopicId) && trackingTopicId > 0
+  const trackingTab = searchParams.get('tab') ?? TEACHER_TRACKING_TABS[0].id
+
+  function selectTrackingTab(tab: string) {
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', tab)
+    setSearchParams(next, { replace: true })
+  }
 
   useEffect(() => {
     if (section !== activeSection) {
@@ -245,17 +295,28 @@ export function DashboardPage() {
                 {group.items.map((item) => {
                   const Icon = item.icon
 
+                  // Con el sub-menú de "Seguimiento" abierto, quién está "activo" de verdad es la
+                  // pestaña elegida ahí abajo: se le quita el relleno sólido al padre para que no
+                  // compita visualmente con el hover/activo de sus sub-ítems.
+                  const isTrackingParentWithSubNav = item.id === 'teacher-degree-tracking' && showTrackingSubNav
+
                   return (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
                         isActive={activeSection === item.id}
                         tooltip={item.label}
                         onClick={() => navigate(`/panel/${item.id}`)}
-                        className="border-l-2 border-transparent data-[active=true]:border-sidebar-primary data-[active=true]:font-semibold"
+                        className={cn(
+                          'border-l-2 border-transparent data-[active=true]:border-sidebar-primary data-[active=true]:font-semibold',
+                          isTrackingParentWithSubNav && 'data-[active=true]:bg-transparent data-[active=true]:text-sidebar-foreground',
+                        )}
                       >
                         <Icon />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
+                      {isTrackingParentWithSubNav && (
+                        <TeacherTrackingSubNav activeTab={trackingTab} onSelect={selectTrackingTab} />
+                      )}
                     </SidebarMenuItem>
                   )
                 })}

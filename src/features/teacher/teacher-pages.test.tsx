@@ -573,7 +573,8 @@ describe('Módulo Docente', () => {
 
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
-    await user.click(await screen.findByRole('button', { name: 'Reporte de evaluación diagnóstica' }))
+    await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Evaluación diagnóstica' }))
 
     const form = screen.getByRole('form', { name: 'Reporte de la evaluación diagnóstica' })
     const parameters = await within(form).findByRole('table', { name: 'Parámetros de la evaluación al estudiante' })
@@ -604,7 +605,8 @@ describe('Módulo Docente', () => {
 
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
-    await user.click(await screen.findByRole('button', { name: 'Reporte de evaluación diagnóstica' }))
+    await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Evaluación diagnóstica' }))
 
     expect(await screen.findByText(/Aún no hay calificaciones diagnósticas registradas/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Enviar a coordinación' })).toBeDisabled()
@@ -632,7 +634,8 @@ describe('Módulo Docente', () => {
 
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
-    await user.click(await screen.findByRole('button', { name: 'Reporte de seguimiento' }))
+    await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Seguimiento' }))
 
     const form = screen.getByRole('form', { name: 'Reporte de seguimiento a las tutorías' })
     const activities = await within(form).findByRole('table', { name: 'Actividades programadas' })
@@ -679,7 +682,8 @@ describe('Módulo Docente', () => {
 
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
-    await user.click(await screen.findByRole('button', { name: 'Informe final PAO' }))
+    await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Informe final PAO' }))
 
     const form = screen.getByRole('form', { name: 'Informe final PAO' })
     const matrix = await within(form).findByRole('table', { name: 'Matriz de operacionalización de tutorías' })
@@ -797,85 +801,108 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('button', { name: /Aprobar|Rechazar/ })).not.toBeInTheDocument()
   })
 
-  it('permite al docente consultar el seguimiento de sus temas asignados y registrar tareas', async () => {
-    const user = userEvent.setup()
-    const mockTopic = {
-      id: 130,
-      title: 'Desarrollo de Software Seguro',
-      description: 'Investigación sobre ciberseguridad',
-      status: 'aprobado' as const,
-      proposed_at: '2026-09-01',
-      reviewed_at: '2026-09-10',
-      section: null,
-      reviewer: null,
-      student: { id: 80, name: 'Ana Pérez', identification: '0201234567', email: 'ana.perez@ueb.edu.ec', phone: null },
-      academic_period: { id: 50, name: '2026-2', is_active: true },
-      assignments: [
-        { id: 1, role: 'tutor' as const, assigned_at: '2026-09-10', teacher: { id: 5, name: 'María López', email: 'maria.lopez@ueb.edu.ec' } },
-        { id: 2, role: 'par_academico' as const, assigned_at: '2026-09-10', teacher: { id: 6, name: 'Carlos Par', email: 'carlos.par@ueb.edu.ec' } },
+  const mockTrackingTopic = {
+    id: 130,
+    title: 'Desarrollo de Software Seguro',
+    description: 'Investigación sobre ciberseguridad',
+    status: 'aprobado' as const,
+    proposed_at: '2026-09-01',
+    reviewed_at: '2026-09-10',
+    section: null,
+    reviewer: null,
+    student: { id: 80, name: 'Ana Pérez', identification: '0201234567', email: 'ana.perez@ueb.edu.ec', phone: null },
+    academic_period: { id: 50, name: '2026-2', is_active: true },
+    assignments: [
+      { id: 1, role: 'tutor' as const, assigned_at: '2026-09-10', teacher: { id: 5, name: 'María López', email: 'maria.lopez@ueb.edu.ec' } },
+      { id: 2, role: 'par_academico' as const, assigned_at: '2026-09-10', teacher: { id: 6, name: 'Carlos Par', email: 'carlos.par@ueb.edu.ec' } },
+    ],
+    observations: [],
+    tracking: {
+      id: 10,
+      opened_at: '2026-10-01',
+      progress_percentage: 50,
+      status: 'en_progreso',
+      activities: [
+        {
+          id: 201,
+          description: 'Redactar introducción y objetivos',
+          is_completed: false,
+          registered_at: '2026-10-02',
+          teacher: { id: 5, name: 'María López', email: 'maria.lopez@ueb.edu.ec', role: 'tutor' },
+        },
+        {
+          id: 202,
+          description: 'Revisión por par académico',
+          is_completed: false,
+          registered_at: '2026-10-02',
+          teacher: { id: 6, name: 'Carlos Par', email: 'carlos.par@ueb.edu.ec', role: 'par_academico' },
+        },
       ],
-      observations: [],
-      tracking: {
-        id: 10,
-        opened_at: '2026-10-01',
-        progress_percentage: 50,
-        status: 'en_progreso',
-        activities: [
-          {
-            id: 201,
-            description: 'Redactar introducción y objetivos',
-            is_completed: false,
-            registered_at: '2026-10-02',
-            teacher: { id: 5, name: 'María López', email: 'maria.lopez@ueb.edu.ec', role: 'tutor' },
-          },
-          {
-            id: 202,
-            description: 'Revisión por par académico',
-            is_completed: false,
-            registered_at: '2026-10-02',
-            teacher: { id: 6, name: 'Carlos Par', email: 'carlos.par@ueb.edu.ec', role: 'par_academico' },
-          },
-        ],
-      },
-    }
+    },
+  }
 
-    vi.mocked(teacherApi.degreeTracking).mockResolvedValue(paginated([mockTopic]))
-    vi.mocked(teacherApi.degreeTrackingTopic).mockResolvedValue(mockTopic)
+  it('permite al docente consultar el seguimiento de sus temas y ver el detalle sin pestañas ni cédula en el encabezado', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.degreeTracking).mockResolvedValue(paginated([mockTrackingTopic]))
+    vi.mocked(teacherApi.degreeTrackingTopic).mockResolvedValue(mockTrackingTopic)
 
-    show(<TeacherDegreeTrackingPage />)
+    show(<TeacherDegreeTrackingPage />, '/panel/teacher-degree-tracking')
 
     // Debe mostrar el tema en la tabla
     expect(await screen.findByText('Desarrollo de Software Seguro')).toBeInTheDocument()
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
 
-    // Abrir seguimiento: muestra pestañas "Estado de la Ficha", "Equipo de Titulación", "Tareas"
+    // Al abrir el detalle ya no hay pestañas en pantalla (se navegan desde el sidebar)
     await user.click(screen.getByRole('button', { name: 'Seguimiento' }))
     expect(await screen.findByText('Estado de la Ficha de Seguimiento')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Estado de la Ficha/i })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Equipo de Titulación/i })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Tareas/i })).toBeInTheDocument()
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    expect(screen.getByText('Desarrollo de Software Seguro')).toBeInTheDocument()
+    expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
+    expect(screen.getByText('Docente Tutor')).toBeInTheDocument()
+    // La cédula ya no se muestra en el encabezado del tema
+    expect(screen.queryByText(/0201234567/)).not.toBeInTheDocument()
 
-    // Cambiar a la pestaña Equipo de Titulación
-    await user.click(screen.getByRole('tab', { name: /Equipo de Titulación/i }))
+    // Volver a la lista
+    await user.click(screen.getByRole('button', { name: /Volver a mis temas/i }))
+    expect(await screen.findByText('50%')).toBeInTheDocument()
+  })
+
+  it('muestra el equipo de titulación de un tema enlazado directamente por URL', async () => {
+    vi.mocked(teacherApi.degreeTrackingTopic).mockResolvedValue(mockTrackingTopic)
+
+    show(<TeacherDegreeTrackingPage />, '/panel/teacher-degree-tracking?topic=130&tab=equipo-titulacion')
+
     expect(await screen.findByText('Carlos Par')).toBeInTheDocument()
+    expect(screen.getByText('María López')).toBeInTheDocument()
+    // Aquí sí se conserva la cédula, dentro de la tarjeta del equipo
+    expect(screen.getByText(/0201234567/)).toBeInTheDocument()
+  })
 
-    // Cambiar a la pestaña Tareas
-    await user.click(screen.getByRole('tab', { name: /Tareas/i }))
+  it('permite marcar con un checkbox la tarea propia y registrar una nueva', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.degreeTrackingTopic).mockResolvedValue(mockTrackingTopic)
+
+    show(<TeacherDegreeTrackingPage />, '/panel/teacher-degree-tracking?topic=130&tab=tareas')
+
     expect(await screen.findByText(/Redactar introducción y objetivos/)).toBeInTheDocument()
     expect(screen.getByText(/Revisión por par académico/)).toBeInTheDocument()
 
-    // Para la tarea propia (201), el botón de marcar como completada está disponible
+    // Para la tarea propia (201) hay un checkbox real para marcarla como completada
     vi.mocked(teacherApi.toggleDegreeTrackingActivity).mockResolvedValue({
       data: { id: 201, is_completed: true, progress_percentage: 75 },
       message: 'Actualizado',
     })
-    const ownToggleBtn = screen.getByRole('button', { name: 'Marcar como completada' })
-    await user.click(ownToggleBtn)
+    const ownCheckbox = screen.getByRole('checkbox', { name: 'Marcar como completada' })
+    await user.click(ownCheckbox)
     expect(teacherApi.toggleDegreeTrackingActivity).toHaveBeenCalledWith(130, 201, true)
 
+    // La tarea del par académico no es propia: se muestra como insignia, sin control interactivo
+    // (solo existe un checkbox: el de la tarea propia)
+    expect(screen.getAllByRole('checkbox', { name: /Marcar como/ })).toHaveLength(1)
+
     // Registrar nueva tarea
-    await user.click(screen.getByRole('button', { name: /Asignar tarea \/ actividad/i }))
+    await user.click(screen.getByRole('button', { name: /Asignar tarea/i }))
     expect(screen.getByText('Asignar nueva tarea de seguimiento')).toBeInTheDocument()
     const input = screen.getByLabelText(/Descripción de la tarea o entrega/i)
     await user.type(input, 'Entregar marco teórico')
@@ -892,6 +919,37 @@ describe('Módulo Docente', () => {
       expect(teacherApi.addDegreeTrackingActivity).toHaveBeenCalledWith(130, {
         descripcion: 'Entregar marco teórico',
       })
+    })
+  })
+
+  it('reordena las tareas: pendientes arriba, completadas abajo, al marcar una como completada', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.degreeTrackingTopic).mockResolvedValueOnce(mockTrackingTopic)
+
+    show(<TeacherDegreeTrackingPage />, '/panel/teacher-degree-tracking?topic=130&tab=tareas')
+
+    // Al llegar, ambas tareas están pendientes: la propia (201) va antes que la del par (202)
+    expect(await screen.findByText(/Redactar introducción y objetivos/)).toBeInTheDocument()
+    const rowIndexOf = (text: string) => screen.getAllByRole('row').findIndex((row) => row.textContent?.includes(text))
+    expect(rowIndexOf('Redactar introducción y objetivos')).toBeLessThan(rowIndexOf('Revisión por par académico'))
+
+    // Al completar la propia, debe pasar debajo de la pendiente del par académico
+    vi.mocked(teacherApi.toggleDegreeTrackingActivity).mockResolvedValue({
+      data: { id: 201, is_completed: true, progress_percentage: 75 },
+      message: 'Actualizado',
+    })
+    vi.mocked(teacherApi.degreeTrackingTopic).mockResolvedValueOnce({
+      ...mockTrackingTopic,
+      tracking: {
+        ...mockTrackingTopic.tracking,
+        activities: mockTrackingTopic.tracking.activities.map((act) => (act.id === 201 ? { ...act, is_completed: true } : act)),
+      },
+    })
+
+    await user.click(screen.getByRole('checkbox', { name: 'Marcar como completada' }))
+
+    await waitFor(() => {
+      expect(rowIndexOf('Revisión por par académico')).toBeLessThan(rowIndexOf('Redactar introducción y objetivos'))
     })
   })
 })
