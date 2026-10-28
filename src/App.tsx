@@ -4,7 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
-import { CompleteProfilePage } from '@/features/auth/complete-profile-page'
+import { CompleteProfileModal } from '@/features/auth/complete-profile-modal'
 import { ForgotPasswordPage } from '@/features/auth/forgot-password-page'
 import { LoginPage } from '@/features/auth/login-page'
 import { ResetPasswordPage } from '@/features/auth/reset-password-page'
@@ -18,7 +18,17 @@ function ProtectedDashboard() {
   if (status === 'loading') return null
   if (status !== 'authenticated') return <Navigate to="/login" replace />
 
-  return user?.must_complete_profile ? <CompleteProfilePage /> : <DashboardPage />
+  const mustCompleteProfile = Boolean(user?.must_complete_profile)
+
+  return (
+    <>
+      {/* `inert` bloquea foco y clics del sistema mientras el modal exige completar la cuenta. */}
+      <div className="contents" inert={mustCompleteProfile}>
+        <DashboardPage />
+      </div>
+      {mustCompleteProfile && <CompleteProfileModal />}
+    </>
+  )
 }
 
 function GuestRoute({ children }: Readonly<{ children: React.ReactNode }>) {

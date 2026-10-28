@@ -49,6 +49,7 @@ export function Dialog({
   confirmClose = true,
   confirmCloseTitle = '¿Descartar los cambios?',
   confirmCloseDescription = '¿Estás seguro de cerrar este formulario? Cualquier información o cambio realizado que no haya sido guardado se perderá por completo.',
+  dismissible = true,
 }: Readonly<{
   open: boolean
   onClose: () => void
@@ -59,6 +60,8 @@ export function Dialog({
   confirmClose?: boolean
   confirmCloseTitle?: string
   confirmCloseDescription?: string
+  /** En `false` el modal no puede cerrarse: sin botón de cerrar, clic fuera ni Escape. */
+  dismissible?: boolean
 }>) {
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -70,6 +73,7 @@ export function Dialog({
   }, [open])
 
   function handleAttemptClose() {
+    if (!dismissible) return
     if (confirmClose) {
       setShowConfirm(true)
     } else {
@@ -100,7 +104,7 @@ export function Dialog({
       document.body.style.overflow = ''
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open, showConfirm, confirmClose])
+  }, [open, showConfirm, confirmClose, dismissible])
 
   if (!open) return null
 
@@ -136,14 +140,16 @@ export function Dialog({
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={handleAttemptClose}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-              aria-label="Cerrar modal"
-            >
-              <XIcon className="size-5" />
-            </button>
+            {dismissible && (
+              <button
+                type="button"
+                onClick={handleAttemptClose}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                aria-label="Cerrar modal"
+              >
+                <XIcon className="size-5" />
+              </button>
+            )}
           </div>
 
           {/* Cuerpo del Modal */}
