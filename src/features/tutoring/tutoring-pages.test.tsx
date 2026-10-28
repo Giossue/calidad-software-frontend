@@ -861,6 +861,24 @@ describe('Coordinación de tutorías', () => {
     expect(within(form).getByRole('option', { name: /Matemática/i })).toBeInTheDocument()
   })
 
+  it('marca como titulación solo el último ciclo de la carrera, no uno fijo como el 6.º', async () => {
+    // Carrera con ciclos hasta el 8.º: el 6.º y 7.º ya no son titulación, solo el 8.º.
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([
+      cycle,
+      { ...cycle, id: 21, name: 'Sexto', number: 6 },
+      { ...cycle, id: 22, name: 'Octavo', number: 8 },
+    ])
+    vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([]))
+    vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([tutoring]))
+
+    render(<TutoringStudentsPage />)
+
+    expect(await screen.findByRole('tab', { name: '2° ciclo', selected: true })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '6° ciclo' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '6° ciclo · Titulación' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '8° ciclo · Titulación' })).toBeInTheDocument()
+  })
+
   it('exige el ciclo al registrar un estudiante y no ofrece tutorías en el ciclo de titulación', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
@@ -881,7 +899,7 @@ describe('Coordinación de tutorías', () => {
     const submit = within(form).getByRole('button', { name: 'Registrar estudiante' })
     expect(submit).toBeDisabled()
 
-    // Desde 6.º ciclo es titulación: sin tutorías.
+    // El 6.º es el último ciclo de esta carrera de prueba, así que es titulación: sin tutorías.
     await user.selectOptions(within(form).getByLabelText(/Ciclo/i), '21')
     expect(within(form).getByRole('option', { name: /Sexto - Paralelo A · Titulación/ })).toBeInTheDocument()
     expect(within(form).getByLabelText(/Tutoría/i)).toBeDisabled()

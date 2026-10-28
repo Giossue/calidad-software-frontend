@@ -26,7 +26,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { DEGREE_FROM_CYCLE, isDegreeCycleNumber } from '@/lib/academic-stage'
+import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import type { Cycle } from '@/lib/api'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
@@ -68,11 +68,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const careerCycles = catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId)
   // Una pestaña por ciclo de la carrera (los paralelos de un mismo ciclo comparten pestaña).
   const cycleLevels = Array.from(new Map(careerCycles.map((cycle) => [cycle.number, cycle])).values()).sort((a, b) => a.number - b.number)
+  // Titulación es el último ciclo (número más alto) de la carrera.
+  const careerMaxCycle = maxCycleNumber(careerCycles)
   const [cycleTab, setCycleTab] = useState('')
   const activeTab = cycleTab || (cycleLevels[0] ? String(cycleLevels[0].number) : WITHOUT_CYCLE)
   const tabCycleNumber = activeTab === WITHOUT_CYCLE ? undefined : Number(activeTab)
-  // Desde 6.º ciclo los estudiantes están en titulación: se gestiona su matrícula en lugar de tutorías.
-  const isDegreeTab = isDegreeCycleNumber(tabCycleNumber)
+  // En el último ciclo los estudiantes están en titulación: se gestiona su matrícula en lugar de tutorías.
+  const isDegreeTab = isDegreeCycleNumber(tabCycleNumber, careerMaxCycle)
   const tabLevel = cycleLevels.find((level) => level.number === tabCycleNumber)
 
   const [tutoringStatus, setTutoringStatus] = useState<'' | 'with' | 'without'>('')
@@ -280,8 +282,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const availableTutoringsForCycle = form.cycle_id
     ? allTutorings.filter((t) => t.cycle_id === Number(form.cycle_id))
     : []
-  // Desde 6.º ciclo los estudiantes están en titulación: no se inscriben en tutorías.
-  const isLastCycle = (cycle: Cycle) => isDegreeCycleNumber(cycle.number)
+  // En el último ciclo de la carrera los estudiantes están en titulación: no se inscriben en tutorías.
+  const createModalMaxCycle = maxCycleNumber(cycles)
+  const isLastCycle = (cycle: Cycle) => isDegreeCycleNumber(cycle.number, createModalMaxCycle)
   const selectedCycle = cycles.find((cycle) => String(cycle.id) === form.cycle_id)
   const isDegreeCycle = selectedCycle ? isLastCycle(selectedCycle) : false
 
@@ -357,8 +360,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           <TabsList aria-label="Ciclos de la carrera" className="w-max">
             {cycleLevels.map((level) => (
               <TabsTrigger key={level.number} value={String(level.number)} className="gap-2">
-                {isDegreeCycleNumber(level.number) ? <GraduationCapIcon className="size-4" /> : <UsersIcon className="size-4" />}
-                <span>{level.number}° ciclo{isDegreeCycleNumber(level.number) ? ' · Titulación' : ''}</span>
+                {isDegreeCycleNumber(level.number, careerMaxCycle) ? <GraduationCapIcon className="size-4" /> : <UsersIcon className="size-4" />}
+                <span>{level.number}° ciclo{isDegreeCycleNumber(level.number, careerMaxCycle) ? ' · Titulación' : ''}</span>
               </TabsTrigger>
             ))}
             <TabsTrigger value={WITHOUT_CYCLE} className="gap-2">
@@ -598,7 +601,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             ))}
           </NativeSelect>
           <FieldDescription>
-            Ciclo que cursa el estudiante. Hasta {DEGREE_FROM_CYCLE - 1}.º ciclo recibe tutorías; desde {DEGREE_FROM_CYCLE}.º, titulación.
+            Ciclo que cursa el estudiante. El último ciclo de la carrera es de titulación; los anteriores, de tutorías.
           </FieldDescription>
         </Field>
 
@@ -629,7 +632,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           </NativeSelect>
           <FieldDescription>
             {isDegreeCycle
-              ? `Desde ${DEGREE_FROM_CYCLE}.º ciclo los estudiantes solo acceden a titulación, con matrícula vigente.`
+              ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.'
               : form.cycle_id
               ? 'Puedes inscribir al estudiante en una tutoría de este ciclo de inmediato o hacerlo después.'
               : 'Selecciona primero un ciclo para habilitar las tutorías.'}
@@ -772,7 +775,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">Matrícula en Titulación</h2>
             <p className="text-sm text-muted-foreground">
-              Desde {DEGREE_FROM_CYCLE}.º ciclo los estudiantes acceden al módulo de titulación cuando están matriculados en el período vigente.
+              En el último ciclo de la carrera los estudiantes acceden al módulo de titulación cuando están matriculados en el período vigente.
             </p>
           </div>
 
@@ -891,7 +894,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                         size="sm"
                         onClick={() => setEnrollTarget(student)}
                         disabled={degreeOperation.pending || student.academic_stage !== 'titulacion'}
-                        title={student.academic_stage !== 'titulacion' ? `Solo se matriculan en titulación los estudiantes desde ${DEGREE_FROM_CYCLE}.º ciclo.` : undefined}
+                        title={student.academic_stage !== 'titulacion' ? 'Solo se matriculan en titulación los estudiantes que estén en el último ciclo de la carrera.' : undefined}
                         className="gap-1.5 text-xs font-medium"
                       >
                         <GraduationCapIcon className="size-3.5" />
@@ -948,7 +951,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             <option value="">-- Selecciona un ciclo --</option>
             {[...careerCycles].sort((a, b) => a.number - b.number).map((cycle) => (
               <option key={cycle.id} value={cycle.id}>
-                {cycle.number}° {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}{isDegreeCycleNumber(cycle.number) ? ' · Titulación' : ''}
+                {cycle.number}° {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}{isDegreeCycleNumber(cycle.number, careerMaxCycle) ? ' · Titulación' : ''}
               </option>
             ))}
           </NativeSelect>
