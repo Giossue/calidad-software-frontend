@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { ShieldCheckIcon } from 'lucide-react'
 import { Navigate, useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -46,10 +47,10 @@ export function TwoFactorPage() {
             <FieldError>{error}</FieldError>
           </Field>
           <Button type="submit" disabled={pending} className="w-full">
-            {pending && <Spinner data-icon="inline-start" />}
+            {pending ? <Spinner data-icon="inline-start" /> : <ShieldCheckIcon data-icon="inline-start" />}
             Verificar
           </Button>
-          <Button type="button" variant="link" onClick={() => { setUseRecovery((current) => !current); setValue(''); setError(null) }}>
+          <Button type="button" variant="tertiary" onClick={() => { setUseRecovery((current) => !current); setValue(''); setError(null) }}>
             {useRecovery ? 'Usar código de autenticación' : 'Usar código de recuperación'}
           </Button>
         </FieldGroup>

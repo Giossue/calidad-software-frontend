@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, CheckIcon, XCircleIcon } from 'lucide-react'
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, CheckIcon, SaveIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -134,18 +134,15 @@ export function CompleteProfileModal() {
             const reached = index <= maxReachedStep
             const active = index === stepIndex
             return (
-              <button
+              <Button
                 key={step.key}
                 type="button"
+                variant={active ? 'secondary' : 'tertiary'}
+                size="sm"
                 disabled={!reached}
                 aria-current={active ? 'step' : undefined}
                 onClick={() => reached && goToStep(index)}
-                className={cn(
-                  'flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold transition-colors disabled:cursor-not-allowed',
-                  active && 'bg-brand-red/10 text-brand-red',
-                  !active && reached && 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
-                  !reached && 'text-slate-300 dark:text-slate-700',
-                )}
+                className="flex-1 justify-start"
               >
                 <span
                   className={cn(
@@ -158,7 +155,7 @@ export function CompleteProfileModal() {
                   {reached && !active ? <CheckIcon className="size-3" /> : index + 1}
                 </span>
                 <span className="hidden truncate sm:inline">{step.label}</span>
-              </button>
+              </Button>
             )
           })}
         </nav>
@@ -251,14 +248,14 @@ export function CompleteProfileModal() {
 
           <div className="flex items-center justify-between gap-3 pt-2">
             {!isFirstStep
-              ? <Button type="button" variant="outline" onClick={() => goToStep(stepIndex - 1)}>Atrás</Button>
+              ? <Button type="button" variant="secondary" onClick={() => goToStep(stepIndex - 1)}><ArrowLeftIcon data-icon="inline-start" />Atrás</Button>
               : <span />}
             <Button type="submit" disabled={pending || (isLastStep ? !canSubmit : !stepValid)} className={cn(isFirstStep && 'flex-1')}>
-              {pending && <Spinner data-icon="inline-start" />}
+              {pending ? <Spinner data-icon="inline-start" /> : isLastStep ? <SaveIcon data-icon="inline-start" /> : <ArrowRightIcon data-icon="inline-start" />}
               {isLastStep ? 'Guardar y continuar' : 'Siguiente'}
             </Button>
           </div>
-          <Button type="button" variant="link" onClick={() => void logout()}>Cerrar sesión</Button>
+          <Button type="button" variant="tertiary" onClick={() => void logout()}>Cerrar sesión</Button>
         </FieldGroup>
       </form>
     </Dialog>

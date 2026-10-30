@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { LogInIcon } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -104,7 +105,7 @@ export function LoginPage() {
                 </Field>
                 <Field>
                   <Button type="submit" disabled={pending}>
-                    {pending && <Spinner data-icon="inline-start" />}
+                    {pending ? <Spinner data-icon="inline-start" /> : <LogInIcon data-icon="inline-start" />}
                     {pending ? 'Iniciando sesión…' : 'Ingresar'}
                   </Button>
                 </Field>

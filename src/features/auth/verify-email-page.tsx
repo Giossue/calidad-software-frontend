@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LayoutDashboardIcon } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
@@ -32,7 +33,7 @@ export function VerifyEmailPage() {
     <AuthShell title="Verificación de correo" description="Validamos el enlace de tu cuenta.">
       {!message && !error && !linkError && <div className="flex justify-center"><Spinner /></div>}
       <AuthFeedback error={error ?? linkError} success={message} />
-      {(message || error || linkError) && <Button asChild><Link to="/">Ir al panel</Link></Button>}
+      {(message || error || linkError) && <Button asChild><Link to="/"><LayoutDashboardIcon data-icon="inline-start" />Ir al panel</Link></Button>}
     </AuthShell>
   )
 }

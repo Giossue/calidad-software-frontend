@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { KeyRoundIcon } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -58,10 +59,10 @@ export function ResetPasswordPage() {
             <FieldError>{error}</FieldError>
           </Field>
           <Button type="submit" disabled={pending || !email || !token || !isPasswordValid(password) || confirmation === ''} className="w-full">
-            {pending && <Spinner data-icon="inline-start" />}
+            {pending ? <Spinner data-icon="inline-start" /> : <KeyRoundIcon data-icon="inline-start" />}
             Restablecer contraseña
           </Button>
-          <Button variant="link" asChild><Link to="/login">Volver al inicio de sesión</Link></Button>
+          <Button variant="tertiary" asChild><Link to="/login">Volver al inicio de sesión</Link></Button>
         </FieldGroup>
       </form>
     </AuthShell>
