@@ -1,13 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError } from '@/lib/api'
-import { AuthShell } from './auth-shell'
 import { useAuth } from './auth-context'
 
 export function LoginPage() {
@@ -20,7 +19,6 @@ export function LoginPage() {
     return typeof state === 'object' && state !== null && 'email' in state && typeof state.email === 'string' ? state.email : ''
   })
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -48,93 +46,80 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell
-      title="Bienvenido"
-      description="Ingresa con tus credenciales institucionales para acceder a la gestión académica."
-    >
-      <form onSubmit={submit} noValidate className="space-y-6 mt-4">
-        <FieldGroup className="gap-5">
-          <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="email" className="font-semibold text-slate-800 dark:text-slate-200">
-              Correo electrónico
-            </FieldLabel>
-            <div className="relative flex items-center">
-              <MailIcon className="absolute left-3.5 size-4 text-slate-400" />
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="nombre@ueb.edu.ec"
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value)
-                  setError(null)
-                }}
-                aria-invalid={Boolean(error)}
-                className="pl-10 h-11 border-slate-200 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
-                required
-              />
-            </div>
-          </Field>
-
-          <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="password" className="font-semibold text-slate-800 dark:text-slate-200">
-              Contraseña
-            </FieldLabel>
-            <div className="relative flex items-center">
-              <LockIcon className="absolute left-3.5 size-4 text-slate-400" />
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                placeholder="Ingresa tu contraseña"
-                value={password}
-                onChange={(event) => {
-                  setPassword(event.target.value)
-                  setError(null)
-                }}
-                aria-invalid={Boolean(error)}
-                className="pl-10 pr-10 h-11 border-slate-200 focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              >
-                {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-              </button>
-            </div>
-            <FieldError>{error}</FieldError>
-          </Field>
-
-          <FieldDescription className="-mt-1 text-xs text-slate-500">
-            Usa las credenciales asignadas para tu cuenta institucional.
-          </FieldDescription>
-
-          <Button
-            type="submit"
-            disabled={pending}
-            size="lg"
-            className="h-12 w-full bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold text-base shadow-md transition-all duration-150"
-          >
-            {pending && <Spinner data-icon="inline-start" />}
-            {pending ? 'Iniciando sesión…' : 'Ingresar'}
-          </Button>
-        </FieldGroup>
-      </form>
-
-      <div className="mt-8 flex items-center justify-between gap-4 border-t border-slate-100 pt-5 dark:border-slate-800">
-        <span className="text-xs text-slate-500 dark:text-slate-400">
-          ¿No recuerdas tu contraseña?
-        </span>
-        <Button variant="link" size="sm" asChild className="text-brand-red hover:text-brand-red/80 font-semibold p-0">
-          <Link to="/forgot-password">Recupérala aquí</Link>
-        </Button>
+    <div className="grid min-h-svh lg:grid-cols-2">
+      <div className="flex flex-col gap-4 p-6 md:p-10">
+        <div className="flex justify-center gap-2 md:justify-start">
+          <span className="flex items-center gap-2 font-medium">
+            <img src="/ueb-logo.png" alt="" className="size-8 object-contain" width="32" height="32" />
+            Universidad Estatal de Bolívar
+          </span>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="w-full max-w-xs">
+            <form onSubmit={submit} noValidate className="flex flex-col gap-6">
+              <FieldGroup>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <h1 className="text-2xl font-bold">Ingresa a tu cuenta</h1>
+                  <p className="text-sm text-balance text-muted-foreground">
+                    Usa tus credenciales institucionales para acceder al sistema de tutorías y titulación.
+                  </p>
+                </div>
+                <Field data-invalid={Boolean(error)}>
+                  <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="nombre@ueb.edu.ec"
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value)
+                      setError(null)
+                    }}
+                    aria-invalid={Boolean(error)}
+                    required
+                  />
+                </Field>
+                <Field data-invalid={Boolean(error)}>
+                  <div className="flex items-center">
+                    <FieldLabel htmlFor="password">Contraseña</FieldLabel>
+                    <Link to="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
+                  <PasswordInput
+                    id="password"
+                    name="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => {
+                      setPassword(event.target.value)
+                      setError(null)
+                    }}
+                    aria-invalid={Boolean(error)}
+                    required
+                  />
+                  <FieldError>{error}</FieldError>
+                </Field>
+                <Field>
+                  <Button type="submit" disabled={pending}>
+                    {pending && <Spinner data-icon="inline-start" />}
+                    {pending ? 'Iniciando sesión…' : 'Ingresar'}
+                  </Button>
+                </Field>
+              </FieldGroup>
+            </form>
+          </div>
+        </div>
       </div>
-    </AuthShell>
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-blue to-slate-950 lg:block" aria-hidden="true">
+        <img
+          src="/ueb-logo.png"
+          alt=""
+          className="absolute top-1/2 left-1/2 size-64 -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-2xl"
+        />
+      </div>
+    </div>
   )
 }
