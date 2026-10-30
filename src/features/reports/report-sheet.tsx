@@ -51,7 +51,7 @@ export function Signature({ name, role }: Readonly<{ name: string | null; role: 
 
 /** Marco gris que rodea la hoja dentro de los diálogos. */
 export function SheetFrame({ children }: Readonly<{ children: ReactNode }>) {
-  return <div className="rounded-xl border border-border bg-slate-100 p-2 sm:p-4 dark:bg-slate-800">{children}</div>
+  return <div className="rounded-lg border border-border bg-slate-100 p-2 sm:p-4 dark:bg-slate-800">{children}</div>
 }
 
 /**
@@ -61,7 +61,7 @@ export function SheetFrame({ children }: Readonly<{ children: ReactNode }>) {
 export function PrintReport({ children, disabled = false }: Readonly<{ children: ReactNode; disabled?: boolean }>) {
   return (
     <>
-      <Button type="button" variant="outline" disabled={disabled} onClick={() => window.print()}>
+      <Button type="button" variant="secondary" disabled={disabled} onClick={() => window.print()}>
         <PrinterIcon data-icon="inline-start" />
         Imprimir o guardar PDF
       </Button>

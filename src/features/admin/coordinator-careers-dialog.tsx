@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { SaveIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -92,7 +93,7 @@ export function CoordinatorCareersDialog({ user, onClose, onSaved }: Readonly<{
               <AlertTitle>No se pudieron cargar las carreras</AlertTitle>
               <AlertDescription>
                 <p>{loadError}</p>
-                <Button type="button" variant="outline" onClick={() => {
+                <Button type="button" variant="secondary" onClick={() => {
                   setLoading(true)
                   setLoadError(null)
                   setLoadVersion((value) => value + 1)
@@ -153,7 +154,7 @@ export function CoordinatorCareersDialog({ user, onClose, onSaved }: Readonly<{
           <div className="flex flex-wrap justify-end gap-3">
             <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
             <Button type="submit" disabled={loading || pending || Boolean(loadError) || !dirty}>
-              {pending && <Spinner data-icon="inline-start" aria-hidden="true" />}
+              {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SaveIcon data-icon="inline-start" />}
               {pending ? 'Guardando…' : 'Guardar carreras'}
             </Button>
           </div>

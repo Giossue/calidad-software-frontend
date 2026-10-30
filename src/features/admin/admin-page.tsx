@@ -77,7 +77,7 @@ function AdminTabButton({ tab, active, onSelect }: Readonly<{ tab: AdminTab; act
     aria-controls={`admin-panel-${tab.id}`}
     onClick={() => onSelect(tab.id)}
     className={cn(
-      'flex min-h-20 flex-col items-start justify-between gap-2 rounded-xl border px-3 py-3 text-left transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-4',
+      'flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg border px-3 py-3 text-left transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-4',
       active ? 'border-brand-red/30 bg-brand-red/5 text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
     )}
   >

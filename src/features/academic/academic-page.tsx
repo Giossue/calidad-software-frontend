@@ -8,6 +8,7 @@ import {
   PowerIcon,
   PowerOffIcon,
   RefreshCwIcon,
+  SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
@@ -18,6 +19,7 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
@@ -279,12 +281,12 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         title="Oferta de Carreras"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
+            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
             <BulkImportButton type="careers" title="Carga masiva de carreras" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateCareerModal} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <Button onClick={openCreateCareerModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
               Nueva carrera
             </Button>
@@ -315,9 +317,9 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
           onClear={() => { setSearchInput(''); setStatusFilter(''); setSearchParams({}) }}
         />
 
-        <div
+        <Card
           className={cn(
-            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
+            'overflow-hidden transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
@@ -339,7 +341,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                     <TableCell><div className="h-4 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : careers.length === 0 ? (
@@ -392,40 +394,45 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <button
+                        <Button
                           type="button"
+                          variant="tertiary"
+                          size="icon"
                           onClick={() => onSelectCareer(career)}
-                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="Ver ciclos de esta carrera"
                         >
-                          <Layers3Icon className="size-4" />
-                        </button>
-                        <button
+                          <Layers3Icon />
+                        </Button>
+                        <Button
                           type="button"
+                          variant="tertiary"
+                          size="icon"
                           onClick={() => startCareerEdit(career)}
-                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="Editar carrera"
                         >
-                          <Edit2Icon className="size-4" />
-                        </button>
+                          <Edit2Icon />
+                        </Button>
                         {career.status ? (
-                          <button
+                          <Button
                             type="button"
+                            variant="tertiary"
+                            size="icon"
+                            tone="destructive"
                             onClick={() => setCareerToToggle({ career, action: 'deactivate' })}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
                             title="Desactivar carrera"
                           >
-                            <PowerOffIcon className="size-4" />
-                          </button>
+                            <PowerOffIcon />
+                          </Button>
                         ) : (
-                          <button
+                          <Button
                             type="button"
+                            variant="tertiary"
+                            size="icon"
                             onClick={() => setCareerToToggle({ career, action: 'activate' })}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                             title="Habilitar carrera"
                           >
-                            <PowerIcon className="size-4" />
-                          </button>
+                            <PowerIcon />
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -434,7 +441,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               )}
             </TableBody>
           </Table>
-        </div>
+        </Card>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
@@ -542,8 +549,8 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               <DialogCancelButton onClick={closeCareerModal} disabled={formPending}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={formPending} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
-                {pending === 'career' && <Spinner data-icon="inline-start" />}
+              <Button type="submit" disabled={formPending}>
+                {pending === 'career' ? <Spinner data-icon="inline-start" /> : editingCareer ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
                 {editingCareer ? 'Guardar Cambios' : 'Registrar Carrera'}
               </Button>
             </div>
@@ -727,26 +734,22 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
 
   return (
     <section className="flex flex-col gap-8">
-      <button
-        type="button"
-        onClick={onBack}
-        className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-brand-red dark:text-slate-400"
-      >
-        <ArrowLeftIcon className="size-4" />
+      <Button type="button" variant="tertiary" size="sm" onClick={onBack} className="-ml-3 w-fit">
+        <ArrowLeftIcon />
         Volver a Carreras
-      </button>
+      </Button>
 
       <AdminSectionHeader
         title={`Ciclos de ${career.name}`}
         description="Define la estructura de ciclos y niveles dentro de esta carrera."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
+            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
             <BulkImportButton type="cycles" title="Carga masiva de ciclos" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateCycleModal} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <Button onClick={openCreateCycleModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
               Nuevo ciclo
             </Button>
@@ -776,9 +779,9 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
           onClear={() => { setSearchInput(''); setStatusFilter('') }}
         />
 
-        <div
+        <Card
           className={cn(
-            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
+            'overflow-hidden transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
@@ -796,7 +799,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                   <TableRow key={i} className="animate-pulse">
                     <TableCell><div className="h-5 w-40 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : cycles.length === 0 ? (
@@ -836,32 +839,36 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <button
+                        <Button
                           type="button"
+                          variant="tertiary"
+                          size="icon"
                           onClick={() => startCycleEdit(cycle)}
-                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="Editar ciclo"
                         >
-                          <Edit2Icon className="size-4" />
-                        </button>
+                          <Edit2Icon />
+                        </Button>
                         {cycle.status ? (
-                          <button
+                          <Button
                             type="button"
+                            variant="tertiary"
+                            size="icon"
+                            tone="destructive"
                             onClick={() => setCycleToToggle({ cycle, action: 'deactivate' })}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
                             title="Desactivar ciclo"
                           >
-                            <PowerOffIcon className="size-4" />
-                          </button>
+                            <PowerOffIcon />
+                          </Button>
                         ) : (
-                          <button
+                          <Button
                             type="button"
+                            variant="tertiary"
+                            size="icon"
                             onClick={() => setCycleToToggle({ cycle, action: 'activate' })}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                             title="Habilitar ciclo"
                           >
-                            <PowerIcon className="size-4" />
-                          </button>
+                            <PowerIcon />
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -870,7 +877,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               )}
             </TableBody>
           </Table>
-        </div>
+        </Card>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
@@ -892,10 +899,8 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         <form onSubmit={submitCycle}>
           <FieldGroup className="gap-5">
             <Field>
-              <FieldLabel>Carrera Profesional</FieldLabel>
-              <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
-                {career.name}
-              </div>
+              <FieldLabel htmlFor="cycle-career">Carrera Profesional</FieldLabel>
+              <Input id="cycle-career" value={career.name} readOnly disabled />
             </Field>
 
             <Field data-invalid={Boolean(cycleErrors.name)}>
@@ -924,8 +929,8 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
               <DialogCancelButton onClick={closeCycleModal} disabled={formPending}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={formPending} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
-                {pending === 'cycle' && <Spinner data-icon="inline-start" />}
+              <Button type="submit" disabled={formPending}>
+                {pending === 'cycle' ? <Spinner data-icon="inline-start" /> : editingCycle ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
                 {editingCycle ? 'Guardar Cambios' : 'Registrar Ciclo'}
               </Button>
             </div>

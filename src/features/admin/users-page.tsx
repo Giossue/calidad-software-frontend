@@ -6,6 +6,7 @@ import {
   MoreVerticalIcon,
   PlusIcon,
   RefreshCwIcon,
+  SaveIcon,
   ShieldAlertIcon,
   UserCheckIcon,
   UsersIcon,
@@ -19,6 +20,7 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -440,7 +442,7 @@ export function UsersPage() {
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => void handleRefresh()}
               disabled={isFetching}
               className="flex-1 sm:flex-none"
@@ -461,7 +463,7 @@ export function UsersPage() {
             />
             <Button
               onClick={openCreateModal}
-              className="w-full bg-brand-red font-semibold text-white hover:bg-brand-red/90 sm:w-auto"
+              className="w-full sm:w-auto"
             >
               <PlusIcon data-icon="inline-start" />
               Nuevo usuario
@@ -499,10 +501,10 @@ export function UsersPage() {
         <ul className={cn('flex flex-col gap-3 transition-opacity', isFetching && !isInitialLoading && 'opacity-60')} aria-busy={isFetching}>
           {isInitialLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <li key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+              <li key={i} className="h-40 animate-pulse rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
             ))
           ) : users.length === 0 ? (
-            <li className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white py-12 text-center text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+            <li className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 bg-white py-12 text-center text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
               <UsersIcon className="size-8 text-slate-300 dark:text-slate-600" />
               <span className="font-medium">
                 {searchInput || (roleFilter !== '' || statusFilter !== '' || careerFilter !== '')
@@ -515,9 +517,9 @@ export function UsersPage() {
               const active = user.is_active
 
               return (
-                <li key={user.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+                <li key={user.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex items-start gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center text-sm font-bold text-brand-blue dark:text-white" aria-hidden="true">
+                    <span className="flex size-10 shrink-0 items-center justify-center text-sm font-bold text-foreground dark:text-white" aria-hidden="true">
                       {getInitials(user.name)}
                     </span>
                     <div className="flex min-w-0 flex-1 flex-col">
@@ -551,23 +553,25 @@ export function UsersPage() {
                   <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
                     <UserStatusBadge user={user} />
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="tertiary"
+                        size="icon"
                         onClick={() => openEditModal(user)}
-                        className="flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                         aria-label={`Editar a ${user.name}`}
                       >
-                        <Edit2Icon className="size-4" />
-                      </button>
+                        <Edit2Icon />
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button
+                          <Button
                             type="button"
-                            className="flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                            variant="tertiary"
+                            size="icon"
                             aria-label={`Más opciones de ${user.name}`}
                           >
-                            <MoreVerticalIcon className="size-4" />
-                          </button>
+                            <MoreVerticalIcon />
+                          </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {active ? (
@@ -591,9 +595,9 @@ export function UsersPage() {
           )}
         </ul>
         ) : (
-        <div
+        <Card
           className={cn(
-            'overflow-hidden rounded-xl border bg-card transition-opacity',
+            'overflow-hidden transition-opacity',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
@@ -627,7 +631,7 @@ export function UsersPage() {
                     <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : users.length === 0 ? (
@@ -704,32 +708,36 @@ export function UsersPage() {
                       <TableCell>
                         <div className="flex items-center gap-1">
 
-                          <button
+                          <Button
                             type="button"
+                            variant="tertiary"
+                            size="icon"
                             onClick={() => openEditModal(user)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             title="Editar usuario"
                           >
-                            <Edit2Icon className="size-4" />
-                          </button>
+                            <Edit2Icon />
+                          </Button>
                           {active ? (
-                            <button
+                            <Button
                               type="button"
+                              variant="tertiary"
+                              size="icon"
+                              tone="destructive"
                               onClick={() => setUserToToggle({ user, action: 'deactivate' })}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
                               title="Desactivar usuario"
                             >
-                              <UserXIcon className="size-4" />
-                            </button>
+                              <UserXIcon />
+                            </Button>
                           ) : (
-                            <button
+                            <Button
                               type="button"
+                              variant="tertiary"
+                              size="icon"
                               onClick={() => setUserToToggle({ user, action: 'activate' })}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                               title="Habilitar usuario"
                             >
-                              <UserCheckIcon className="size-4" />
-                            </button>
+                              <UserCheckIcon />
+                            </Button>
                           )}
                         </div>
                       </TableCell>
@@ -739,7 +747,7 @@ export function UsersPage() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </Card>
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -767,8 +775,8 @@ export function UsersPage() {
           <FieldGroup className="gap-5">
             {/* Aviso Informativo para Creación de Usuario */}
             {!editingUser && (
-              <div className="flex items-start gap-3.5 rounded-xl border border-blue-200/80 bg-blue-50/80 p-4 text-xs font-medium text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200">
-                <MailIcon className="size-5 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div className="flex items-start gap-3.5 rounded-lg border border-blue-200/80 bg-blue-50/80 p-4 text-xs font-medium text-foreground dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-foreground">
+                <MailIcon className="size-5 shrink-0 text-foreground mt-0.5" />
                 <div className="flex flex-col gap-0.5">
                   <span className="font-bold text-sm">Envío de Contraseña Provisional</span>
                   <span>
@@ -899,7 +907,7 @@ export function UsersPage() {
 
             {/* Selector de Facultad y Carrera para roles académicos específicos (Estudiante, Coordinadores) */}
             {userForm.role && userForm.role !== 'administrador' && userForm.role !== 'docente' && (
-              <div className="grid gap-5 sm:grid-cols-2 rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="grid gap-5 sm:grid-cols-2 rounded-lg border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
                 <Field data-invalid={Boolean(userErrors.facultyId)}>
                   <FieldLabel htmlFor="user-faculty">Facultad</FieldLabel>
                   <NativeSelect
@@ -1035,8 +1043,8 @@ export function UsersPage() {
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
-                {pending === 'user' && <Spinner data-icon="inline-start" />}
+              <Button type="submit" disabled={formDisabled}>
+                {pending === 'user' ? <Spinner data-icon="inline-start" /> : editingUser ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
                 {editingUser ? 'Guardar Cambios' : 'Registrar Usuario'}
               </Button>
             </div>

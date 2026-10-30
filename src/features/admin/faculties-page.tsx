@@ -6,6 +6,7 @@ import {
   PowerIcon,
   PowerOffIcon,
   RefreshCwIcon,
+  SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -16,6 +17,7 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
@@ -185,12 +187,12 @@ export function FacultiesPage() {
         title="Estructura de Facultades"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
+            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
             <BulkImportButton type="faculties" title="Carga masiva de facultades" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateModal} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <Button onClick={openCreateModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
               Nueva facultad
             </Button>
@@ -221,9 +223,9 @@ export function FacultiesPage() {
         />
 
         {/* Tabla de Facultades */}
-        <div
+        <Card
           className={cn(
-            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
+            'overflow-hidden transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
@@ -243,7 +245,7 @@ export function FacultiesPage() {
                     <TableCell><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : faculties.length === 0 ? (
@@ -320,14 +322,15 @@ export function FacultiesPage() {
                       {/* Acciones */}
                       <TableCell onClick={(event) => event.stopPropagation()}>
                         <div className="flex items-center gap-1">
-                          <button
+                          <Button
                             type="button"
+                            variant="tertiary"
+                            size="icon"
                             onClick={() => openEditModal(faculty)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             title="Editar facultad"
                           >
-                            <Edit2Icon className="size-4" />
-                          </button>
+                            <Edit2Icon />
+                          </Button>
                           {active ? (
                             <Tooltip
                               open={hasActiveCareers ? blockedTooltipFacultyId === faculty.id : undefined}
@@ -336,8 +339,11 @@ export function FacultiesPage() {
                               }}
                             >
                               <TooltipTrigger asChild>
-                                <button
+                                <Button
                                   type="button"
+                                  variant="tertiary"
+                                  size="icon"
+                                  tone={hasActiveCareers ? 'default' : 'destructive'}
                                   aria-disabled={hasActiveCareers}
                                   onMouseEnter={() => hasActiveCareers && setBlockedTooltipFacultyId(faculty.id)}
                                   onMouseLeave={() => hasActiveCareers && setBlockedTooltipFacultyId(null)}
@@ -350,13 +356,10 @@ export function FacultiesPage() {
                                     }
                                     setFacultyToToggle({ faculty, action: 'deactivate' })
                                   }}
-                                  className={cn(
-                                    'rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400',
-                                    hasActiveCareers && 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-slate-400',
-                                  )}
+                                  className={cn(hasActiveCareers && 'cursor-not-allowed opacity-40 hover:bg-transparent')}
                                 >
-                                  <PowerOffIcon className="size-4" />
-                                </button>
+                                  <PowerOffIcon />
+                                </Button>
                               </TooltipTrigger>
                               <TooltipContent>
                                 {hasActiveCareers
@@ -365,14 +368,15 @@ export function FacultiesPage() {
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <button
+                            <Button
                               type="button"
+                              variant="tertiary"
+                              size="icon"
                               onClick={() => setFacultyToToggle({ faculty, action: 'activate' })}
-                              className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                               title="Habilitar facultad"
                             >
-                              <PowerIcon className="size-4" />
-                            </button>
+                              <PowerIcon />
+                            </Button>
                           )}
                         </div>
                       </TableCell>
@@ -382,7 +386,7 @@ export function FacultiesPage() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </Card>
 
         {/* Paginación */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -436,8 +440,8 @@ export function FacultiesPage() {
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
-                {pending === 'faculty' && <Spinner data-icon="inline-start" />}
+              <Button type="submit" disabled={formDisabled}>
+                {pending === 'faculty' ? <Spinner data-icon="inline-start" /> : editingFaculty ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
                 {editingFaculty ? 'Guardar Cambios' : 'Registrar Facultad'}
               </Button>
             </div>

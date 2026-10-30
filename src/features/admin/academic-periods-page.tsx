@@ -6,6 +6,7 @@ import {
   PlusIcon,
   PowerIcon,
   RefreshCwIcon,
+  SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,6 +16,7 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
@@ -278,12 +280,12 @@ export function AcademicPeriodsPage() {
         titleId="academic-periods-title"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="outline" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
+            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
               {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
               Actualizar
             </Button>
             <BulkImportButton type="academic-periods" title="Carga masiva de períodos académicos" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateModal} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
+            <Button onClick={openCreateModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
               Nuevo período
             </Button>
@@ -314,9 +316,9 @@ export function AcademicPeriodsPage() {
         />
 
         {/* Tabla de Períodos */}
-        <div
+        <Card
           className={cn(
-            'overflow-hidden rounded-xl border bg-card transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent',
+            'overflow-hidden transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none',
             isFetching && !isInitialLoading && 'opacity-60',
           )}
         >
@@ -338,7 +340,7 @@ export function AcademicPeriodsPage() {
                     <TableCell><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
                     <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
+                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
                   </TableRow>
                 ))
               ) : periods.length === 0 ? (
@@ -403,14 +405,15 @@ export function AcademicPeriodsPage() {
                       {/* Acciones */}
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <button
+                          <Button
                             type="button"
+                            variant="tertiary"
+                            size="icon"
                             onClick={() => openEditModal(period)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             title="Editar período"
                           >
-                            <Edit2Icon className="size-4" />
-                          </button>
+                            <Edit2Icon />
+                          </Button>
                           {!active && (
                             (() => {
                               const todayStr = new Date().toISOString().slice(0, 10)
@@ -419,35 +422,34 @@ export function AcademicPeriodsPage() {
 
                               if (isExpired) {
                                 return (
-                                  <span
-                                    className="cursor-not-allowed rounded-lg p-2 text-slate-300 dark:text-slate-600"
-                                    title={`Período finalizado el ${formatDate(period.end_date)}. No se puede reactivar.`}
-                                  >
-                                    <PowerIcon className="size-4 opacity-40" />
+                                  <span title={`Período finalizado el ${formatDate(period.end_date)}. No se puede reactivar.`}>
+                                    <Button type="button" variant="tertiary" size="icon" disabled>
+                                      <PowerIcon />
+                                    </Button>
                                   </span>
                                 )
                               }
 
                               if (isFuture) {
                                 return (
-                                  <span
-                                    className="cursor-not-allowed rounded-lg p-2 text-slate-300 dark:text-slate-600"
-                                    title={`Se habilitará automáticamente en su fecha de inicio (${formatDate(period.start_date)}).`}
-                                  >
-                                    <PowerIcon className="size-4 opacity-40" />
+                                  <span title={`Se habilitará automáticamente en su fecha de inicio (${formatDate(period.start_date)}).`}>
+                                    <Button type="button" variant="tertiary" size="icon" disabled>
+                                      <PowerIcon />
+                                    </Button>
                                   </span>
                                 )
                               }
 
                               return (
-                                <button
+                                <Button
                                   type="button"
+                                  variant="tertiary"
+                                  size="icon"
                                   onClick={() => setPeriodToActivate(period)}
-                                  className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
                                   title="Habilitar como período vigente"
                                 >
-                                  <PowerIcon className="size-4" />
-                                </button>
+                                  <PowerIcon />
+                                </Button>
                               )
                             })()
                           )}
@@ -459,7 +461,7 @@ export function AcademicPeriodsPage() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </Card>
 
         {/* Paginación */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -492,13 +494,11 @@ export function AcademicPeriodsPage() {
         <form onSubmit={submitPeriod}>
           <FieldGroup className="gap-5">
             {/* Nombre del período: PAO + número + año */}
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+            <div className="rounded-lg border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
               <FieldLabel className="mb-3 block">Nombre del período académico</FieldLabel>
               <div className="flex items-center gap-2">
                 {/* Prefijo fijo: PAO */}
-                <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 select-none">
-                  PAO
-                </div>
+                <Input value="PAO" readOnly tabIndex={-1} aria-label="Prefijo del período" className="w-16 shrink-0 text-center font-semibold select-none" />
 
                 {/* Selector de número romano */}
                 <Field data-invalid={Boolean(formErrors.paoNumber)} className="flex-1">
@@ -582,8 +582,8 @@ export function AcademicPeriodsPage() {
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled} className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold">
-                {pending === 'period' && <Spinner data-icon="inline-start" />}
+              <Button type="submit" disabled={formDisabled}>
+                {pending === 'period' ? <Spinner data-icon="inline-start" /> : editingPeriod ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
                 {editingPeriod ? 'Guardar Cambios' : 'Registrar Período'}
               </Button>
             </div>
