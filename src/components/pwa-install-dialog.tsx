@@ -67,7 +67,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
     >
       <div className="flex flex-col gap-5 py-2">
         {/* Banner de la aplicación */}
-        <div className="flex items-center gap-4 rounded-xl border border-border bg-muted/40 p-4">
+        <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/40 p-4">
           <img
             src="/ueb-logo.png"
             alt="Logo UEB"
@@ -90,9 +90,9 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
         <div className="space-y-2 text-xs text-muted-foreground">
           <div className="flex items-start gap-2.5">
             {isMobile ? (
-              <SmartphoneIcon className="size-4 shrink-0 text-brand-blue mt-0.5" />
+              <SmartphoneIcon className="size-4 shrink-0 text-foreground mt-0.5" />
             ) : (
-              <MonitorDownIcon className="size-4 shrink-0 text-brand-blue mt-0.5" />
+              <MonitorDownIcon className="size-4 shrink-0 text-foreground mt-0.5" />
             )}
             <span>
               <strong className="text-foreground">
@@ -104,7 +104,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
             </span>
           </div>
           <div className="flex items-start gap-2.5">
-            <SparklesIcon className="size-4 shrink-0 text-brand-blue mt-0.5" />
+            <SparklesIcon className="size-4 shrink-0 text-foreground mt-0.5" />
             <span>
               <strong className="text-foreground">Pantalla completa:</strong> Se abre en su propia ventana sin barras molestas del navegador.
             </span>
@@ -125,12 +125,11 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
           ) : canPrompt ? (
             <Button
               type="button"
-              variant="default"
-              className="w-full h-11 text-sm font-semibold gap-2 shadow-sm"
+              className="w-full"
               onClick={handleInstallClick}
               disabled={installing}
             >
-              {isMobile ? <SmartphoneIcon className="size-4" /> : <MonitorDownIcon className="size-4" />}
+              {isMobile ? <SmartphoneIcon data-icon="inline-start" /> : <MonitorDownIcon data-icon="inline-start" />}
               {installing
                 ? 'Instalando...'
                 : isMobile
@@ -140,7 +139,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
           ) : isIos ? (
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-2 font-semibold text-foreground">
-                <ShareIcon className="size-4 text-brand-blue" />
+                <ShareIcon className="size-4 text-foreground" />
                 <span>Cómo instalar en iPhone / iPad:</span>
               </div>
               <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300">
@@ -153,9 +152,9 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
             <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-2 font-semibold text-foreground">
                 {isMobile ? (
-                  <SmartphoneIcon className="size-4 text-brand-blue" />
+                  <SmartphoneIcon className="size-4 text-foreground" />
                 ) : (
-                  <LaptopIcon className="size-4 text-brand-blue" />
+                  <LaptopIcon className="size-4 text-foreground" />
                 )}
                 <span>Instalación desde tu navegador:</span>
               </div>
@@ -176,11 +175,11 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
             <div className="border-t border-border/60 pt-3">
               <Button
                 type="button"
-                variant="outline"
-                className="w-full text-xs font-medium gap-2 text-muted-foreground hover:text-foreground"
+                variant="secondary"
+                className="w-full"
                 onClick={handleDownloadShortcut}
               >
-                <DownloadIcon className="size-3.5" />
+                <DownloadIcon data-icon="inline-start" />
                 {downloaded
                   ? '¡Acceso directo descargado! Arrástralo a tu Escritorio'
                   : 'Descargar archivo de acceso directo (.url para Windows)'}
@@ -194,7 +193,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
 
         {/* Botón Cerrar */}
         <div className="flex justify-end pt-1">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          <Button type="button" variant="tertiary" size="sm" onClick={onClose}>
             Entendido / Cerrar
           </Button>
         </div>

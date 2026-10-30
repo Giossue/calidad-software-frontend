@@ -13,8 +13,8 @@ export function CatalogRow({ title, detail, active, activeLabel = 'Activo', inac
     <div className="flex shrink-0 items-center gap-2">
       <StatusBadge active={active} activeLabel={activeLabel} inactiveLabel={inactiveLabel} />
       {active && <>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={`Editar ${title}`} onClick={onEdit} disabled={disabled}><PencilIcon /></Button>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={`Desactivar ${title}`} onClick={onDeactivate} disabled={disabled}>{deactivating ? <Spinner /> : <XIcon />}</Button>
+        <Button type="button" variant="tertiary" size="icon" aria-label={`Editar ${title}`} onClick={onEdit} disabled={disabled}><PencilIcon /></Button>
+        <Button type="button" variant="tertiary" size="icon" aria-label={`Desactivar ${title}`} onClick={onDeactivate} disabled={disabled}>{deactivating ? <Spinner /> : <XIcon />}</Button>
       </>}
     </div>
   </div>

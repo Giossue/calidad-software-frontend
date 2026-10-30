@@ -2,6 +2,7 @@ import { useRef, useState, type MouseEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { MoonIcon, SunIcon } from 'lucide-react'
 
+import { Button } from '@/components/ui/button'
 import { getStoredAccessibility, saveAccessibilitySettings } from '@/lib/accessibility'
 import { cn } from '@/lib/utils'
 
@@ -78,15 +79,14 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
   const { isDark, toggle } = useThemeToggle()
 
   return (
-    <button
+    <Button
       type="button"
+      variant="tertiary"
+      size="icon"
       onClick={(event: MouseEvent<HTMLButtonElement>) => toggle(event.currentTarget)}
       aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       title={isDark ? 'Modo claro' : 'Modo oscuro'}
-      className={cn(
-        'relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card text-muted-foreground shadow-2xs transition-colors hover:bg-muted',
-        className,
-      )}
+      className={cn('relative overflow-hidden', className)}
     >
       <SunIcon
         className={cn(
@@ -100,6 +100,6 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
           isDark ? 'rotate-0 scale-100 opacity-100' : 'rotate-90 scale-0 opacity-0',
         )}
       />
-    </button>
+    </Button>
   )
 }

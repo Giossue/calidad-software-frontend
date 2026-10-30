@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { AlertCircleIcon, XIcon } from 'lucide-react'
+import { AlertCircleIcon, CheckIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api'
@@ -388,14 +388,14 @@ export function ErrorModal({
 
       {/* Contenedor Modal de Error */}
       <div
-        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto rounded-2xl border border-rose-200/80 bg-white p-6 shadow-2xl dark:border-rose-950/80 dark:bg-slate-900 animate-in zoom-in-95 duration-150"
+        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto rounded-lg border border-rose-200/80 bg-white p-6 shadow-2xl dark:border-rose-950/80 dark:bg-slate-900 animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="error-modal-title"
       >
         <div className="flex items-start gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-1 ring-rose-200/70 dark:bg-rose-950/50 dark:text-rose-400 dark:ring-rose-900/60">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 ring-1 ring-rose-200/70 dark:bg-rose-950/50 dark:text-rose-400 dark:ring-rose-900/60">
             <AlertCircleIcon className="size-6" />
           </div>
           <div className="flex flex-1 flex-col gap-1.5 pr-2">
@@ -406,22 +406,14 @@ export function ErrorModal({
               {description}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-            aria-label="Cerrar modal de error"
-          >
-            <XIcon className="size-5" />
-          </button>
+          <Button type="button" variant="tertiary" size="icon" onClick={onClose} aria-label="Cerrar modal de error">
+            <XIcon />
+          </Button>
         </div>
 
         <div className="flex items-center justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
-          <Button
-            type="button"
-            onClick={onClose}
-            className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold px-6 shadow-sm"
-          >
+          <Button type="button" onClick={onClose}>
+            <CheckIcon data-icon="inline-start" />
             {buttonLabel}
           </Button>
         </div>

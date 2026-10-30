@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, DownloadIcon, FileUpIcon, InfoIcon, TriangleAlertIcon, UploadIcon } from 'lucide-react'
+import { CheckCircle2Icon, DownloadIcon, FileUpIcon, InfoIcon, TriangleAlertIcon, UploadIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
@@ -84,7 +84,7 @@ export function BulkImportButton({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)} className={cn('whitespace-nowrap', className)}>
+      <Button variant="secondary" onClick={() => setOpen(true)} className={cn('whitespace-nowrap', className)}>
         <FileUpIcon data-icon="inline-start" />
         Cargar datos masivos
       </Button>
@@ -105,7 +105,7 @@ export function BulkImportButton({
                 ))}
               </ul>
               <div>
-                <Button type="button" variant="link" className="h-auto px-0" onClick={() => void downloadTemplate()}>
+                <Button type="button" variant="tertiary" size="sm" className="-ml-3" onClick={() => void downloadTemplate()}>
                   <DownloadIcon data-icon="inline-start" />
                   Descargar plantilla
                 </Button>
@@ -124,7 +124,7 @@ export function BulkImportButton({
             </Field>
             {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
             <div className="flex flex-wrap justify-end gap-3">
-              <Button type="button" variant="outline" onClick={close} disabled={pending}>Cancelar</Button>
+              <Button type="button" variant="secondary" onClick={close} disabled={pending}>Cancelar</Button>
               <Button type="submit" disabled={pending || !file}>
                 {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <UploadIcon data-icon="inline-start" />}
                 {pending ? 'Subiendo…' : 'Importar'}
@@ -166,7 +166,10 @@ export function BulkImportButton({
               <p className="text-xs text-muted-foreground">Corrige solo esas filas en un archivo nuevo y vuelve a cargarlo; las demás ya quedaron registradas.</p>
             )}
             <div className="flex justify-end">
-              <Button type="button" onClick={close}>{processing ? 'Cerrar y seguir en segundo plano' : 'Cerrar'}</Button>
+              <Button type="button" onClick={close}>
+                <XIcon data-icon="inline-start" />
+                {processing ? 'Cerrar y seguir en segundo plano' : 'Cerrar'}
+              </Button>
             </div>
           </div>
         )}

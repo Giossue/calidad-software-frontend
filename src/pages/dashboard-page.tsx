@@ -357,7 +357,7 @@ export function DashboardPage() {
       <SidebarInset>
         <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-2.5 backdrop-blur-xs sm:gap-3 sm:px-4 sm:py-3 md:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            <SidebarTrigger className="size-8 shrink-0 sm:size-9 md:hidden" />
+            <SidebarTrigger className="shrink-0 md:hidden" />
             <span className="min-w-0 truncate text-xs font-medium text-muted-foreground md:text-sm">
               <span className="max-md:sr-only">{userRoleText} &rsaquo; Tutorías y Titulación{sectionLabel && <> &rsaquo; </>}</span>
               {sectionLabel && <span aria-current="page" className="truncate font-semibold text-foreground max-md:text-sm">{sectionLabel}</span>}

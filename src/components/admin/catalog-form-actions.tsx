@@ -9,6 +9,6 @@ export function CatalogFormActions({ editing, pending, onCancel, createLabel = '
       {pending ? <Spinner data-icon="inline-start" /> : editing ? <PencilIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
       {pending ? pendingLabel : editing ? editLabel : createLabel}
     </Button>
-    {editing && <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}><XIcon data-icon="inline-start" />Cancelar</Button>}
+    {editing && <Button type="button" variant="tertiary" onClick={onCancel} disabled={pending}><XIcon data-icon="inline-start" />Cancelar</Button>}
   </div>
 }

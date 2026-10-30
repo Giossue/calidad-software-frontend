@@ -29,7 +29,7 @@ export function UserMenu({ name, email, roleLabel, initials, onOpenAccessibility
         <button
           type="button"
           aria-label={`Menú de ${name}`}
-          className="flex items-center gap-2 rounded-full border border-border bg-card p-1 text-left shadow-2xs transition-colors hover:bg-muted max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none sm:gap-3 sm:p-1.5 sm:pr-3"
+          className="flex items-center gap-2 rounded-lg border border-border bg-card p-1 text-left shadow-2xs transition-colors hover:bg-muted max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none sm:gap-3 sm:p-1.5 sm:pr-3"
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-bold text-white sm:size-9">
             {initials}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { BellIcon, CheckCheckIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
+import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { notificationsApi, type AppNotification } from '@/lib/api'
@@ -77,28 +78,23 @@ export function NotificationBell() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          title={label}
-          className="relative flex size-8 items-center justify-center rounded-full border border-border bg-card p-1.5 text-foreground shadow-2xs transition-colors hover:bg-muted sm:size-9 sm:p-2"
-        >
-          <BellIcon className="size-4 shrink-0 text-muted-foreground" />
+        <Button type="button" variant="tertiary" size="icon" aria-label={label} title={label} className="relative">
+          <BellIcon />
           {unread > 0 && (
             <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-bold leading-none text-white">
               {unread > 99 ? '99+' : unread}
             </span>
           )}
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
           <span className="text-sm font-semibold">Notificaciones</span>
           {unread > 0 && (
-            <button type="button" onClick={() => void markAll()} className="flex items-center gap-1 text-xs font-medium text-brand-blue hover:underline dark:text-sky-400">
-              <CheckCheckIcon className="size-3.5" aria-hidden="true" />
+            <Button type="button" variant="tertiary" size="sm" onClick={() => void markAll()}>
+              <CheckCheckIcon data-icon="inline-start" aria-hidden="true" />
               Marcar todas como leídas
-            </button>
+            </Button>
           )}
         </div>
         <div className="max-h-[min(26rem,70vh)] overflow-y-auto py-1">

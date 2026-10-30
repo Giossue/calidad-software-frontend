@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react'
-import { AlertTriangleIcon, XIcon } from 'lucide-react'
+import { AlertTriangleIcon, Trash2Icon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -24,7 +24,7 @@ export function DialogCancelButton({
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="secondary"
       onClick={(e) => {
         if (dialog) {
           dialog.requestClose()
@@ -123,7 +123,7 @@ export function Dialog({
           aria-modal="true"
           aria-label={title}
           className={cn(
-            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10 dark:bg-slate-900 dark:ring-slate-800 animate-in zoom-in-95 duration-150',
+            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-lg bg-white shadow-2xl ring-1 ring-slate-900/10 dark:bg-slate-900 dark:ring-slate-800 animate-in zoom-in-95 duration-150',
             maxWidth,
           )}
           onClick={(e) => e.stopPropagation()}
@@ -141,14 +141,9 @@ export function Dialog({
               )}
             </div>
             {dismissible && (
-              <button
-                type="button"
-                onClick={handleAttemptClose}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                aria-label="Cerrar modal"
-              >
-                <XIcon className="size-5" />
-              </button>
+              <Button type="button" variant="tertiary" size="icon" onClick={handleAttemptClose} aria-label="Cerrar modal">
+                <XIcon />
+              </Button>
             )}
           </div>
 
@@ -158,10 +153,10 @@ export function Dialog({
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (
             <div
-              className="absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-slate-950/60 p-6 backdrop-blur-xs animate-in fade-in duration-150"
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-slate-950/60 p-6 backdrop-blur-xs animate-in fade-in duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex w-full max-w-md flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-150">
+              <div className="flex w-full max-w-md flex-col gap-5 rounded-lg border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-in zoom-in-95 duration-150">
                 <div className="flex items-start gap-4">
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
                     <AlertTriangleIcon className="size-6" />
@@ -179,7 +174,7 @@ export function Dialog({
                 <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-end dark:border-slate-800">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => setShowConfirm(false)}
                     className="font-medium max-sm:w-full"
                   >
@@ -187,10 +182,11 @@ export function Dialog({
                   </Button>
                   <Button
                     type="button"
-                    variant="destructive"
+                    tone="destructive"
                     onClick={handleConfirmDiscard}
-                    className="font-semibold max-sm:w-full"
+                    className="max-sm:w-full"
                   >
+                    <Trash2Icon data-icon="inline-start" />
                     Sí, descartar y salir
                   </Button>
                 </div>

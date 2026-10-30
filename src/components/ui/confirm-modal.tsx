@@ -1,4 +1,4 @@
-import { AlertTriangleIcon } from 'lucide-react'
+import { AlertTriangleIcon, CheckIcon, Trash2Icon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
@@ -44,16 +44,16 @@ export function ConfirmModal({
         </div>
 
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
-          <Button variant="outline" onClick={onClose} disabled={pending} className="max-sm:w-full">
+          <Button variant="secondary" onClick={onClose} disabled={pending} className="max-sm:w-full">
             {cancelLabel}
           </Button>
           <Button
-            variant={variant}
+            tone={variant === 'destructive' ? 'destructive' : 'default'}
             onClick={onConfirm}
             disabled={pending}
             className="max-sm:w-full"
           >
-            {pending && <Spinner data-icon="inline-start" />}
+            {pending ? <Spinner data-icon="inline-start" /> : variant === 'destructive' ? <Trash2Icon data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
             {confirmLabel}
           </Button>
         </div>
