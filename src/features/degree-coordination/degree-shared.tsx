@@ -10,6 +10,7 @@ import { getInitials } from '@/lib/format'
 import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Separator } from '@/components/ui/separator'
 import { Spinner } from '@/components/ui/spinner'
+import { Textarea } from '@/components/ui/textarea'
 import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
 import type { DegreeTopicStatus } from '@/lib/degree-coordination-api'
 import { DEGREE_STATUS_LABELS, formatDegreeDate } from './degree-format'
@@ -70,7 +71,7 @@ export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: Retur
 export function DegreeObservationField({ value, onChange, rejection = false }: Readonly<{ value: string; onChange: (value: string) => void; rejection?: boolean }>) {
   return <Field>
     <div className="flex items-center justify-between gap-3"><FieldLabel htmlFor="degree-observation">{rejection ? 'Motivo de rechazo (opcional)' : 'Observación'}</FieldLabel><FieldCounter current={value.length} max={1000} /></div>
-    <textarea id="degree-observation" value={value} onChange={(event) => onChange(event.target.value)} maxLength={1000} minLength={rejection ? undefined : 3} required={!rejection} rows={5} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50" />
+    <Textarea id="degree-observation" value={value} onChange={(event) => onChange(event.target.value)} maxLength={1000} minLength={rejection ? undefined : 3} required={!rejection} rows={5} />
     <FieldDescription>El estudiante podrá consultar este mensaje en sus propuestas. Máximo 1000 caracteres.</FieldDescription>
   </Field>
 }

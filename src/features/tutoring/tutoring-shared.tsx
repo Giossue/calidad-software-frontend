@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
+import { PencilIcon, PlusIcon, PowerOffIcon, SaveIcon, type LucideIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -16,7 +17,7 @@ import type { TutoringCatalogs } from './tutoring-hooks'
 
 export function ErrorNotice({ message, retry }: Readonly<{ message?: string | null; retry?: () => unknown }>) {
   if (!message) return null
-  return <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{message}</span>{retry && <Button type="button" variant="outline" size="sm" onClick={() => void retry()}>Reintentar</Button>}</AlertDescription></Alert>
+  return <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{message}</span>{retry && <Button type="button" variant="secondary" size="sm" onClick={() => void retry()}>Reintentar</Button>}</AlertDescription></Alert>
 }
 
 export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs }>) {
@@ -27,7 +28,7 @@ export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs 
 }
 
 export function ModuleHeader({ title, description, createLabel, onCreate, disabled, extraActions }: Readonly<{ title: string; description?: string; createLabel?: string; onCreate?: () => void; disabled?: boolean; extraActions?: ReactNode }>) {
-  return <AdminSectionHeader title={title} description={description} actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">{extraActions}{onCreate && createLabel && <Button type="button" disabled={disabled} onClick={onCreate} className="w-full sm:w-auto bg-brand-red hover:bg-brand-red/90 text-white font-semibold"><PlusIcon data-icon="inline-start" />{createLabel}</Button>}</div>} />
+  return <AdminSectionHeader title={title} description={description} actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">{extraActions}{onCreate && createLabel && <Button type="button" disabled={disabled} onClick={onCreate} className="w-full sm:w-auto"><PlusIcon data-icon="inline-start" />{createLabel}</Button>}</div>} />
 }
 
 export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }: Readonly<{ search: string; onSearch: (value: string) => void; careerId?: string; onCareer?: (value: string) => void; careers?: readonly Career[] }>) {
@@ -38,15 +39,15 @@ export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }
 }
 
 export function RecordTable<T extends { readonly id: number | string }>({ rows, columns, loading, empty, onRowClick, rowTitle }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string }>) {
-  return <div className="overflow-hidden rounded-xl border bg-card max-md:overflow-visible max-md:border-0 max-md:bg-transparent" aria-busy={loading}>
+  return <Card className="overflow-hidden shadow-none max-md:overflow-visible max-md:border-0 max-md:bg-transparent" aria-busy={loading}>
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody>
       {loading ? <TableRow><TableCell colSpan={columns.length}><span role="status" className="flex items-center gap-2 py-5"><Spinner aria-hidden="true" />Cargando…</span></TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), className: 'cursor-pointer', onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && event.key === 'Enter') onRowClick(row) } } : {})}>{columns.map((column) => <TableCell key={column.label} className="whitespace-normal">{column.render(row)}</TableCell>)}</TableRow>)}
     </TableBody></Table>
-  </div>
+  </Card>
 }
 
 export function RecordActions({ name, onEdit, onDeactivate, disabled, children }: Readonly<{ name: string; onEdit?: () => void; onDeactivate?: () => void; disabled: boolean; children?: ReactNode }>) {
-  return <div className="flex flex-wrap items-center gap-2">{children}{onEdit && <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={onEdit} aria-label={`Editar ${name}`}><PencilIcon data-icon="inline-start" />Editar</Button>}{onDeactivate && <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={onDeactivate} aria-label={`Desactivar ${name}`}><PowerOffIcon data-icon="inline-start" />Desactivar</Button>}</div>
+  return <div className="flex flex-wrap items-center gap-2">{children}{onEdit && <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={onEdit} aria-label={`Editar ${name}`}><PencilIcon data-icon="inline-start" />Editar</Button>}{onDeactivate && <Button type="button" variant="tertiary" size="sm" disabled={disabled} onClick={onDeactivate} aria-label={`Desactivar ${name}`}><PowerOffIcon data-icon="inline-start" />Desactivar</Button>}</div>
 }
 
 export function MutationDialog({
@@ -63,6 +64,7 @@ export function MutationDialog({
   children,
   submitLabel = 'Guardar cambios',
   submitDisabled = false,
+  submitIcon: SubmitIcon = SaveIcon,
 }: Readonly<{
   open: boolean
   title: string
@@ -77,6 +79,7 @@ export function MutationDialog({
   children: ReactNode
   submitLabel?: string
   submitDisabled?: boolean
+  submitIcon?: LucideIcon
 }>) {
   const [modalDismissed, setModalDismissed] = useState(false)
   const lastErrorRef = useRef<FriendlyErrorInfo | null>(null)
@@ -109,7 +112,7 @@ export function MutationDialog({
               <div className="flex flex-wrap justify-end gap-3">
                 <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
                 <Button type="submit" disabled={pending || submitDisabled}>
-                  {pending && <Spinner data-icon="inline-start" aria-hidden="true" />}
+                  {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SubmitIcon data-icon="inline-start" />}
                   {pending ? 'Guardando…' : submitLabel}
                 </Button>
               </div>

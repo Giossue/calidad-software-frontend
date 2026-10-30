@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react'
+import { CheckIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,10 +49,10 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="relative flex min-w-0 flex-1 items-center">
           <SearchIcon className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground shrink-0" aria-hidden="true" />
-          <Input id={`${id}-search`} type="search" aria-label={searchLabel} disabled={disabled} placeholder={searchPlaceholder} value={search} onChange={(event) => onSearch(event.target.value)} className="h-10 w-full min-w-0 bg-white pl-10 text-xs sm:text-sm dark:bg-slate-900" />
+          <Input id={`${id}-search`} type="search" aria-label={searchLabel} disabled={disabled} placeholder={searchPlaceholder} value={search} onChange={(event) => onSearch(event.target.value)} className="w-full min-w-0 pl-10" />
         </div>
         {filters.length > 0 && (
-          <Button type="button" variant="outline" disabled={disabled} className="h-10 shrink-0 bg-white px-3 text-xs sm:text-sm hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800" onClick={() => setOpen(true)}>
+          <Button type="button" variant="secondary" disabled={disabled} className="shrink-0" onClick={() => setOpen(true)}>
             <SlidersHorizontalIcon data-icon="inline-start" />
             Filtros
             {active.length > 0 && <Badge variant="outline" className="ml-1 rounded-full border-border bg-white px-1.5 text-foreground dark:bg-slate-900" aria-label={`${active.length} filtros activos`}>{active.length}</Badge>}
@@ -67,18 +67,18 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
             return (
               <span key={filter.id} className="inline-flex items-center gap-1.5 rounded-full border bg-background py-1 pl-3 pr-1.5 text-sm">
                 {filter.label}: {optionLabel}
-                <button type="button" aria-label={`Quitar filtro ${filter.label}`} onClick={() => filter.onChange('')} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground">
-                  <XIcon className="size-3.5" />
-                </button>
+                <Button type="button" variant="tertiary" size="icon" aria-label={`Quitar filtro ${filter.label}`} onClick={() => filter.onChange('')} className="size-6 shrink-0">
+                  <XIcon />
+                </Button>
               </span>
             )
           })}
-          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={onClear}>Limpiar todo</Button>
+          <Button type="button" variant="tertiary" size="sm" onClick={onClear}>Limpiar todo</Button>
         </div>
       )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side={isMobile ? 'bottom' : 'right'} className={isMobile ? 'max-h-[85vh] rounded-t-2xl' : 'sm:max-w-md'}>
+        <SheetContent side={isMobile ? 'bottom' : 'right'} className={isMobile ? 'max-h-[85vh] rounded-t-lg' : 'sm:max-w-md'}>
           <SheetHeader className="border-b">
             <SheetTitle>Filtros</SheetTitle>
             <SheetDescription>Acota el listado. Los cambios se aplican al instante.</SheetDescription>
@@ -98,7 +98,7 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div tabIndex={0} className="cursor-not-allowed rounded-md [&_select]:pointer-events-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
+                        <div tabIndex={0} className="cursor-not-allowed rounded-lg [&_select]:pointer-events-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
                           {select}
                         </div>
                       </TooltipTrigger>
@@ -111,8 +111,8 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
             })}
           </div>
           <SheetFooter className="flex-row items-center justify-between border-t">
-            <Button type="button" variant="ghost" disabled={active.length === 0} onClick={onClear}>Limpiar filtros</Button>
-            <Button type="button" onClick={() => setOpen(false)}>Ver resultados</Button>
+            <Button type="button" variant="tertiary" disabled={active.length === 0} onClick={onClear}>Limpiar filtros</Button>
+            <Button type="button" onClick={() => setOpen(false)}><CheckIcon data-icon="inline-start" />Ver resultados</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>

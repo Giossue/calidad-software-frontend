@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, GraduationCapIcon, LinkIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, XCircleIcon, XIcon } from 'lucide-react'
+import { CheckCircle2Icon, GraduationCapIcon, LinkIcon, MoreVerticalIcon, PencilIcon, PowerOffIcon, SaveIcon, UserPlusIcon, XCircleIcon, XIcon } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog } from '@/components/ui/dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
@@ -108,7 +109,7 @@ export function TutoringTeachersPage() {
   }
 
   return <section className="flex flex-col gap-6">
-    <ModuleHeader title="Docentes" createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="outline" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title="Docentes" createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="secondary" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <ScopeNotice catalogs={catalogs} />
     <FilterBar
       id="teachers"
@@ -133,11 +134,10 @@ export function TutoringTeachersPage() {
           return (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => setViewingCareersTeacher(teacher)}
               aria-label={`Ver carreras de ${teacher.name}`}
-              className="h-7 text-xs font-medium text-primary border-primary/30 hover:bg-primary/10"
             >
               Carreras
             </Button>
@@ -151,9 +151,9 @@ export function TutoringTeachersPage() {
           if (!teacher.is_active) return <span className="text-muted-foreground">—</span>
           const coordinatedCareers = catalogs.careers.filter((c) => teacher.career_ids.includes(c.id))
           return <div className="flex items-center gap-1">
-            <Button type="button" variant="ghost" size="icon-sm" title="Editar" aria-label={`Editar ${teacher.name}`} disabled={operation.pending} onClick={() => edit(teacher)}><PencilIcon /></Button>
+            <Button type="button" variant="tertiary" size="icon" title="Editar" aria-label={`Editar ${teacher.name}`} disabled={operation.pending} onClick={() => edit(teacher)}><PencilIcon /></Button>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${teacher.name}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><Button type="button" variant="tertiary" size="icon" aria-label={`Más acciones para ${teacher.name}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {coordinatedCareers.map((c) => (
                   <DropdownMenuItem
@@ -175,7 +175,7 @@ export function TutoringTeachersPage() {
       },
     ]} />
     <CatalogPagination label="docentes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
-    <MutationDialog open={linkOpen} title="Vincular docente existente" description="Busca un docente ya registrado y agrégalo a una de tus carreras. Un docente puede pertenecer a varias carreras." pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={Boolean(linkSelected)} onClose={() => setLinkOpen(false)} onSubmit={submitLink} submitLabel="Vincular docente" submitDisabled={!linkSelected || !linkCareerId}>
+    <MutationDialog open={linkOpen} title="Vincular docente existente" description="Busca un docente ya registrado y agrégalo a una de tus carreras. Un docente puede pertenecer a varias carreras." pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={Boolean(linkSelected)} onClose={() => setLinkOpen(false)} onSubmit={submitLink} submitIcon={LinkIcon} submitLabel="Vincular docente" submitDisabled={!linkSelected || !linkCareerId}>
       <SelectField id="link-teacher-career" label="Carrera" value={linkCareerId} onChange={(value) => { setLinkCareerId(value); setLinkSelected(null) }}><option value="">Selecciona una carrera</option>{catalogs.careers.filter((career) => career.status).map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</SelectField>
       <Field>
         <FieldLabel htmlFor="link-teacher-search">Docente</FieldLabel>
@@ -194,7 +194,7 @@ export function TutoringTeachersPage() {
       </Field>
       <FieldDescription>Solo aparecen docentes activos que todavía no pertenecen a la carrera elegida. Si no existe, regístralo como docente nuevo.</FieldDescription>
     </MutationDialog>
-    <MutationDialog open={open} title={editing ? 'Editar docente' : 'Registrar docente'} pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}>
+    <MutationDialog open={open} title={editing ? 'Editar docente' : 'Registrar docente'} pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={JSON.stringify(form) !== JSON.stringify(initialForm)} onClose={() => setOpen(false)} onSubmit={submit} submitIcon={editing ? SaveIcon : UserPlusIcon} submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}>
       <Field>
         <div className="flex items-center justify-between"><FieldLabel htmlFor="teacher-identification">Cédula o pasaporte</FieldLabel><FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} /></div>
         <div className="relative flex items-center">
@@ -244,16 +244,16 @@ export function TutoringTeachersPage() {
             {teacherCareers.length > 0 ? (
               <div className="flex flex-col gap-2" role="list" aria-label="Lista de carreras">
                 {teacherCareers.map((c) => (
-                  <div
+                  <Card
                     key={c.id}
                     role="listitem"
-                    className="flex items-center gap-2.5 p-3 rounded-lg border bg-card text-card-foreground shadow-xs hover:border-primary/40 transition-colors"
+                    className="flex items-center gap-2.5 p-3 shadow-xs transition-colors hover:border-primary/40"
                   >
                     <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
                       <GraduationCapIcon className="size-4" />
                     </div>
                     <span className="text-sm font-medium text-foreground leading-snug break-words">{c.name}</span>
-                  </div>
+                  </Card>
                 ))}
               </div>
             ) : (
@@ -265,7 +265,7 @@ export function TutoringTeachersPage() {
             <div className="flex items-center justify-end pt-2 border-t">
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setViewingCareersTeacher(null)}
               >
                 Cerrar

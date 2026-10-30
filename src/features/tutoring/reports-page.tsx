@@ -149,12 +149,11 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
               report.content ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setReadingReport(report)}
-                  className="text-xs gap-1.5 h-8 font-medium"
                 >
-                  <FileTextIcon className="size-3.5" />
+                  <FileTextIcon data-icon="inline-start" />
                   Leer informe
                 </Button>
               ) : (
@@ -210,7 +209,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             </article>
             <div className="flex flex-wrap justify-end gap-3 pt-2 border-t">
               {readingStructured && <PrintStructuredReport summary={readingReport.summary} />}
-              <Button type="button" variant="outline" onClick={() => setReadingReport(null)}>
+              <Button type="button" variant="secondary" onClick={() => setReadingReport(null)}>
                 Cerrar informe
               </Button>
             </div>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   CheckCircle2Icon,
+  CheckIcon,
   ClockIcon,
   ListTodoIcon,
   SparklesIcon,
@@ -11,6 +12,7 @@ import {
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -36,7 +38,7 @@ function TaskCard({ activity }: Readonly<{ activity: DegreeActivity }>) {
   return (
     <li
       className={cn(
-        'rounded-xl border bg-card p-4 transition-all hover:border-primary/40 flex flex-col gap-3',
+        'rounded-lg border bg-card p-4 transition-all hover:border-primary/40 flex flex-col gap-3',
         activity.is_completed ? 'border-border/60 bg-card/60' : 'border-border shadow-2xs'
       )}
     >
@@ -153,7 +155,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
 
         {/* 1. Estado de la Ficha */}
         <TabsContent value="estado-ficha" className="flex flex-col gap-6 pt-2">
-          <div className="rounded-xl border bg-card p-5 flex flex-col gap-4 shadow-2xs">
+          <Card className="flex flex-col gap-4 p-5 shadow-2xs">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex flex-col gap-1 max-w-2xl">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -221,7 +223,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
                 </div>
               </div>
             )}
-          </div>
+          </Card>
         </TabsContent>
 
         {/* 2. Equipo de Titulación */}
@@ -299,46 +301,40 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
             {/* Role filter buttons */}
             <div className="flex items-center gap-1.5 text-xs">
               <span className="font-semibold text-muted-foreground mr-1">Filtrar por asignador:</span>
-              <button
+              <Button
                 type="button"
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer',
-                  roleFilter === 'all'
-                    ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                    : 'bg-card text-muted-foreground hover:text-foreground border-border'
-                )}
+                size="sm"
+                variant={roleFilter === 'all' ? 'primary' : 'secondary'}
+                aria-pressed={roleFilter === 'all'}
                 onClick={() => setRoleFilter('all')}
               >
+                {roleFilter === 'all' && <CheckIcon data-icon="inline-start" />}
                 Todos
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer',
-                  roleFilter === 'tutor'
-                    ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                    : 'bg-card text-muted-foreground hover:text-foreground border-border'
-                )}
+                size="sm"
+                variant={roleFilter === 'tutor' ? 'primary' : 'secondary'}
+                aria-pressed={roleFilter === 'tutor'}
                 onClick={() => setRoleFilter('tutor')}
               >
+                {roleFilter === 'tutor' && <CheckIcon data-icon="inline-start" />}
                 Tutor
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer',
-                  roleFilter === 'peer'
-                    ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                    : 'bg-card text-muted-foreground hover:text-foreground border-border'
-                )}
+                size="sm"
+                variant={roleFilter === 'peer' ? 'primary' : 'secondary'}
+                aria-pressed={roleFilter === 'peer'}
                 onClick={() => setRoleFilter('peer')}
               >
+                {roleFilter === 'peer' && <CheckIcon data-icon="inline-start" />}
                 Pares académicos
-              </button>
+              </Button>
             </div>
 
             {filteredActivities.length === 0 ? (
-              <div className="rounded-xl border border-dashed p-8 text-center bg-card">
+              <div className="rounded-lg border border-dashed p-8 text-center bg-card">
                 <ListTodoIcon className="mx-auto size-8 text-muted-foreground/60 mb-2" />
                 <h5 className="font-semibold text-base">
                   {activities.length === 0
@@ -388,7 +384,7 @@ export function StudentDegreeTrackingPage() {
       ) : approvedTopics.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <TrendingUpIcon className="size-6" />
             </div>
             <h4 className="font-display text-lg font-semibold">
@@ -405,19 +401,17 @@ export function StudentDegreeTrackingPage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-muted-foreground">Seleccionar propuesta:</span>
               {approvedTopics.map((topic) => (
-                <button
+                <Button
                   key={topic.id}
                   type="button"
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer',
-                    (currentTopic?.id === topic.id)
-                      ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                      : 'bg-card text-muted-foreground hover:text-foreground border-border'
-                  )}
+                  size="sm"
+                  variant={currentTopic?.id === topic.id ? 'primary' : 'secondary'}
+                  aria-pressed={currentTopic?.id === topic.id}
                   onClick={() => setSelectedTopicId(topic.id)}
                 >
+                  {currentTopic?.id === topic.id && <CheckIcon data-icon="inline-start" />}
                   {topic.title}
-                </button>
+                </Button>
               ))}
             </div>
           )}

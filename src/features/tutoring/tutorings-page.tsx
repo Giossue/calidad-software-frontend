@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
+  ArrowRightIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
   MoreVerticalIcon,
   PencilIcon,
+  PlusIcon,
   PowerIcon,
+  SaveIcon,
   UserPlusIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -12,6 +15,7 @@ import { toast } from 'sonner'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -647,11 +651,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       render: (item: TutoringRowItem) => (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => setViewingScheduleItem(item)}
           aria-label={`Ver horario de ${item.subject_name}`}
-          className="h-7 text-xs font-medium"
         >
           Ver Horario
         </Button>
@@ -667,8 +670,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         <div className="flex items-center gap-1">
           <Button
             type="button"
-            variant="ghost"
-            size="icon-sm"
+            variant="tertiary"
+            size="icon"
             title="Supervisar"
             aria-label={`Supervisar ${item.subject_name}`}
             disabled={operation.pending}
@@ -679,7 +682,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           {item.tutoring?.is_active ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${item.subject_name}`} disabled={operation.pending}>
+                <Button type="button" variant="tertiary" size="icon" aria-label={`Más acciones para ${item.subject_name}`} disabled={operation.pending}>
                   <MoreVerticalIcon />
                 </Button>
               </DropdownMenuTrigger>
@@ -692,7 +695,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           ) : item.tutoring && (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               aria-label={`Activar ${item.subject_name}`}
               disabled={operation.pending}
@@ -774,7 +777,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en Asignaturas.</p>}
           <div className="flex items-center justify-end gap-3 border-t pt-4">
             <DialogCancelButton onClick={closeCreateDialog}>Cancelar</DialogCancelButton>
-            <Button type="button" disabled={!chooserSubjectId} onClick={continueCreate}>Continuar</Button>
+            <Button type="button" disabled={!chooserSubjectId} onClick={continueCreate}><ArrowRightIcon data-icon="inline-start" />Continuar</Button>
           </div>
         </div>
       )}
@@ -800,7 +803,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           <ErrorNotice message={createError} />
 
           {/* Docente (recuperando de docentes) */}
-          <div className="flex flex-col gap-3 rounded-lg border p-3.5 bg-card">
+          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <UserPlusIcon className="size-4 text-primary" />
               Asignar docente
@@ -827,10 +830,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
               <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
             )}
             <ScheduleConflictNotice conflicts={createConflicts} />
-          </div>
+          </Card>
 
           {/* Horario (selección de días y horas) */}
-          <div className="flex flex-col gap-3 rounded-lg border p-3.5 bg-card">
+          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <CalendarClockIcon className="size-4 text-primary" />
               Horario de tutoría
@@ -945,7 +948,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                 </p>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Paralelo(s) de la asignatura registrados previamente */}
           <Field>
@@ -1008,9 +1011,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                 createParallelIds.length === 0 ||
                 createConflicts.length > 0
               }
-              className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"
             >
-              {createSaving && <Spinner data-icon="inline-start" />}
+              {createSaving ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
               Crear tutoría
             </Button>
           </div>
@@ -1054,7 +1056,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           <ErrorNotice message={editError} />
 
           {/* Docente */}
-          <div className="flex flex-col gap-3 rounded-lg border p-3.5 bg-card">
+          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <UserPlusIcon className="size-4 text-primary" />
               Docente
@@ -1081,10 +1083,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
               <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
             )}
             <ScheduleConflictNotice conflicts={editConflicts} />
-          </div>
+          </Card>
 
           {/* Horario (selección de días y horas) */}
-          <div className="flex flex-col gap-3 rounded-lg border p-3.5 bg-card">
+          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <CalendarClockIcon className="size-4 text-primary" />
               Horario de tutoría
@@ -1199,7 +1201,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                 </p>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Paralelo(s) de la asignatura registrados previamente */}
           <Field>
@@ -1262,9 +1264,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                 (editSubjectParallels.length > 0 && editParallelIds.length === 0) ||
                 editConflicts.length > 0
               }
-              className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold"
             >
-              {editSaving && <Spinner data-icon="inline-start" />}
+              {editSaving ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
               Guardar cambios
             </Button>
           </div>
@@ -1289,10 +1290,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             {activeSchedules.length > 0 ? (
               <div className="flex flex-col gap-2" role="list" aria-label="Lista de horarios">
                 {activeSchedules.map((s) => (
-                  <div
+                  <Card
                     key={s.id}
                     role="listitem"
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground shadow-xs"
+                    className="flex items-center justify-between p-3 shadow-xs"
                   >
                     <div className="flex items-center gap-3">
                       <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-sm">
@@ -1308,7 +1309,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             ) : (
@@ -1320,7 +1321,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             <div className="flex items-center justify-end pt-2 border-t">
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setViewingScheduleItem(null)}
               >
                 Cerrar
@@ -1357,7 +1358,7 @@ function ScheduleConflictNotice({ conflicts }: Readonly<{ conflicts: readonly Sc
   if (conflicts.length === 0) return null
 
   return (
-    <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+    <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
       <p className="font-semibold">El docente ya tiene tutoría en ese horario:</p>
       <ul className="mt-1 list-disc pl-4">
         {conflicts.map((conflict) => (

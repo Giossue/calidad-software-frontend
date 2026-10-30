@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { Button } from '@/components/ui/button'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { StatusBadge } from '@/components/ui/status-badge'
 import type { Career } from '@/lib/api'
@@ -66,7 +67,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
 export function CareerBreadcrumb({ root, career, onBack }: Readonly<{ root: string; career: string; onBack?: () => void }>) {
   if (!onBack) return null
   return <nav aria-label="Ruta" className="-mb-3 flex items-center gap-1.5 text-sm text-muted-foreground">
-    <button type="button" onClick={onBack} className="cursor-pointer rounded-sm hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">{root}</button>
+    <Button type="button" variant="tertiary" size="sm" onClick={onBack} className="-ml-3">{root}</Button>
     <span aria-hidden="true">/</span>
     <span className="text-foreground" aria-current="page">{career}</span>
   </nav>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CheckIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PlusIcon, PowerOffIcon, XIcon } from 'lucide-react'
+import { CheckIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -321,10 +321,10 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       label: 'Acciones',
       render: (subject: Subject) => subject.is_active ? (
         <div className="flex items-center gap-1">
-          <Button type="button" variant="ghost" size="icon-sm" title="Gestionar paralelos" aria-label={`Gestionar paralelos de ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => { operation.clearError(); setParallelId(''); setIsAddingParallelInModal(false); setNewModalParallelName(''); setModalParallelError(null); setAssigning(subject) }}><LayersIcon /></Button>
-          <Button type="button" variant="ghost" size="icon-sm" title="Editar" aria-label={`Editar ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => edit(subject)}><PencilIcon /></Button>
+          <Button type="button" variant="tertiary" size="icon" title="Gestionar paralelos" aria-label={`Gestionar paralelos de ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => { operation.clearError(); setParallelId(''); setIsAddingParallelInModal(false); setNewModalParallelName(''); setModalParallelError(null); setAssigning(subject) }}><LayersIcon /></Button>
+          <Button type="button" variant="tertiary" size="icon" title="Editar" aria-label={`Editar ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => edit(subject)}><PencilIcon /></Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`Más acciones para ${formatSubjectName(subject.name)}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button type="button" variant="tertiary" size="icon" aria-label={`Más acciones para ${formatSubjectName(subject.name)}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem variant="destructive" onSelect={() => { operation.clearError(); setDeactivating(subject) }}><PowerOffIcon />Desactivar</DropdownMenuItem>
             </DropdownMenuContent>
@@ -375,7 +375,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       dirty={JSON.stringify(form) !== JSON.stringify(initialForm) || Boolean(newSectionName)}
       onClose={() => setOpen(false)}
       onSubmit={submit}
-      submitLabel={editing ? 'Guardar cambios' : 'Registrar asignatura'}
+      submitIcon={editing ? SaveIcon : PlusIcon} submitLabel={editing ? 'Guardar cambios' : 'Registrar asignatura'}
     >
       {!editing && (
         <>
@@ -420,7 +420,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               {!isAddingSection && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="tertiary"
                   size="sm"
                   onClick={() => {
                     setIsAddingSection(true)
@@ -428,9 +428,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     setSectionError(null)
                   }}
                   disabled={operation.pending}
-                  className="text-xs h-7 text-foreground hover:text-foreground gap-1"
                 >
-                  <PlusIcon className="size-3.5" /> Crear nuevo paralelo
+                  <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
                 </Button>
               )}
             </div>
@@ -452,14 +451,14 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   type="button"
                   onClick={() => void handleCreateSection()}
                   disabled={creatingSection || !newSectionName.trim()}
-                  className="bg-brand-red hover:bg-brand-red/90 text-white font-semibold shrink-0"
+                  className="shrink-0"
                 >
-                  {creatingSection && <Spinner data-icon="inline-start" />}
+                  {creatingSection ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
                   Guardar
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => {
                     setIsAddingSection(false)
                     setNewSectionName('')
@@ -557,7 +556,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         setNewModalParallelName('')
         setModalParallelError(null)
       }}
-      submitLabel="Agregar paralelo"
+      submitIcon={PlusIcon} submitLabel="Agregar paralelo"
       submitDisabled={!parallelId && !newModalParallelName.trim()}
       onSubmit={addParallel}
     >
@@ -568,13 +567,13 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             {assignedParallels.map((item) => (
               <li
                 key={item.key}
-                className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm bg-card"
+                className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm bg-card"
               >
                 <span className="font-medium text-foreground">{item.label}</span>
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon-xs"
+                  variant="tertiary"
+                  size="icon"
                   disabled={operation.pending}
                   aria-label={`Quitar ${item.label}`}
                   onClick={() => removeParallel(item.cycleId, item.parallelId)}
@@ -597,7 +596,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           {!isAddingParallelInModal && (
             <Button
               type="button"
-              variant="ghost"
+              variant="tertiary"
               size="sm"
               onClick={() => {
                 setIsAddingParallelInModal(true)
@@ -605,9 +604,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 setModalParallelError(null)
               }}
               disabled={operation.pending}
-              className="text-xs h-7 text-foreground hover:text-foreground gap-1"
             >
-              <PlusIcon className="size-3.5" /> Crear nuevo paralelo
+              <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
             </Button>
           )}
         </div>
@@ -628,7 +626,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             />
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setIsAddingParallelInModal(false)
                 setNewModalParallelName('')

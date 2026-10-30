@@ -50,7 +50,7 @@ export function TutoringDetail({
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Button type="button" variant="ghost" onClick={onBack}>
+        <Button type="button" variant="tertiary" onClick={onBack}>
           <ArrowLeftIcon data-icon="inline-start" />
           Volver a tutorías
         </Button>

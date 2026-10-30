@@ -50,7 +50,7 @@ export function DegreeTopicsPage() {
   }
 
   return <section className="flex flex-col gap-6">
-    <AdminSectionHeader title="Propuestas de titulación" actions={<Button type="button" variant="outline" disabled={table.loading || period.loading} onClick={reloadAll}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
+    <AdminSectionHeader title="Propuestas de titulación" actions={<Button type="button" variant="secondary" disabled={table.loading || period.loading} onClick={reloadAll}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
     {period.status === 404 && <Alert><AlertDescription>No existe un período académico vigente. Administración debe configurar y activar un período para continuar con la coordinación de titulación.</AlertDescription></Alert>}
     <FilterBar
       id="degree-topics"
@@ -76,7 +76,7 @@ export function DegreeTopicsPage() {
       { label: 'Estudiante', render: (topic) => <div className="flex flex-col gap-1"><span>{topic.student?.name ?? 'Sin estudiante'}</span><span className="text-xs text-muted-foreground">{topic.student?.identification} · {topic.section ? `Paralelo ${topic.section.name}` : 'Sin paralelo'}</span></div> },
       { label: 'Presentada', render: (topic) => formatDegreeDate(topic.proposed_at) },
       { label: 'Estado', render: (topic) => <DegreeStatusBadge status={topic.status} /> },
-      { label: 'Acciones', render: (topic) => <Button type="button" variant="outline" size="sm" onClick={() => setSelectedTopicId(topic.id)} aria-label={`Revisar ${topic.title}`}>Ver detalle</Button> },
+      { label: 'Acciones', render: (topic) => <Button type="button" variant="secondary" size="sm" onClick={() => setSelectedTopicId(topic.id)} aria-label={`Revisar ${topic.title}`}>Ver detalle</Button> },
     ]} />}
     {!table.loading && !table.error && <p className="text-sm text-muted-foreground">Mostrando {table.rows.length} de {table.rows.length} propuesta{table.rows.length === 1 ? '' : 's'}</p>}
   </section>

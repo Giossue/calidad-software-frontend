@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIcon, CheckCircle2Icon, CircleIcon, FileTextIcon, ListTodoIcon, PlusIcon, SparklesIcon } from 'lucide-react'
+import { ActivityIcon, ArrowLeftIcon, CheckCircle2Icon, CircleIcon, FileTextIcon, ListTodoIcon, PlusIcon, SaveIcon, SparklesIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
@@ -101,8 +102,9 @@ export function DegreeTrackingPage() {
       <section className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <Button variant="outline" size="sm" onClick={() => setSelectedTopic(null)} className="mb-2">
-              &larr; Volver al listado de temas
+            <Button variant="tertiary" size="sm" onClick={() => setSelectedTopic(null)} className="mb-2 -ml-3">
+              <ArrowLeftIcon data-icon="inline-start" />
+              Volver al listado de temas
             </Button>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{selectedTopic.title}</h1>
             <p className="text-sm text-muted-foreground">
@@ -114,22 +116,21 @@ export function DegreeTrackingPage() {
           <div className="flex items-center gap-2">
 
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setReportObservations('')
                 setReportDialogOpen(true)
               }}
             >
-              <FileTextIcon className="size-4 mr-2" /> Generar Informe
+              <FileTextIcon data-icon="inline-start" /> Generar Informe
             </Button>
             <Button
               onClick={() => {
                 setNewActivityDesc('')
                 setActivityDialogOpen(true)
               }}
-              className="bg-brand-red hover:bg-brand-red/90 text-white"
             >
-              <PlusIcon className="size-4 mr-2" /> Nueva actividad
+              <PlusIcon data-icon="inline-start" /> Nueva actividad
             </Button>
           </div>
         </div>
@@ -137,9 +138,9 @@ export function DegreeTrackingPage() {
         {feedbackMsg && (
           <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300">
             <span>{feedbackMsg}</span>
-            <button type="button" onClick={() => setFeedbackMsg(null)} className="text-xs font-semibold hover:underline">
+            <Button type="button" variant="tertiary" size="sm" onClick={() => setFeedbackMsg(null)}>
               Cerrar
-            </button>
+            </Button>
           </div>
         )}
 
@@ -196,8 +197,8 @@ export function DegreeTrackingPage() {
                 </CardTitle>
                 <CardDescription>Seguimiento de entregables y avances del estudiante</CardDescription>
               </div>
-              <Button size="sm" variant="outline" onClick={() => setActivityDialogOpen(true)}>
-                <PlusIcon className="size-4 mr-1" /> Añadir
+              <Button size="sm" variant="secondary" onClick={() => setActivityDialogOpen(true)}>
+                <PlusIcon data-icon="inline-start" /> Añadir
               </Button>
             </CardHeader>
             <CardContent>
@@ -210,18 +211,19 @@ export function DegreeTrackingPage() {
                   {activities.map((activity) => (
                     <div key={activity.id} className="flex items-start justify-between gap-4 py-3">
                       <div className="flex items-start gap-3">
-                        <button
+                        <Button
                           type="button"
+                          variant="tertiary"
+                          size="icon"
                           onClick={() => void handleToggleActivity(activity)}
-                          className="mt-0.5 text-muted-foreground transition hover:text-foreground"
                           title={activity.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
                         >
                           {activity.is_completed ? (
-                            <CheckCircle2Icon className="size-5 text-emerald-600 dark:text-emerald-400" />
+                            <CheckCircle2Icon className="text-emerald-600 dark:text-emerald-400" />
                           ) : (
-                            <CircleIcon className="size-5" />
+                            <CircleIcon />
                           )}
-                        </button>
+                        </Button>
                         <div className="flex flex-col">
                           <span className={`text-sm font-medium ${activity.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                             {activity.description}
@@ -270,8 +272,8 @@ export function DegreeTrackingPage() {
               <Button
                 disabled={activitySubmitting || !newActivityDesc.trim()}
                 onClick={() => void handleAddActivity()}
-                className="bg-brand-red hover:bg-brand-red/90 text-white"
               >
+                {activitySubmitting ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
                 {activitySubmitting ? 'Guardando…' : 'Registrar actividad'}
               </Button>
             </div>
@@ -307,8 +309,8 @@ export function DegreeTrackingPage() {
               <Button
                 disabled={reportSubmitting || !reportObservations.trim()}
                 onClick={() => void handleGenerateReport()}
-                className="bg-brand-red hover:bg-brand-red/90 text-white"
               >
+                {reportSubmitting ? <Spinner data-icon="inline-start" /> : <FileTextIcon data-icon="inline-start" />}
                 {reportSubmitting ? 'Generando…' : 'Generar informe'}
               </Button>
             </div>
@@ -389,8 +391,8 @@ export function DegreeTrackingPage() {
           {
             label: 'Acciones',
             render: (topic) => (
-              <Button size="sm" variant="outline" onClick={() => setSelectedTopic(topic)}>
-                <ActivityIcon className="size-4 mr-1" /> Ver evolución
+              <Button size="sm" variant="secondary" onClick={() => setSelectedTopic(topic)}>
+                <ActivityIcon data-icon="inline-start" /> Ver evolución
               </Button>
             ),
           },

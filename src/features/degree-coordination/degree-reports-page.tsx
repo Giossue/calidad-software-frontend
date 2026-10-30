@@ -97,8 +97,8 @@ export function DegreeReportsPage() {
           {
             label: 'Acciones',
             render: (report) => (
-              <Button size="sm" variant="outline" onClick={() => setSelectedReport(report)}>
-                <FileTextIcon className="size-4 mr-1" /> Ver informe
+              <Button size="sm" variant="secondary" onClick={() => setSelectedReport(report)}>
+                <FileTextIcon data-icon="inline-start" /> Ver informe
               </Button>
             ),
           },

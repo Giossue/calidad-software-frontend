@@ -16,6 +16,7 @@ import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
@@ -460,22 +461,20 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => openAssignModal(student)}
-                  className="gap-1.5 text-xs font-medium"
                 >
-                  <GraduationCapIcon className="size-3.5" />
+                  <GraduationCapIcon data-icon="inline-start" />
                   Gestionar tutorías
                 </Button>
                 <Button
                   type="button"
-                  variant={student.cycle_id ? 'ghost' : 'outline'}
+                  variant={student.cycle_id ? 'tertiary' : 'secondary'}
                   size="sm"
                   onClick={() => openCycleModal(student)}
-                  className="gap-1.5 text-xs font-medium"
                 >
-                  <ArrowRightLeftIcon className="size-3.5" />
+                  <ArrowRightLeftIcon data-icon="inline-start" />
                   {student.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
                 </Button>
               </div>
@@ -510,7 +509,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         dirty={isFormDirty}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateSubmit}
-        submitLabel="Registrar estudiante"
+        submitIcon={UserPlusIcon} submitLabel="Registrar estudiante"
         submitDisabled={!isCedulaValid || !isEmailValid || !form.name.trim() || !form.cycle_id}
       >
         <Field>
@@ -662,9 +661,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               ) : (
                 <div className="flex flex-col gap-2">
                   {assignStudent.tutorings.map((tutoring) => (
-                    <div
+                    <Card
                       key={tutoring.enrollment_id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card text-card-foreground shadow-xs gap-3"
+                      className="flex items-center justify-between gap-3 p-3 shadow-xs"
                     >
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-medium text-foreground">
@@ -677,17 +676,17 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                         </div>
                       </div>
                       <Button
+                        tone="destructive"
                         type="button"
-                        variant="ghost"
+                        variant="tertiary"
                         size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2 gap-1 text-xs"
                         disabled={operation.pending}
                         onClick={() => setUnlinking({ student: assignStudent, tutoring })}
                       >
-                        <Trash2Icon className="size-3.5" />
+                        <Trash2Icon data-icon="inline-start" />
                         Desvincular
                       </Button>
-                    </div>
+                    </Card>
                   ))}
                 </div>
               )}
@@ -747,9 +746,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     <Button
                       type="submit"
                       disabled={!selectedTutoringId || operation.pending}
-                      className="gap-2"
                     >
-                      {operation.pending && <Spinner className="size-4" />}
+                      {operation.pending ? <Spinner data-icon="inline-start" /> : <UserPlusIcon data-icon="inline-start" />}
                       Inscribir en tutoría
                     </Button>
                   </div>
@@ -878,14 +876,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   <div className="flex items-center gap-2">
                     {student.is_degree_enrolled ? (
                       <Button
+                        tone="destructive"
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
                         onClick={() => setUnenrollTarget(student)}
                         disabled={degreeOperation.pending}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 text-xs font-medium"
                       >
-                        <UserMinusIcon className="size-3.5" />
+                        <UserMinusIcon data-icon="inline-start" />
                         Dar de baja
                       </Button>
                     ) : (
@@ -895,20 +893,18 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                         onClick={() => setEnrollTarget(student)}
                         disabled={degreeOperation.pending || student.academic_stage !== 'titulacion'}
                         title={student.academic_stage !== 'titulacion' ? 'Solo se matriculan en titulación los estudiantes que estén en el último ciclo de la carrera.' : undefined}
-                        className="gap-1.5 text-xs font-medium"
                       >
-                        <GraduationCapIcon className="size-3.5" />
+                        <GraduationCapIcon data-icon="inline-start" />
                         Matricular en Titulación
                       </Button>
                     )}
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="tertiary"
                       size="sm"
                       onClick={() => openCycleModal({ id: student.student_id, name: student.name, cycle_id: student.cycle_id })}
-                      className="gap-1.5 text-xs font-medium"
                     >
-                      <ArrowRightLeftIcon className="size-3.5" />
+                      <ArrowRightLeftIcon data-icon="inline-start" />
                       Cambiar ciclo
                     </Button>
                   </div>

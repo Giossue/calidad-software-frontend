@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowLeftIcon, CheckIcon, ClipboardListIcon, FileTextIcon, MessageSquareIcon, PlusCircleIcon, UserIcon, UsersIcon, XIcon } from 'lucide-react'
+import { ArrowLeftIcon, CheckIcon, ClipboardListIcon, FileTextIcon, MessageSquareIcon, PlusCircleIcon, SaveIcon, UserIcon, UsersIcon, XIcon, type LucideIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -17,6 +17,7 @@ import { useDegreeResource, useDegreeSearch } from './degree-hooks'
 import { DegreeObservationField, DegreeStatusBadge, InitialsAvatar, SectionCard } from './degree-shared'
 
 type ReviewAction = 'approve' | 'reject' | 'observe' | 'peers'
+const ACTION_ICONS: Record<ReviewAction, LucideIcon> = { approve: CheckIcon, reject: XIcon, observe: MessageSquareIcon, peers: SaveIcon }
 const ACTION_LABELS: Record<ReviewAction, string> = { approve: 'Aprobar propuesta', reject: 'Rechazar propuesta', observe: 'Registrar observación', peers: 'Gestionar pares académicos' }
 type ReviewDraft = { tutorId: string; peerIds: readonly number[]; observation: string }
 const EMPTY_DRAFT: ReviewDraft = { tutorId: '', peerIds: [], observation: '' }
@@ -111,7 +112,7 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
   }
 
   return <section className="flex flex-col gap-6">
-    <div><Button type="button" variant="ghost" onClick={onBack} disabled={operation.pending}><ArrowLeftIcon data-icon="inline-start" />Volver a propuestas</Button></div>
+    <div><Button type="button" variant="tertiary" onClick={onBack} disabled={operation.pending}><ArrowLeftIcon data-icon="inline-start" />Volver a propuestas</Button></div>
     {resource.loading && <p role="status" className="flex items-center gap-2"><Spinner aria-hidden="true" />Cargando propuesta…</p>}
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {topic && <>
@@ -128,9 +129,9 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
           {topic.status === 'pendiente' && !teachers.loading && !teachers.error && !approvalPossible && <Alert><AlertDescription>Se necesitan al menos dos docentes activos: uno como tutor y otro como par académico. Registra o activa docentes antes de aprobar la propuesta.</AlertDescription></Alert>}
           {topic.status === 'aprobado' && !teachers.loading && !teachers.error && !peerChangePossible && <Alert><AlertDescription>No hay docentes activos disponibles diferentes del tutor. Activa o registra otro docente para gestionar los pares académicos.</AlertDescription></Alert>}
           <div className="flex flex-wrap gap-3">
-            {topic.status === 'pendiente' && <><Button type="button" disabled={operation.pending || !approvalPossible} onClick={() => openAction('approve')}><CheckIcon data-icon="inline-start" />Aprobar propuesta</Button><Button type="button" variant="destructive" disabled={operation.pending} onClick={() => openAction('reject')}><XIcon data-icon="inline-start" />Rechazar propuesta</Button></>}
+            {topic.status === 'pendiente' && <><Button type="button" disabled={operation.pending || !approvalPossible} onClick={() => openAction('approve')}><CheckIcon data-icon="inline-start" />Aprobar propuesta</Button><Button tone="destructive" type="button" disabled={operation.pending} onClick={() => openAction('reject')}><XIcon data-icon="inline-start" />Rechazar propuesta</Button></>}
             {topic.status === 'aprobado' && <Button type="button" disabled={operation.pending || !peerChangePossible} onClick={() => openAction('peers')}><UsersIcon data-icon="inline-start" />Gestionar pares académicos</Button>}
-            <Button type="button" variant="outline" disabled={operation.pending} onClick={() => openAction('observe')}><MessageSquareIcon data-icon="inline-start" />Registrar observación</Button>
+            <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => openAction('observe')}><MessageSquareIcon data-icon="inline-start" />Registrar observación</Button>
           </div>
         </div>
       </SectionCard>
@@ -140,11 +141,11 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
           <div className="flex flex-col gap-3 sm:pl-6"><h4 className="text-sm text-muted-foreground">Pares académicos</h4>{peers.length === 0 ? <p className="text-sm text-muted-foreground">Sin pares asignados.</p> : <ul className="flex flex-col gap-4">{peers.map((assignment) => <li key={assignment.id} className="flex items-center gap-3"><InitialsAvatar name={assignment.teacher?.name ?? 'Docente'} tone="blue" /><div className="flex min-w-0 flex-col"><span className="font-medium">{assignment.teacher?.name ?? 'Docente no disponible'}</span><span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{assignment.teacher?.email}</span><span className="text-xs text-muted-foreground">Desde {formatDegreeDate(assignment.assigned_at)}</span></div></li>)}</ul>}</div>
         </div>
       </SectionCard>
-      <SectionCard icon={MessageSquareIcon} title="Observaciones" description="Mensajes disponibles para el estudiante." action={<Button type="button" variant="outline" disabled={operation.pending} onClick={() => openAction('observe')}><PlusCircleIcon data-icon="inline-start" />Agregar observación</Button>}>
-        {topic.observations.length === 0 ? <div className="flex flex-col items-center gap-1 rounded-xl bg-muted/50 px-6 py-8 text-center"><MessageSquareIcon aria-hidden="true" className="mb-1 size-7 text-muted-foreground" /><p className="text-sm font-medium">No hay observaciones registradas.</p><p className="text-xs text-muted-foreground">Las observaciones que registres serán visibles para el estudiante.</p></div> : <ol className="flex flex-col gap-5">{topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-border pl-4"><p className="text-xs text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDegreeDate(observation.registered_at)}</p><p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{observation.observation}</p></li>)}</ol>}
+      <SectionCard icon={MessageSquareIcon} title="Observaciones" description="Mensajes disponibles para el estudiante." action={<Button type="button" variant="secondary" disabled={operation.pending} onClick={() => openAction('observe')}><PlusCircleIcon data-icon="inline-start" />Agregar observación</Button>}>
+        {topic.observations.length === 0 ? <div className="flex flex-col items-center gap-1 rounded-lg bg-muted/50 px-6 py-8 text-center"><MessageSquareIcon aria-hidden="true" className="mb-1 size-7 text-muted-foreground" /><p className="text-sm font-medium">No hay observaciones registradas.</p><p className="text-xs text-muted-foreground">Las observaciones que registres serán visibles para el estudiante.</p></div> : <ol className="flex flex-col gap-5">{topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-border pl-4"><p className="text-xs text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDegreeDate(observation.registered_at)}</p><p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{observation.observation}</p></li>)}</ol>}
       </SectionCard>
     </>}
-    <MutationDialog open={Boolean(action)} title={action ? ACTION_LABELS[action] : ''} description={topic?.title} pending={operation.pending} error={operation.error} dirty={JSON.stringify(draft) !== JSON.stringify(initialDraft)} onClose={() => setAction(null)} onSubmit={submit} submitLabel={action === 'peers' ? 'Guardar pares académicos' : action ? ACTION_LABELS[action] : 'Guardar'} submitDisabled={!canSubmit}>
+    <MutationDialog open={Boolean(action)} title={action ? ACTION_LABELS[action] : ''} description={topic?.title} pending={operation.pending} error={operation.error} dirty={JSON.stringify(draft) !== JSON.stringify(initialDraft)} onClose={() => setAction(null)} onSubmit={submit} submitIcon={action ? ACTION_ICONS[action] : undefined} submitLabel={action === 'peers' ? 'Guardar pares académicos' : action ? ACTION_LABELS[action] : 'Guardar'} submitDisabled={!canSubmit}>
       {action === 'approve' && <Field>
         <FieldLabel htmlFor="degree-tutor">Docente tutor</FieldLabel>
         <SearchSelect

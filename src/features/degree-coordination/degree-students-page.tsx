@@ -192,14 +192,14 @@ export function DegreeStudentsPage() {
               <div className="flex items-center gap-2">
                 {student.is_degree_enrolled ? (
                   <Button
+                    tone="destructive"
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => setUnenrollTarget(student)}
                     disabled={operation.pending}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 text-xs font-medium"
                   >
-                    <UserMinusIcon className="size-3.5" />
+                    <UserMinusIcon data-icon="inline-start" />
                     Dar de baja
                   </Button>
                 ) : (
@@ -208,9 +208,8 @@ export function DegreeStudentsPage() {
                     size="sm"
                     onClick={() => setEnrollTarget(student)}
                     disabled={operation.pending}
-                    className="gap-1.5 text-xs font-medium bg-brand-blue hover:bg-brand-blue/90 text-white"
                   >
-                    <GraduationCapIcon className="size-3.5" />
+                    <GraduationCapIcon data-icon="inline-start" />
                     Matricular en Titulación
                   </Button>
                 )}

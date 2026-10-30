@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { PencilIcon, PlusIcon, PowerOffIcon, RotateCcwIcon } from 'lucide-react'
+import { PencilIcon, PlusIcon, PowerOffIcon, RotateCcwIcon, SaveIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
@@ -90,7 +90,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
             ]}
           />
         </div>
-        <Button className="h-10 shrink-0" disabled={operation.pending} onClick={() => openForm()}>
+        <Button className="shrink-0" disabled={operation.pending} onClick={() => openForm()}>
           <PlusIcon data-icon="inline-start" />Registrar estudiante
         </Button>
       </div>
@@ -114,13 +114,13 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
             label: 'Acciones', render: (student) => (
               <div className="flex items-center gap-1">
                 {student.can_edit_profile && (
-                  <Button variant="ghost" size="icon-sm" title="Editar datos" aria-label={`Editar datos de ${student.name}`} disabled={operation.pending} onClick={() => openForm(student)}>
+                  <Button variant="tertiary" size="icon" title="Editar datos" aria-label={`Editar datos de ${student.name}`} disabled={operation.pending} onClick={() => openForm(student)}>
                     <PencilIcon />
                   </Button>
                 )}
                 {student.is_active
-                  ? <Button variant="ghost" size="icon-sm" title="Deshabilitar inscripción" aria-label={`Deshabilitar a ${student.name}`} disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(student) }}><PowerOffIcon /></Button>
-                  : <Button variant="outline" size="sm" disabled={!student.student_is_active || operation.pending} onClick={() => void operation.run(() => tutoringApi.reenrollStudent(tutoring.id, student.id), 'Estudiante inscrito nuevamente.', list.reload)}><RotateCcwIcon data-icon="inline-start" />Reinscribir</Button>
+                  ? <Button variant="tertiary" size="icon" title="Deshabilitar inscripción" aria-label={`Deshabilitar a ${student.name}`} disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(student) }}><PowerOffIcon /></Button>
+                  : <Button variant="secondary" size="sm" disabled={!student.student_is_active || operation.pending} onClick={() => void operation.run(() => tutoringApi.reenrollStudent(tutoring.id, student.id), 'Estudiante inscrito nuevamente.', list.reload)}><RotateCcwIcon data-icon="inline-start" />Reinscribir</Button>
                 }
               </div>
             ),
@@ -137,7 +137,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         dirty={Boolean(selected) || JSON.stringify(form) !== JSON.stringify(initial)}
         onClose={() => setOpen(false)}
         onSubmit={submit}
-        submitLabel={editing ? 'Guardar cambios' : mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'}
+        submitIcon={editing ? SaveIcon : UserPlusIcon} submitLabel={editing ? 'Guardar cambios' : mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'}
         submitDisabled={!editing && mode === 'existing' && !selected}
       >
         {!editing && (
