@@ -3,7 +3,8 @@ import { ArrowLeftIcon, SendIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldGroup } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { api, ApiError } from '@/lib/api'
@@ -49,8 +50,7 @@ export function ForgotPasswordPage() {
                   </p>
                 </div>
                 <AuthFeedback error={error} success={success} />
-                <Field data-invalid={Boolean(error)}>
-                  <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
+                <FormField id="email" label="Correo electrónico">
                   <Input
                     id="email"
                     name="email"
@@ -65,7 +65,7 @@ export function ForgotPasswordPage() {
                     aria-invalid={Boolean(error)}
                     required
                   />
-                </Field>
+                </FormField>
                 <Field>
                   <Button type="submit" disabled={pending}>
                     {pending ? <Spinner data-icon="inline-start" /> : <SendIcon data-icon="inline-start" />}

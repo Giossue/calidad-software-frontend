@@ -4,11 +4,12 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { Field, FieldCounter, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FieldGroup } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
 import { PasswordInput } from '@/components/ui/password-input'
 import { PasswordStrength } from '@/components/ui/password-strength'
+import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import { api, ApiError, type AcademicFacultyOption } from '@/lib/api'
@@ -148,8 +149,8 @@ export function CompleteProfileModal() {
                   className={cn(
                     'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px]',
                     active && 'bg-primary text-primary-foreground',
-                    !active && reached && 'bg-slate-200 text-slate-700 dark:bg-accent dark:text-foreground',
-                    !reached && 'bg-slate-100 text-slate-400 dark:bg-muted',
+                    !active && reached && 'bg-accent text-accent-foreground',
+                    !reached && 'bg-muted text-muted-foreground',
                   )}
                 >
                   {reached && !active ? <CheckIcon className="size-3" /> : index + 1}
@@ -165,17 +166,18 @@ export function CompleteProfileModal() {
       <form onSubmit={handleFormSubmit} aria-label="Completar cuenta" noValidate>
         <FieldGroup>
           <div className="flex flex-col gap-1">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">{currentStep.heading}</h3>
-            <p className="text-sm text-slate-500 dark:text-muted-foreground">{currentStep.description}</p>
+            <h3 className="text-base font-semibold text-foreground">{currentStep.heading}</h3>
+            <p className="text-sm text-muted-foreground">{currentStep.description}</p>
           </div>
 
           {currentStep.key === 'datos' && (
             <>
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="profile-identification">Cédula o pasaporte</FieldLabel>
-                  <FieldCounter current={identification.length} max={identificationMaxLength(identification)} />
-                </div>
+              <FormField
+                id="profile-identification"
+                label="Cédula o pasaporte"
+                tip={identificationLocked ? 'La cédula o pasaporte ya registrado no se puede modificar.' : undefined}
+                counter={{ current: identification.length, max: identificationMaxLength(identification) }}
+              >
                 <div className="relative flex items-center">
                   <Input id="profile-identification" value={identification} onChange={(event) => setIdentification(sanitizeIdentification(event.target.value))} required disabled={identificationLocked} maxLength={10} autoComplete="off" placeholder="0201234567 o AB1234567" className={cn(shouldShowIdentificationStatus(identification) && 'pr-9')} />
                   {shouldShowIdentificationStatus(identification) && (
@@ -184,65 +186,61 @@ export function CompleteProfileModal() {
                       : <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
                   )}
                 </div>
-                {identificationLocked && <FieldDescription>La cédula o pasaporte ya registrado no se puede modificar.</FieldDescription>}
-              </Field>
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="profile-name">Nombre completo</FieldLabel>
-                  <FieldCounter current={name.length} max={150} />
-                </div>
+              </FormField>
+              <FormField id="profile-name" label="Nombre completo" counter={{ current: name.length, max: 150 }}>
                 <Input id="profile-name" value={name} onChange={(event) => setName(sanitizeLetters(event.target.value, 150))} required maxLength={150} autoComplete="name" placeholder="Apellidos y nombres" />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="profile-phone">Teléfono celular</FieldLabel>
+              </FormField>
+              <FormField id="profile-phone" label="Teléfono celular">
                 <Input id="profile-phone" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(sanitizeDigits(event.target.value, 10))} required maxLength={10} autoComplete="tel" placeholder="0991234567" />
-              </Field>
+              </FormField>
             </>
           )}
 
           {currentStep.key === 'academico' && (
             <>
-              <Field>
-                <FieldLabel htmlFor="profile-faculty">Facultad</FieldLabel>
-                <NativeSelect id="profile-faculty" value={faculty ? facultyId : ''} onChange={(event) => { setFacultyId(event.target.value); setCareerId(''); setCycleId('') }} disabled={options === null} required>
-                  <option value="">{options === null ? 'Cargando…' : 'Selecciona tu facultad'}</option>
-                  {options?.map((option) => <option key={option.id} value={String(option.id)}>{option.name}</option>)}
-                </NativeSelect>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="profile-career">Carrera</FieldLabel>
-                <NativeSelect id="profile-career" value={career ? careerId : ''} onChange={(event) => { setCareerId(event.target.value); setCycleId('') }} disabled={!faculty} required>
-                  <option value="">{faculty ? 'Selecciona tu carrera' : 'Primero selecciona la facultad'}</option>
-                  {faculty?.careers.map((option) => <option key={option.id} value={String(option.id)}>{option.name}</option>)}
-                </NativeSelect>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="profile-cycle">Ciclo</FieldLabel>
-                <NativeSelect id="profile-cycle" value={cycle ? cycleId : ''} onChange={(event) => setCycleId(event.target.value)} disabled={!career || career.cycles.length === 0} required>
-                  <option value="">{!career ? 'Primero selecciona la carrera' : career.cycles.length === 0 ? 'La carrera no tiene ciclos registrados' : 'Selecciona el ciclo que cursas'}</option>
-                  {career?.cycles.map((option) => (
-                    <option key={option.id} value={String(option.id)}>
-                      {`${option.number}.º ciclo · ${option.name}`}{option.section_name ? ` · Paralelo ${option.section_name}` : ''}{isDegreeCycleNumber(option.number, careerMaxCycle) ? ' · Titulación' : ''}
-                    </option>
-                  ))}
-                </NativeSelect>
-                <FieldDescription>El último ciclo de tu carrera es de titulación; los anteriores, de tutorías.</FieldDescription>
-              </Field>
+              <SelectField
+                id="profile-faculty"
+                label="Facultad"
+                value={faculty ? facultyId : ''}
+                onValueChange={(value) => { setFacultyId(value); setCareerId(''); setCycleId('') }}
+                disabled={options === null}
+                placeholder={options === null ? 'Cargando…' : 'Selecciona tu facultad'}
+                options={(options ?? []).map((option) => ({ value: String(option.id), label: option.name }))}
+              />
+              <SelectField
+                id="profile-career"
+                label="Carrera"
+                value={career ? careerId : ''}
+                onValueChange={(value) => { setCareerId(value); setCycleId('') }}
+                disabled={!faculty}
+                placeholder={faculty ? 'Selecciona tu carrera' : 'Primero selecciona la facultad'}
+                options={(faculty?.careers ?? []).map((option) => ({ value: String(option.id), label: option.name }))}
+              />
+              <SelectField
+                id="profile-cycle"
+                label="Ciclo"
+                tip="El último ciclo de tu carrera es de titulación; los anteriores, de tutorías."
+                value={cycle ? cycleId : ''}
+                onValueChange={setCycleId}
+                disabled={!career || career.cycles.length === 0}
+                placeholder={!career ? 'Primero selecciona la carrera' : career.cycles.length === 0 ? 'La carrera no tiene ciclos registrados' : 'Selecciona el ciclo que cursas'}
+                options={(career?.cycles ?? []).map((option) => ({
+                  value: String(option.id),
+                  label: `${option.number}.º ciclo · ${option.name}${option.section_name ? ` · Paralelo ${option.section_name}` : ''}${isDegreeCycleNumber(option.number, careerMaxCycle) ? ' · Titulación' : ''}`,
+                }))}
+              />
             </>
           )}
 
           {currentStep.key === 'password' && (
             <>
-              <Field>
-                <FieldLabel htmlFor="profile-password">Nueva contraseña</FieldLabel>
+              <FormField id="profile-password" label="Nueva contraseña" tip="Debe ser distinta de la contraseña provisional.">
                 <PasswordInput id="profile-password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby="profile-password-strength" required />
-                <FieldDescription>Debe ser distinta de la contraseña provisional.</FieldDescription>
                 <PasswordStrength id="profile-password-strength" password={password} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="profile-password-confirmation">Confirma la contraseña</FieldLabel>
+              </FormField>
+              <FormField id="profile-password-confirmation" label="Confirma la contraseña">
                 <PasswordInput id="profile-password-confirmation" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />
-              </Field>
+              </FormField>
             </>
           )}
 

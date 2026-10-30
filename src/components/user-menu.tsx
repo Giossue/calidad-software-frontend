@@ -29,12 +29,12 @@ export function UserMenu({ name, email, roleLabel, initials, onSignOut, signingO
           aria-label={`Menú de ${name}`}
           className="flex items-center gap-2 rounded-lg p-1 text-left transition-colors hover:bg-muted max-md:p-0 sm:gap-3 sm:p-1.5 sm:pr-3"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-bold text-white sm:size-9">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-medium text-white sm:size-9">
             {initials}
           </span>
           <span className="hidden flex-col sm:flex">
-            <span className="max-w-[120px] truncate text-xs font-bold leading-tight text-foreground lg:max-w-none">{name}</span>
-            <span className="max-w-[120px] truncate text-[11px] font-medium text-muted-foreground lg:max-w-none">{email}</span>
+            <span className="max-w-[120px] truncate text-xs font-medium leading-tight text-foreground lg:max-w-none">{name}</span>
+            <span className="max-w-[120px] truncate text-[11px] text-muted-foreground lg:max-w-none">{email}</span>
           </span>
           <ChevronDownIcon className="hidden size-4 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
         </button>
@@ -50,7 +50,7 @@ function UserMenuContent({ name, email, roleLabel, onSignOut, signingOut }: Omit
   return (
     <>
       <DropdownMenuLabel className="flex flex-col gap-0.5">
-        <span className="truncate text-sm font-semibold text-foreground">{name}</span>
+        <span className="truncate text-sm font-medium text-foreground">{name}</span>
         <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
         <span className="text-xs font-normal text-muted-foreground">{roleLabel}</span>
       </DropdownMenuLabel>

@@ -6,8 +6,8 @@ interface AuthShellProps {
 
 export function AuthShell({ title, description, children }: AuthShellProps) {
   return (
-    <main className="relative flex min-h-svh items-center justify-center bg-slate-100 p-4 sm:p-6 lg:p-10 dark:bg-background">
-      <div className="grid w-full max-w-6xl overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-2xl dark:border-border dark:bg-card lg:grid-cols-[1.1fr_0.9fr]">
+    <main className="relative flex min-h-svh items-center justify-center bg-muted p-4 sm:p-6 lg:p-10">
+      <div className="grid w-full max-w-6xl overflow-hidden rounded-lg border border-border bg-card shadow-2xl lg:grid-cols-[1.1fr_0.9fr]">
 
         {/* Panel Azul Oscuro (Izquierda) */}
         <aside className="relative hidden overflow-hidden bg-gradient-to-br from-brand-blue via-brand-blue to-slate-950 p-8 text-white lg:flex lg:flex-col lg:items-start lg:justify-between xl:p-14">
@@ -77,10 +77,10 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
                 <span className="size-1.5 rounded-full bg-brand-red animate-pulse" />
                 <span>Acceso Institucional</span>
               </div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl leading-tight">
+              <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl leading-tight">
                 Sistema para el seguimiento de Tutorías y Titulación
               </h2>
-              <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase dark:text-muted-foreground">
+              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 UNIVERSIDAD ESTATAL DE BOLÍVAR
               </p>
             </header>

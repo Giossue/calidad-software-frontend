@@ -110,7 +110,7 @@ export function BulkImportButton({
               disabled={pending}
               hint="Archivo CSV de hasta 2 MB y 1000 filas. Las filas con errores se informan y no detienen la carga."
             />
-            {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-wrap justify-end gap-3">
               <Button type="button" variant="secondary" onClick={close} disabled={pending}>Cancelar</Button>
               <Button type="submit" disabled={pending || !file}>
@@ -127,9 +127,9 @@ export function BulkImportButton({
                 Procesando {result.total_rows} {result.total_rows === 1 ? 'fila' : 'filas'}…
               </p>
             ) : result.status === 'failed' ? (
-              <p role="alert" className="text-sm font-medium text-destructive">La importación se interrumpió por un error del servidor. Inténtalo de nuevo.</p>
+              <p role="alert" className="text-sm text-destructive">La importación se interrumpió por un error del servidor. Inténtalo de nuevo.</p>
             ) : (
-              <p className="flex items-center gap-2 text-sm font-medium">
+              <p className="flex items-center gap-2 text-sm">
                 <CheckCircle2Icon className="size-5 text-emerald-600" aria-hidden="true" />
                 Importación terminada: {[
                   `${result.created_count} ${result.created_count === 1 ? 'registro creado' : 'registros creados'}`,
@@ -138,7 +138,7 @@ export function BulkImportButton({
                 ].join(', ').replace(/, ([^,]*)$/, ' y $1')}.
               </p>
             )}
-            {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             {(result.warnings?.length ?? 0) > 0 && (
               <ImportRowsTable
                 tone="warning"

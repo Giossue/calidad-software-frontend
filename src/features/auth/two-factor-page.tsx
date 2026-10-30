@@ -3,7 +3,8 @@ import { ShieldCheckIcon } from 'lucide-react'
 import { Navigate, useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FieldGroup } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError, challengeStore } from '@/lib/api'
@@ -40,12 +41,14 @@ export function TwoFactorPage() {
       <AuthFeedback error={error} />
       <form onSubmit={submit} noValidate>
         <FieldGroup>
-          <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="two-factor-code">{useRecovery ? 'Código de recuperación' : 'Código de autenticación'}</FieldLabel>
+          <FormField
+            id="two-factor-code"
+            label={useRecovery ? 'Código de recuperación' : 'Código de autenticación'}
+            tip={useRecovery ? 'Usa uno de tus códigos de recuperación.' : 'Ingresa el código de seis dígitos de tu aplicación.'}
+            error={error}
+          >
             <Input id="two-factor-code" inputMode={useRecovery ? 'text' : 'numeric'} autoComplete="one-time-code" value={value} onChange={(event) => setValue(event.target.value)} aria-invalid={Boolean(error)} required />
-            <FieldDescription>{useRecovery ? 'Usa uno de tus códigos de recuperación.' : 'Ingresa el código de seis dígitos de tu aplicación.'}</FieldDescription>
-            <FieldError>{error}</FieldError>
-          </Field>
+          </FormField>
           <Button type="submit" disabled={pending} className="w-full">
             {pending ? <Spinner data-icon="inline-start" /> : <ShieldCheckIcon data-icon="inline-start" />}
             Verificar

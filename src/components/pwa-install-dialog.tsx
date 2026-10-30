@@ -74,13 +74,13 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
             className="size-14 rounded-lg object-contain bg-white p-1 shadow-2xs"
           />
           <div className="flex flex-col">
-            <h4 className="text-sm font-bold text-foreground">
+            <h4 className="text-sm font-semibold text-foreground">
               Sistema de Gestión Académica
             </h4>
             <span className="text-xs text-muted-foreground">
               Universidad Estatal de Bolívar
             </span>
-            <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
               <CheckCircle2Icon className="size-3" /> Icono oficial para escritorio y móvil
             </span>
           </div>
@@ -114,7 +114,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
         {/* Acciones principales */}
         <div className="flex flex-col gap-3 pt-2">
           {isInstalled ? (
-            <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
               <CheckCircle2Icon className="size-4 shrink-0" />
               <span>
                 {isMobile
@@ -142,7 +142,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
                 <ShareIcon className="size-4 text-foreground" />
                 <span>Cómo instalar en iPhone / iPad:</span>
               </div>
-              <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-muted-foreground">
+              <ol className="list-decimal list-inside space-y-1">
                 <li>Toca el botón <strong>Compartir</strong> en la barra de Safari.</li>
                 <li>Desplázate hacia abajo y selecciona <strong>"Agregar a pantalla de inicio"</strong>.</li>
                 <li>Toca <strong>Agregar</strong> en la esquina superior derecha.</li>

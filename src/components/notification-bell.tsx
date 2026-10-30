@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { notificationsApi, type AppNotification } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -77,16 +78,21 @@ export function NotificationBell() {
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="tertiary" size="icon" aria-label={label} title={label} className="relative">
-          <BellIcon />
-          {unread > 0 && (
-            <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-bold leading-none text-white">
-              {unread > 99 ? '99+' : unread}
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="tertiary" size="icon" aria-label={label} className="relative">
+              <BellIcon />
+              {unread > 0 && (
+                <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-medium leading-none text-white">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2.5">
           <span className="text-sm font-semibold">Notificaciones</span>
@@ -109,12 +115,12 @@ export function NotificationBell() {
               <DropdownMenuItem
                 key={notification.id}
                 onSelect={() => void openNotification(notification)}
-                className={cn('mx-1 flex cursor-pointer flex-col items-start gap-0.5 rounded-md px-2.5 py-2', !notification.read_at && 'bg-brand-blue/5 dark:bg-primary/10')}
+                className={cn('mx-1 flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2.5 py-2', !notification.read_at && 'bg-brand-blue/5 dark:bg-primary/10')}
               >
                 <span className="flex w-full items-start gap-2">
                   <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', notification.read_at ? 'bg-transparent' : 'bg-brand-red')} aria-hidden="true" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className={cn('text-sm leading-snug', notification.read_at ? 'font-medium text-foreground/80' : 'font-semibold text-foreground')}>
+                    <span className={cn('text-sm leading-snug', notification.read_at ? 'text-foreground/80' : 'font-medium text-foreground')}>
                       {notification.title}
                       {!notification.read_at && <span className="sr-only"> (sin leer)</span>}
                     </span>

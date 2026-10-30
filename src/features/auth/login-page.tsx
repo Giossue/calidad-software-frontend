@@ -3,7 +3,8 @@ import { LogInIcon } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldGroup } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
@@ -65,8 +66,7 @@ export function LoginPage() {
                     Usa tus credenciales institucionales para acceder al sistema de tutorías y titulación.
                   </p>
                 </div>
-                <Field data-invalid={Boolean(error)}>
-                  <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
+                <FormField id="email" label="Correo electrónico">
                   <Input
                     id="email"
                     name="email"
@@ -81,14 +81,8 @@ export function LoginPage() {
                     aria-invalid={Boolean(error)}
                     required
                   />
-                </Field>
-                <Field data-invalid={Boolean(error)}>
-                  <div className="flex items-center">
-                    <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-                    <Link to="/forgot-password" className="ml-auto text-sm underline-offset-4 hover:underline">
-                      ¿Olvidaste tu contraseña?
-                    </Link>
-                  </div>
+                </FormField>
+                <FormField id="password" label="Contraseña" error={error}>
                   <PasswordInput
                     id="password"
                     name="password"
@@ -101,8 +95,10 @@ export function LoginPage() {
                     aria-invalid={Boolean(error)}
                     required
                   />
-                  <FieldError>{error}</FieldError>
-                </Field>
+                  <Link to="/forgot-password" className="self-end text-sm underline-offset-4 hover:underline">
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </FormField>
                 <Field>
                   <Button type="submit" disabled={pending}>
                     {pending ? <Spinner data-icon="inline-start" /> : <LogInIcon data-icon="inline-start" />}

@@ -306,7 +306,7 @@ export function DashboardPage() {
                         tooltip={item.label}
                         onClick={() => navigate(`/panel/${item.id}`)}
                         className={cn(
-                          'data-[active=true]:font-semibold',
+                          'data-[active=true]:font-medium',
                           isTrackingParentWithSubNav && 'data-[active=true]:bg-transparent data-[active=true]:text-sidebar-foreground',
                         )}
                       >
@@ -345,9 +345,9 @@ export function DashboardPage() {
         <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-2.5 backdrop-blur-xs sm:gap-3 sm:px-4 sm:py-3 md:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <SidebarTrigger className="shrink-0 md:hidden" />
-            <span className="min-w-0 truncate text-xs font-medium text-muted-foreground md:text-sm">
+            <span className="min-w-0 truncate text-xs text-muted-foreground md:text-sm">
               <span className="max-md:sr-only">{userRoleText} &rsaquo; Tutorías y Titulación{sectionLabel && <> &rsaquo; </>}</span>
-              {sectionLabel && <span aria-current="page" className="truncate font-semibold text-foreground max-md:text-sm">{sectionLabel}</span>}
+              {sectionLabel && <span aria-current="page" className="truncate text-foreground max-md:text-sm">{sectionLabel}</span>}
             </span>
           </div>
 
@@ -366,7 +366,7 @@ export function DashboardPage() {
           </div>
         </header>
 
-        <div className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-5xl min-w-0 flex-1 p-3 sm:p-4 md:p-6 lg:p-8">
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (

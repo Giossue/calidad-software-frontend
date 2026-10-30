@@ -19,6 +19,12 @@ const options = [{
   ],
 }]
 
+// Los selects son de shadcn (Radix): se abren y se elige la opción por su texto.
+async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
+  await user.click(trigger)
+  await user.click(await screen.findByRole('option', { name: option }))
+}
+
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
@@ -54,10 +60,11 @@ describe('CompleteProfileModal', () => {
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
     await waitFor(() => expect(screen.getByLabelText('Facultad')).toBeEnabled())
-    await user.selectOptions(screen.getByLabelText('Facultad'), 'Ciencias Administrativas')
-    await user.selectOptions(screen.getByLabelText('Carrera'), 'Software')
+    await choose(user, screen.getByLabelText('Facultad'), 'Ciencias Administrativas')
+    await choose(user, screen.getByLabelText('Carrera'), 'Software')
 
-    expect(screen.getByRole('option', { name: '6.º ciclo · Sexto · Paralelo B' })).toBeInTheDocument()
+    await user.click(screen.getByLabelText('Ciclo'))
+    expect(await screen.findByRole('option', { name: '6.º ciclo · Sexto · Paralelo B' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: '8.º ciclo · Octavo · Paralelo A · Titulación' })).toBeInTheDocument()
   })
 
@@ -86,10 +93,12 @@ describe('CompleteProfileModal', () => {
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
     expect(screen.getByLabelText('Carrera')).toBeDisabled()
 
-    await user.selectOptions(screen.getByLabelText('Facultad'), 'Ciencias Administrativas')
-    await user.selectOptions(screen.getByLabelText('Carrera'), 'Software')
-    expect(screen.getByRole('option', { name: '6.º ciclo · Sexto · Paralelo B · Titulación' })).toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Ciclo'), '2.º ciclo · Segundo · Paralelo A')
+    await choose(user, screen.getByLabelText('Facultad'), 'Ciencias Administrativas')
+    await choose(user, screen.getByLabelText('Carrera'), 'Software')
+    await user.click(screen.getByLabelText('Ciclo'))
+    expect(await screen.findByRole('option', { name: '6.º ciclo · Sexto · Paralelo B · Titulación' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await choose(user, screen.getByLabelText('Ciclo'), '2.º ciclo · Segundo · Paralelo A')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
     // Último paso: contraseña nueva.
@@ -127,9 +136,9 @@ describe('CompleteProfileModal', () => {
     await user.type(screen.getByLabelText('Teléfono celular'), '0987654321')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
-    await user.selectOptions(screen.getByLabelText('Facultad'), 'Ciencias Administrativas')
-    await user.selectOptions(screen.getByLabelText('Carrera'), 'Software')
-    await user.selectOptions(screen.getByLabelText('Ciclo'), '2.º ciclo · Segundo · Paralelo A')
+    await choose(user, screen.getByLabelText('Facultad'), 'Ciencias Administrativas')
+    await choose(user, screen.getByLabelText('Carrera'), 'Software')
+    await choose(user, screen.getByLabelText('Ciclo'), '2.º ciclo · Segundo · Paralelo A')
     await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
 
     await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith(expect.objectContaining({ phone: '0987654321' })))
@@ -201,8 +210,8 @@ describe('CompleteProfileModal', () => {
     render(<CompleteProfileModal />)
     // Datos ya válidos (precargados): pasa directo al paso académico.
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
-    await waitFor(() => expect(screen.getByLabelText('Ciclo')).toHaveValue('8'))
-    await user.selectOptions(screen.getByLabelText('Ciclo'), '2.º ciclo · Segundo · Paralelo A')
+    await waitFor(() => expect(screen.getByLabelText('Ciclo')).toHaveTextContent('6.º ciclo · Sexto'))
+    await choose(user, screen.getByLabelText('Ciclo'), '2.º ciclo · Segundo · Paralelo A')
     await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
 
     await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith({

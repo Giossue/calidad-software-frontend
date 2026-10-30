@@ -4,7 +4,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FieldGroup } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { PasswordInput } from '@/components/ui/password-input'
 import { PasswordStrength } from '@/components/ui/password-strength'
 import { Spinner } from '@/components/ui/spinner'
@@ -48,16 +49,13 @@ export function ResetPasswordPage() {
       <AuthFeedback error={error || (!email || !token ? 'El enlace está incompleto.' : null)} />
       <form onSubmit={submit} noValidate>
         <FieldGroup>
-          <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="password">Nueva contraseña</FieldLabel>
+          <FormField id="password" label="Nueva contraseña">
             <PasswordInput id="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={Boolean(error)} aria-describedby="password-strength" required />
             <PasswordStrength id="password-strength" password={password} />
-          </Field>
-          <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="confirmation">Confirma la contraseña</FieldLabel>
+          </FormField>
+          <FormField id="confirmation" label="Confirma la contraseña" error={error}>
             <PasswordInput id="confirmation" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-invalid={Boolean(error)} required />
-            <FieldError>{error}</FieldError>
-          </Field>
+          </FormField>
           <Button type="submit" disabled={pending || !email || !token || !isPasswordValid(password) || confirmation === ''} className="w-full">
             {pending ? <Spinner data-icon="inline-start" /> : <KeyRoundIcon data-icon="inline-start" />}
             Restablecer contraseña
