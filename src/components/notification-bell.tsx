@@ -109,7 +109,7 @@ export function NotificationBell() {
               <DropdownMenuItem
                 key={notification.id}
                 onSelect={() => void openNotification(notification)}
-                className={cn('mx-1 flex cursor-pointer flex-col items-start gap-0.5 rounded-md px-2.5 py-2', !notification.read_at && 'bg-brand-blue/5 dark:bg-sky-400/10')}
+                className={cn('mx-1 flex cursor-pointer flex-col items-start gap-0.5 rounded-md px-2.5 py-2', !notification.read_at && 'bg-brand-blue/5 dark:bg-primary/10')}
               >
                 <span className="flex w-full items-start gap-2">
                   <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', notification.read_at ? 'bg-transparent' : 'bg-brand-red')} aria-hidden="true" />

@@ -249,6 +249,7 @@ export function DegreeTrackingPage() {
         <Dialog
           open={activityDialogOpen}
           onClose={() => setActivityDialogOpen(false)}
+          confirmClose={newActivityDesc.trim() !== ''}
           title="Registrar actividad de avance"
           description="Define el hito o entregable para la ficha de seguimiento de titulación."
         >
@@ -286,6 +287,7 @@ export function DegreeTrackingPage() {
         <Dialog
           open={reportDialogOpen}
           onClose={() => setReportDialogOpen(false)}
+          confirmClose={reportObservations.trim() !== ''}
           title="Generar informe de titulación"
           description="Registra las observaciones y dictamen de la evolución del tema de titulación."
         >

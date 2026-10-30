@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { ClipboardListIcon, FileTextIcon, MessageSquareIcon, PencilIcon, PlusIcon, RefreshCwIcon, ReplaceIcon, SendIcon, UsersIcon } from 'lucide-react'
+import { ClipboardListIcon, FileTextIcon, MessageSquareIcon, PencilIcon, PlusIcon, ReplaceIcon, SendIcon, UsersIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { RefreshButton } from '@/components/ui/refresh-button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -107,7 +108,7 @@ export function StudentDegreeTopicsPage() {
     : <Button type="button" onClick={() => setMode({ kind: 'create' })}><PlusIcon data-icon="inline-start" />Nueva propuesta</Button>
 
   return <section className="flex min-w-0 flex-col gap-6" aria-busy={loading}>
-    <AdminSectionHeader title="Mis propuestas de titulación" description="Presenta tu tema, consulta el estado de tus propuestas, los docentes asignados y las observaciones de coordinación." actions={<div className="flex shrink-0 flex-col gap-2 sm:flex-row"><Button type="button" variant="secondary" disabled={loading} onClick={resource.reload}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>{action}</div>} />
+    <AdminSectionHeader title="Mis propuestas de titulación" description="Presenta tu tema, consulta el estado de tus propuestas, los docentes asignados y las observaciones de coordinación." actions={<div className="flex shrink-0 flex-col gap-2 sm:flex-row"><RefreshButton disabled={loading} onClick={resource.reload} />{action}</div>} />
     {error ? <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{error}</span><Button type="button" variant="secondary" onClick={resource.reload}>Reintentar</Button></AlertDescription></Alert> : loading ? <div role="status" aria-label="Cargando propuestas" className="flex flex-col gap-4"><Skeleton className="h-36 w-full" /><Skeleton className="h-36 w-full" /></div> : topics.length === 0 ? <Alert><AlertDescription>Aún no tienes propuestas de titulación registradas. Usa «Nueva propuesta» para presentar tu tema a coordinación.</AlertDescription></Alert> : topics.map((topic) => <TopicCard key={topic.id} topic={topic} onEdit={topic.status === 'pendiente' ? (item) => setMode({ kind: 'edit', topic: item }) : undefined} />)}
     <ProposalDialog mode={mode} onClose={() => setMode(null)} onSaved={resource.reload} />
   </section>

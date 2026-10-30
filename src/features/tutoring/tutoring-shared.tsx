@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -33,7 +33,7 @@ export function ModuleHeader({ title, description, createLabel, onCreate, disabl
 
 export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }: Readonly<{ search: string; onSearch: (value: string) => void; careerId?: string; onCareer?: (value: string) => void; careers?: readonly Career[] }>) {
   return <FieldGroup className="flex flex-col gap-4 sm:flex-row">
-    <Field className="flex-1"><FieldLabel htmlFor="tutoring-search">Buscar</FieldLabel><Input id="tutoring-search" type="search" placeholder="Escribe para buscar…" value={search} onChange={(event) => onSearch(event.target.value)} /></Field>
+    <Field className="flex-1"><FieldLabel htmlFor="tutoring-search">Buscar</FieldLabel><SearchInput id="tutoring-search" placeholder="Escribe para buscar…" value={search} onValueChange={onSearch} /></Field>
     {onCareer && <Field className="flex-1"><FieldLabel htmlFor="tutoring-career-filter">Carrera</FieldLabel><NativeSelect id="tutoring-career-filter" value={careerId} onChange={(event) => onCareer(event.target.value)}><option value="">Todas mis carreras</option>{careers?.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</NativeSelect></Field>}
   </FieldGroup>
 }

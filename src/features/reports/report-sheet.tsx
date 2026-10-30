@@ -51,7 +51,7 @@ export function Signature({ name, role }: Readonly<{ name: string | null; role: 
 
 /** Marco gris que rodea la hoja dentro de los diálogos. */
 export function SheetFrame({ children }: Readonly<{ children: ReactNode }>) {
-  return <div className="rounded-lg border border-border bg-slate-100 p-2 sm:p-4 dark:bg-slate-800">{children}</div>
+  return <div className="rounded-lg border border-border bg-slate-100 p-2 sm:p-4 dark:bg-muted">{children}</div>
 }
 
 /**

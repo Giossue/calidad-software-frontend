@@ -60,4 +60,20 @@ export const BULK_IMPORT_COLUMNS: Record<BulkImportType, readonly BulkImportColu
   sections: [{ name: 'nombre', required: true, hint: 'Se asocia al período académico vigente.' }],
 }
 
+/**
+ * Instrucciones que se insertan al inicio de la plantilla CSV. Cada línea va en
+ * una sola celda entre comillas y empieza con `#`: Excel no la parte por el
+ * separador y el backend la ignora al importar.
+ */
+export function bulkImportInstructions(type: BulkImportType): string {
+  const lines = [
+    '# INSTRUCCIONES (las líneas que empiezan con # no se importan; puedes borrarlas).',
+    '# 1. Escribe un registro por fila, debajo de los encabezados. No cambies los nombres de las columnas.',
+    '# 2. Columnas:',
+    ...BULK_IMPORT_COLUMNS[type].map((column) => `#    - ${column.name} (${column.required ? 'obligatoria' : 'opcional'})${column.hint ? `: ${column.hint}` : ''}`),
+    '# 3. Guarda el archivo como CSV (separado por comas o punto y coma) y súbelo en «Cargar datos masivos». Máximo 2 MB y 1000 filas.',
+  ]
+  return lines.map((line) => `"${line.replaceAll('"', '""')}"`).join('\r\n') + '\r\n'
+}
+
 export const BULK_IMPORT_POLL_MS = 2000

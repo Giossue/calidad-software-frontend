@@ -7,7 +7,6 @@ import {
   ClipboardListIcon,
   GraduationCapIcon,
   FileTextIcon,
-  LogOutIcon,
   MonitorDownIcon,
   TrendingUpIcon,
   UserCheckIcon,
@@ -18,6 +17,8 @@ import uebLogo from '@/assets/ueb-logo.png'
 import { NotificationBell } from '@/components/notification-bell'
 import { PwaInstallDialog } from '@/components/pwa-install-dialog'
 import { UserMenu } from '@/components/user-menu'
+import { AccessibilityButton } from '@/components/accessibility-button'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { AccessibilityModal } from '@/components/ui/accessibility-modal'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -36,12 +37,10 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
-  SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import {
   AdminSectionContent,
@@ -307,7 +306,7 @@ export function DashboardPage() {
                         tooltip={item.label}
                         onClick={() => navigate(`/panel/${item.id}`)}
                         className={cn(
-                          'border-l-2 border-transparent data-[active=true]:border-sidebar-primary data-[active=true]:font-semibold',
+                          'data-[active=true]:font-semibold',
                           isTrackingParentWithSubNav && 'data-[active=true]:bg-transparent data-[active=true]:text-sidebar-foreground',
                         )}
                       >
@@ -338,20 +337,8 @@ export function DashboardPage() {
                 <span>Instalar App</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                tooltip={pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
-                onClick={() => void signOut()}
-                disabled={pending}
-              >
-                {pending ? <Spinner /> : <LogOutIcon />}
-                <span>{pending ? 'Cerrando sesión…' : 'Cerrar sesión'}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
-
-        <SidebarRail />
       </Sidebar>
 
       <SidebarInset>
@@ -365,6 +352,7 @@ export function DashboardPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
+            <ThemeToggle />
             <NotificationBell />
 
             <UserMenu
@@ -372,7 +360,6 @@ export function DashboardPage() {
               email={user?.email ?? ''}
               roleLabel={userRoleText}
               initials={initials}
-              onOpenAccessibility={() => setAccessibilityOpen(true)}
               onSignOut={() => void signOut()}
               signingOut={pending}
             />
@@ -457,6 +444,7 @@ export function DashboardPage() {
         </div>
       </SidebarInset>
 
+      <AccessibilityButton onClick={() => setAccessibilityOpen(true)} />
       <AccessibilityModal open={accessibilityOpen} onClose={() => setAccessibilityOpen(false)} />
       <PwaInstallDialog open={pwaInstallOpen} onClose={() => setPwaInstallOpen(false)} />
     </SidebarProvider>

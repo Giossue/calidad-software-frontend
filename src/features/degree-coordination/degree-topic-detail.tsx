@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/ui/search-input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { Spinner } from '@/components/ui/spinner'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -178,10 +178,7 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
           <FieldDescription>Selecciona al menos un docente diferente del tutor. Puedes buscar en todas las carreras y facultades.</FieldDescription>
           <Field>
             <FieldLabel htmlFor="degree-peer-search" className="sr-only">Buscar pares académicos</FieldLabel>
-            <div className="relative flex items-center">
-              <Input id="degree-peer-search" type="search" placeholder="Buscar por nombre, cédula, carrera o facultad" value={peerSearch.input} onChange={(event) => peerSearch.setInput(event.target.value)} />
-              {peerResults.loading && <Spinner aria-hidden="true" className="absolute right-3 size-4" />}
-            </div>
+            <SearchInput id="degree-peer-search" placeholder="Buscar por nombre, cédula, carrera o facultad" value={peerSearch.input} onValueChange={peerSearch.setInput} loading={peerResults.loading} />
           </Field>
           <ErrorNotice message={peerResults.error} retry={peerResults.reload} />
           <FieldGroup className="max-h-64 gap-4 overflow-y-auto">

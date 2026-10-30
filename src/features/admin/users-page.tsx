@@ -5,7 +5,6 @@ import {
   MailIcon,
   MoreVerticalIcon,
   PlusIcon,
-  RefreshCwIcon,
   SaveIcon,
   ShieldAlertIcon,
   UserCheckIcon,
@@ -21,18 +20,22 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { InfoTip } from '@/components/ui/info-tip'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { PasswordStrength } from '@/components/ui/password-strength'
 import { getPasswordRequirementHint, PASSWORD_MIN_LENGTH } from '@/lib/password-rules'
-import { NativeSelect } from '@/components/ui/native-select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
@@ -106,9 +109,9 @@ function getRoleLabel(role: string): string {
  * Estado visible de la cuenta. "Pendiente" es una cuenta habilitada que aún no ingresa
  * a completar sus datos: recibió el correo con la contraseña provisional o le falta la cédula.
  */
-function UserStatusBadge({ user, pulse = false }: Readonly<{ user: User; pulse?: boolean }>) {
+function UserStatusBadge({ user }: Readonly<{ user: User }>) {
   const status = !user.is_active
-    ? { label: 'Inactivo', title: 'La cuenta está deshabilitada.', badge: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400', dot: 'bg-slate-400' }
+    ? { label: 'Inactivo', title: 'La cuenta está deshabilitada.', badge: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-border dark:bg-muted dark:text-muted-foreground' }
     : user.must_complete_profile
       ? {
           label: user.must_change_password ? 'Correo enviado' : 'Datos pendientes',
@@ -116,13 +119,11 @@ function UserStatusBadge({ user, pulse = false }: Readonly<{ user: User; pulse?:
             ? 'Se envió el correo de acceso; el usuario aún no ingresa a completar sus datos.'
             : 'El usuario debe registrar su cédula y completar sus datos al ingresar.',
           badge: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
-          dot: 'bg-amber-500',
         }
-      : { label: 'Activo', title: 'La cuenta está habilitada y con sus datos completos.', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300', dot: cn('bg-emerald-500', pulse && 'animate-pulse') }
+      : { label: 'Activo', title: 'La cuenta está habilitada y con sus datos completos.', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' }
 
   return (
-    <span title={status.title} className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold', status.badge)}>
-      <span className={cn('size-1.5 rounded-full', status.dot)} />
+    <span title={status.title} className={cn('inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold', status.badge)}>
       {status.label}
     </span>
   )
@@ -435,25 +436,304 @@ export function UsersPage() {
     (key) => userForm[key] !== initialUserForm[key],
   )
 
+  // "Guardar" solo se habilita con cambios y sin errores; el tooltip explica el motivo.
+  const formErrors = validateUserForm(userForm, editingUser !== null, identificationLocked)
+  const submitBlockReason = !isUserFormDirty
+    ? (editingUser ? 'No hay cambios por guardar.' : 'Completa los datos del usuario.')
+    : (Object.values(formErrors)[0] ?? null)
+
+  const userFormElement = (
+        <form onSubmit={submitUser}>
+          <FieldGroup className="gap-5">
+            {/* Aviso Informativo para Creación de Usuario */}
+            {!editingUser && (
+              <div className="flex items-start gap-3.5 rounded-lg border border-blue-200/80 bg-blue-50/80 p-4 text-xs font-medium text-foreground dark:border-primary/30 dark:bg-primary/10 dark:text-foreground">
+                <MailIcon className="size-5 shrink-0 text-foreground mt-0.5" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-bold text-sm">Envío de Contraseña Provisional</span>
+                  <span>
+                    No necesitas ingresar una contraseña. Al hacer clic en <strong>Registrar Usuario</strong>, el sistema generará automáticamente una contraseña provisional segura y se la enviará al correo registrado.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field data-invalid={Boolean(userErrors.identification)}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <FieldLabel htmlFor="user-identification">Cédula o pasaporte</FieldLabel>
+                    {identificationLocked && <InfoTip>La cédula o pasaporte ya registrado no se puede modificar.</InfoTip>}
+                  </div>
+                  <FieldCounter current={userForm.identification.length} max={identificationMaxLength(userForm.identification)} />
+                </div>
+                <div className="relative flex items-center">
+                  <Input
+                    id="user-identification"
+                    name="identification"
+                    value={userForm.identification}
+                    onChange={(e) => updateUserField('identification', sanitizeIdentification(e.target.value))}
+                    maxLength={10}
+                    autoComplete="off"
+                    placeholder="Ej. 1710034065 o AB1234567"
+                    disabled={formDisabled || identificationLocked}
+                    required
+                    className={cn(shouldShowIdentificationStatus(userForm.identification) && 'pr-9')}
+                  />
+                  {shouldShowIdentificationStatus(userForm.identification) && (
+                    isValidIdentification(userForm.identification) ? (
+                      <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
+                    ) : (
+                      <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
+                    )
+                  )}
+                </div>
+                <FieldError>{userErrors.identification}</FieldError>
+              </Field>
+
+              <Field data-invalid={Boolean(userErrors.name)}>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="user-name">Nombre completo</FieldLabel>
+                  <FieldCounter current={userForm.name.length} max={150} />
+                </div>
+                <Input
+                  id="user-name"
+                  name="name"
+                  value={userForm.name}
+                  onChange={(e) => updateUserField('name', sanitizeLetters(e.target.value, 150))}
+                  maxLength={150}
+                  autoComplete="name"
+                  placeholder="Ej. Ana Torres"
+                  disabled={formDisabled}
+                  required
+                />
+                <FieldError>{userErrors.name}</FieldError>
+              </Field>
+            </div>
+
+            <Field data-invalid={Boolean(userErrors.email)}>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="user-email">Correo electrónico institucional</FieldLabel>
+                <FieldCounter current={userForm.email.length} max={150} />
+              </div>
+              <Input
+                id="user-email"
+                name="email"
+                type="email"
+                value={userForm.email}
+                onChange={(e) => updateUserField('email', e.target.value.slice(0, 150))}
+                maxLength={150}
+                placeholder="nombre@ueb.edu.ec"
+                disabled={formDisabled}
+                required
+              />
+              <FieldError>{userErrors.email}</FieldError>
+            </Field>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field data-invalid={Boolean(userErrors.phone)}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <FieldLabel htmlFor="user-phone">
+                      Teléfono {editingUser ? <span className="text-xs font-normal text-muted-foreground">(Opcional)</span> : null}
+                    </FieldLabel>
+                    {editingUser && (
+                      <InfoTip>Si no colocas un número, se mantendrá el teléfono anterior o quedará vacío si no tenía uno registrado.</InfoTip>
+                    )}
+                  </div>
+                  <FieldCounter current={userForm.phone.length} max={10} />
+                </div>
+                <Input
+                  id="user-phone"
+                  name="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  value={userForm.phone}
+                  onChange={(e) => updateUserField('phone', sanitizeDigits(e.target.value, 10))}
+                  maxLength={10}
+                  placeholder={editingUser?.phone ? `Anterior: ${editingUser.phone}` : 'Ej. 0989938432'}
+                  disabled={formDisabled}
+                  required={!editingUser}
+                />
+                <FieldError>{userErrors.phone}</FieldError>
+              </Field>
+
+              <Field data-invalid={Boolean(userErrors.role)}>
+                <FieldLabel htmlFor="user-role">Rol en el sistema</FieldLabel>
+                <Select
+                  name="role"
+                  value={userForm.role}
+                  onValueChange={(value) => updateUserField('role', value)}
+                  disabled={formDisabled}
+                >
+                  <SelectTrigger id="user-role" aria-invalid={Boolean(userErrors.role)}>
+                    <SelectValue placeholder={'Selecciona un rol'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                  {ROLE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                  </SelectContent>
+                </Select>
+                <FieldError>{userErrors.role}</FieldError>
+              </Field>
+            </div>
+
+            {/* Selector de Facultad y Carrera para roles académicos específicos (Estudiante, Coordinadores) */}
+            {userForm.role && userForm.role !== 'administrador' && userForm.role !== 'docente' && (
+              <div className="grid gap-5 sm:grid-cols-2 rounded-lg border border-slate-200/80 bg-slate-50/50 p-4 dark:border-border dark:bg-card/50">
+                <Field data-invalid={Boolean(userErrors.facultyId)}>
+                  <FieldLabel htmlFor="user-faculty">Facultad</FieldLabel>
+                  <Select
+                    name="facultyId"
+                    value={userForm.facultyId}
+                    onValueChange={(value) => updateUserField('facultyId', value)}
+                    disabled={formDisabled || catalogsLoading}
+                  >
+                    <SelectTrigger id="user-faculty" aria-invalid={Boolean(userErrors.facultyId)}>
+                      <SelectValue placeholder={catalogsLoading ? 'Cargando facultades…' : 'Selecciona una facultad'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                    {faculties.map((faculty) => (
+                      <SelectItem key={faculty.id} value={String(faculty.id)}>
+                        {faculty.name}
+                      </SelectItem>
+                    ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError>{userErrors.facultyId}</FieldError>
+                </Field>
+
+                <Field data-invalid={Boolean(userErrors.careerId)}>
+                  <FieldLabel htmlFor="user-career">Carrera</FieldLabel>
+                  <Select
+                    name="careerId"
+                    value={userForm.careerId}
+                    onValueChange={(value) => updateUserField('careerId', value)}
+                    disabled={formDisabled || catalogsLoading || !userForm.facultyId}
+                  >
+                    <SelectTrigger id="user-career" aria-invalid={Boolean(userErrors.careerId)}>
+                      <SelectValue placeholder={!userForm.facultyId ? 'Primero selecciona una facultad' : filteredCareers.length === 0 ? 'No hay carreras en esta facultad' : 'Selecciona una carrera'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                    {filteredCareers.map((career) => (
+                      <SelectItem key={career.id} value={String(career.id)}>
+                        {career.name}
+                      </SelectItem>
+                    ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError>{userErrors.careerId}</FieldError>
+                </Field>
+
+                {userForm.role === 'estudiante' && (
+                  <Field data-invalid={Boolean(userErrors.cycleNumber)}>
+                    <div className="flex items-center gap-1.5">
+                      <FieldLabel htmlFor="user-cycle">Ciclo</FieldLabel>
+                      <InfoTip>El último ciclo de la carrera habilita el módulo de titulación; los anteriores, el de tutorías.</InfoTip>
+                    </div>
+                    <Select
+                      name="cycleNumber"
+                      value={userForm.cycleNumber}
+                      onValueChange={(value) => updateUserField('cycleNumber', value)}
+                      disabled={formDisabled || catalogsLoading || cycleLevels === 0}
+                    >
+                      <SelectTrigger id="user-cycle" aria-invalid={Boolean(userErrors.cycleNumber)}>
+                        <SelectValue placeholder={!userForm.careerId ? 'Primero selecciona una carrera' : cycleLevels === 0 ? 'La carrera no tiene ciclos registrados' : 'Selecciona el ciclo'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                      {Array.from({ length: cycleLevels }, (_, index) => index + 1).map((number) => (
+                        <SelectItem key={number} value={String(number)}>
+                          {number === cycleLevels ? `Ciclo ${number} · Titulación` : `Ciclo ${number} · Tutorías`}
+                        </SelectItem>
+                      ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError>{userErrors.cycleNumber}</FieldError>
+                  </Field>
+                )}
+              </div>
+            )}
+
+            {/* Campos de contraseña SOLO al Editar (Opcional) */}
+            {editingUser && (
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field data-invalid={Boolean(userErrors.password)}>
+                  <FieldLabel htmlFor="user-password">Nueva Contraseña (Opcional)</FieldLabel>
+                  <PasswordInput
+                    id="user-password"
+                    name="password"
+                    value={userForm.password}
+                    onChange={(e) => updateUserField('password', e.target.value)}
+                    autoComplete="new-password"
+                    placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
+                    disabled={formDisabled}
+                    aria-describedby={userForm.password ? 'user-password-strength' : undefined}
+                  />
+                  {userForm.password && <PasswordStrength id="user-password-strength" password={userForm.password} />}
+                  <FieldError>{userErrors.password}</FieldError>
+                </Field>
+
+                <Field data-invalid={Boolean(userErrors.password_confirmation)}>
+                  <FieldLabel htmlFor="user-password-confirmation">Confirmar nueva contraseña</FieldLabel>
+                  <PasswordInput
+                    id="user-password-confirmation"
+                    name="password_confirmation"
+                    value={userForm.password_confirmation}
+                    onChange={(e) => updateUserField('password_confirmation', e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="Repite la contraseña"
+                    disabled={formDisabled}
+                    required={Boolean(userForm.password)}
+                  />
+                  {userForm.password_confirmation && (
+                    <FieldDescription
+                      className={cn(
+                        'text-xs',
+                        userForm.password === userForm.password_confirmation
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-destructive',
+                      )}
+                    >
+                      {userForm.password === userForm.password_confirmation
+                        ? 'Las contraseñas coinciden.'
+                        : 'Las contraseñas no coinciden.'}
+                    </FieldDescription>
+                  )}
+                  <FieldError>{userErrors.password_confirmation}</FieldError>
+                </Field>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
+              <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
+                Cancelar
+              </DialogCancelButton>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={submitBlockReason ? 0 : -1}>
+                    <Button type="submit" disabled={formDisabled || submitBlockReason !== null}>
+                      {pending === 'user' ? <Spinner data-icon="inline-start" /> : editingUser ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
+                      {editingUser ? 'Guardar Cambios' : 'Registrar Usuario'}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {submitBlockReason && <TooltipContent>{submitBlockReason}</TooltipContent>}
+              </Tooltip>
+            </div>
+          </FieldGroup>
+        </form>
+  )
+
   return (
-    <section className="flex flex-col gap-8">
+    <section className="mx-auto flex w-full max-w-5xl flex-col gap-8">
       <AdminSectionHeader
         title="Gestión de Usuarios"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => void handleRefresh()}
-              disabled={isFetching}
-              className="flex-1 sm:flex-none"
-            >
-              {isFetching ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <RefreshCwIcon data-icon="inline-start" />
-              )}
-              Actualizar
-            </Button>
+            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
             <BulkImportButton
               type="users"
               title="Carga masiva de usuarios"
@@ -501,11 +781,11 @@ export function UsersPage() {
         <ul className={cn('flex flex-col gap-3 transition-opacity', isFetching && !isInitialLoading && 'opacity-60')} aria-busy={isFetching}>
           {isInitialLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
-              <li key={i} className="h-40 animate-pulse rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+              <li key={i}><Skeleton className="h-40" /></li>
             ))
           ) : users.length === 0 ? (
-            <li className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 bg-white py-12 text-center text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-              <UsersIcon className="size-8 text-slate-300 dark:text-slate-600" />
+            <li className="flex flex-col items-center gap-2 rounded-lg border border-slate-200 bg-white py-12 text-center text-slate-500 dark:border-border dark:bg-card dark:text-muted-foreground">
+              <UsersIcon className="size-8 text-slate-300 dark:text-muted-foreground" />
               <span className="font-medium">
                 {searchInput || (roleFilter !== '' || statusFilter !== '' || careerFilter !== '')
                   ? 'No se encontraron usuarios coincidentes.'
@@ -517,40 +797,40 @@ export function UsersPage() {
               const active = user.is_active
 
               return (
-                <li key={user.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+                <li key={user.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-2xs dark:border-border dark:bg-card">
                   <div className="flex items-start gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center text-sm font-bold text-foreground dark:text-white" aria-hidden="true">
                       {getInitials(user.name)}
                     </span>
                     <div className="flex min-w-0 flex-1 flex-col">
                       <span className="font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] dark:text-white">{user.name}</span>
-                      <span className="text-xs text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400">{user.email}</span>
+                      <span className="text-xs text-slate-500 [overflow-wrap:anywhere] dark:text-muted-foreground">{user.email}</span>
                     </div>
-                    <span className="shrink-0 text-xs font-medium text-slate-800 dark:text-slate-200">
+                    <span className="shrink-0 text-xs font-medium text-slate-800 dark:text-foreground">
                       {getRoleLabel(user.role)}
                     </span>
                   </div>
 
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     <div className="flex flex-col">
-                      <dt className="text-xs text-slate-500 dark:text-slate-400">Cédula / Pasaporte</dt>
-                      <dd className="font-medium text-slate-900 dark:text-slate-100">{user.identification ?? '—'}</dd>
+                      <dt className="text-xs text-slate-500 dark:text-muted-foreground">Cédula / Pasaporte</dt>
+                      <dd className="font-medium text-slate-900 dark:text-foreground">{user.identification ?? '—'}</dd>
                     </div>
                     <div className="flex flex-col">
-                      <dt className="text-xs text-slate-500 dark:text-slate-400">Teléfono</dt>
-                      <dd className="font-medium text-slate-900 dark:text-slate-100">{user.phone || 'Sin teléfono'}</dd>
+                      <dt className="text-xs text-slate-500 dark:text-muted-foreground">Teléfono</dt>
+                      <dd className="font-medium text-slate-900 dark:text-foreground">{user.phone || 'Sin teléfono'}</dd>
                     </div>
                     {user.career_name && (
                       <div className="col-span-2 flex flex-col">
-                        <dt className="text-xs text-slate-500 dark:text-slate-400">Carrera</dt>
-                        <dd className="font-medium text-slate-900 [overflow-wrap:anywhere] dark:text-slate-100">
+                        <dt className="text-xs text-slate-500 dark:text-muted-foreground">Carrera</dt>
+                        <dd className="font-medium text-slate-900 [overflow-wrap:anywhere] dark:text-foreground">
                           {user.career_name}{user.faculty_name ? ` · ${user.faculty_name}` : ''}
                         </dd>
                       </div>
                     )}
                   </dl>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3 dark:border-border">
                     <UserStatusBadge user={user} />
                     <div className="flex items-center gap-2">
                       <Button
@@ -610,35 +890,33 @@ export function UsersPage() {
                 <TableHead>Cédula</TableHead>
                 <TableHead>Teléfono</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i} className="animate-pulse">
+                  <TableRow key={i} className="hover:bg-transparent">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-full bg-slate-200 dark:bg-slate-800" />
+                        <Skeleton className="size-10 rounded-full" />
                         <div className="flex flex-col gap-1.5">
-                          <div className="h-4 w-32 rounded-md bg-slate-200 dark:bg-slate-800" />
-                          <div className="h-3 w-44 rounded-md bg-slate-100 dark:bg-slate-800/60" />
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-44" />
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell><div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-32 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
-                  </TableRow>
+                    <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                                      </TableRow>
                 ))
               ) : users.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={6} className="py-12 text-center text-slate-500 dark:text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <UsersIcon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <UsersIcon className="size-8 text-slate-300 dark:text-muted-foreground" />
                       <span className="font-medium">
                         {searchInput || (roleFilter !== '' || statusFilter !== '' || careerFilter !== '')
                           ? 'No se encontraron usuarios coincidentes.'
@@ -649,11 +927,22 @@ export function UsersPage() {
                 </TableRow>
               ) : (
                 users.map((user) => {
-                  const active = user.is_active
                   const initials = getInitials(user.name)
 
                   return (
-                    <TableRow key={user.id}>
+                    <TableRow
+                      key={user.id}
+                      tabIndex={0}
+                      aria-selected={editingUser?.id === user.id}
+                      onClick={() => openEditModal(user)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openEditModal(user)
+                        }
+                      }}
+                      className={cn('cursor-pointer', editingUser?.id === user.id && 'bg-muted/60')}
+                    >
                       <TableCell className="whitespace-normal">
                         <div className="flex items-center gap-3">
                           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-bold text-white shadow-2xs">
@@ -663,7 +952,7 @@ export function UsersPage() {
                             <span className="font-semibold text-slate-900 dark:text-white">
                               {user.name}
                             </span>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                            <span className="text-xs text-slate-500 dark:text-muted-foreground">
                               {user.email}
                             </span>
                           </div>
@@ -671,7 +960,7 @@ export function UsersPage() {
                       </TableCell>
 
                       <TableCell>
-                        <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                        <span className="text-xs font-medium text-slate-800 dark:text-foreground">
                           {getRoleLabel(user.role)}
                         </span>
                       </TableCell>
@@ -679,67 +968,30 @@ export function UsersPage() {
                       <TableCell className="whitespace-normal">
                         {user.career_name ? (
                           <span
-                            className="block max-w-[220px] text-xs font-medium text-slate-700 dark:text-slate-300"
+                            className="block max-w-[220px] text-xs font-medium text-slate-700 dark:text-muted-foreground"
                             title={`${user.career_name}${user.faculty_name ? ` · ${user.faculty_name}` : ''}`}
                           >
                             {user.career_name}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                          <span className="text-xs text-slate-400 dark:text-muted-foreground">—</span>
                         )}
                       </TableCell>
 
                       <TableCell>
-                        <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                        <span className="text-xs font-medium text-slate-800 dark:text-foreground">
                           {user.identification ?? '—'}
                         </span>
                       </TableCell>
 
                       <TableCell>
-                        <span className={cn('text-xs', user.phone ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500')}>
+                        <span className={cn('text-xs', user.phone ? 'text-slate-800 dark:text-foreground' : 'text-slate-400 dark:text-muted-foreground')}>
                           {user.phone ?? 'Sin teléfono'}
                         </span>
                       </TableCell>
 
                       <TableCell>
-                        <UserStatusBadge user={user} pulse />
-                      </TableCell>
-
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-
-                          <Button
-                            type="button"
-                            variant="tertiary"
-                            size="icon"
-                            onClick={() => openEditModal(user)}
-                            title="Editar usuario"
-                          >
-                            <Edit2Icon />
-                          </Button>
-                          {active ? (
-                            <Button
-                              type="button"
-                              variant="tertiary"
-                              size="icon"
-                              tone="destructive"
-                              onClick={() => setUserToToggle({ user, action: 'deactivate' })}
-                              title="Desactivar usuario"
-                            >
-                              <UserXIcon />
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="tertiary"
-                              size="icon"
-                              onClick={() => setUserToToggle({ user, action: 'activate' })}
-                              title="Habilitar usuario"
-                            >
-                              <UserCheckIcon />
-                            </Button>
-                          )}
-                        </div>
+                        <UserStatusBadge user={user} />
                       </TableCell>
                     </TableRow>
                   )
@@ -770,286 +1022,31 @@ export function UsersPage() {
         }
         maxWidth="max-w-2xl"
         confirmClose={isUserFormDirty}
+        headerActions={
+          editingUser ? (
+            <>
+              <UserStatusBadge user={editingUser} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="tertiary"
+                    size="icon"
+                    tone={editingUser.is_active ? 'destructive' : 'default'}
+                    disabled={formDisabled}
+                    aria-label={editingUser.is_active ? 'Desactivar cuenta' : 'Habilitar cuenta'}
+                    onClick={() => setUserToToggle({ user: editingUser, action: editingUser.is_active ? 'deactivate' : 'activate' })}
+                  >
+                    {editingUser.is_active ? <UserXIcon /> : <UserCheckIcon />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{editingUser.is_active ? 'Desactivar cuenta' : 'Habilitar cuenta'}</TooltipContent>
+              </Tooltip>
+            </>
+          ) : undefined
+        }
       >
-        <form onSubmit={submitUser}>
-          <FieldGroup className="gap-5">
-            {/* Aviso Informativo para Creación de Usuario */}
-            {!editingUser && (
-              <div className="flex items-start gap-3.5 rounded-lg border border-blue-200/80 bg-blue-50/80 p-4 text-xs font-medium text-foreground dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-foreground">
-                <MailIcon className="size-5 shrink-0 text-foreground mt-0.5" />
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-bold text-sm">Envío de Contraseña Provisional</span>
-                  <span>
-                    No necesitas ingresar una contraseña. Al hacer clic en <strong>Registrar Usuario</strong>, el sistema generará automáticamente una contraseña provisional segura y se la enviará al correo registrado.
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field data-invalid={Boolean(userErrors.identification)}>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="user-identification">Cédula o pasaporte</FieldLabel>
-                  <FieldCounter current={userForm.identification.length} max={identificationMaxLength(userForm.identification)} />
-                </div>
-                <div className="relative flex items-center">
-                  <Input
-                    id="user-identification"
-                    name="identification"
-                    value={userForm.identification}
-                    onChange={(e) => updateUserField('identification', sanitizeIdentification(e.target.value))}
-                    maxLength={10}
-                    autoComplete="off"
-                    placeholder="Ej. 1710034065 o AB1234567"
-                    disabled={formDisabled || identificationLocked}
-                    required
-                    className={cn(shouldShowIdentificationStatus(userForm.identification) && 'pr-9')}
-                  />
-                  {shouldShowIdentificationStatus(userForm.identification) && (
-                    isValidIdentification(userForm.identification) ? (
-                      <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
-                    ) : (
-                      <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
-                    )
-                  )}
-                </div>
-                {identificationLocked && <FieldDescription>La cédula o pasaporte ya registrado no se puede modificar.</FieldDescription>}
-                <FieldError>{userErrors.identification}</FieldError>
-              </Field>
-
-              <Field data-invalid={Boolean(userErrors.name)}>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="user-name">Nombre completo</FieldLabel>
-                  <FieldCounter current={userForm.name.length} max={150} />
-                </div>
-                <Input
-                  id="user-name"
-                  name="name"
-                  value={userForm.name}
-                  onChange={(e) => updateUserField('name', sanitizeLetters(e.target.value, 150))}
-                  maxLength={150}
-                  autoComplete="name"
-                  placeholder="Ej. Ana Torres"
-                  disabled={formDisabled}
-                  required
-                />
-                <FieldError>{userErrors.name}</FieldError>
-              </Field>
-            </div>
-
-            <Field data-invalid={Boolean(userErrors.email)}>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="user-email">Correo electrónico institucional</FieldLabel>
-                <FieldCounter current={userForm.email.length} max={150} />
-              </div>
-              <Input
-                id="user-email"
-                name="email"
-                type="email"
-                value={userForm.email}
-                onChange={(e) => updateUserField('email', e.target.value.slice(0, 150))}
-                maxLength={150}
-                placeholder="nombre@ueb.edu.ec"
-                disabled={formDisabled}
-                required
-              />
-              <FieldError>{userErrors.email}</FieldError>
-            </Field>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field data-invalid={Boolean(userErrors.phone)}>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="user-phone">
-                    Teléfono {editingUser ? <span className="font-normal text-muted-foreground text-xs">(Opcional)</span> : null}
-                  </FieldLabel>
-                  <FieldCounter current={userForm.phone.length} max={10} />
-                </div>
-                <Input
-                  id="user-phone"
-                  name="phone"
-                  type="tel"
-                  inputMode="numeric"
-                  value={userForm.phone}
-                  onChange={(e) => updateUserField('phone', sanitizeDigits(e.target.value, 10))}
-                  maxLength={10}
-                  placeholder={editingUser?.phone ? `Anterior: ${editingUser.phone}` : 'Ej. 0989938432'}
-                  disabled={formDisabled}
-                  required={!editingUser}
-                />
-                {editingUser && (
-                  <FieldDescription className="text-xs">
-                    Si no colocas un número, se mantendrá el teléfono anterior o quedará vacío si no tenía uno registrado.
-                  </FieldDescription>
-                )}
-                <FieldError>{userErrors.phone}</FieldError>
-              </Field>
-
-              <Field data-invalid={Boolean(userErrors.role)}>
-                <FieldLabel htmlFor="user-role">Rol en el sistema</FieldLabel>
-                <NativeSelect
-                  id="user-role"
-                  name="role"
-                  value={userForm.role}
-                  onChange={(e) => updateUserField('role', e.target.value)}
-                  disabled={formDisabled}
-                  required
-                >
-                  <option value="">Selecciona un rol</option>
-                  {ROLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </NativeSelect>
-                <FieldError>{userErrors.role}</FieldError>
-              </Field>
-            </div>
-
-            {/* Selector de Facultad y Carrera para roles académicos específicos (Estudiante, Coordinadores) */}
-            {userForm.role && userForm.role !== 'administrador' && userForm.role !== 'docente' && (
-              <div className="grid gap-5 sm:grid-cols-2 rounded-lg border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-                <Field data-invalid={Boolean(userErrors.facultyId)}>
-                  <FieldLabel htmlFor="user-faculty">Facultad</FieldLabel>
-                  <NativeSelect
-                    id="user-faculty"
-                    name="facultyId"
-                    value={userForm.facultyId}
-                    onChange={(e) => updateUserField('facultyId', e.target.value)}
-                    disabled={formDisabled || catalogsLoading}
-                    required
-                  >
-                    <option value="">
-                      {catalogsLoading ? 'Cargando facultades…' : 'Selecciona una facultad'}
-                    </option>
-                    {faculties.map((faculty) => (
-                      <option key={faculty.id} value={String(faculty.id)}>
-                        {faculty.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <FieldError>{userErrors.facultyId}</FieldError>
-                </Field>
-
-                <Field data-invalid={Boolean(userErrors.careerId)}>
-                  <FieldLabel htmlFor="user-career">Carrera</FieldLabel>
-                  <NativeSelect
-                    id="user-career"
-                    name="careerId"
-                    value={userForm.careerId}
-                    onChange={(e) => updateUserField('careerId', e.target.value)}
-                    disabled={formDisabled || catalogsLoading || !userForm.facultyId}
-                    required
-                  >
-                    <option value="">
-                      {!userForm.facultyId
-                        ? 'Primero selecciona una facultad'
-                        : filteredCareers.length === 0
-                          ? 'No hay carreras en esta facultad'
-                          : 'Selecciona una carrera'}
-                    </option>
-                    {filteredCareers.map((career) => (
-                      <option key={career.id} value={String(career.id)}>
-                        {career.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <FieldError>{userErrors.careerId}</FieldError>
-                </Field>
-
-                {userForm.role === 'estudiante' && (
-                  <Field data-invalid={Boolean(userErrors.cycleNumber)}>
-                    <FieldLabel htmlFor="user-cycle">Ciclo</FieldLabel>
-                    <NativeSelect
-                      id="user-cycle"
-                      name="cycleNumber"
-                      value={userForm.cycleNumber}
-                      onChange={(e) => updateUserField('cycleNumber', e.target.value)}
-                      disabled={formDisabled || catalogsLoading || cycleLevels === 0}
-                      required
-                    >
-                      <option value="">
-                        {!userForm.careerId
-                          ? 'Primero selecciona una carrera'
-                          : cycleLevels === 0
-                            ? 'La carrera no tiene ciclos registrados'
-                            : 'Selecciona el ciclo'}
-                      </option>
-                      {Array.from({ length: cycleLevels }, (_, index) => index + 1).map((number) => (
-                        <option key={number} value={String(number)}>
-                          {number === cycleLevels ? `Ciclo ${number} · Titulación` : `Ciclo ${number} · Tutorías`}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                    <FieldDescription className="text-xs">
-                      El último ciclo de la carrera habilita el módulo de titulación; los anteriores, el de tutorías.
-                    </FieldDescription>
-                    <FieldError>{userErrors.cycleNumber}</FieldError>
-                  </Field>
-                )}
-              </div>
-            )}
-
-            {/* Campos de contraseña SOLO al Editar (Opcional) */}
-            {editingUser && (
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field data-invalid={Boolean(userErrors.password)}>
-                  <FieldLabel htmlFor="user-password">Nueva Contraseña (Opcional)</FieldLabel>
-                  <PasswordInput
-                    id="user-password"
-                    name="password"
-                    value={userForm.password}
-                    onChange={(e) => updateUserField('password', e.target.value)}
-                    autoComplete="new-password"
-                    placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
-                    disabled={formDisabled}
-                    aria-describedby={userForm.password ? 'user-password-strength' : undefined}
-                  />
-                  {userForm.password && <PasswordStrength id="user-password-strength" password={userForm.password} />}
-                  <FieldError>{userErrors.password}</FieldError>
-                </Field>
-
-                <Field data-invalid={Boolean(userErrors.password_confirmation)}>
-                  <FieldLabel htmlFor="user-password-confirmation">Confirmar nueva contraseña</FieldLabel>
-                  <PasswordInput
-                    id="user-password-confirmation"
-                    name="password_confirmation"
-                    value={userForm.password_confirmation}
-                    onChange={(e) => updateUserField('password_confirmation', e.target.value)}
-                    autoComplete="new-password"
-                    placeholder="Repite la contraseña"
-                    disabled={formDisabled}
-                    required={Boolean(userForm.password)}
-                  />
-                  {userForm.password_confirmation && (
-                    <FieldDescription
-                      className={cn(
-                        'text-xs',
-                        userForm.password === userForm.password_confirmation
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-destructive',
-                      )}
-                    >
-                      {userForm.password === userForm.password_confirmation
-                        ? 'Las contraseñas coinciden.'
-                        : 'Las contraseñas no coinciden.'}
-                    </FieldDescription>
-                  )}
-                  <FieldError>{userErrors.password_confirmation}</FieldError>
-                </Field>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-              <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
-                Cancelar
-              </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled}>
-                {pending === 'user' ? <Spinner data-icon="inline-start" /> : editingUser ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
-                {editingUser ? 'Guardar Cambios' : 'Registrar Usuario'}
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
+        {userFormElement}
       </Dialog>
 
 

@@ -142,7 +142,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
                 <ShareIcon className="size-4 text-foreground" />
                 <span>Cómo instalar en iPhone / iPad:</span>
               </div>
-              <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-slate-300">
+              <ol className="list-decimal list-inside space-y-1 text-slate-700 dark:text-muted-foreground">
                 <li>Toca el botón <strong>Compartir</strong> en la barra de Safari.</li>
                 <li>Desplázate hacia abajo y selecciona <strong>"Agregar a pantalla de inicio"</strong>.</li>
                 <li>Toca <strong>Agregar</strong> en la esquina superior derecha.</li>

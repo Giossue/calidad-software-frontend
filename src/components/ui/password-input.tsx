@@ -23,7 +23,7 @@ function PasswordInput({ className, disabled, ...props }: PasswordInputProps) {
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setVisible((current) => !current)}
         disabled={disabled}
-        className="absolute right-2 z-10 flex size-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:pointer-events-none disabled:opacity-50 cursor-pointer transition-colors dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        className="absolute right-2 z-10 flex size-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:pointer-events-none disabled:opacity-50 cursor-pointer transition-colors dark:hover:bg-accent dark:hover:text-foreground"
         aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
         aria-pressed={visible}
         title={visible ? "Ocultar contraseña" : "Mostrar contraseña"}

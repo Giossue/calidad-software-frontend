@@ -5,7 +5,6 @@ import {
   Edit2Icon,
   PlusIcon,
   PowerIcon,
-  RefreshCwIcon,
   SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
@@ -17,12 +16,14 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -280,10 +281,7 @@ export function AcademicPeriodsPage() {
         titleId="academic-periods-title"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
-              {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-              Actualizar
-            </Button>
+            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
             <BulkImportButton type="academic-periods" title="Carga masiva de períodos académicos" onFinished={reload} className="flex-1 sm:flex-none" />
             <Button onClick={openCreateModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
@@ -335,19 +333,19 @@ export function AcademicPeriodsPage() {
             <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i} className="animate-pulse">
-                    <TableCell><div className="h-5 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-28 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell><Skeleton className="h-5 w-36" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="ml-auto h-8 w-16 rounded-lg" /></TableCell>
                   </TableRow>
                 ))
               ) : periods.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <CalendarDaysIcon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <CalendarDaysIcon className="size-8 text-slate-300 dark:text-muted-foreground" />
                       <span className="font-medium">
                         {searchInput
                           ? 'No se encontraron períodos con el término buscado.'
@@ -373,12 +371,12 @@ export function AcademicPeriodsPage() {
                       </TableCell>
 
                       {/* Fecha Inicio */}
-                      <TableCell className="text-slate-600 dark:text-slate-300">
+                      <TableCell className="text-slate-600 dark:text-muted-foreground">
                         {formatDate(period.start_date)}
                       </TableCell>
 
                       {/* Fecha Fin */}
-                      <TableCell className="text-slate-600 dark:text-slate-300">
+                      <TableCell className="text-slate-600 dark:text-muted-foreground">
                         {formatDate(period.end_date)}
                       </TableCell>
 
@@ -389,7 +387,7 @@ export function AcademicPeriodsPage() {
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                             active
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-border dark:bg-muted dark:text-muted-foreground',
                           )}
                         >
                           <span
@@ -494,7 +492,7 @@ export function AcademicPeriodsPage() {
         <form onSubmit={submitPeriod}>
           <FieldGroup className="gap-5">
             {/* Nombre del período: PAO + número + año */}
-            <div className="rounded-lg border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+            <div className="rounded-lg border border-slate-200/80 bg-slate-50/50 p-4 dark:border-border dark:bg-card/50">
               <FieldLabel className="mb-3 block">Nombre del período académico</FieldLabel>
               <div className="flex items-center gap-2">
                 {/* Prefijo fijo: PAO */}
@@ -578,7 +576,7 @@ export function AcademicPeriodsPage() {
               </Field>
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>

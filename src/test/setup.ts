@@ -15,6 +15,17 @@ if (!window.matchMedia) {
   })
 }
 
+// jsdom tampoco implementa lo que Radix Select usa al abrir el menú.
+Element.prototype.hasPointerCapture ??= () => false
+Element.prototype.setPointerCapture ??= () => {}
+Element.prototype.releasePointerCapture ??= () => {}
+Element.prototype.scrollIntoView ??= () => {}
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 afterEach(() => {
   sessionStorage.clear()
   vi.restoreAllMocks()

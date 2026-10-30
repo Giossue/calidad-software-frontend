@@ -55,7 +55,7 @@ export default function App() {
             <Route path="/" element={<ProtectedDashboard />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          <Toaster position="top-center" richColors closeButton />
+          <Toaster position="top-center" />
         </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -148,8 +148,8 @@ export function CompleteProfileModal() {
                   className={cn(
                     'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px]',
                     active && 'bg-primary text-primary-foreground',
-                    !active && reached && 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
-                    !reached && 'bg-slate-100 text-slate-400 dark:bg-slate-800',
+                    !active && reached && 'bg-slate-200 text-slate-700 dark:bg-accent dark:text-foreground',
+                    !reached && 'bg-slate-100 text-slate-400 dark:bg-muted',
                   )}
                 >
                   {reached && !active ? <CheckIcon className="size-3" /> : index + 1}
@@ -166,7 +166,7 @@ export function CompleteProfileModal() {
         <FieldGroup>
           <div className="flex flex-col gap-1">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">{currentStep.heading}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{currentStep.description}</p>
+            <p className="text-sm text-slate-500 dark:text-muted-foreground">{currentStep.description}</p>
           </div>
 
           {currentStep.key === 'datos' && (

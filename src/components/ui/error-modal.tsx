@@ -388,7 +388,7 @@ export function ErrorModal({
 
       {/* Contenedor Modal de Error */}
       <div
-        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto rounded-lg border border-rose-200/80 bg-white p-6 shadow-2xl dark:border-rose-950/80 dark:bg-slate-900 animate-in zoom-in-95 duration-150"
+        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto rounded-lg border border-rose-200/80 bg-white p-6 shadow-2xl dark:border-rose-950/80 dark:bg-card animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
         aria-modal="true"
@@ -402,7 +402,7 @@ export function ErrorModal({
             <h3 id="error-modal-title" className="text-lg font-bold text-slate-900 dark:text-white">
               {title}
             </h3>
-            <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            <p className="text-sm leading-relaxed text-slate-600 dark:text-muted-foreground">
               {description}
             </p>
           </div>
@@ -411,7 +411,7 @@ export function ErrorModal({
           </Button>
         </div>
 
-        <div className="flex items-center justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="flex items-center justify-end border-t border-slate-100 pt-4 dark:border-border">
           <Button type="button" onClick={onClose}>
             <CheckIcon data-icon="inline-start" />
             {buttonLabel}

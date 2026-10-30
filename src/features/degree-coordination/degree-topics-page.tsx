@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { ClipboardListIcon, RefreshCwIcon } from 'lucide-react'
+import { ClipboardListIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { RefreshButton } from '@/components/ui/refresh-button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
@@ -50,7 +51,7 @@ export function DegreeTopicsPage() {
   }
 
   return <section className="flex flex-col gap-6">
-    <AdminSectionHeader title="Propuestas de titulación" actions={<Button type="button" variant="secondary" disabled={table.loading || period.loading} onClick={reloadAll}><RefreshCwIcon data-icon="inline-start" />Actualizar</Button>} />
+    <AdminSectionHeader title="Propuestas de titulación" actions={<RefreshButton disabled={table.loading || period.loading} onClick={reloadAll} />} />
     {period.status === 404 && <Alert><AlertDescription>No existe un período académico vigente. Administración debe configurar y activar un período para continuar con la coordinación de titulación.</AlertDescription></Alert>}
     <FilterBar
       id="degree-topics"

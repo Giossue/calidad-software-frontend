@@ -3,11 +3,10 @@ import { CheckCircle2Icon, DownloadIcon, FileUpIcon, InfoIcon, TriangleAlertIcon
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { FileDropzone } from '@/components/ui/file-dropzone'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError, importsApi, type BulkImport, type BulkImportRowMessage, type BulkImportType } from '@/lib/api'
-import { BULK_IMPORT_COLUMNS, BULK_IMPORT_POLL_MS } from '@/lib/bulk-import'
+import { BULK_IMPORT_POLL_MS, bulkImportInstructions } from '@/lib/bulk-import'
 
 import { cn } from '@/lib/utils'
 
@@ -74,13 +73,11 @@ export function BulkImportButton({
 
   async function downloadTemplate() {
     try {
-      await importsApi.downloadTemplate(type)
+      await importsApi.downloadTemplate(type, bulkImportInstructions(type))
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     }
   }
-
-  const columns = BULK_IMPORT_COLUMNS[type]
 
   return (
     <>
@@ -91,37 +88,28 @@ export function BulkImportButton({
       <Dialog open={open} onClose={close} title={title} description={description} confirmClose={false} maxWidth="max-w-2xl">
         {result === null ? (
           <form onSubmit={submit} aria-label={title} className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2 text-sm">
-              <p className="text-muted-foreground">
-                Sube un archivo CSV (separado por comas o punto y coma, como lo guarda Excel) con estas columnas en la primera fila:
-              </p>
-              <ul className="flex flex-col gap-1">
-                {columns.map((column) => (
-                  <li key={column.name}>
-                    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{column.name}</code>
-                    {column.required ? <span className="ml-2 text-xs font-medium text-destructive">obligatoria</span> : <span className="ml-2 text-xs text-muted-foreground">opcional</span>}
-                    {column.hint && <span className="ml-2 text-xs text-muted-foreground">{column.hint}</span>}
-                  </li>
-                ))}
-              </ul>
-              <div>
-                <Button type="button" variant="tertiary" size="sm" className="-ml-3" onClick={() => void downloadTemplate()}>
-                  <DownloadIcon data-icon="inline-start" />
-                  Descargar plantilla
-                </Button>
-              </div>
+            <div className="flex flex-col items-start gap-1">
+              <p className="text-sm font-semibold">1. Descarga la plantilla y llénala</p>
+              <Button type="button" variant="tertiary" size="sm" className="-ml-2.5" onClick={() => void downloadTemplate()}>
+                <DownloadIcon data-icon="inline-start" />
+                Descargar plantilla
+              </Button>
             </div>
-            <Field>
-              <FieldLabel htmlFor={`bulk-import-${type}`}>Archivo CSV</FieldLabel>
-              <Input
-                id={`bulk-import-${type}`}
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                disabled={pending}
-              />
-              <FieldDescription>Máximo 2 MB y 1000 filas. Las filas con errores se informan y no detienen la carga.</FieldDescription>
-            </Field>
+            <p className="-mb-3 text-sm font-semibold">2. Sube el archivo CSV completo</p>
+            <FileDropzone
+              id={`bulk-import-${type}`}
+              label="Archivo CSV"
+              accept=".csv,text/csv"
+              extensions={['.csv']}
+              file={file}
+              onFileChange={(next) => {
+                setFile(next)
+                setError(null)
+              }}
+              onReject={setError}
+              disabled={pending}
+              hint="Archivo CSV de hasta 2 MB y 1000 filas. Las filas con errores se informan y no detienen la carga."
+            />
             {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
             <div className="flex flex-wrap justify-end gap-3">
               <Button type="button" variant="secondary" onClick={close} disabled={pending}>Cancelar</Button>

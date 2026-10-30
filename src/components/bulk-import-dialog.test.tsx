@@ -34,7 +34,7 @@ describe('BulkImportButton', () => {
 
     render(<BulkImportButton type="users" title="Carga masiva de usuarios" onFinished={onFinished} />)
     await user.click(screen.getByRole('button', { name: 'Cargar datos masivos' }))
-    expect(screen.getByText('correo')).toBeInTheDocument()
+    expect(screen.getByText(/Arrastra tu archivo aquí/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Importar' })).toBeDisabled()
 
     const file = new File(['correo,rol,carrera\n'], 'usuarios.csv', { type: 'text/csv' })
@@ -48,6 +48,25 @@ describe('BulkImportButton', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))
     expect(onFinished).toHaveBeenCalledTimes(1)
+  })
+
+  it('muestra el archivo elegido, permite quitarlo y rechaza los que no son CSV', async () => {
+    const user = userEvent.setup({ applyAccept: false })
+    render(<BulkImportButton type="users" title="Carga masiva de usuarios" />)
+    await user.click(screen.getByRole('button', { name: 'Cargar datos masivos' }))
+
+    await user.upload(screen.getByLabelText('Archivo CSV'), new File(['x'], 'notas.pdf', { type: 'application/pdf' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('El archivo debe ser .csv.')
+    expect(screen.getByRole('button', { name: 'Importar' })).toBeDisabled()
+
+    await user.upload(screen.getByLabelText('Archivo CSV'), new File(['correo\n'], 'usuarios.csv', { type: 'text/csv' }))
+    expect(screen.getByText('usuarios.csv')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Importar' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Quitar archivo' }))
+    expect(screen.queryByText('usuarios.csv')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Importar' })).toBeDisabled()
   })
 
   it('muestra el error del archivo sin cerrar el diálogo', async () => {

@@ -38,12 +38,12 @@ export function ConfirmModal({
           >
             <AlertTriangleIcon className="size-6" />
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-slate-600 dark:text-muted-foreground">
             {description}
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end border-t border-slate-100 pt-4 dark:border-border">
           <Button variant="secondary" onClick={onClose} disabled={pending} className="max-sm:w-full">
             {cancelLabel}
           </Button>

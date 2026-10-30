@@ -39,77 +39,77 @@
 }
 
 :root {
-  --brand-red: #A51C1C;
+  --brand-red: #AC231E;
   --brand-red-contrast: #D85B56;
-  --brand-blue: #0A283F;
-  --background: #FAFBFC;
-  --foreground: #000000;
+  --brand-blue: #122C41;
+  --background: #F5F6F8;
+  --foreground: #121C28;
   --card: #FFFFFF;
-  --card-foreground: #000000;
+  --card-foreground: #121C28;
   --popover: #FFFFFF;
-  --popover-foreground: #000000;
+  --popover-foreground: #121C28;
   --primary: var(--brand-blue);
-  --primary-foreground: #FFFFFF;
-  --secondary: #E8EDF2;
-  --secondary-foreground: #000000;
-  --muted: #EEF2F5;
-  --muted-foreground: #5D6B75;
-  --accent: var(--secondary);
-  --accent-foreground: var(--secondary-foreground);
-  --destructive: var(--brand-red);
-  --destructive-foreground: #FFFFFF;
-  --success: #17854E;
+  --primary-foreground: #FAFAFA;
+  --secondary: #E6EDF5;
+  --secondary-foreground: var(--brand-blue);
+  --muted: #EDF2F8;
+  --muted-foreground: #5B6B7F;
+  --accent: #E6EDF5;
+  --accent-foreground: var(--brand-blue);
+  --destructive: #B91C1C;
+  --destructive-foreground: #FAFAFA;
+  --success: #13733B;
   --success-foreground: #12663C;
-  --table-header: #FAFBFC;
-  --border: #CBD5DC;
-  --input: #B9C6CF;
-  --ring: #2F6FA8;
-  --radius: 0.5rem;
+  --table-header: #F6F8FB;
+  --border: #DBE3EC;
+  --input: #7C8C9F;
+  --ring: #4A78A8;
+  --radius: 0.4rem;
   --radius-shell: 2rem;
   --shadow-shell: 0 24px 80px -32px oklch(0.2 0.06 170 / 0.45);
   --sidebar: var(--brand-blue);
-  --sidebar-foreground: #CBD5E1;
-  --sidebar-primary: var(--brand-red);
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #17364D;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: var(--brand-blue);
+  --sidebar-accent: rgb(255 255 255 / 0.09);
   --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #28475D;
-  --sidebar-ring: #6CA8DB;
+  --sidebar-border: rgb(255 255 255 / 0.16);
+  --sidebar-ring: #CFE0F3;
 }
 
 .dark {
-  --background: #091721;
-  --foreground: #F5F7F9;
-  --card: #0F2434;
-  --card-foreground: #F5F7F9;
-  --popover: #0F2434;
-  --popover-foreground: #F5F7F9;
-  --primary: #2F6FA8;
+  --background: #17191C;
+  --foreground: #F1F2F3;
+  --card: #272A2F;
+  --card-foreground: #F1F2F3;
+  --popover: #2B2E33;
+  --popover-foreground: #F1F2F3;
+  --primary: #5274A8;
   --primary-foreground: #FFFFFF;
-  --secondary: #17364D;
-  --secondary-foreground: #F5F7F9;
-  --muted: #17364D;
-  --muted-foreground: #B9C6CF;
-  --accent: var(--secondary);
-  --accent-foreground: var(--secondary-foreground);
-  --destructive: #D85B56;
-  --destructive-foreground: #FFFFFF;
-  --success: #6FE0A4;
+  --secondary: #31353B;
+  --secondary-foreground: #F1F2F3;
+  --muted: #2E3136;
+  --muted-foreground: #C0C5CB;
+  --accent: #2D3239;
+  --accent-foreground: #E8EBEF;
+  --destructive: #F87171;
+  --destructive-foreground: #3B0A0A;
+  --success: #4ADE80;
   --success-foreground: #A9F2C7;
-  --table-header: #1D4260;
-  --border: #28475D;
-  --input: #36576D;
-  --ring: #6CA8DB;
+  --table-header: #31353B;
+  --border: #464A50;
+  --input: #7A8087;
+  --ring: #A8B2C0;
   --radius-shell: 2rem;
-  --shadow-shell: 0 24px 80px -32px oklch(0.02 0.03 220 / 0.7);
-  --sidebar: var(--brand-blue);
-  --sidebar-foreground: #CBD5E1;
-  --sidebar-primary: #E06C67;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #17364D;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #28475D;
-  --sidebar-ring: #6CA8DB;
+  --shadow-shell: 0 24px 80px -32px rgb(0 0 0 / 0.7);
+  --sidebar: #2D4358;
+  --sidebar-foreground: #F4F6F8;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #2D4358;
+  --sidebar-accent: #354F68;
+  --sidebar-accent-foreground: #F4F6F8;
+  --sidebar-border: #435E76;
+  --sidebar-ring: #9EB5E8;
 }
 
 @layer base {
@@ -165,23 +165,29 @@ html.reduce-motion *::after {
   transition-duration: 0.001ms !important;
 }
 
-/* Transición circular del cambio de tema (ver ThemeToggle): se apaga el
-   fundido por defecto de la View Transition API para que solo se anime
-   el clip-path circular que arma el propio componente. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
+/* Los campos de búsqueda usan su propio botón de borrar (SearchInput). */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  appearance: none;
+  display: none;
 }
 
-/* La capa nueva va encima y nace recortada desde CSS. Así nunca aparece
-   completa mientras JavaScript espera a que transition.ready se resuelva. */
-::view-transition-old(root) {
-  z-index: 1;
+/* Toasts: ancho ajustado al contenido y descripción con el color del texto. */
+.toaster[data-sonner-toaster] [data-sonner-toast] {
+  width: max-content;
+  max-width: min(32rem, calc(100vw - 2rem));
+  min-width: 0;
 }
-::view-transition-new(root) {
-  z-index: 2;
-  clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%));
+
+.toaster[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  color: color-mix(in srgb, var(--normal-text) 80%, transparent);
+}
+
+@media (max-width: 600px) {
+  .toaster[data-sonner-toaster] [data-sonner-toast] {
+    width: fit-content;
+    max-width: calc(100vw - 2rem);
+  }
 }
 
 @theme inline {

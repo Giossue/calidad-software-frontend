@@ -5,7 +5,6 @@ import {
   PlusIcon,
   PowerIcon,
   PowerOffIcon,
-  RefreshCwIcon,
   SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
@@ -18,11 +17,13 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -187,10 +188,7 @@ export function FacultiesPage() {
         title="Estructura de Facultades"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
-              {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-              Actualizar
-            </Button>
+            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
             <BulkImportButton type="faculties" title="Carga masiva de facultades" onFinished={reload} className="flex-1 sm:flex-none" />
             <Button onClick={openCreateModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
@@ -241,18 +239,18 @@ export function FacultiesPage() {
             <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i} className="animate-pulse">
-                    <TableCell><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-20 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="ml-auto h-8 w-16 rounded-lg" /></TableCell>
                   </TableRow>
                 ))
               ) : faculties.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <Building2Icon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <Building2Icon className="size-8 text-slate-300 dark:text-muted-foreground" />
                       <span className="font-medium">
                         {searchInput
                           ? 'No se encontraron facultades con el término buscado.'
@@ -288,7 +286,7 @@ export function FacultiesPage() {
                       </TableCell>
 
                       {/* Código */}
-                      <TableCell className="text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-normal">
+                      <TableCell className="text-xs font-medium text-slate-500 dark:text-muted-foreground whitespace-normal">
                         <div className="flex flex-col gap-0.5">
                           <span>Facultad #{faculty.id}</span>
                           <span>
@@ -306,7 +304,7 @@ export function FacultiesPage() {
                             'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                             active
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-border dark:bg-muted dark:text-muted-foreground',
                           )}
                         >
                           <span
@@ -436,7 +434,7 @@ export function FacultiesPage() {
               <FieldError>{nameError}</FieldError>
             </Field>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
               <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
                 Cancelar
               </DialogCancelButton>

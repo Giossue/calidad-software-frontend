@@ -7,7 +7,6 @@ import {
   PlusIcon,
   PowerIcon,
   PowerOffIcon,
-  RefreshCwIcon,
   SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
@@ -20,12 +19,14 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
 import { Field, FieldCounter, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -281,10 +282,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         title="Oferta de Carreras"
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
-              {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-              Actualizar
-            </Button>
+            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
             <BulkImportButton type="careers" title="Carga masiva de carreras" onFinished={reload} className="flex-1 sm:flex-none" />
             <Button onClick={openCreateCareerModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
@@ -336,19 +334,19 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
             <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i} className="animate-pulse">
-                    <TableCell><div className="h-5 w-48 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-36 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-4 w-24 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="ml-auto h-8 w-16 rounded-lg" /></TableCell>
                   </TableRow>
                 ))
               ) : careers.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <BookOpenIcon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <BookOpenIcon className="size-8 text-slate-300 dark:text-muted-foreground" />
                       <span className="font-medium">
                         {searchInput ? 'No se encontraron carreras con el término buscado.' : facultyFilterId !== undefined ? 'Esta facultad todavía no tiene carreras registradas.' : 'Todavía no hay carreras registradas.'}
                       </span>
@@ -365,7 +363,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                         </div>
                         <div className="flex flex-col">
                           <span>{career.name}</span>
-                          <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                          <span className="text-xs font-normal text-slate-500 dark:text-muted-foreground">
                             {career.cycles_count === 0
                               ? 'Sin ciclos'
                               : `${career.active_cycles_count} de ${career.cycles_count} ciclo${career.cycles_count === 1 ? '' : 's'} activo${career.active_cycles_count === 1 ? '' : 's'}`}
@@ -373,10 +371,10 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
+                    <TableCell className="text-xs font-medium text-slate-600 dark:text-muted-foreground whitespace-normal">
                       {career.faculty_name ?? `Facultad #${career.faculty_id}`}
                     </TableCell>
-                    <TableCell className="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-normal">
+                    <TableCell className="text-xs font-medium text-slate-600 dark:text-muted-foreground whitespace-normal">
                       {career.modality_name ?? 'Sin modalidad'}
                     </TableCell>
                     <TableCell>
@@ -385,7 +383,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                           'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                           career.status
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-border dark:bg-muted dark:text-muted-foreground',
                         )}
                       >
                         <span className={cn('size-1.5 rounded-full', career.status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400')} />
@@ -545,7 +543,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               </FieldDescription>
             </Field>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
               <DialogCancelButton onClick={closeCareerModal} disabled={formPending}>
                 Cancelar
               </DialogCancelButton>
@@ -744,10 +742,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         description="Define la estructura de ciclos y niveles dentro de esta carrera."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <Button variant="secondary" onClick={() => void handleRefresh()} disabled={isFetching} className="flex-1 sm:flex-none">
-              {isFetching ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-              Actualizar
-            </Button>
+            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
             <BulkImportButton type="cycles" title="Carga masiva de ciclos" onFinished={reload} className="flex-1 sm:flex-none" />
             <Button onClick={openCreateCycleModal} className="w-full sm:w-auto">
               <PlusIcon data-icon="inline-start" />
@@ -796,17 +791,17 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
             <TableBody>
               {isInitialLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i} className="animate-pulse">
-                    <TableCell><div className="h-5 w-40 rounded-md bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
-                    <TableCell><div className="ml-auto h-8 w-16 rounded-lg bg-slate-200 dark:bg-slate-800" /></TableCell>
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="ml-auto h-8 w-16 rounded-lg" /></TableCell>
                   </TableRow>
                 ))
               ) : cycles.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={3} className="py-12 text-center text-slate-500 dark:text-slate-400 whitespace-normal">
+                  <TableCell colSpan={3} className="py-12 text-center text-slate-500 dark:text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <Layers3Icon className="size-8 text-slate-300 dark:text-slate-600" />
+                      <Layers3Icon className="size-8 text-slate-300 dark:text-muted-foreground" />
                       <span className="font-medium">
                         {searchInput ? 'No se encontraron ciclos con el término buscado.' : 'Todavía no hay ciclos registrados para esta carrera.'}
                       </span>
@@ -830,7 +825,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
                           'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
                           cycle.status
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+                            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-border dark:bg-muted dark:text-muted-foreground',
                         )}
                       >
                         <span className={cn('size-1.5 rounded-full', cycle.status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400')} />
@@ -925,7 +920,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
 
 
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
               <DialogCancelButton onClick={closeCycleModal} disabled={formPending}>
                 Cancelar
               </DialogCancelButton>

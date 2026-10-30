@@ -5,6 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UsersPage } from '@/features/admin/users-page'
 import { api, type Career, type Faculty, type User } from '@/lib/api'
 
+// Los selects son de shadcn (Radix): se abren y se elige la opción por su texto.
+async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
+  await user.click(trigger)
+  await user.click(await screen.findByRole('option', { name: option }))
+}
+
 const mockUsers: readonly User[] = [
   {
     id: 1,
@@ -167,17 +173,17 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     // Si se selecciona docente: tampoco se muestra facultad ni carrera
     const roleSelect = screen.getByLabelText('Rol en el sistema')
-    await user.selectOptions(roleSelect, 'docente')
+    await choose(user, roleSelect, 'Docente')
     expect(screen.queryByLabelText('Facultad')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
 
     // Si se cambia a administrador: tampoco se muestran los selectores
-    await user.selectOptions(roleSelect, 'administrador')
+    await choose(user, roleSelect, 'Administrador')
     expect(screen.queryByLabelText('Facultad')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
 
     // Si se selecciona estudiante: se muestran facultad y carrera
-    await user.selectOptions(roleSelect, 'estudiante')
+    await choose(user, roleSelect, 'Estudiante')
     expect(await screen.findByLabelText('Facultad')).toBeInTheDocument()
     expect(screen.getByLabelText('Carrera')).toBeInTheDocument()
   })
@@ -189,7 +195,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await screen.findByText('Carlos Docente')
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
 
-    await user.selectOptions(screen.getByLabelText('Rol en el sistema'), 'coordinador_carrera')
+    await choose(user, screen.getByLabelText('Rol en el sistema'), 'Coordinador de carrera')
 
     const facultySelect = await screen.findByLabelText('Facultad')
     const careerSelect = screen.getByLabelText('Carrera')
@@ -197,19 +203,23 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     // Antes de elegir facultad, la carrera no tiene opciones de carrera
     expect(careerSelect).toBeDisabled()
 
-    // Al elegir Facultad de Ingeniería (id 1)
-    await user.selectOptions(facultySelect, '1')
+    // Al elegir Facultad de Ingeniería
+    await choose(user, facultySelect, 'Facultad de Ingeniería')
     expect(careerSelect).not.toBeDisabled()
 
     // Debe contener Software y Civil, pero no Enfermería
-    expect(screen.getByRole('option', { name: 'Ingeniería de Software' })).toBeInTheDocument()
+    await user.click(careerSelect)
+    expect(await screen.findByRole('option', { name: 'Ingeniería de Software' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Ingeniería Civil' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Enfermería' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
 
-    // Al cambiar a Ciencias de la Salud (id 2)
-    await user.selectOptions(facultySelect, '2')
-    expect(screen.getByRole('option', { name: 'Enfermería' })).toBeInTheDocument()
+    // Al cambiar a Ciencias de la Salud
+    await choose(user, facultySelect, 'Facultad de Ciencias de la Salud')
+    await user.click(careerSelect)
+    expect(await screen.findByRole('option', { name: 'Enfermería' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Ingeniería de Software' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
   })
 
   it('envía faculty_id y career_id al registrar un nuevo usuario con rol académico', async () => {
@@ -237,17 +247,18 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await user.type(screen.getByLabelText('Nombre completo'), 'Estudiante Nuevo')
     await user.type(screen.getByLabelText('Correo electrónico institucional'), 'estudiante@ueb.edu.ec')
     await user.type(screen.getByLabelText('Teléfono'), '0987654321')
-    await user.selectOptions(screen.getByLabelText('Rol en el sistema'), 'estudiante')
+    await choose(user, screen.getByLabelText('Rol en el sistema'), 'Estudiante')
 
-    await user.selectOptions(await screen.findByLabelText('Facultad'), '1')
-    await user.selectOptions(screen.getByLabelText('Carrera'), '10')
+    await choose(user, await screen.findByLabelText('Facultad'), 'Facultad de Ingeniería')
+    await choose(user, screen.getByLabelText('Carrera'), 'Ingeniería de Software')
 
     // El ciclo es obligatorio para estudiantes; el último de la carrera es titulación.
     const cycleSelect = screen.getByLabelText('Ciclo')
-    expect(screen.getByRole('option', { name: 'Ciclo 8 · Titulación' })).toBeInTheDocument()
+    await user.click(cycleSelect)
+    expect(await screen.findByRole('option', { name: 'Ciclo 8 · Titulación' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Ciclo 7 · Tutorías' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Ciclo 9/ })).not.toBeInTheDocument()
-    await user.selectOptions(cycleSelect, '8')
+    await user.click(screen.getByRole('option', { name: 'Ciclo 8 · Titulación' }))
 
     await user.click(screen.getByRole('button', { name: 'Registrar Usuario' }))
 
@@ -279,16 +290,15 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     render(<UsersPage />)
     await screen.findByText('Carlos Docente')
 
-    // Clic en editar el primer usuario
-    const editButtons = screen.getAllByTitle('Editar usuario')
-    await user.click(editButtons[0])
+    // Clic en la fila: el panel de edición se abre bajo la tabla
+    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
 
     expect(await screen.findByText('Editar Usuario')).toBeInTheDocument()
 
     // Cambiar a Coordinador de carrera y seleccionar otra carrera
-    await user.selectOptions(screen.getByLabelText('Rol en el sistema'), 'coordinador_carrera')
-    await user.selectOptions(screen.getByLabelText('Facultad'), '1')
-    await user.selectOptions(screen.getByLabelText('Carrera'), '11')
+    await choose(user, screen.getByLabelText('Rol en el sistema'), 'Coordinador de carrera')
+    await choose(user, screen.getByLabelText('Facultad'), 'Facultad de Ingeniería')
+    await choose(user, screen.getByLabelText('Carrera'), 'Ingeniería Civil')
 
     await user.click(screen.getByRole('button', { name: 'Guardar Cambios' }))
 
@@ -304,12 +314,33 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     })
   }, 15000)
 
+  it('solo habilita "Guardar Cambios" cuando hay cambios y el formulario es válido', async () => {
+    const user = userEvent.setup()
+    render(<UsersPage />)
+    await screen.findByText('Carlos Docente')
+
+    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
+    const save = await screen.findByRole('button', { name: 'Guardar Cambios' })
+
+    // Sin cambios: deshabilitado
+    expect(save).toBeDisabled()
+
+    // Con un cambio válido: habilitado
+    const name = screen.getByLabelText('Nombre completo')
+    await user.type(name, ' Prueba')
+    expect(save).toBeEnabled()
+
+    // Con un dato inválido: deshabilitado otra vez
+    await user.clear(name)
+    expect(save).toBeDisabled()
+  })
+
   it('permite mostrar y ocultar la nueva contraseña al editar un usuario', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
     await screen.findByText('Carlos Docente')
 
-    await user.click(screen.getAllByTitle('Editar usuario')[0])
+    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
     expect(await screen.findByText('Editar Usuario')).toBeInTheDocument()
 
     const password = screen.getByLabelText('Nueva Contraseña (Opcional)')
@@ -354,7 +385,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await user.type(screen.getByLabelText('Nombre completo'), 'Docente Nuevo')
     await user.type(screen.getByLabelText('Correo electrónico institucional'), 'docente_nuevo@ueb.edu.ec')
     await user.type(screen.getByLabelText('Teléfono'), '0987654321')
-    await user.selectOptions(screen.getByLabelText('Rol en el sistema'), 'docente')
+    await choose(user, screen.getByLabelText('Rol en el sistema'), 'Docente')
 
     expect(screen.queryByLabelText('Facultad')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
@@ -381,8 +412,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     render(<UsersPage />)
     await screen.findByText('Carlos Docente')
 
-    const editButtons = screen.getAllByTitle('Editar usuario')
-    await user.click(editButtons[0])
+    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
 
     expect(await screen.findByText('Editar Usuario')).toBeInTheDocument()
 

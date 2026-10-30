@@ -655,14 +655,16 @@ export const importsApi = {
     return response.data
   },
 
-  async downloadTemplate(type: BulkImportType): Promise<void> {
+  /** `instructions` (líneas de comentario) se antepone al CSV de la plantilla. */
+  async downloadTemplate(type: BulkImportType, instructions = ''): Promise<void> {
     const token = tokenStore.get()
     const response = await fetch(`${API_URL}/api/v1/imports/${type}/template`, {
       headers: { Accept: 'text/csv', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     })
     if (!response.ok) throw new ApiError(response.status, {})
 
-    const url = URL.createObjectURL(await response.blob())
+    const csv = (await response.text()).replace(/^\uFEFF/, '')
+    const url = URL.createObjectURL(new Blob(['\uFEFF', instructions, csv], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
     link.download = `plantilla-${type}.csv`

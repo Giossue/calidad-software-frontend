@@ -4,7 +4,7 @@ export function AdminSectionHeader({ title, description, titleId, actions }: Rea
   return (
     <div className="flex w-full min-w-0 flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div className="flex min-w-0 flex-col gap-2">
-        <h2 id={titleId} className="break-words font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl md:text-4xl">
+        <h2 id={titleId} className="break-words font-display text-[1.05rem] leading-tight font-semibold tracking-[-0.03em] sm:text-[1.3125rem] md:text-[1.575rem]">
           {title}
         </h2>
         {description && <div className="max-w-2xl break-words text-sm leading-6 text-muted-foreground">{description}</div>}

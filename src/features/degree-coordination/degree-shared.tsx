@@ -27,7 +27,7 @@ type IconType = ComponentType<{ className?: string }>
 const TONES = {
   gray: 'bg-muted text-foreground',
   red: 'bg-brand-red/10 text-brand-red dark:bg-brand-red/25 dark:text-brand-red-contrast',
-  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  blue: 'bg-blue-100 text-blue-700 dark:bg-primary/15 dark:text-blue-300',
 } as const
 export type SectionTone = keyof typeof TONES
 
@@ -57,7 +57,7 @@ export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: Retur
   const { period } = resource.data
   return <Card><CardContent className="flex flex-wrap items-center justify-between gap-6 pt-6">
     <div className="flex items-center gap-4">
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"><CalendarIcon className="size-5" /></div>
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-primary/15 dark:text-blue-300"><CalendarIcon className="size-5" /></div>
       <div className="flex flex-col">
         <CardDescription>Período académico vigente</CardDescription>
         <CardTitle>{period.name}</CardTitle>
