@@ -6,14 +6,15 @@ import { RefreshButton } from '@/components/ui/refresh-button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { InitialsAvatar, SectionCard } from '@/features/degree-coordination/degree-shared'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { MutationDialog } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { studentApi } from '@/lib/student-api'
 
@@ -56,7 +57,7 @@ function TopicCard({ topic, onEdit }: Readonly<{ topic: DegreeTopic; onEdit?: (t
       </div>
     </SectionCard>
     <SectionCard icon={MessageSquareIcon} title="Observaciones de coordinación" description="Mensajes registrados sobre tu propuesta.">
-      {topic.observations.length === 0 ? <div className="flex flex-col items-center gap-1 rounded-lg bg-muted/50 px-6 py-8 text-center"><MessageSquareIcon aria-hidden="true" className="mb-1 size-7 text-muted-foreground" /><p className="text-sm font-medium">Todavía no hay observaciones para esta propuesta.</p><p className="text-xs text-muted-foreground">Cuando coordinación registre una, la verás aquí.</p></div> : <ul className="flex flex-col gap-4">
+      {topic.observations.length === 0 ? <div className="flex flex-col items-center gap-1 rounded-lg bg-muted/50 px-6 py-8 text-center"><MessageSquareIcon aria-hidden="true" className="mb-1 size-7 text-muted-foreground" /><p className="text-sm">Todavía no hay observaciones para esta propuesta.</p><p className="text-xs text-muted-foreground">Cuando coordinación registre una, la verás aquí.</p></div> : <ul className="flex flex-col gap-4">
         {topic.observations.map((observation) => <li key={observation.id} className="flex flex-col gap-2 border-l-2 border-border pl-4">
           <p className="whitespace-pre-wrap break-words text-sm leading-6">{observation.observation}</p>
           <p className="text-xs text-muted-foreground">{observation.coordinator?.name ?? 'Coordinación'} · {formatDate(observation.registered_at)}</p>
@@ -86,10 +87,13 @@ function ProposalDialog({ mode, onClose, onSaved }: Readonly<{ mode: ProposalMod
       mode.kind === 'edit' ? 'Propuesta actualizada.' : 'Propuesta enviada a coordinación.', () => { onClose(); onSaved() })
   }
 
-  return <MutationDialog open={mode !== null} title={mode?.kind === 'edit' ? 'Cambiar propuesta' : mode?.kind === 'replace' ? 'Proponer una alternativa' : 'Nueva propuesta de titulación'} description={mode?.kind === 'replace' ? 'Tu propuesta pendiente quedará reemplazada por esta nueva.' : 'Coordinación revisará tu propuesta y te notificará el resultado.'} pending={operation.pending} error={operation.error} dirty={form.title !== initial.title || form.description !== initial.description} onClose={onClose} onSubmit={submit} submitIcon={mode?.kind === 'edit' ? undefined : SendIcon} submitLabel={mode?.kind === 'edit' ? 'Guardar cambios' : 'Enviar propuesta'} submitDisabled={title.length < 5}>
-    <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="student-topic-title">Título del tema</FieldLabel><FieldCounter current={form.title.length} max={255} /></div><Input id="student-topic-title" placeholder="Ej.: Plataforma web para el seguimiento de tutorías académicas" required minLength={5} maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /><FieldDescription>Entre 5 y 255 caracteres.</FieldDescription></Field>
-    <Field><div className="flex items-center justify-between"><FieldLabel htmlFor="student-topic-description">Descripción</FieldLabel><FieldCounter current={form.description.length} max={2000} /></div><Textarea id="student-topic-description" placeholder="Describe el problema que resuelve tu tema, su alcance y los resultados esperados." maxLength={2000} rows={5} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /><FieldDescription>Opcional. Explica el alcance y el objetivo del tema.</FieldDescription></Field>
-  </MutationDialog>
+  const titleError = form.title !== '' && title.length < 5 ? 'El título debe tener entre 5 y 255 caracteres.' : null
+  const blockReason = title.length < 5 ? 'El título debe tener al menos 5 caracteres.' : null
+
+  return <FormDialog open={mode !== null} title={mode?.kind === 'edit' ? 'Cambiar propuesta' : mode?.kind === 'replace' ? 'Proponer una alternativa' : 'Nueva propuesta de titulación'} description={mode?.kind === 'replace' ? 'Tu propuesta pendiente quedará reemplazada por esta nueva.' : 'Coordinación revisará tu propuesta y te notificará el resultado.'} pending={operation.pending} error={operation.error} dirty={form.title !== initial.title || form.description !== initial.description} blockReason={blockReason} onClose={onClose} onSubmit={submit} submitIcon={mode?.kind === 'edit' ? undefined : SendIcon} submitLabel={mode?.kind === 'edit' ? 'Guardar cambios' : 'Enviar propuesta'}>
+    <FormField id="student-topic-title" label="Título del tema" counter={{ current: form.title.length, max: 255 }} tip="Entre 5 y 255 caracteres." error={titleError}><Input id="student-topic-title" placeholder="Ej.: Plataforma web para el seguimiento de tutorías académicas" required minLength={5} maxLength={255} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} aria-invalid={Boolean(titleError)} /></FormField>
+    <FormField id="student-topic-description" label="Descripción" optional counter={{ current: form.description.length, max: 2000 }} tip="Explica el alcance y el objetivo del tema."><Textarea id="student-topic-description" placeholder="Describe el problema que resuelve tu tema, su alcance y los resultados esperados." maxLength={2000} rows={5} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></FormField>
+  </FormDialog>
 }
 
 export function StudentDegreeTopicsPage() {
@@ -109,7 +113,7 @@ export function StudentDegreeTopicsPage() {
 
   return <section className="flex min-w-0 flex-col gap-6" aria-busy={loading}>
     <AdminSectionHeader title="Mis propuestas de titulación" description="Presenta tu tema, consulta el estado de tus propuestas, los docentes asignados y las observaciones de coordinación." actions={<div className="flex shrink-0 flex-col gap-2 sm:flex-row"><RefreshButton disabled={loading} onClick={resource.reload} />{action}</div>} />
-    {error ? <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{error}</span><Button type="button" variant="secondary" onClick={resource.reload}>Reintentar</Button></AlertDescription></Alert> : loading ? <div role="status" aria-label="Cargando propuestas" className="flex flex-col gap-4"><Skeleton className="h-36 w-full" /><Skeleton className="h-36 w-full" /></div> : topics.length === 0 ? <Alert><AlertDescription>Aún no tienes propuestas de titulación registradas. Usa «Nueva propuesta» para presentar tu tema a coordinación.</AlertDescription></Alert> : topics.map((topic) => <TopicCard key={topic.id} topic={topic} onEdit={topic.status === 'pendiente' ? (item) => setMode({ kind: 'edit', topic: item }) : undefined} />)}
+    {error ? <ErrorNotice message={error} retry={resource.reload} /> : loading ? <div role="status" aria-label="Cargando propuestas" className="flex flex-col gap-4"><Skeleton className="h-36 w-full" /><Skeleton className="h-36 w-full" /></div> : topics.length === 0 ? <Alert><AlertDescription>Aún no tienes propuestas de titulación registradas. Usa «Nueva propuesta» para presentar tu tema a coordinación.</AlertDescription></Alert> : topics.map((topic) => <TopicCard key={topic.id} topic={topic} onEdit={topic.status === 'pendiente' ? (item) => setMode({ kind: 'edit', topic: item }) : undefined} />)}
     <ProposalDialog mode={mode} onClose={() => setMode(null)} onSaved={resource.reload} />
   </section>
 }

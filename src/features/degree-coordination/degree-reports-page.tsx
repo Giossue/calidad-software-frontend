@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { FileTextIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { FilterBar } from '@/features/tutoring/filter-bar'
-import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeReport } from '@/lib/degree-coordination-api'
 import { formatDegreeDate } from './degree-format'
 import { useDegreeResource, useDegreeSearch } from './degree-hooks'
@@ -53,12 +52,14 @@ export function DegreeReportsPage() {
         rows={reports}
         loading={resource.loading}
         empty="No se han generado informes de titulación para los criterios seleccionados."
+        onRowClick={setSelectedReport}
+        rowTitle={(report) => `Ver informe de ${report.student_name}`}
         columns={[
           {
             label: 'Tema',
             render: (report) => (
               <div className="flex flex-col gap-1 max-w-sm">
-                <span className="font-semibold text-foreground">{report.topic_title}</span>
+                <span className="font-medium text-foreground">{report.topic_title}</span>
                 <span className="text-xs text-muted-foreground">{report.period_name || 'Período vigente'}</span>
               </div>
             ),
@@ -67,7 +68,7 @@ export function DegreeReportsPage() {
             label: 'Estudiante',
             render: (report) => (
               <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-foreground">{report.student_name}</span>
+                <span className="text-foreground">{report.student_name}</span>
                 <span className="text-xs text-muted-foreground">{report.student_identification}</span>
               </div>
             ),
@@ -83,7 +84,7 @@ export function DegreeReportsPage() {
           {
             label: 'Avance registrado',
             render: (report) => (
-              <Badge variant="outline" className="font-semibold">
+              <Badge variant="outline">
                 {report.progress_percentage}%
               </Badge>
             ),
@@ -92,14 +93,6 @@ export function DegreeReportsPage() {
             label: 'Coordinador',
             render: (report) => (
               <span className="text-xs text-muted-foreground">{report.coordinator_name || 'Coordinación'}</span>
-            ),
-          },
-          {
-            label: 'Acciones',
-            render: (report) => (
-              <Button size="sm" variant="secondary" onClick={() => setSelectedReport(report)}>
-                <FileTextIcon data-icon="inline-start" /> Ver informe
-              </Button>
             ),
           },
         ]}
@@ -123,11 +116,11 @@ export function DegreeReportsPage() {
         >
           <div className="space-y-4">
             <div className="rounded-lg border bg-muted/40 p-3 space-y-1.5 text-xs">
-              <div><span className="font-semibold text-foreground">Tema: </span>{selectedReport.topic_title}</div>
-              <div><span className="font-semibold text-foreground">Estudiante: </span>{selectedReport.student_name} ({selectedReport.student_identification})</div>
-              <div><span className="font-semibold text-foreground">Fecha de generación: </span>{formatDegreeDate(selectedReport.generated_at)}</div>
-              <div><span className="font-semibold text-foreground">Avance general: </span>{selectedReport.progress_percentage}%</div>
-              <div><span className="font-semibold text-foreground">Generado por: </span>{selectedReport.coordinator_name}</div>
+              <div><span className="font-medium text-foreground">Tema: </span>{selectedReport.topic_title}</div>
+              <div><span className="font-medium text-foreground">Estudiante: </span>{selectedReport.student_name} ({selectedReport.student_identification})</div>
+              <div><span className="font-medium text-foreground">Fecha de generación: </span>{formatDegreeDate(selectedReport.generated_at)}</div>
+              <div><span className="font-medium text-foreground">Avance general: </span>{selectedReport.progress_percentage}%</div>
+              <div><span className="font-medium text-foreground">Generado por: </span>{selectedReport.coordinator_name}</div>
             </div>
 
             <div>

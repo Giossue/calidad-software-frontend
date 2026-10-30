@@ -1,16 +1,17 @@
-import { useState } from 'react'
-import { ActivityIcon, ArrowLeftIcon, CheckCircle2Icon, CircleIcon, FileTextIcon, ListTodoIcon, PlusIcon, SaveIcon, SparklesIcon } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
+import { ArrowLeftIcon, CheckCircle2Icon, CircleIcon, FileTextIcon, ListTodoIcon, PlusIcon, SaveIcon, SparklesIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
-import { Spinner } from '@/components/ui/spinner'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Textarea } from '@/components/ui/textarea'
 import { FilterBar } from '@/features/tutoring/filter-bar'
-import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeActivity, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { formatDegreeDate } from './degree-format'
 import { useDegreePeriod, useDegreeResource, useDegreeSearch } from './degree-hooks'
@@ -25,12 +26,15 @@ export function DegreeTrackingPage() {
   const [activityDialogOpen, setActivityDialogOpen] = useState(false)
   const [newActivityDesc, setNewActivityDesc] = useState('')
   const [activitySubmitting, setActivitySubmitting] = useState(false)
+  const [activityError, setActivityError] = useState<string | null>(null)
 
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportObservations, setReportObservations] = useState('')
   const [reportSubmitting, setReportSubmitting] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const topicsResource = useDegreeResource(
     () => degreeCoordinationApi.topics({ status: 'aprobado', search: search.search }),
@@ -39,9 +43,14 @@ export function DegreeTrackingPage() {
 
   const rows = topicsResource.data?.data ?? []
 
-  async function handleAddActivity() {
-    if (!selectedTopic || !newActivityDesc.trim()) return
+  const activityBlockReason = newActivityDesc.trim() ? null : 'Describe la actividad o entregable.'
+  const reportBlockReason = reportObservations.trim() ? null : 'Escribe las observaciones y conclusiones finales.'
+
+  async function handleAddActivity(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedTopic || activityBlockReason || activitySubmitting) return
     setActivitySubmitting(true)
+    setActivityError(null)
     try {
       await degreeCoordinationApi.addActivity(selectedTopic.id, {
         descripcion: newActivityDesc.trim(),
@@ -53,7 +62,7 @@ export function DegreeTrackingPage() {
       setSelectedTopic(updated)
       topicsResource.reload()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al registrar actividad')
+      setActivityError(err instanceof Error ? err.message : 'Error al registrar actividad')
     } finally {
       setActivitySubmitting(false)
     }
@@ -61,20 +70,23 @@ export function DegreeTrackingPage() {
 
   async function handleToggleActivity(activity: DegreeActivity) {
     if (!selectedTopic) return
+    setActionError(null)
     try {
       await degreeCoordinationApi.toggleActivity(selectedTopic.id, activity.id, !activity.is_completed)
       const updated = await degreeCoordinationApi.topic(selectedTopic.id)
       setSelectedTopic(updated)
       topicsResource.reload()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al cambiar estado de la actividad')
+      setActionError(err instanceof Error ? err.message : 'Error al cambiar estado de la actividad')
     }
   }
 
 
-  async function handleGenerateReport() {
-    if (!selectedTopic || !reportObservations.trim()) return
+  async function handleGenerateReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedTopic || reportBlockReason || reportSubmitting) return
     setReportSubmitting(true)
+    setReportError(null)
     try {
       await degreeCoordinationApi.generateReport(selectedTopic.id, {
         observaciones_finales: reportObservations.trim(),
@@ -86,7 +98,7 @@ export function DegreeTrackingPage() {
       setSelectedTopic(updated)
       topicsResource.reload()
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al generar informe')
+      setReportError(err instanceof Error ? err.message : 'Error al generar informe')
     } finally {
       setReportSubmitting(false)
     }
@@ -109,7 +121,7 @@ export function DegreeTrackingPage() {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{selectedTopic.title}</h1>
             <p className="text-sm text-muted-foreground">
               Estudiante: <span className="font-semibold text-foreground">{selectedTopic.student?.name}</span> ({selectedTopic.student?.identification})
-              {tutor && <> &bull; Tutor asignado: <span className="font-medium text-foreground">{tutor.name}</span></>}
+              {tutor && <> &bull; Tutor asignado: <span className="font-semibold text-foreground">{tutor.name}</span></>}
             </p>
           </div>
 
@@ -119,6 +131,7 @@ export function DegreeTrackingPage() {
               variant="secondary"
               onClick={() => {
                 setReportObservations('')
+                setReportError(null)
                 setReportDialogOpen(true)
               }}
             >
@@ -127,6 +140,7 @@ export function DegreeTrackingPage() {
             <Button
               onClick={() => {
                 setNewActivityDesc('')
+                setActivityError(null)
                 setActivityDialogOpen(true)
               }}
             >
@@ -144,6 +158,8 @@ export function DegreeTrackingPage() {
           </div>
         )}
 
+        <ErrorNotice message={actionError} />
+
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="md:col-span-1">
             <CardHeader>
@@ -156,7 +172,7 @@ export function DegreeTrackingPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Progreso general</span>
-                  <span className="font-bold text-foreground">{progress}%</span>
+                  <span className="font-semibold text-foreground">{progress}%</span>
                 </div>
                 <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
                   <div
@@ -169,7 +185,7 @@ export function DegreeTrackingPage() {
               <div className="rounded-lg border bg-muted/30 p-3 text-xs flex flex-col gap-1.5">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Ficha abierta:</span>
-                  <span className="font-medium text-foreground">{tracking?.opened_at ? formatDegreeDate(tracking.opened_at) : 'En apertura'}</span>
+                  <span className="text-foreground">{tracking?.opened_at ? formatDegreeDate(tracking.opened_at) : 'En apertura'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Estado de ficha:</span>
@@ -177,11 +193,11 @@ export function DegreeTrackingPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Actividades totales:</span>
-                  <span className="font-medium text-foreground">{activities.length}</span>
+                  <span className="text-foreground">{activities.length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Actividades completadas:</span>
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="text-emerald-600 dark:text-emerald-400">
                     {activities.filter((a) => a.is_completed).length}
                   </span>
                 </div>
@@ -197,7 +213,7 @@ export function DegreeTrackingPage() {
                 </CardTitle>
                 <CardDescription>Seguimiento de entregables y avances del estudiante</CardDescription>
               </div>
-              <Button size="sm" variant="secondary" onClick={() => setActivityDialogOpen(true)}>
+              <Button size="sm" variant="secondary" onClick={() => { setNewActivityDesc(''); setActivityError(null); setActivityDialogOpen(true) }}>
                 <PlusIcon data-icon="inline-start" /> Añadir
               </Button>
             </CardHeader>
@@ -211,19 +227,11 @@ export function DegreeTrackingPage() {
                   {activities.map((activity) => (
                     <div key={activity.id} className="flex items-start justify-between gap-4 py-3">
                       <div className="flex items-start gap-3">
-                        <Button
-                          type="button"
-                          variant="tertiary"
-                          size="icon"
+                        <IconAction
+                          label={activity.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
+                          icon={activity.is_completed ? CheckCircle2Icon : CircleIcon}
                           onClick={() => void handleToggleActivity(activity)}
-                          title={activity.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
-                        >
-                          {activity.is_completed ? (
-                            <CheckCircle2Icon className="text-emerald-600 dark:text-emerald-400" />
-                          ) : (
-                            <CircleIcon />
-                          )}
-                        </Button>
+                        />
                         <div className="flex flex-col">
                           <span className={`text-sm font-medium ${activity.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                             {activity.description}
@@ -246,78 +254,56 @@ export function DegreeTrackingPage() {
         </div>
 
         {/* Modal Nueva Actividad */}
-        <Dialog
+        <FormDialog
           open={activityDialogOpen}
           onClose={() => setActivityDialogOpen(false)}
-          confirmClose={newActivityDesc.trim() !== ''}
           title="Registrar actividad de avance"
           description="Define el hito o entregable para la ficha de seguimiento de titulación."
+          pending={activitySubmitting}
+          error={activityError}
+          dirty={newActivityDesc !== ''}
+          blockReason={activityBlockReason}
+          onSubmit={(event) => void handleAddActivity(event)}
+          submitLabel="Registrar actividad"
+          submitIcon={SaveIcon}
         >
-          <div className="space-y-4">
-            <Field>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="new-activity-desc">Descripción de la actividad / entregable</FieldLabel>
-                <FieldCounter current={newActivityDesc.length} max={1000} />
-              </div>
-              <Textarea
-                id="new-activity-desc"
-                maxLength={1000}
-                rows={3}
-                placeholder="Ej. Entrega del Capítulo 1: Marco Metodológico y diseño de prototipo..."
-                value={newActivityDesc}
-                onChange={(e) => setNewActivityDesc(e.target.value)}
-              />
-            </Field>
-            <div className="flex justify-end gap-2 pt-2">
-              <DialogCancelButton />
-              <Button
-                disabled={activitySubmitting || !newActivityDesc.trim()}
-                onClick={() => void handleAddActivity()}
-              >
-                {activitySubmitting ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
-                {activitySubmitting ? 'Guardando…' : 'Registrar actividad'}
-              </Button>
-            </div>
-          </div>
-        </Dialog>
-
-
+          <FormField id="new-activity-desc" label="Descripción de la actividad / entregable" counter={{ current: newActivityDesc.length, max: 1000 }}>
+            <Textarea
+              id="new-activity-desc"
+              maxLength={1000}
+              rows={3}
+              placeholder="Ej. Entrega del Capítulo 1: Marco Metodológico y diseño de prototipo..."
+              value={newActivityDesc}
+              onChange={(e) => setNewActivityDesc(e.target.value)}
+            />
+          </FormField>
+        </FormDialog>
 
         {/* Modal Generar Informe */}
-        <Dialog
+        <FormDialog
           open={reportDialogOpen}
           onClose={() => setReportDialogOpen(false)}
-          confirmClose={reportObservations.trim() !== ''}
           title="Generar informe de titulación"
           description="Registra las observaciones y dictamen de la evolución del tema de titulación."
+          pending={reportSubmitting}
+          error={reportError}
+          dirty={reportObservations !== ''}
+          blockReason={reportBlockReason}
+          onSubmit={(event) => void handleGenerateReport(event)}
+          submitLabel="Generar informe"
+          submitIcon={FileTextIcon}
         >
-          <div className="space-y-4">
-            <Field>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="report-obs">Observaciones y conclusiones finales</FieldLabel>
-                <FieldCounter current={reportObservations.length} max={2000} />
-              </div>
-              <Textarea
-                id="report-obs"
-                maxLength={2000}
-                rows={4}
-                placeholder="Detalla el estado general, recomendaciones y cumplimiento del trabajo de titulación..."
-                value={reportObservations}
-                onChange={(e) => setReportObservations(e.target.value)}
-              />
-            </Field>
-            <div className="flex justify-end gap-2 pt-2">
-              <DialogCancelButton />
-              <Button
-                disabled={reportSubmitting || !reportObservations.trim()}
-                onClick={() => void handleGenerateReport()}
-              >
-                {reportSubmitting ? <Spinner data-icon="inline-start" /> : <FileTextIcon data-icon="inline-start" />}
-                {reportSubmitting ? 'Generando…' : 'Generar informe'}
-              </Button>
-            </div>
-          </div>
-        </Dialog>
+          <FormField id="report-obs" label="Observaciones y conclusiones finales" counter={{ current: reportObservations.length, max: 2000 }}>
+            <Textarea
+              id="report-obs"
+              maxLength={2000}
+              rows={4}
+              placeholder="Detalla el estado general, recomendaciones y cumplimiento del trabajo de titulación..."
+              value={reportObservations}
+              onChange={(e) => setReportObservations(e.target.value)}
+            />
+          </FormField>
+        </FormDialog>
       </section>
     )
   }
@@ -346,12 +332,14 @@ export function DegreeTrackingPage() {
         rows={rows}
         loading={topicsResource.loading}
         empty="No hay temas aprobados en seguimiento para este período académico."
+        onRowClick={setSelectedTopic}
+        rowTitle={(topic) => `Ver evolución de ${topic.title}`}
         columns={[
           {
             label: 'Tema de titulación',
             render: (topic) => (
               <div className="flex flex-col gap-1 max-w-md">
-                <span className="font-semibold text-foreground">{topic.title}</span>
+                <span className="font-medium text-foreground">{topic.title}</span>
                 <span className="text-xs text-muted-foreground line-clamp-2">{topic.description || 'Sin descripción'}</span>
               </div>
             ),
@@ -360,7 +348,7 @@ export function DegreeTrackingPage() {
             label: 'Estudiante',
             render: (topic) => (
               <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-foreground">{topic.student?.name}</span>
+                <span className="text-foreground">{topic.student?.name}</span>
                 <span className="text-xs text-muted-foreground">{topic.student?.identification}</span>
               </div>
             ),
@@ -370,7 +358,7 @@ export function DegreeTrackingPage() {
             render: (topic) => {
               const tutor = topic.assignments.find((a) => a.role === 'tutor')?.teacher
               return tutor ? (
-                <span className="text-xs font-medium text-foreground">{tutor.name}</span>
+                <span className="text-xs text-foreground">{tutor.name}</span>
               ) : (
                 <span className="text-xs text-muted-foreground">Por asignar</span>
               )
@@ -385,18 +373,10 @@ export function DegreeTrackingPage() {
                   <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
                     <div className="h-full bg-primary" style={{ width: `${Math.min(progress, 100)}%` }} />
                   </div>
-                  <span className="text-xs font-semibold text-foreground">{progress}%</span>
+                  <span className="text-xs text-foreground">{progress}%</span>
                 </div>
               )
             },
-          },
-          {
-            label: 'Acciones',
-            render: (topic) => (
-              <Button size="sm" variant="secondary" onClick={() => setSelectedTopic(topic)}>
-                <ActivityIcon data-icon="inline-start" /> Ver evolución
-              </Button>
-            ),
           },
         ]}
       />

@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { InitialsAvatar, SectionCard } from '@/features/degree-coordination/degree-shared'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { degreeCoordinationApi, type DegreeActivity, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { cn } from '@/lib/utils'
 import { FilterChips, RedProgress, SearchField } from '@/features/student/student-ui'
@@ -55,7 +55,7 @@ function TaskCard({ activity }: Readonly<{ activity: DegreeActivity }>) {
           )}
           <Badge
             variant={activity.is_completed ? 'success' : 'secondary'}
-            className="gap-1.5 px-2.5 py-0.5 text-xs font-semibold"
+            className="gap-1.5 px-2.5 py-0.5 text-xs"
           >
             {activity.is_completed ? 'Completada' : 'Pendiente'}
           </Badge>
@@ -68,7 +68,7 @@ function TaskCard({ activity }: Readonly<{ activity: DegreeActivity }>) {
         )}
       </div>
 
-      <div className="text-sm font-medium leading-relaxed break-words text-foreground">
+      <div className="text-sm leading-relaxed break-words text-foreground">
         {activity.description}
       </div>
 
@@ -81,11 +81,11 @@ function TaskCard({ activity }: Readonly<{ activity: DegreeActivity }>) {
               className="size-7 text-xs"
             />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-medium truncate">{activity.teacher.name}</span>
+              <span className="text-xs truncate">{activity.teacher.name}</span>
               <span className="text-[11px] text-muted-foreground truncate">{activity.teacher.email}</span>
             </div>
           </div>
-          <Badge variant="outline" className="text-[11px] font-medium">
+          <Badge variant="outline" className="text-[11px]">
             {isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}
           </Badge>
         </div>
@@ -101,7 +101,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
   const [search, setSearch] = useState('')
 
   const tracking = topic.tracking
-  const activities = tracking?.activities ?? []
+  const activities = useMemo(() => tracking?.activities ?? [], [tracking?.activities])
   const progressPercentage = tracking?.progress_percentage ?? 0
 
   const tutor = topic.assignments.find((a) => a.role === 'tutor')?.teacher
@@ -158,10 +158,10 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
           <Card className="flex flex-col gap-4 p-5 shadow-2xs">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex flex-col gap-1 max-w-2xl">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Tema de titulación aprobado
                 </span>
-                <h3 className="font-display text-xl font-bold tracking-tight text-foreground">
+                <h3 className="font-display text-xl font-semibold tracking-tight text-foreground">
                   {topic.title}
                 </h3>
                 <p className="text-xs text-muted-foreground">
@@ -170,7 +170,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
                     .join(' · ')}
                 </p>
               </div>
-              <Badge variant="success" className="px-3 py-1 font-semibold text-xs">
+              <Badge variant="success" className="px-3 py-1 text-xs">
                 Propuesta aprobada
               </Badge>
             </div>
@@ -178,7 +178,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 border-t pt-4">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Avance general</span>
-                <span className="text-2xl font-bold tabular-nums text-foreground">
+                <span className="text-2xl font-semibold tabular-nums text-foreground">
                   {Math.round(progressPercentage)}%
                 </span>
                 <RedProgress value={progressPercentage} label="Avance de titulación" className="mt-1" />
@@ -186,13 +186,13 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
 
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Tareas asignadas</span>
-                <span className="text-2xl font-bold tabular-nums text-foreground">{totalTasks}</span>
+                <span className="text-2xl font-semibold tabular-nums text-foreground">{totalTasks}</span>
                 <span className="text-xs text-muted-foreground">En ficha de seguimiento</span>
               </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Tareas completadas</span>
-                <span className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                <span className="text-2xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                   {completedTasks}
                 </span>
                 <span className="text-xs text-muted-foreground">Revisadas con éxito</span>
@@ -200,7 +200,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
 
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Tareas pendientes</span>
-                <span className="text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
+                <span className="text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">
                   {pendingTasks}
                 </span>
                 <span className="text-xs text-muted-foreground">Por entregar o revisar</span>
@@ -211,7 +211,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
               <div className="grid gap-4 sm:grid-cols-2 border-t pt-4">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">Ficha abierta</span>
-                  <span className="text-sm font-semibold text-foreground">
+                  <span className="text-sm font-medium text-foreground">
                     {formatDegreeDate(tracking.opened_at)}
                   </span>
                 </div>
@@ -300,7 +300,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
 
             {/* Role filter buttons */}
             <div className="flex items-center gap-1.5 text-xs">
-              <span className="font-semibold text-muted-foreground mr-1">Filtrar por asignador:</span>
+              <span className="text-muted-foreground mr-1">Filtrar por asignador:</span>
               <Button
                 type="button"
                 size="sm"
@@ -399,7 +399,7 @@ export function StudentDegreeTrackingPage() {
         <>
           {approvedTopics.length > 1 && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground">Seleccionar propuesta:</span>
+              <span className="text-xs text-muted-foreground">Seleccionar propuesta:</span>
               {approvedTopics.map((topic) => (
                 <Button
                   key={topic.id}

@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/api'
 import { degreeCoordinationApi, type DegreeTeacher, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { canCoordinateDegrees } from './degree-navigation'
 import { DegreeSectionsPage } from './degree-sections-page'
+import { DegreeTrackingPage } from './degree-tracking-page'
 import { DegreeStudentsPage } from './degree-students-page'
 import { DegreeTopicDetail } from './degree-topic-detail'
 import { DegreeTopicsPage } from './degree-topics-page'
@@ -78,10 +79,8 @@ describe('Coordinación de titulación', () => {
     render(<DegreeTopicsPage />)
     await screen.findByText('Plataforma de seguimiento')
     expect(within(screen.getByRole('table')).getByText('Aprobado')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Filtros/ }))
-    await user.selectOptions(screen.getByLabelText('Estado'), 'aprobado')
-    await user.selectOptions(screen.getByLabelText('Paralelo'), '20')
-    await user.click(screen.getByRole('button', { name: 'Ver resultados' }))
+    await pick(user, screen.getByLabelText('Filtrar por Estado'), 'aprobado', 'Aprobado')
+    await pick(user, screen.getByLabelText('Filtrar por Paralelo'), '20', 'A')
     await user.type(screen.getByLabelText('Buscar propuesta'), 'Carlos')
     await waitFor(() => expect(degreeCoordinationApi.topics).toHaveBeenLastCalledWith({ status: 'aprobado', section_id: 20, search: 'Carlos' }))
   })
@@ -96,13 +95,10 @@ describe('Coordinación de titulación', () => {
 
     expect(screen.queryByText('Estudiantes únicos')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Filtros/ }))
-    const clearButton = screen.getByRole('button', { name: 'Limpiar filtros' })
-    expect(clearButton).toBeDisabled()
-    await user.selectOptions(screen.getByLabelText('Estado'), 'aprobado')
-    await waitFor(() => expect(clearButton).toBeEnabled())
-    await user.click(clearButton)
-    await waitFor(() => expect(clearButton).toBeDisabled())
+    expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument()
+    await pick(user, screen.getByLabelText('Filtrar por Estado'), 'aprobado', 'Aprobado')
+    await user.click(await screen.findByRole('button', { name: 'Limpiar' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument())
   })
 
   it('evita duplicar la consulta a la API cuando no hay filtros activos', async () => {
@@ -181,7 +177,7 @@ describe('Coordinación de titulación', () => {
 
     // El par elegido sigue visible aunque la búsqueda cambie.
     await user.click(await screen.findByRole('checkbox', { name: /Ana Torres/ }))
-    await user.type(screen.getByLabelText('Buscar pares académicos'), 'zzz')
+    await user.type(screen.getByLabelText('Pares académicos'), 'zzz')
     await waitFor(() => expect(degreeCoordinationApi.teachers).toHaveBeenCalledWith('zzz'))
     expect(screen.getByRole('checkbox', { name: /Ana Torres/ })).toBeChecked()
     expect(screen.queryByRole('checkbox', { name: /Luis Pérez/ })).not.toBeInTheDocument()
@@ -194,7 +190,7 @@ describe('Coordinación de titulación', () => {
     vi.mocked(degreeCoordinationApi.reject).mockResolvedValue({ ...topic, status: 'rechazado' })
     render(<DegreeTopicDetail topicId={30} onBack={vi.fn()} />)
     await user.click(await screen.findByRole('button', { name: 'Rechazar propuesta' }))
-    await user.type(screen.getByLabelText('Motivo de rechazo (opcional)'), '  Delimitar el alcance del proyecto.  ')
+    await user.type(screen.getByLabelText(/Motivo de rechazo/), '  Delimitar el alcance del proyecto.  ')
     expect(degreeCoordinationApi.reject).not.toHaveBeenCalled()
     await user.click(within(screen.getByRole('form', { name: 'Rechazar propuesta' })).getByRole('button', { name: 'Rechazar propuesta' }))
     await waitFor(() => expect(degreeCoordinationApi.reject).toHaveBeenCalledWith(30, 'Delimitar el alcance del proyecto.'))
@@ -225,7 +221,7 @@ describe('Coordinación de titulación', () => {
     vi.mocked(degreeCoordinationApi.topic).mockResolvedValue(approved)
     vi.mocked(degreeCoordinationApi.updatePeers).mockResolvedValue([])
     render(<DegreeTopicsPage />)
-    await user.click(await screen.findByRole('button', { name: 'Revisar Plataforma de seguimiento' }))
+    await user.click(await screen.findByTitle('Revisar Plataforma de seguimiento'))
     await user.click(await screen.findByRole('button', { name: 'Gestionar pares académicos' }))
     const form = screen.getByRole('form', { name: 'Gestionar pares académicos' })
     expect(within(form).getByRole('checkbox', { name: /Luis Pérez/ })).toBeChecked()
@@ -250,6 +246,34 @@ describe('Coordinación de titulación', () => {
     await user.click(within(screen.getByRole('form', { name: 'Registrar paralelo' })).getByRole('button', { name: 'Registrar paralelo' }))
     await waitFor(() => expect(degreeCoordinationApi.registerSection).toHaveBeenCalledWith('B'))
     expect(await screen.findByText('B')).toBeInTheDocument()
+  })
+
+  it('mantiene bloqueado el registro de paralelo hasta completar el nombre', async () => {
+    const user = userEvent.setup()
+    render(<DegreeSectionsPage />)
+    const registerButton = screen.getByRole('button', { name: 'Registrar paralelo' })
+    await waitFor(() => expect(registerButton).toBeEnabled())
+    await user.click(registerButton)
+    const submit = within(screen.getByRole('form', { name: 'Registrar paralelo' })).getByRole('button', { name: 'Registrar paralelo' })
+    expect(submit).toBeDisabled()
+    await user.type(screen.getByLabelText('Nombre del paralelo'), 'C')
+    expect(submit).toBeEnabled()
+  })
+
+  it('abre la evolución de un tema desde la fila y bloquea registrar actividad sin descripción', async () => {
+    const user = userEvent.setup()
+    vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [approved], meta: { academic_period: period, filter_section_id: null } })
+    vi.mocked(degreeCoordinationApi.addActivity).mockResolvedValue({ data: { id: 1, description: 'Capítulo 1', is_completed: false, registered_at: '2026-09-29', completed_at: null, teacher: null }, message: 'ok' })
+    render(<DegreeTrackingPage />)
+    await user.click(await screen.findByTitle('Ver evolución de Plataforma de seguimiento'))
+    await user.click(await screen.findByRole('button', { name: 'Nueva actividad' }))
+    const form = screen.getByRole('form', { name: 'Registrar actividad de avance' })
+    const submit = within(form).getByRole('button', { name: 'Registrar actividad' })
+    expect(submit).toBeDisabled()
+    await user.type(within(form).getByLabelText('Descripción de la actividad / entregable'), 'Capítulo 1')
+    expect(submit).toBeEnabled()
+    await user.click(submit)
+    await waitFor(() => expect(degreeCoordinationApi.addActivity).toHaveBeenCalledWith(30, { descripcion: 'Capítulo 1' }))
   })
 
   it('sanea los caracteres no válidos del nombre del paralelo', async () => {
@@ -321,4 +345,14 @@ async function chooseTutor(user: ReturnType<typeof userEvent.setup>, name: strin
   await user.clear(input)
   await user.click(input)
   await user.click(await screen.findByRole('option', { name: new RegExp(name) }))
+}
+
+// El filtro puede ser un <select> nativo o un select de shadcn (Radix): se elige la opción en ambos casos.
+async function pick(user: ReturnType<typeof userEvent.setup>, control: HTMLElement, value: string, label: string) {
+  if (control instanceof HTMLSelectElement) {
+    await user.selectOptions(control, value)
+    return
+  }
+  await user.click(control)
+  await user.click(await screen.findByRole('option', { name: label }))
 }

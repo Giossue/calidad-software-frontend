@@ -4,11 +4,12 @@ import { PlusIcon } from 'lucide-react'
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Button } from '@/components/ui/button'
-import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { DegreePeriodCard } from './degree-shared'
@@ -19,6 +20,8 @@ export function DegreeSectionsPage() {
   const operation = useOperation()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+
+  const blockReason = !resource.data ? 'No hay un período académico vigente.' : !name.trim() ? 'Ingresa el nombre del paralelo.' : null
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -33,12 +36,10 @@ export function DegreeSectionsPage() {
       { label: 'Paralelo', render: (section) => section.name },
       { label: 'Estado', render: (section) => <StatusBadge active={section.is_active} /> },
     ]} />}
-    <MutationDialog open={open} title="Registrar paralelo" description={resource.data?.period.name} pending={operation.pending} error={operation.error} dirty={Boolean(name)} onClose={() => setOpen(false)} onSubmit={submit} submitIcon={PlusIcon} submitLabel="Registrar paralelo" submitDisabled={!name.trim() || !resource.data}>
-      <Field>
-        <div className="flex items-center justify-between"><FieldLabel htmlFor="degree-section-name">Nombre del paralelo</FieldLabel><FieldCounter current={name.length} max={50} /></div>
+    <FormDialog open={open} title="Registrar paralelo" description={resource.data?.period.name} pending={operation.pending} error={operation.error} dirty={Boolean(name)} blockReason={blockReason} onClose={() => setOpen(false)} onSubmit={submit} submitIcon={PlusIcon} submitLabel="Registrar paralelo">
+      <FormField id="degree-section-name" label="Nombre del paralelo" counter={{ current: name.length, max: 50 }} tip="Si el paralelo ya existe, se vinculará al período vigente.">
         <Input id="degree-section-name" value={name} onChange={(event) => setName(sanitizeLetters(event.target.value, 50))} required maxLength={50} placeholder="Ej. A" />
-        <FieldDescription>Si el paralelo ya existe, se vinculará al período vigente.</FieldDescription>
-      </Field>
-    </MutationDialog>
+      </FormField>
+    </FormDialog>
   </section>
 }

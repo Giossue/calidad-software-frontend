@@ -1,17 +1,11 @@
 import { useState } from 'react'
-import {
-  CalendarDaysIcon,
-  CheckCircle2Icon,
-  GraduationCapIcon,
-  UserCheckIcon,
-  UserMinusIcon,
-  XCircleIcon,
-} from 'lucide-react'
+import { CalendarDaysIcon, GraduationCapIcon, UserCheckIcon, UserMinusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { IconAction } from '@/components/ui/icon-action'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import {
@@ -21,7 +15,7 @@ import {
 } from '@/lib/degree-coordination-api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 
 export function DegreeStudentsPage() {
   const [degreeFilter, setDegreeFilter] = useState<'' | 'enrolled' | 'not_enrolled'>('')
@@ -77,7 +71,7 @@ export function DegreeStudentsPage() {
           <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground shadow-2xs">
             <CalendarDaysIcon className="size-4 text-primary shrink-0" />
             <span>Período actual:</span>
-            <span className="font-semibold text-primary">{currentPeriodName}</span>
+            <span className="font-medium text-primary">{currentPeriodName}</span>
           </div>
         ) : !degreeList.isInitialLoading ? (
           <div className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
@@ -121,7 +115,6 @@ export function DegreeStudentsPage() {
         empty={
           <Empty className="border-none py-12">
             <EmptyMedia>
-              <GraduationCapIcon className="size-10 text-muted-foreground/60" />
             </EmptyMedia>
             <EmptyTitle>No se encontraron estudiantes</EmptyTitle>
             <EmptyDescription>
@@ -136,7 +129,7 @@ export function DegreeStudentsPage() {
             label: 'Estudiante',
             render: (student) => (
               <div className="flex flex-col gap-0.5">
-                <span className="font-semibold text-foreground">{student.name}</span>
+                <span className="font-medium text-foreground">{student.name}</span>
                 <span className="text-xs text-muted-foreground">{student.email}</span>
               </div>
             ),
@@ -161,24 +154,7 @@ export function DegreeStudentsPage() {
           },
           {
             label: 'Estado en Titulación',
-            render: (student) =>
-              student.is_degree_enrolled ? (
-                <Badge
-                  variant="outline"
-                  className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 gap-1.5 font-medium text-xs py-1 px-2.5"
-                >
-                  <CheckCircle2Icon className="size-3.5 text-emerald-600" />
-                  Matriculado
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="border-border text-muted-foreground gap-1.5 text-xs py-1 px-2.5"
-                >
-                  <XCircleIcon className="size-3.5 text-muted-foreground" />
-                  No matriculado
-                </Badge>
-              ),
+            render: (student) => <StatusBadge active={student.is_degree_enrolled} activeLabel="Matriculado" inactiveLabel="No matriculado" />,
           },
           {
             label: 'Fecha Matrícula',
@@ -188,32 +164,10 @@ export function DegreeStudentsPage() {
           },
           {
             label: 'Acciones',
-            render: (student) => (
-              <div className="flex items-center gap-2">
-                {student.is_degree_enrolled ? (
-                  <Button
-                    tone="destructive"
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setUnenrollTarget(student)}
-                    disabled={operation.pending}
-                  >
-                    <UserMinusIcon data-icon="inline-start" />
-                    Dar de baja
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setEnrollTarget(student)}
-                    disabled={operation.pending}
-                  >
-                    <GraduationCapIcon data-icon="inline-start" />
-                    Matricular en Titulación
-                  </Button>
-                )}
-              </div>
+            render: (student) => student.is_degree_enrolled ? (
+              <IconAction label="Dar de baja" icon={UserMinusIcon} tone="destructive" onClick={() => setUnenrollTarget(student)} disabled={operation.pending} />
+            ) : (
+              <IconAction label="Matricular en Titulación" icon={GraduationCapIcon} onClick={() => setEnrollTarget(student)} disabled={operation.pending} />
             ),
           },
         ]}

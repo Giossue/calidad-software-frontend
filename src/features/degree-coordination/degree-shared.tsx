@@ -7,11 +7,11 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { getInitials } from '@/lib/format'
-import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
 import { Separator } from '@/components/ui/separator'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import type { DegreeTopicStatus } from '@/lib/degree-coordination-api'
 import { DEGREE_STATUS_LABELS, formatDegreeDate } from './degree-format'
 import type { useDegreePeriod } from './degree-hooks'
@@ -46,11 +46,11 @@ export function SectionCard({ icon: Icon, title, description, action, tone = 'gr
 }
 
 export function InitialsAvatar({ name, tone = 'gray', className }: Readonly<{ name: string; tone?: SectionTone; className?: string }>) {
-  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold', TONES[tone], className)}>{getInitials(name)}</span>
+  return <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-medium', TONES[tone], className)}>{getInitials(name)}</span>
 }
 
 export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: ReturnType<typeof useDegreePeriod>; extra?: ReactNode }>) {
-  if (resource.loading) return <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Spinner aria-hidden="true" />Cargando período académico…</p>
+  if (resource.loading) return <Skeleton role="status" aria-label="Cargando período académico" className="h-24 w-full" />
   if (resource.status === 404) return <Alert><AlertDescription>No existe un período académico vigente. Administración debe configurar y activar un período para continuar con la coordinación de titulación.</AlertDescription></Alert>
   if (resource.error) return <ErrorNotice message={resource.error} retry={resource.reload} />
   if (!resource.data) return null
@@ -68,10 +68,8 @@ export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: Retur
   </CardContent></Card>
 }
 
-export function DegreeObservationField({ value, onChange, rejection = false }: Readonly<{ value: string; onChange: (value: string) => void; rejection?: boolean }>) {
-  return <Field>
-    <div className="flex items-center justify-between gap-3"><FieldLabel htmlFor="degree-observation">{rejection ? 'Motivo de rechazo (opcional)' : 'Observación'}</FieldLabel><FieldCounter current={value.length} max={1000} /></div>
-    <Textarea id="degree-observation" value={value} onChange={(event) => onChange(event.target.value)} maxLength={1000} minLength={rejection ? undefined : 3} required={!rejection} rows={5} />
-    <FieldDescription>El estudiante podrá consultar este mensaje en sus propuestas. Máximo 1000 caracteres.</FieldDescription>
-  </Field>
+export function DegreeObservationField({ value, onChange, rejection = false, error }: Readonly<{ value: string; onChange: (value: string) => void; rejection?: boolean; error?: string | null }>) {
+  return <FormField id="degree-observation" label={rejection ? 'Motivo de rechazo' : 'Observación'} optional={rejection} counter={{ current: value.length, max: 1000 }} error={error} tip="El estudiante podrá consultar este mensaje en sus propuestas. Máximo 1000 caracteres.">
+    <Textarea id="degree-observation" value={value} onChange={(event) => onChange(event.target.value)} maxLength={1000} minLength={rejection ? undefined : 3} required={!rejection} rows={5} aria-invalid={Boolean(error)} />
+  </FormField>
 }
