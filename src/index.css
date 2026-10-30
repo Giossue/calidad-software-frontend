@@ -64,7 +64,7 @@
   --border: #CBD5DC;
   --input: #B9C6CF;
   --ring: #2F6FA8;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --radius-shell: 2rem;
   --shadow-shell: 0 24px 80px -32px oklch(0.2 0.06 170 / 0.45);
   --sidebar: var(--brand-blue);
@@ -229,7 +229,7 @@ html.reduce-motion *::after {
 
   table[data-stacked] tbody tr {
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    border-radius: var(--radius);
     background: var(--card);
     padding: 0.25rem 0;
   }
