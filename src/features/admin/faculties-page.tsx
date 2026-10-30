@@ -1,11 +1,9 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import {
-  Building2Icon,
-  Edit2Icon,
+  ChevronRightIcon,
   PlusIcon,
   PowerIcon,
   PowerOffIcon,
-  SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -19,12 +17,13 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
-import { Field, FieldCounter, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Spinner } from '@/components/ui/spinner'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -37,6 +36,12 @@ type FacultyFormErrors = { name?: string }
 type PendingAction = 'faculty' | 'toggle-faculty' | null
 type ToggleTarget = { faculty: Faculty; action: 'activate' | 'deactivate' }
 
+function validateFacultyName(value: string): string | undefined {
+  const normalized = value.trim()
+  if (!normalized) return 'El nombre de la facultad es obligatorio.'
+  if (normalized.length > 150) return 'El nombre no puede superar 150 caracteres.'
+  return undefined
+}
 
 function careersPath(faculty: Faculty): string {
   return `/panel/careers?${new URLSearchParams({ faculty: String(faculty.id), facultyName: faculty.name })}`
@@ -69,9 +74,6 @@ export function FacultiesPage() {
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [facultyToToggle, setFacultyToToggle] = useState<ToggleTarget | null>(null)
-
-  // Tooltip del botón de desactivar bloqueado (hover en escritorio, tap en móvil)
-  const [blockedTooltipFacultyId, setBlockedTooltipFacultyId] = useState<number | null>(null)
 
   async function handleRefresh() {
     const ok = await reload()
@@ -111,12 +113,10 @@ export function FacultiesPage() {
     if (pending !== null) return
 
     const normalizedName = name.trim()
-    const errors: FacultyFormErrors = {}
-    if (!normalizedName) errors.name = 'El nombre de la facultad es obligatorio.'
-    else if (normalizedName.length > 150) errors.name = 'El nombre no puede superar 150 caracteres.'
+    const errors: FacultyFormErrors = { name: validateFacultyName(name) }
 
     setNameError(errors.name)
-    if (Object.keys(errors).length > 0) {
+    if (errors.name) {
       setErrorModal({
         open: true,
         title: 'Revisa los campos requeridos',
@@ -165,6 +165,7 @@ export function FacultiesPage() {
         toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${faculty.name}".` })
       }
       setFacultyToToggle(null)
+      closeModal()
       await reload()
     } catch (error: unknown) {
       setFacultyToToggle(null)
@@ -181,6 +182,8 @@ export function FacultiesPage() {
 
   const formDisabled = pending !== null
   const isFormDirty = name.trim() !== initialName.trim()
+  const submitBlockReason = validateFacultyName(name) ?? null
+  const editingHasActiveCareers = (editingFaculty?.active_careers_count ?? 0) > 0
 
   return (
     <section className="flex flex-col gap-8">
@@ -233,7 +236,7 @@ export function FacultiesPage() {
                 <TableHead>Nombre de la Facultad</TableHead>
                 <TableHead>Código Institucional</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead><span className="sr-only">Acciones</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -243,15 +246,14 @@ export function FacultiesPage() {
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="ml-auto h-8 w-16 rounded-lg" /></TableCell>
+                    <TableCell><Skeleton className="ml-auto size-8 rounded-lg" /></TableCell>
                   </TableRow>
                 ))
               ) : faculties.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-12 text-center text-slate-500 dark:text-muted-foreground whitespace-normal">
+                  <TableCell colSpan={4} className="py-12 text-center text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <Building2Icon className="size-8 text-slate-300 dark:text-muted-foreground" />
-                      <span className="font-medium">
+                      <span>
                         {searchInput
                           ? 'No se encontraron facultades con el término buscado.'
                           : 'Todavía no hay facultades registradas.'}
@@ -261,32 +263,29 @@ export function FacultiesPage() {
                 </TableRow>
               ) : (
                 faculties.map((faculty) => {
-                  const active = faculty.status
-                  const hasActiveCareers = faculty.active_careers_count > 0
+                  const selected = editingFaculty?.id === faculty.id
 
                   return (
                     <TableRow
                       key={faculty.id}
                       tabIndex={0}
-                      onClick={() => navigate(careersPath(faculty))}
+                      aria-selected={selected}
+                      onClick={() => openEditModal(faculty)}
                       onKeyDown={(event) => {
-                        if (event.target === event.currentTarget && event.key === 'Enter') navigate(careersPath(faculty))
+                        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                          event.preventDefault()
+                          openEditModal(faculty)
+                        }
                       }}
-                      className="cursor-pointer"
-                      title="Ver carreras de esta facultad"
+                      className={cn('cursor-pointer', selected && 'bg-muted/60')}
                     >
-                      {/* Nombre con icono */}
-                      <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-normal">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-blue text-white shadow-2xs">
-                            <Building2Icon className="size-4" />
-                          </div>
-                          <span>{faculty.name}</span>
-                        </div>
+                      {/* Nombre */}
+                      <TableCell className="font-medium text-foreground whitespace-normal">
+                        <span>{faculty.name}</span>
                       </TableCell>
 
                       {/* Código */}
-                      <TableCell className="text-xs font-medium text-slate-500 dark:text-muted-foreground whitespace-normal">
+                      <TableCell className="text-xs text-muted-foreground whitespace-normal">
                         <div className="flex flex-col gap-0.5">
                           <span>Facultad #{faculty.id}</span>
                           <span>
@@ -297,86 +296,17 @@ export function FacultiesPage() {
                         </div>
                       </TableCell>
 
-                      {/* Estado Pulsante */}
                       <TableCell>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                            active
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-border dark:bg-muted dark:text-muted-foreground',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'size-1.5 rounded-full',
-                              active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400',
-                            )}
-                          />
-                          {active ? 'Activa' : 'Inactiva'}
-                        </span>
+                        <StatusBadge active={faculty.status} activeLabel="Activa" inactiveLabel="Inactiva" />
                       </TableCell>
 
-                      {/* Acciones */}
+                      {/* Acción de dominio: ver las carreras de la facultad */}
                       <TableCell onClick={(event) => event.stopPropagation()}>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="tertiary"
-                            size="icon"
-                            onClick={() => openEditModal(faculty)}
-                            title="Editar facultad"
-                          >
-                            <Edit2Icon />
-                          </Button>
-                          {active ? (
-                            <Tooltip
-                              open={hasActiveCareers ? blockedTooltipFacultyId === faculty.id : undefined}
-                              onOpenChange={(open) => {
-                                if (hasActiveCareers) setBlockedTooltipFacultyId(open ? faculty.id : null)
-                              }}
-                            >
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="tertiary"
-                                  size="icon"
-                                  tone={hasActiveCareers ? 'default' : 'destructive'}
-                                  aria-disabled={hasActiveCareers}
-                                  onMouseEnter={() => hasActiveCareers && setBlockedTooltipFacultyId(faculty.id)}
-                                  onMouseLeave={() => hasActiveCareers && setBlockedTooltipFacultyId(null)}
-                                  onFocus={() => hasActiveCareers && setBlockedTooltipFacultyId(faculty.id)}
-                                  onBlur={() => hasActiveCareers && setBlockedTooltipFacultyId(null)}
-                                  onClick={() => {
-                                    if (hasActiveCareers) {
-                                      setBlockedTooltipFacultyId(faculty.id)
-                                      return
-                                    }
-                                    setFacultyToToggle({ faculty, action: 'deactivate' })
-                                  }}
-                                  className={cn(hasActiveCareers && 'cursor-not-allowed opacity-40 hover:bg-transparent')}
-                                >
-                                  <PowerOffIcon />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {hasActiveCareers
-                                  ? `No puedes desactivar: tiene ${faculty.active_careers_count} carrera(s) activa(s). Desactívalas primero.`
-                                  : 'Desactivar facultad'}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="tertiary"
-                              size="icon"
-                              onClick={() => setFacultyToToggle({ faculty, action: 'activate' })}
-                              title="Habilitar facultad"
-                            >
-                              <PowerIcon />
-                            </Button>
-                          )}
-                        </div>
+                        <IconAction
+                          label={`Ver carreras de ${faculty.name}`}
+                          icon={ChevronRightIcon}
+                          onClick={() => navigate(careersPath(faculty))}
+                        />
                       </TableCell>
                     </TableRow>
                   )
@@ -401,10 +331,11 @@ export function FacultiesPage() {
         </div>
       </div>
 
-      {/* Modal Dialog para Crear / Editar Facultad */}
-      <Dialog
+      {/* Modal para Crear / Editar Facultad */}
+      <FormDialog
         open={isModalOpen}
         onClose={closeModal}
+        onSubmit={submitFaculty}
         title={editingFaculty ? 'Editar Facultad' : 'Registrar Facultad'}
         description={
           editingFaculty
@@ -412,40 +343,62 @@ export function FacultiesPage() {
             : 'Ingresa el nombre de la nueva facultad para añadirla al catálogo.'
         }
         maxWidth="max-w-md"
-        confirmClose={isFormDirty}
+        pending={pending === 'faculty'}
+        error={null}
+        dirty={isFormDirty}
+        blockReason={submitBlockReason}
+        submitLabel={editingFaculty ? 'Guardar Cambios' : 'Registrar Facultad'}
+        submitIcon={editingFaculty ? undefined : PlusIcon}
+        headerActions={
+          editingFaculty ? (
+            <>
+              <StatusBadge active={editingFaculty.status} activeLabel="Activa" inactiveLabel="Inactiva" />
+              {!editingFaculty.status ? (
+                <IconAction
+                  label="Habilitar facultad"
+                  icon={PowerIcon}
+                  disabled={formDisabled}
+                  onClick={() => setFacultyToToggle({ faculty: editingFaculty, action: 'activate' })}
+                />
+              ) : editingHasActiveCareers ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0}>
+                      <Button type="button" variant="tertiary" size="icon" disabled aria-label="Desactivar facultad">
+                        <PowerOffIcon />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {`No puedes desactivar: tiene ${editingFaculty.active_careers_count} carrera(s) activa(s). Desactívalas primero.`}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <IconAction
+                  label="Desactivar facultad"
+                  icon={PowerOffIcon}
+                  tone="destructive"
+                  disabled={formDisabled}
+                  onClick={() => setFacultyToToggle({ faculty: editingFaculty, action: 'deactivate' })}
+                />
+              )}
+            </>
+          ) : undefined
+        }
       >
-        <form onSubmit={submitFaculty}>
-          <FieldGroup className="gap-5">
-            <Field data-invalid={Boolean(nameError)}>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="faculty-name">Nombre de la facultad</FieldLabel>
-                <FieldCounter current={name.length} max={150} />
-              </div>
-              <Input
-                id="faculty-name"
-                name="name"
-                value={name}
-                onChange={(e) => updateName(e.target.value)}
-                maxLength={150}
-                placeholder="Ej. Facultad de Jurisprudencia"
-                disabled={formDisabled}
-                required
-              />
-              <FieldError>{nameError}</FieldError>
-            </Field>
-
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
-              <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
-                Cancelar
-              </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled}>
-                {pending === 'faculty' ? <Spinner data-icon="inline-start" /> : editingFaculty ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
-                {editingFaculty ? 'Guardar Cambios' : 'Registrar Facultad'}
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
-      </Dialog>
+        <FormField id="faculty-name" label="Nombre de la facultad" counter={{ current: name.length, max: 150 }} error={nameError}>
+          <Input
+            id="faculty-name"
+            name="name"
+            value={name}
+            onChange={(e) => updateName(e.target.value)}
+            maxLength={150}
+            placeholder="Ej. Facultad de Jurisprudencia"
+            disabled={formDisabled}
+            required
+          />
+        </FormField>
+      </FormDialog>
 
       {/* ConfirmModal para Habilitar / Desactivar Facultad */}
       <ConfirmModal

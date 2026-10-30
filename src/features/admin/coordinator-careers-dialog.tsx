@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { SaveIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { InfoTip } from '@/components/ui/info-tip'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError, type Career, type User } from '@/lib/api'
 import { coordinatorCareersApi } from '@/lib/coordinator-careers-api'
@@ -77,89 +77,81 @@ export function CoordinatorCareersDialog({ user, onClose, onSaved }: Readonly<{
   }
 
   return (
-    <Dialog
+    <FormDialog
       open
-      onClose={() => { if (!savingRef.current) onClose() }}
+      onClose={onClose}
+      onSubmit={(event) => void submit(event)}
       title="Asignar carreras"
       description={`Selecciona las carreras que puede coordinar ${user.name}.`}
-      confirmClose={dirty && !pending}
-      confirmCloseDescription="Los cambios en las carreras asignadas todavía no se han guardado."
+      pending={pending}
+      error={null}
+      dirty={dirty}
+      submitDisabled={loading || Boolean(loadError)}
+      submitLabel="Guardar carreras"
     >
-      <form onSubmit={(event) => void submit(event)} aria-label="Asignar carreras" aria-busy={loading || pending}>
-        <FieldGroup>
-          {loading && <p role="status" className="flex items-center gap-2"><Spinner aria-hidden="true" /> Cargando carreras…</p>}
-          {loadError && (
-            <Alert variant="destructive">
-              <AlertTitle>No se pudieron cargar las carreras</AlertTitle>
-              <AlertDescription>
-                <p>{loadError}</p>
-                <Button type="button" variant="secondary" onClick={() => {
-                  setLoading(true)
-                  setLoadError(null)
-                  setLoadVersion((value) => value + 1)
-                }}>
-                  Reintentar
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-          {!loading && !loadError && (
-            <FieldSet disabled={pending}>
-              <FieldLegend>Carreras disponibles</FieldLegend>
-              <FieldDescription id="coordinator-careers-help">
-                Puedes seleccionar varias carreras. Si desmarcas todas, el coordinador perderá el acceso a la gestión de tutorías.
-              </FieldDescription>
-              {careers.length === 0 && (
-                <Alert>
-                  <AlertTitle>No hay carreras activas</AlertTitle>
-                  <AlertDescription>Habilita una carrera en el catálogo académico para poder asignarla.</AlertDescription>
-                </Alert>
-              )}
-              <FieldGroup className="max-h-72 overflow-y-auto">
-                {careers.map((career) => (
-                  <Field key={career.id} orientation="horizontal" data-disabled={pending}>
-                    <Checkbox
-                      id={`coordinator-career-${career.id}`}
-                      checked={selectedIds.includes(career.id)}
-                      onCheckedChange={(checked) => toggleCareer(career.id, checked === true)}
-                      disabled={pending}
-                      aria-describedby="coordinator-careers-help"
-                    />
-                    <FieldLabel htmlFor={`coordinator-career-${career.id}`}>{career.name}</FieldLabel>
-                  </Field>
-                ))}
-                {unavailableIds.map((id) => (
-                  <Field key={id} orientation="horizontal" data-disabled={pending}>
-                    <Checkbox
-                      id={`coordinator-career-${id}`}
-                      checked={selectedIds.includes(id)}
-                      onCheckedChange={(checked) => toggleCareer(id, checked === true)}
-                      disabled={pending}
-                    />
-                    <FieldLabel htmlFor={`coordinator-career-${id}`}>Carrera no disponible (#{id})</FieldLabel>
-                  </Field>
-                ))}
-              </FieldGroup>
-              {unavailableIds.some((id) => selectedIds.includes(id)) && (
-                <FieldDescription>Las asignaciones a carreras no disponibles se conservan hasta que las desmarques.</FieldDescription>
-              )}
-            </FieldSet>
-          )}
-          {saveError && (
-            <Alert variant="destructive">
-              <AlertTitle>No se pudieron guardar las carreras</AlertTitle>
-              <AlertDescription>{saveError}</AlertDescription>
-            </Alert>
-          )}
-          <div className="flex flex-wrap justify-end gap-3">
-            <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
-            <Button type="submit" disabled={loading || pending || Boolean(loadError) || !dirty}>
-              {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SaveIcon data-icon="inline-start" />}
-              {pending ? 'Guardando…' : 'Guardar carreras'}
-            </Button>
-          </div>
-        </FieldGroup>
-      </form>
-    </Dialog>
+        {loading && <p role="status" className="flex items-center gap-2"><Spinner aria-hidden="true" /> Cargando carreras…</p>}
+        {loadError && (
+          <Alert variant="destructive">
+            <AlertTitle>No se pudieron cargar las carreras</AlertTitle>
+            <AlertDescription>
+              <p>{loadError}</p>
+              <Button type="button" variant="secondary" onClick={() => {
+                setLoading(true)
+                setLoadError(null)
+                setLoadVersion((value) => value + 1)
+              }}>
+                Reintentar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        {!loading && !loadError && (
+          <FieldSet disabled={pending}>
+            <div className="mb-3 flex items-center gap-1.5">
+              <FieldLegend className="mb-0 font-semibold">Carreras disponibles</FieldLegend>
+              <InfoTip>Puedes seleccionar varias carreras. Si desmarcas todas, el coordinador perderá el acceso a la gestión de tutorías.</InfoTip>
+            </div>
+            {careers.length === 0 && (
+              <Alert>
+                <AlertTitle>No hay carreras activas</AlertTitle>
+                <AlertDescription>Habilita una carrera en el catálogo académico para poder asignarla.</AlertDescription>
+              </Alert>
+            )}
+            <FieldGroup className="max-h-72 overflow-y-auto">
+              {careers.map((career) => (
+                <Field key={career.id} orientation="horizontal" data-disabled={pending}>
+                  <Checkbox
+                    id={`coordinator-career-${career.id}`}
+                    checked={selectedIds.includes(career.id)}
+                    onCheckedChange={(checked) => toggleCareer(career.id, checked === true)}
+                    disabled={pending}
+                  />
+                  <FieldLabel htmlFor={`coordinator-career-${career.id}`}>{career.name}</FieldLabel>
+                </Field>
+              ))}
+              {unavailableIds.map((id) => (
+                <Field key={id} orientation="horizontal" data-disabled={pending}>
+                  <Checkbox
+                    id={`coordinator-career-${id}`}
+                    checked={selectedIds.includes(id)}
+                    onCheckedChange={(checked) => toggleCareer(id, checked === true)}
+                    disabled={pending}
+                  />
+                  <FieldLabel htmlFor={`coordinator-career-${id}`}>Carrera no disponible (#{id})</FieldLabel>
+                </Field>
+              ))}
+            </FieldGroup>
+            {unavailableIds.some((id) => selectedIds.includes(id)) && (
+              <FieldDescription>Las asignaciones a carreras no disponibles se conservan hasta que las desmarques.</FieldDescription>
+            )}
+          </FieldSet>
+        )}
+        {saveError && (
+          <Alert variant="destructive">
+            <AlertTitle>No se pudieron guardar las carreras</AlertTitle>
+            <AlertDescription>{saveError}</AlertDescription>
+          </Alert>
+        )}
+    </FormDialog>
   )
 }

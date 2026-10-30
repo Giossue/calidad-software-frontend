@@ -1,11 +1,7 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import {
-  CalendarDaysIcon,
-  CalendarIcon,
-  Edit2Icon,
   PlusIcon,
   PowerIcon,
-  SaveIcon,
   ShieldAlertIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,14 +14,17 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FieldDescription } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { SelectInput } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Spinner } from '@/components/ui/spinner'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -114,6 +113,20 @@ function formatDate(value: string): string {
   const date = new Date(`${value}T00:00:00Z`)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeZone: 'UTC' }).format(date)
+}
+
+type ActivationState = { allowed: true } | { allowed: false; reason: string }
+
+/** Un período solo puede habilitarse manualmente si está vigente por fechas. */
+function getActivationState(period: AcademicPeriod): ActivationState {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  if (period.end_date.slice(0, 10) < todayStr) {
+    return { allowed: false, reason: `Período finalizado el ${formatDate(period.end_date)}. No se puede reactivar.` }
+  }
+  if (period.start_date.slice(0, 10) > todayStr) {
+    return { allowed: false, reason: `Se habilitará automáticamente en su fecha de inicio (${formatDate(period.start_date)}).` }
+  }
+  return { allowed: true }
 }
 
 export function AcademicPeriodsPage() {
@@ -251,6 +264,7 @@ export function AcademicPeriodsPage() {
       await api.activateAcademicPeriod(period.id)
       toast.success('Período habilitado', { description: `El período "${period.name}" fue habilitado.` })
       setPeriodToActivate(null)
+      closeModal()
       await reload()
     } catch (error: unknown) {
       setPeriodToActivate(null)
@@ -273,6 +287,9 @@ export function AcademicPeriodsPage() {
     form.endDate !== initialForm.endDate
   const isCreating = editingPeriod === null
   const { minDate, maxDate } = getPeriodDateBounds()
+  // "Guardar" se bloquea con el primer error de validación; sin cambios lo bloquea FormDialog.
+  const submitBlockReason = Object.values(validatePeriodForm(form, isCreating))[0] ?? null
+  const activationState = editingPeriod && !editingPeriod.is_active ? getActivationState(editingPeriod) : null
 
   return (
     <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
@@ -327,7 +344,6 @@ export function AcademicPeriodsPage() {
                 <TableHead>Fecha Inicio</TableHead>
                 <TableHead>Fecha Finalización</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -338,15 +354,13 @@ export function AcademicPeriodsPage() {
                     <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="ml-auto h-8 w-16 rounded-lg" /></TableCell>
                   </TableRow>
                 ))
               ) : periods.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-slate-500 dark:text-muted-foreground whitespace-normal">
+                  <TableCell colSpan={4} className="py-12 text-center text-muted-foreground whitespace-normal">
                     <div className="flex flex-col items-center gap-2">
-                      <CalendarDaysIcon className="size-8 text-slate-300 dark:text-muted-foreground" />
-                      <span className="font-medium">
+                      <span>
                         {searchInput
                           ? 'No se encontraron períodos con el término buscado.'
                           : 'Todavía no hay períodos registrados.'}
@@ -356,102 +370,33 @@ export function AcademicPeriodsPage() {
                 </TableRow>
               ) : (
                 periods.map((period) => {
-                  const active = period.is_active
+                  const selected = editingPeriod?.id === period.id
 
                   return (
-                    <TableRow key={period.id}>
-                      {/* Nombre con icono */}
-                      <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-normal">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground">
-                            <CalendarIcon className="size-4" />
-                          </div>
-                          <span>{period.name}</span>
-                        </div>
+                    <TableRow
+                      key={period.id}
+                      tabIndex={0}
+                      aria-selected={selected}
+                      onClick={() => openEditModal(period)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openEditModal(period)
+                        }
+                      }}
+                      className={cn('cursor-pointer', selected && 'bg-muted/60')}
+                    >
+                      {/* Nombre */}
+                      <TableCell className="font-medium text-foreground whitespace-normal">
+                        <span>{period.name}</span>
                       </TableCell>
 
-                      {/* Fecha Inicio */}
-                      <TableCell className="text-slate-600 dark:text-muted-foreground">
-                        {formatDate(period.start_date)}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(period.start_date)}</TableCell>
 
-                      {/* Fecha Fin */}
-                      <TableCell className="text-slate-600 dark:text-muted-foreground">
-                        {formatDate(period.end_date)}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(period.end_date)}</TableCell>
 
-                      {/* Estado Pulsante */}
                       <TableCell>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                            active
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-border dark:bg-muted dark:text-muted-foreground',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'size-1.5 rounded-full',
-                              active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400',
-                            )}
-                          />
-                          {active ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </TableCell>
-
-                      {/* Acciones */}
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="tertiary"
-                            size="icon"
-                            onClick={() => openEditModal(period)}
-                            title="Editar período"
-                          >
-                            <Edit2Icon />
-                          </Button>
-                          {!active && (
-                            (() => {
-                              const todayStr = new Date().toISOString().slice(0, 10)
-                              const isExpired = period.end_date.slice(0, 10) < todayStr
-                              const isFuture = period.start_date.slice(0, 10) > todayStr
-
-                              if (isExpired) {
-                                return (
-                                  <span title={`Período finalizado el ${formatDate(period.end_date)}. No se puede reactivar.`}>
-                                    <Button type="button" variant="tertiary" size="icon" disabled>
-                                      <PowerIcon />
-                                    </Button>
-                                  </span>
-                                )
-                              }
-
-                              if (isFuture) {
-                                return (
-                                  <span title={`Se habilitará automáticamente en su fecha de inicio (${formatDate(period.start_date)}).`}>
-                                    <Button type="button" variant="tertiary" size="icon" disabled>
-                                      <PowerIcon />
-                                    </Button>
-                                  </span>
-                                )
-                              }
-
-                              return (
-                                <Button
-                                  type="button"
-                                  variant="tertiary"
-                                  size="icon"
-                                  onClick={() => setPeriodToActivate(period)}
-                                  title="Habilitar como período vigente"
-                                >
-                                  <PowerIcon />
-                                </Button>
-                              )
-                            })()
-                          )}
-                        </div>
+                        <StatusBadge active={period.is_active} />
                       </TableCell>
                     </TableRow>
                   )
@@ -476,10 +421,11 @@ export function AcademicPeriodsPage() {
         </div>
       </div>
 
-      {/* Modal Dialog para Crear / Editar Período */}
-      <Dialog
+      {/* Modal para Crear / Editar Período */}
+      <FormDialog
         open={isModalOpen}
         onClose={closeModal}
+        onSubmit={submitPeriod}
         title={editingPeriod ? 'Editar Período Académico' : 'Registrar Período Académico'}
         description={
           editingPeriod
@@ -487,107 +433,121 @@ export function AcademicPeriodsPage() {
             : 'Ingresa el nombre y el rango de fechas para el nuevo período académico.'
         }
         maxWidth="max-w-lg"
-        confirmClose={isFormDirty}
-      >
-        <form onSubmit={submitPeriod}>
-          <FieldGroup className="gap-5">
-            {/* Nombre del período: PAO + número + año */}
-            <div className="rounded-lg border border-slate-200/80 bg-slate-50/50 p-4 dark:border-border dark:bg-card/50">
-              <FieldLabel className="mb-3 block">Nombre del período académico</FieldLabel>
-              <div className="flex items-center gap-2">
-                {/* Prefijo fijo: PAO */}
-                <Input value="PAO" readOnly tabIndex={-1} aria-label="Prefijo del período" className="w-16 shrink-0 text-center font-semibold select-none" />
-
-                {/* Selector de número romano */}
-                <Field data-invalid={Boolean(formErrors.paoNumber)} className="flex-1">
-                  <NativeSelect
-                    id="period-pao-number"
-                    name="paoNumber"
-                    value={form.paoNumber}
-                    onChange={(e) => updateField('paoNumber', e.target.value)}
-                    disabled={formDisabled}
-                    required
-                  >
-                    <option value="">Nº</option>
-                    {PAO_NUMBERS.map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </NativeSelect>
-                  <FieldError>{formErrors.paoNumber}</FieldError>
-                </Field>
-
-                {/* Campo de año */}
-                <Field data-invalid={Boolean(formErrors.year)} className="flex-1">
-                  <Input
-                    id="period-year"
-                    name="year"
-                    inputMode="numeric"
-                    value={form.year}
-                    onChange={(e) => updateField('year', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="Año"
-                    maxLength={4}
-                    autoComplete="off"
-                    disabled={formDisabled}
-                    required
-                  />
-                  <FieldError>{formErrors.year}</FieldError>
-                </Field>
-              </div>
-
-              {/* Preview del nombre generado */}
-              {composedName && (
-                <FieldDescription className="mt-2">
-                  El período se registrará como: <strong>{composedName}</strong>
-                </FieldDescription>
+        pending={pending === 'period'}
+        error={null}
+        dirty={isFormDirty}
+        blockReason={submitBlockReason}
+        submitLabel={editingPeriod ? 'Guardar Cambios' : 'Registrar Período'}
+        submitIcon={editingPeriod ? undefined : PlusIcon}
+        headerActions={
+          editingPeriod ? (
+            <>
+              <StatusBadge active={editingPeriod.is_active} />
+              {activationState?.allowed && (
+                <IconAction
+                  label="Habilitar como período vigente"
+                  icon={PowerIcon}
+                  disabled={formDisabled}
+                  onClick={() => setPeriodToActivate(editingPeriod)}
+                />
               )}
-            </div>
+              {activationState && !activationState.allowed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0}>
+                      <Button type="button" variant="tertiary" size="icon" disabled aria-label="Habilitar como período vigente">
+                        <PowerIcon />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{activationState.reason}</TooltipContent>
+                </Tooltip>
+              )}
+            </>
+          ) : undefined
+        }
+      >
+        {/* Nombre del período: PAO + número + año */}
+        <div className="rounded-lg border border-border bg-muted/30 p-4">
+          <FormField
+            id="period-pao-number"
+            label="Nombre del período académico"
+            error={formErrors.paoNumber ?? formErrors.year}
+          >
+            <div className="flex items-center gap-2">
+              {/* Prefijo fijo: PAO */}
+              <Input value="PAO" readOnly tabIndex={-1} aria-label="Prefijo del período" className="w-16 shrink-0 text-center font-medium select-none" />
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field data-invalid={Boolean(formErrors.startDate)}>
-                <FieldLabel htmlFor="academic-period-start-date">Fecha de inicio</FieldLabel>
-                <Input
-                  id="academic-period-start-date"
-                  name="start_date"
-                  type="date"
-                  min={isCreating ? minDate : undefined}
-                  max={maxDate}
-                  value={form.startDate}
-                  onChange={(e) => updateField('startDate', e.target.value)}
-                  disabled={formDisabled}
-                  required
-                />
-                <FieldError>{formErrors.startDate}</FieldError>
-              </Field>
+              {/* Selector de número romano */}
+              <SelectInput
+                id="period-pao-number"
+                name="paoNumber"
+                value={form.paoNumber}
+                onValueChange={(value) => updateField('paoNumber', value)}
+                options={PAO_NUMBERS.map((n) => ({ value: n, label: n }))}
+                placeholder="Nº"
+                disabled={formDisabled}
+                invalid={Boolean(formErrors.paoNumber)}
+                className="flex-1"
+              />
 
-              <Field data-invalid={Boolean(formErrors.endDate)}>
-                <FieldLabel htmlFor="academic-period-end-date">Fecha de finalización</FieldLabel>
-                <Input
-                  id="academic-period-end-date"
-                  name="end_date"
-                  type="date"
-                  min={form.startDate || (isCreating ? minDate : undefined)}
-                  max={maxDate}
-                  value={form.endDate}
-                  onChange={(e) => updateField('endDate', e.target.value)}
-                  disabled={formDisabled}
-                  required
-                />
-                <FieldError>{formErrors.endDate}</FieldError>
-              </Field>
+              {/* Campo de año */}
+              <Input
+                id="period-year"
+                name="year"
+                inputMode="numeric"
+                value={form.year}
+                onChange={(e) => updateField('year', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="Año"
+                aria-label="Año del período"
+                aria-invalid={Boolean(formErrors.year)}
+                maxLength={4}
+                autoComplete="off"
+                disabled={formDisabled}
+                required
+                className="flex-1"
+              />
             </div>
+          </FormField>
 
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
-              <DialogCancelButton onClick={closeModal} disabled={formDisabled}>
-                Cancelar
-              </DialogCancelButton>
-              <Button type="submit" disabled={formDisabled}>
-                {pending === 'period' ? <Spinner data-icon="inline-start" /> : editingPeriod ? <SaveIcon data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
-                {editingPeriod ? 'Guardar Cambios' : 'Registrar Período'}
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
-      </Dialog>
+          {/* Preview del nombre generado */}
+          {composedName && (
+            <FieldDescription className="mt-2">
+              El período se registrará como: <strong>{composedName}</strong>
+            </FieldDescription>
+          )}
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField id="academic-period-start-date" label="Fecha de inicio" error={formErrors.startDate}>
+            <Input
+              id="academic-period-start-date"
+              name="start_date"
+              type="date"
+              min={isCreating ? minDate : undefined}
+              max={maxDate}
+              value={form.startDate}
+              onChange={(e) => updateField('startDate', e.target.value)}
+              disabled={formDisabled}
+              required
+            />
+          </FormField>
+
+          <FormField id="academic-period-end-date" label="Fecha de finalización" error={formErrors.endDate}>
+            <Input
+              id="academic-period-end-date"
+              name="end_date"
+              type="date"
+              min={form.startDate || (isCreating ? minDate : undefined)}
+              max={maxDate}
+              value={form.endDate}
+              onChange={(e) => updateField('endDate', e.target.value)}
+              disabled={formDisabled}
+              required
+            />
+          </FormField>
+        </div>
+      </FormDialog>
 
       {/* ConfirmModal para Habilitar Período; la desactivación es automática por fecha */}
       <ConfirmModal

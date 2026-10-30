@@ -17,16 +17,24 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+// Los selects son de shadcn (Radix): se abren y se elige la opción por su texto.
+async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
+  await user.click(trigger)
+  await user.click(await screen.findByRole('option', { name: option }))
+}
+
 describe('Edición de carreras', () => {
   it('permite aumentar la cantidad de ciclos pero no quitar los que ya existen', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><AcademicPage /></MemoryRouter>)
-    await user.click(await screen.findByTitle('Editar carrera'))
+    await user.click(await screen.findByRole('row', { name: /Software/ }))
     const form = (await screen.findByLabelText('Cantidad de ciclos')).closest('form') as HTMLFormElement
     const select = within(form).getByLabelText('Cantidad de ciclos')
-    expect(select).toHaveValue('4')
-    expect(within(form).queryByRole('option', { name: '3 ciclos' })).not.toBeInTheDocument()
-    await user.selectOptions(select, '6')
+    expect(select).toHaveTextContent('4 ciclos')
+    await user.click(select)
+    expect(await screen.findByRole('option', { name: '4 ciclos' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: '3 ciclos' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('option', { name: '6 ciclos' }))
     await user.click(within(form).getByRole('button', { name: 'Guardar Cambios' }))
     await waitFor(() => expect(api.updateCareer).toHaveBeenCalledWith(10, expect.objectContaining({ name: 'Software', cycles_count: 6 })))
   })
@@ -34,7 +42,7 @@ describe('Edición de carreras', () => {
   it('no envía la cantidad de ciclos si no se modificó', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><AcademicPage /></MemoryRouter>)
-    await user.click(await screen.findByTitle('Editar carrera'))
+    await user.click(await screen.findByRole('row', { name: /Software/ }))
     const form = (await screen.findByLabelText('Cantidad de ciclos')).closest('form') as HTMLFormElement
     const name = within(form).getByLabelText('Nombre de la carrera')
     await user.type(name, ' II')
@@ -50,10 +58,10 @@ describe('Edición de carreras', () => {
 
     const dialog = await screen.findByRole('dialog')
     const modalitySelect = within(dialog).getByLabelText('Modalidad')
-    expect(within(modalitySelect).getByRole('option', { name: 'Seleccionar' })).toBeInTheDocument()
+    expect(modalitySelect).toHaveTextContent('Seleccionar')
 
     // Intentar registrar una carrera con un nombre ya existente ("Software")
-    await user.selectOptions(within(dialog).getByLabelText('Facultad Perteneciente'), '1')
+    await choose(user, within(dialog).getByLabelText('Facultad Perteneciente'), 'Ingeniería')
     await user.type(within(dialog).getByLabelText('Nombre de la carrera'), 'Software')
     await user.click(within(dialog).getByRole('button', { name: 'Registrar Carrera' }))
 
@@ -72,7 +80,7 @@ describe('Gestión de ciclos', () => {
     vi.spyOn(api, 'listSections').mockResolvedValue({ data: [], meta })
 
     render(<MemoryRouter><AcademicPage /></MemoryRouter>)
-    await user.click(await screen.findByTitle('Ver ciclos de esta carrera'))
+    await user.click(await screen.findByRole('button', { name: 'Ver ciclos de Software' }))
 
     await user.click(await screen.findByRole('button', { name: 'Nuevo ciclo' }))
     const dialog = await screen.findByRole('dialog')

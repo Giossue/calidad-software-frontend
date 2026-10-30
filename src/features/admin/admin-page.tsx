@@ -83,7 +83,7 @@ function AdminTabButton({ tab, active, onSelect }: Readonly<{ tab: AdminTab; act
   >
     <Icon className={cn('size-5', active ? 'text-primary' : 'text-muted-foreground')} aria-hidden="true" />
     <span className="flex flex-col gap-0.5">
-      <span className="text-sm font-semibold">{tab.label}</span>
+      <span className="text-sm font-medium">{tab.label}</span>
       <span className="hidden text-xs font-normal text-muted-foreground sm:block">{tab.description}</span>
     </span>
   </button>
