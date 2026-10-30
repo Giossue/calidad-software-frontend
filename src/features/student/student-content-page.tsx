@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { CalendarDaysIcon, CheckCircle2Icon, ChevronDownIcon, CircleDashedIcon, ClockIcon, FileTextIcon, UsersIcon } from 'lucide-react'
+import { CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ChevronDownIcon, CircleDashedIcon, ClockIcon, FileTextIcon, UsersIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -19,8 +20,8 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
   const [open, setOpen] = useState(false)
   const firstActivity = topic.activities[0]
   const firstMethodology = firstActivity?.methodologies[0]
-  return <li className="rounded-xl border bg-card transition-colors hover:border-primary/40">
-    <button type="button" aria-expanded={open} aria-label={`${open ? 'Ocultar' : 'Ver'} detalle de ${topic.name}`} onClick={() => setOpen(!open)} className="flex w-full items-center gap-4 rounded-xl p-4 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+  return <li className="rounded-lg border bg-card transition-colors hover:border-primary/40">
+    <button type="button" aria-expanded={open} aria-label={`${open ? 'Ocultar' : 'Ver'} detalle de ${topic.name}`} onClick={() => setOpen(!open)} className="flex w-full items-center gap-4 rounded-lg p-4 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-base font-semibold text-foreground">{number}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="break-words font-semibold">{topic.name}</span>
@@ -90,44 +91,40 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
           <span>Fecha de clase:</span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
+          <Button
             type="button"
-            className={cn(
-              'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer',
-              selectedDate === 'all'
-                ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                : 'bg-card text-muted-foreground hover:text-foreground border-border'
-            )}
+            size="sm"
+            variant={selectedDate === 'all' ? 'primary' : 'secondary'}
+            aria-pressed={selectedDate === 'all'}
             onClick={() => { setSelectedDate('all'); pager.setPage(1) }}
           >
+            {selectedDate === 'all' && <CheckIcon data-icon="inline-start" />}
             Todas las clases
-          </button>
+          </Button>
           {sessions.map((s) => {
             const isSelected = selectedDate === s.date
             return (
-              <button
+              <Button
                 key={s.id}
                 type="button"
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer inline-flex items-center gap-1.5',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                    : 'bg-card text-muted-foreground hover:text-foreground border-border'
-                )}
+                size="sm"
+                variant={isSelected ? 'primary' : 'secondary'}
+                aria-pressed={isSelected}
                 onClick={() => { setSelectedDate(s.date); pager.setPage(1) }}
               >
+                {isSelected && <CheckIcon data-icon="inline-start" />}
                 <span>{formatDate(s.date)}</span>
                 <span
                   className={cn(
                     'text-[10px] px-1.5 py-0.2 rounded-full font-medium',
                     isSelected
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
+                      ? 'bg-white/20 text-white'
                       : 'bg-muted text-muted-foreground'
                   )}
                 >
                   {(s.topics.length > 0 ? s.topics.length : fallbackTopics.length)} {(s.topics.length > 0 ? s.topics.length : fallbackTopics.length) === 1 ? 'tema' : 'temas'}
                 </span>
-              </button>
+              </Button>
             )
           })}
         </div>
@@ -140,19 +137,20 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
           <CalendarDaysIcon className="size-4 text-primary shrink-0" />
           <span>Mostrando temas y actividades tratados en la clase del <strong>{formatDate(activeSession.date)}</strong></span>
         </div>
-        <button
+        <Button
           type="button"
-          className="text-primary hover:underline font-medium cursor-pointer"
+          variant="tertiary"
+          size="sm"
           onClick={() => { setSelectedDate('all'); pager.setPage(1) }}
         >
           Ver todas las clases
-        </button>
+        </Button>
       </div>
     )}
 
     {currentTopics.length === 0 ? (
       selectedDate !== 'all' && activeSession ? (
-        <div className="rounded-xl border border-dashed p-8 text-center bg-card">
+        <div className="rounded-lg border border-dashed p-8 text-center bg-card">
           <CalendarDaysIcon className="mx-auto size-8 text-muted-foreground/60 mb-2" />
           <h4 className="font-semibold text-base">Clase del {formatDate(activeSession.date)}</h4>
           <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">

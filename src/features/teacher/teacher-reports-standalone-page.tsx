@@ -23,12 +23,12 @@ export function TeacherReportsStandalonePage() {
         <div className="flex flex-col gap-1">
           <Button
             type="button"
-            variant="ghost"
+            variant="tertiary"
             size="sm"
             onClick={() => setSelected(null)}
-            className="-ml-2 w-fit text-muted-foreground hover:text-foreground"
+            className="-ml-2 w-fit"
           >
-            <ArrowLeftIcon className="size-4" />
+            <ArrowLeftIcon data-icon="inline-start" />
             Elegir otra tutoría
           </Button>
           <h2 className="font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
@@ -50,7 +50,7 @@ export function TeacherReportsStandalonePage() {
       <ErrorNotice message={resource.error} retry={resource.reload} />
       {resource.loading ? (
         <div className="flex flex-col gap-3" role="status" aria-label="Cargando tutorías">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
         </div>
       ) : tutorings.length === 0 ? (
         <TeacherEmpty
@@ -63,7 +63,7 @@ export function TeacherReportsStandalonePage() {
             <li key={tutoring.id}>
               <button
                 type="button"
-                className="group w-full rounded-xl border border-border bg-card p-4 text-left shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:shadow-sm"
+                className="group w-full rounded-lg border border-border bg-card p-4 text-left shadow-xs transition-all hover:border-primary/40 hover:bg-accent hover:shadow-sm"
                 onClick={() => setSelected(tutoring)}
                 aria-label={`Ver informes de ${tutoring.subject_name}`}
               >

@@ -19,6 +19,7 @@ import {
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -107,9 +108,8 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 disabled={!tutoring.can_manage}
-                className="bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800"
               >
                 <FileCheck2Icon data-icon="inline-start" />
                 Reportes oficiales
@@ -167,7 +167,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
           {
             label: 'Acciones',
             render: (report) => (
-              <Button variant="outline" size="sm" disabled={!report.content} onClick={() => setReading(report)}>
+              <Button variant="secondary" size="sm" disabled={!report.content} onClick={() => setReading(report)}>
                 <FileTextIcon data-icon="inline-start" />
                 Leer informe
               </Button>
@@ -266,16 +266,16 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
         <div className="flex flex-col gap-3">
           <Button
             type="button"
-            variant="ghost"
+            variant="tertiary"
             size="sm"
             onClick={() => setSelectedSession(null)}
-            className="-ml-2 w-fit text-muted-foreground hover:text-foreground"
+            className="-ml-2 w-fit"
           >
-            <ArrowLeftIcon className="size-4" />
+            <ArrowLeftIcon data-icon="inline-start" />
             Volver a las fechas de tutoría
           </Button>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-xs">
+          <Card className="flex flex-wrap items-center justify-between gap-4 p-4">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-display text-xl font-semibold tracking-[-0.02em]">
@@ -302,7 +302,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                 {activities.length} {activities.length === 1 ? 'actividad realizada' : 'actividades realizadas'}
               </Badge>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Dos bloques: Actividades realizadas y Estudiantes que asistieron */}
@@ -322,7 +322,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
             </p>
 
             {activities.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 No se registraron actividades en el contenido para esta fecha.
               </div>
             ) : (
@@ -330,7 +330,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                 {activities.map((act) => (
                   <li
                     key={act.id}
-                    className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-xs transition-colors hover:border-primary/30"
+                    className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-xs transition-colors hover:border-primary/30"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-foreground text-sm">{act.name}</span>
@@ -380,11 +380,11 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
             </p>
 
             {presentStudents.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 Ningún estudiante fue marcado como presente en esta fecha.
               </div>
             ) : (
-              <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+              <Card className="overflow-hidden">
                 <div className="max-h-[500px] overflow-y-auto divide-y divide-border">
                   {presentStudents.map((st, idx) => (
                     <div
@@ -417,7 +417,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
           </div>
         </div>
@@ -496,14 +496,14 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
             label: 'Acciones',
             render: (session) => (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setSelectedSession(session)}
                 aria-label={`Revisar actividades del ${formatDate(session.date)}`}
               >
-                <EyeIcon data-icon="inline-start" className="size-4" />
+                <EyeIcon data-icon="inline-start" />
                 Revisar
-                <ChevronRightIcon data-icon="inline-end" className="size-4" />
+                <ChevronRightIcon data-icon="inline-end" />
               </Button>
             ),
           },

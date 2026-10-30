@@ -87,10 +87,10 @@ function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('')
 }
 
-const TINT_CIRCLE = 'flex shrink-0 items-center justify-center rounded-full bg-secondary text-brand-blue dark:text-foreground'
+const TINT_CIRCLE = 'flex shrink-0 items-center justify-center rounded-full bg-secondary text-foreground dark:text-foreground'
 
 function PanelCard({ icon: Icon, title, description, label, children }: Readonly<{ icon: ComponentType<{ className?: string }>; title: string; description: string; label: string; children: ReactNode }>) {
-  return <section aria-label={label} className="min-w-0 overflow-hidden rounded-xl border bg-card">
+  return <section aria-label={label} className="min-w-0 overflow-hidden rounded-lg border bg-card">
     <header className="flex items-center gap-4 border-b bg-muted/60 px-6 py-5">
       <span aria-hidden="true" className={`${TINT_CIRCLE} size-14`}><Icon className="size-6" /></span>
       <div className="flex min-w-0 flex-col gap-0.5">
@@ -103,7 +103,7 @@ function PanelCard({ icon: Icon, title, description, label, children }: Readonly
 }
 
 function StatTile({ icon: Icon, title, detail }: Readonly<{ icon: ComponentType<{ className?: string }>; title: string; detail: string }>) {
-  return <div className="flex min-w-0 items-center gap-3 rounded-xl border bg-muted/40 p-3.5">
+  return <div className="flex min-w-0 items-center gap-3 rounded-lg border bg-muted/40 p-3.5">
     <span aria-hidden="true" className={`${TINT_CIRCLE} size-12`}><Icon className="size-5" /></span>
     <div className="flex min-w-0 flex-col">
       <span className="text-sm font-semibold text-foreground">{title}</span>
@@ -129,7 +129,7 @@ function SchedulesPanel({ enrollment }: Readonly<{ enrollment: StudentTutoring }
         <StatTile icon={ClockIcon} title="Duración" detail={durationDetail} />
         <StatTile icon={MapPinIcon} title="Modalidad" detail={modality} />
       </div>
-      <div className="overflow-hidden rounded-xl border">
+      <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -149,8 +149,8 @@ function SchedulesPanel({ enrollment }: Readonly<{ enrollment: StudentTutoring }
           </TableBody>
         </Table>
       </div>
-      <p className="flex items-center gap-3 rounded-xl bg-secondary/70 px-5 py-4 text-sm text-muted-foreground">
-        <InfoIcon className="size-5 shrink-0 text-brand-blue dark:text-foreground" aria-hidden="true" />
+      <p className="flex items-center gap-3 rounded-lg bg-secondary/70 px-5 py-4 text-sm text-muted-foreground">
+        <InfoIcon className="size-5 shrink-0 text-foreground dark:text-foreground" aria-hidden="true" />
         <span><strong className="font-semibold text-foreground">Modalidad:</strong> {modality}</span>
       </p>
     </PanelCard>

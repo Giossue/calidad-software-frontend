@@ -13,7 +13,7 @@ import { IconTile } from './student-ui'
 type Row = { readonly id: number; readonly assignments: StudentDegreeAssignments }
 
 function Person({ role, person }: Readonly<{ role: string; person: NonNullable<StudentDegreeAssignments['tutor']> }>) {
-  return <li className="flex items-start gap-4 rounded-xl border bg-card p-4 text-sm">
+  return <li className="flex items-start gap-4 rounded-lg border bg-card p-4 text-sm">
     <InitialsAvatar name={person.name} tone={role === 'Tutor' ? 'red' : 'blue'} />
     <div className="flex min-w-0 flex-col gap-1">
       <Badge variant="secondary" className="w-fit">{role}</Badge>
@@ -39,7 +39,7 @@ export function StudentDegreeAssignmentsPage() {
         <div className="flex min-w-0 items-center gap-4"><IconTile icon={FileIcon} /><div className="flex min-w-0 flex-col gap-1"><h3 className="break-words text-lg font-semibold tracking-tight">{assignments.topic.title}</h3><p className="text-sm text-muted-foreground">{assignments.topic.academic_period?.name ?? 'Período sin registrar'}{assignments.topic.section ? ` · Paralelo ${assignments.topic.section.name}` : ''}{assignments.topic.approved_at ? ` · Aprobado el ${formatDate(assignments.topic.approved_at)}` : ''}</p></div></div>
         {!assignments.tutor && assignments.peers.length === 0 && <Alert><AlertDescription>Coordinación aún no asigna un tutor ni pares académicos a este tema.</AlertDescription></Alert>}
         <ul className="grid gap-3 md:grid-cols-2">
-          {assignments.tutor ? <Person role="Tutor" person={assignments.tutor} /> : <li className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Sin tutor asignado.</li>}
+          {assignments.tutor ? <Person role="Tutor" person={assignments.tutor} /> : <li className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">Sin tutor asignado.</li>}
           {assignments.peers.map((peer) => <Person key={peer.assignment_id} role="Par académico" person={peer} />)}
         </ul>
       </CardContent>

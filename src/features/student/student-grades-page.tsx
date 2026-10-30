@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
@@ -7,12 +8,12 @@ import { StudentEmpty } from './student-shared'
 import { RedProgress } from './student-ui'
 
 function GradeTile({ label, entry, maximum }: Readonly<{ label: string; entry: StudentGradeEntry | null; maximum: number }>) {
-  return <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-5">
+  return <Card className="flex flex-col gap-3 bg-muted/30 p-5">
     <dt className="text-sm text-muted-foreground">{label}</dt>
     <dd className="text-4xl font-semibold tabular-nums">{entry ? entry.formatted_value : '—'}<span className="ml-1 text-sm font-normal text-muted-foreground">/ {maximum}</span></dd>
     <dd><RedProgress value={entry && maximum > 0 ? (entry.value / maximum) * 100 : 0} label={`${label} sobre ${maximum}`} /></dd>
     <dd className="text-xs text-muted-foreground">{entry?.registered_at ? `Registrada el ${formatDate(entry.registered_at)}` : 'Aún sin registrar'}</dd>
-  </div>
+  </Card>
 }
 
 // Notas de una tutoría: diagnóstico, parcial 1 y parcial 2, con el grupo de conocimiento.

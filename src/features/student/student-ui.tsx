@@ -1,15 +1,16 @@
 import type { ComponentType } from 'react'
-import { BookOpenIcon, SearchIcon } from 'lucide-react'
+import { BookOpenIcon, CheckIcon, SearchIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-type IconType = ComponentType<{ className?: string }>
+type IconType = ComponentType<{ className?: string; 'data-icon'?: string }>
 
 /** Ícono de tutoría: cuadro con tinte azul suave. */
 export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ icon?: IconType; className?: string }>) {
-  return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', className)}><Icon className="size-5" /></span>
+  return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300', className)}><Icon className="size-5" /></span>
 }
 
 export function RedProgress({ value, label, className }: Readonly<{ value: number; label: string; className?: string }>) {
@@ -21,7 +22,10 @@ export function RedProgress({ value, label, className }: Readonly<{ value: numbe
 
 export function FilterChips<T extends string>({ label, value, onChange, options }: Readonly<{ label: string; value: T; onChange: (value: T) => void; options: readonly { value: T; label: string; count: number; icon?: IconType }[] }>) {
   return <div role="group" aria-label={label} className="flex flex-wrap gap-2">
-    {options.map((option) => <button key={option.value} type="button" aria-pressed={value === option.value} onClick={() => onChange(option.value)} className={cn('inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50', value === option.value ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-foreground hover:bg-muted')}>{option.icon && <option.icon className="size-4" />}{option.label} ({option.count})</button>)}
+    {options.map((option) => {
+      const active = value === option.value
+      return <Button key={option.value} type="button" size="sm" variant={active ? 'primary' : 'secondary'} aria-pressed={active} onClick={() => onChange(option.value)}>{option.icon ? <option.icon data-icon="inline-start" /> : active && <CheckIcon data-icon="inline-start" />}{option.label} ({option.count})</Button>
+    })}
   </div>
 }
 

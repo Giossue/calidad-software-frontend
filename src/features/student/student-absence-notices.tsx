@@ -60,7 +60,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
           <p className="text-sm text-muted-foreground">Si no podrás asistir a una clase, avísale a tu docente con el motivo.</p>
         </div>
         {canNotify && (
-          <Button type="button" variant="outline" className="shrink-0" onClick={openDialog}>
+          <Button type="button" className="shrink-0" onClick={openDialog}>
             <MailWarningIcon data-icon="inline-start" />Avisar inasistencia
           </Button>
         )}

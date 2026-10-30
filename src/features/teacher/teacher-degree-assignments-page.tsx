@@ -30,7 +30,7 @@ export function TeacherDegreeAssignmentsPage() {
       { label: 'Tema', render: (item) => <div className="flex flex-col gap-1"><span className="font-medium">{item.topic.title}</span><span className="text-xs text-muted-foreground">{item.period.name}</span></div> },
       { label: 'Estudiante', render: (item) => <div className="flex flex-col gap-1"><span>{item.student.name}</span><span className="text-xs text-muted-foreground break-all">{item.student.email}</span></div> },
       { label: 'Participación', render: (item) => <Badge variant="secondary">{ROLE_LABELS[item.role]}</Badge> }, { label: 'Asignación', render: (item) => item.assigned_at ? formatDate(item.assigned_at) : 'Sin fecha' },
-      { label: 'Acciones', render: (item) => <Button variant="ghost" size="icon-sm" title="Ver detalle" aria-label={`Ver detalle de ${item.topic.title}`} onClick={() => setReading(item)}><EyeIcon /></Button> },
+      { label: 'Acciones', render: (item) => <Button variant="tertiary" size="icon" title="Ver detalle" aria-label={`Ver detalle de ${item.topic.title}`} onClick={() => setReading(item)}><EyeIcon /></Button> },
     ]} />
     <CatalogPagination label="asignaciones" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     <Dialog open={Boolean(reading)} title={reading?.topic.title ?? 'Asignación de titulación'} description={reading ? `${ROLE_LABELS[reading.role]} · ${reading.period.name}` : undefined} onClose={() => setReading(null)} confirmClose={false}>

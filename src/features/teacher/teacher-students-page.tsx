@@ -114,7 +114,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
         ]} />
       </div>
-      <Button className="h-10 shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>
+      <Button className="shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>
     </div>
     <ErrorNotice message={list.error} retry={list.reload} />{!open && !gradingStudent && <ErrorNotice message={operation.error} />}
     <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
@@ -138,8 +138,8 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       </div> },
       { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
       { label: 'Acciones', render: (student) => <div className="flex items-center gap-1">
-        {student.is_active && <Button variant="ghost" size="icon-sm" title="Añadir notas" aria-label={`Añadir notas de ${student.name}`} disabled={!tutoring.can_manage || operation.pending} onClick={() => openGrades(student)}><GraduationCapIcon /></Button>}
-        {student.is_active ? <Button variant="ghost" size="icon-sm" title="Deshabilitar inscripción" aria-label={`Deshabilitar a ${student.name}`} disabled={!tutoring.can_manage || operation.pending} onClick={() => { operation.clearError(); setDeactivating(student) }}><PowerOffIcon /></Button> : <Button variant="outline" size="sm" disabled={!tutoring.can_manage || !student.student_is_active || operation.pending} onClick={() => void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: student.student_id }), 'Estudiante inscrito nuevamente.', list.reload)}><RotateCcwIcon data-icon="inline-start" />Reinscribir</Button>}
+        {student.is_active && <Button variant="tertiary" size="icon" title="Añadir notas" aria-label={`Añadir notas de ${student.name}`} disabled={!tutoring.can_manage || operation.pending} onClick={() => openGrades(student)}><GraduationCapIcon /></Button>}
+        {student.is_active ? <Button variant="tertiary" size="icon" title="Deshabilitar inscripción" aria-label={`Deshabilitar a ${student.name}`} disabled={!tutoring.can_manage || operation.pending} onClick={() => { operation.clearError(); setDeactivating(student) }}><PowerOffIcon /></Button> : <Button variant="secondary" size="sm" disabled={!tutoring.can_manage || !student.student_is_active || operation.pending} onClick={() => void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: student.student_id }), 'Estudiante inscrito nuevamente.', list.reload)}><RotateCcwIcon data-icon="inline-start" />Reinscribir</Button>}
       </div> },
     ]} />
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />

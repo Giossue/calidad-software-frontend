@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowLeftIcon, BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, ChevronRightIcon, ClockIcon, PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
+import { ArrowLeftIcon, BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ChevronRightIcon, ClockIcon, PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
@@ -169,15 +169,15 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
 
   function actions(record: ContentRecord, nextKind: Kind, label: string) {
     return <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon-sm" title="Editar" aria-label={`Editar ${label}`} disabled={!canManage || !record.is_active || operation.pending} onClick={() => openForm(nextKind, record)}><PencilIcon /></Button>
-      <Button variant="ghost" size="icon-sm" title="Deshabilitar" aria-label={`Deshabilitar ${label}`} disabled={!canManage || !record.is_active || operation.pending} onClick={() => { operation.clearError(); setDeactivating({ kind: nextKind, record }) }}><PowerOffIcon /></Button>
+      <Button variant="tertiary" size="icon" title="Editar" aria-label={`Editar ${label}`} disabled={!canManage || !record.is_active || operation.pending} onClick={() => openForm(nextKind, record)}><PencilIcon /></Button>
+      <Button variant="tertiary" size="icon" title="Deshabilitar" aria-label={`Deshabilitar ${label}`} disabled={!canManage || !record.is_active || operation.pending} onClick={() => { operation.clearError(); setDeactivating({ kind: nextKind, record }) }}><PowerOffIcon /></Button>
     </div>
   }
   const title = activity ? `Metodologías de ${activity.name}` : topic ? `Actividades de ${topic.name}` : 'Temas de la tutoría'
   const dialogTitle = editing ? `${editing.record ? 'Editar' : 'Registrar'} ${LABELS[editing.kind]}` : ''
 
   return <div className="flex flex-col gap-5">
-    {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="ghost" size="sm" disabled={operation.pending} onClick={() => { setTopicId(null); setActivityId(null) }}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="ghost" size="sm" disabled={operation.pending} onClick={() => setActivityId(null)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
+    {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => { setTopicId(null); setActivityId(null) }}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => setActivityId(null)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
     
     {!topic && !activity && (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -203,7 +203,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             ]}
           />
         </div>
-        <Button className="h-10 shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
+        <Button className="shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
           <PlusIcon data-icon="inline-start" />
           Registrar {LABELS[kind]}
         </Button>
@@ -215,7 +215,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         <div className="flex-1">
           <h3 className="flex h-10 items-center font-display text-lg font-semibold">{title}</h3>
         </div>
-        <Button className="h-10 shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
+        <Button className="shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
           <PlusIcon data-icon="inline-start" />
           Registrar {LABELS[kind]}
         </Button>
@@ -230,56 +230,51 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             <span>Fecha de clase:</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
+            <Button
               type="button"
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer',
-                selectedSessionDate === 'all'
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                  : 'bg-card text-muted-foreground hover:text-foreground border-border'
-              )}
+              size="sm"
+              variant={selectedSessionDate === 'all' ? 'primary' : 'secondary'}
+              aria-pressed={selectedSessionDate === 'all'}
               onClick={() => setSelectedSessionDate('all')}
             >
+              {selectedSessionDate === 'all' && <CheckIcon data-icon="inline-start" />}
               Todas las clases
-            </button>
+            </Button>
             {sessions.map((s) => {
               const isSelected = selectedSessionDate === s.date
               return (
-                <button
+                <Button
                   key={s.id}
                   type="button"
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer inline-flex items-center gap-1.5',
-                    isSelected
-                      ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
-                      : 'bg-card text-muted-foreground hover:text-foreground border-border'
-                  )}
+                  size="sm"
+                  variant={isSelected ? 'primary' : 'secondary'}
+                  aria-pressed={isSelected}
                   onClick={() => setSelectedSessionDate(s.date)}
                 >
+                  {isSelected && <CheckIcon data-icon="inline-start" />}
                   <span>{formatDate(s.date)}</span>
                   <span
                     className={cn(
                       'text-[10px] px-1.5 py-0.2 rounded-full font-medium',
                       isSelected
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
+                        ? 'bg-white/20 text-white'
                         : 'bg-muted text-muted-foreground'
                     )}
                   >
                     {(s.topics.length > 0 ? s.topics.length : (list.data.filter((t) => t.is_covered).length || list.data.length))} {(s.topics.length > 0 ? s.topics.length : (list.data.filter((t) => t.is_covered).length || list.data.length)) === 1 ? 'tema' : 'temas'}
                   </span>
-                </button>
+                </Button>
               )
             })}
           </div>
         </div>
         {selectedSessionDate !== 'all' && activeSession && canManage && (
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
-            className="gap-1.5 text-xs h-8 cursor-pointer"
             onClick={() => openAssignModal(activeSession)}
           >
-            <CheckCircle2Icon className="size-3.5 text-emerald-600" />
+            <CheckCircle2Icon data-icon="inline-start" />
             <span>Asignar temas a esta clase</span>
           </Button>
         )}
@@ -292,13 +287,14 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           <CalendarDaysIcon className="size-4 text-primary shrink-0" />
           <span>Mostrando temas tratados en la clase del <strong>{formatDate(activeSession.date)}</strong></span>
         </div>
-        <button
+        <Button
           type="button"
-          className="text-primary hover:underline font-medium cursor-pointer"
+          variant="tertiary"
+          size="sm"
           onClick={() => setSelectedSessionDate('all')}
         >
           Ver todas las clases
-        </button>
+        </Button>
       </div>
     )}
 
@@ -329,7 +325,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             label: 'Acciones',
             render: (item) => (
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" disabled={operation.pending} onClick={() => setActivityId(item.id)}>
+                <Button variant="secondary" size="sm" disabled={operation.pending} onClick={() => setActivityId(item.id)}>
                   Metodologías
                   <ChevronRightIcon data-icon="inline-end" />
                 </Button>
@@ -356,7 +352,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                 <p className="font-medium text-foreground">No hay temas asociados a la clase del {formatDate(activeSession.date)}.</p>
                 <p className="max-w-md">Puedes asociar los temas o actividades abordados en esta fecha pulsando el botón a continuación.</p>
                 {canManage && (
-                  <Button variant="default" size="sm" onClick={() => openAssignModal(activeSession)}>
+                  <Button size="sm" onClick={() => openAssignModal(activeSession)}>
                     <PlusIcon data-icon="inline-start" />
                     Asignar temas a esta clase
                   </Button>
@@ -374,31 +370,17 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             {
               label: 'Estado',
               render: (item) => (
-                <button
+                <Button
                   type="button"
+                  size="sm"
+                  variant={item.is_covered ? 'primary' : 'secondary'}
                   disabled={!canManage || !item.is_active || operation.pending}
                   onClick={() => toggleTopicCoverage(item)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all shadow-2xs',
-                    item.is_covered
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25 hover:border-emerald-500/50'
-                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25 hover:border-amber-500/50',
-                    (!canManage || !item.is_active || operation.pending) ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
-                  )}
                   title={canManage && item.is_active ? (item.is_covered ? 'Tema completado. Clic para cambiar a Pendiente' : 'Tema pendiente. Clic para marcar como Completado') : undefined}
                 >
-                  {item.is_covered ? (
-                    <>
-                      <CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Completado</span>
-                    </>
-                  ) : (
-                    <>
-                      <ClockIcon className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                      <span>Pendiente</span>
-                    </>
-                  )}
-                </button>
+                  {item.is_covered ? <CheckCircle2Icon data-icon="inline-start" /> : <ClockIcon data-icon="inline-start" />}
+                  <span>{item.is_covered ? 'Completado' : 'Pendiente'}</span>
+                </Button>
               ),
             },
             { label: 'Habilitado', render: (item) => <StatusBadge active={item.is_active} /> },
@@ -407,26 +389,25 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               render: (item) => (
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
-                    variant={item.is_covered ? 'outline' : 'default'}
+                    variant={item.is_covered ? 'secondary' : 'primary'}
                     size="sm"
-                    className={cn('text-xs h-8', !item.is_covered && 'bg-emerald-600 hover:bg-emerald-700 text-white')}
                     disabled={!canManage || !item.is_active || operation.pending}
                     onClick={() => toggleTopicCoverage(item)}
                     title={item.is_covered ? 'Marcar tema como pendiente' : 'Marcar tema como completado'}
                   >
                     {item.is_covered ? (
                       <>
-                        <ClockIcon data-icon="inline-start" className="h-3.5 w-3.5" />
+                        <ClockIcon data-icon="inline-start" />
                         Marcar pendiente
                       </>
                     ) : (
                       <>
-                        <CheckCircle2Icon data-icon="inline-start" className="h-3.5 w-3.5" />
+                        <CheckCircle2Icon data-icon="inline-start" />
                         Marcar completado
                       </>
                     )}
                   </Button>
-                  <Button variant="outline" size="sm" disabled={operation.pending} onClick={() => setTopicId(item.id)}>
+                  <Button variant="secondary" size="sm" disabled={operation.pending} onClick={() => setTopicId(item.id)}>
                     <BookOpenIcon data-icon="inline-start" />
                     Actividades
                   </Button>
@@ -512,19 +493,17 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                 { label: '1h 30m', h: 1, m: 30 },
                 { label: '2h', h: 2, m: 0 },
               ].map((preset) => (
-                <button
+                <Button
                   key={preset.label}
                   type="button"
-                  className={cn(
-                    'px-2 py-0.5 rounded text-xs border font-medium transition-colors',
-                    timerHours === preset.h && timerMinutes === preset.m
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
-                  )}
+                  size="sm"
+                  variant={timerHours === preset.h && timerMinutes === preset.m ? 'primary' : 'secondary'}
+                  aria-pressed={timerHours === preset.h && timerMinutes === preset.m}
                   onClick={() => updateTimer(preset.h, preset.m)}
                 >
+                  {timerHours === preset.h && timerMinutes === preset.m && <CheckIcon data-icon="inline-start" />}
                   {preset.label}
-                </button>
+                </Button>
               ))}
             </div>
             {form.duration && (

@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { ClipboardCheckIcon, MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react'
+import { CheckIcon, ClipboardCheckIcon, MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -308,15 +308,16 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
   return <>
   <form onSubmit={submit} aria-label="Calificaciones" className="flex flex-col gap-4">
     {readOnly && <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>}
-    {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2">
+    {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
       <span className="mr-1 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground"><ClipboardCheckIcon className="size-4 text-muted-foreground" aria-hidden="true" />Etapa:</span>
-      <Button type="button" size="sm" variant={stage === null ? 'default' : 'outline'} aria-pressed={stage === null} disabled={operation.pending} className={stage === null ? undefined : 'bg-card'} onClick={() => { if (stage) { if (changed) setConfirmCancel(true); else leaveStage() } }}>Todas las etapas</Button>
+      <Button type="button" size="sm" variant={stage === null ? 'primary' : 'secondary'} aria-pressed={stage === null} disabled={operation.pending} onClick={() => { if (stage) { if (changed) setConfirmCancel(true); else leaveStage() } }}>{stage === null && <CheckIcon data-icon="inline-start" />}Todas las etapas</Button>
       {GRADE_FIELDS.map(({ type, label: name }) => {
         const done = active.every((student) => saved[student.id]?.[type])
         const selected = stage === type
-        return <Button key={type} type="button" size="sm" variant={selected ? 'default' : 'outline'} aria-pressed={selected} disabled={operation.pending} className={selected ? undefined : 'bg-card'} onClick={() => setStage(type)}>
+        return <Button key={type} type="button" size="sm" variant={selected ? 'primary' : 'secondary'} aria-pressed={selected} disabled={operation.pending} onClick={() => setStage(type)}>
+          {selected && <CheckIcon data-icon="inline-start" />}
           {name}{' '}
-          <span className={`rounded-full px-1.5 text-[11px] font-medium ${selected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{done ? 'Completo' : 'Pendiente'}</span>
+          <span className={`rounded-full px-1.5 text-[11px] font-medium ${selected ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>{done ? 'Completo' : 'Pendiente'}</span>
         </Button>
       })}
     </div>}
@@ -328,7 +329,7 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
         <p className="text-xs text-muted-foreground"><span>{hint}</span> <span>Escala de 0 a {settings.maximum}, hasta dos decimales (ej. 9.42).</span></p>
       </div>
       <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" disabled={operation.pending} onClick={() => (changed ? setConfirmCancel(true) : leaveStage())}>Cancelar</Button>
+        <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => (changed ? setConfirmCancel(true) : leaveStage())}>Cancelar</Button>
         <Button type="submit" disabled={readOnly || !complete || hasInvalid || !changed || operation.pending}>{operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}{operation.pending ? 'Guardando…' : `Guardar ${label}`}</Button>
       </div>
     </div>}

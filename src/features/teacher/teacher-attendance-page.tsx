@@ -288,7 +288,7 @@ function SessionsList({
   return (
     <div className="flex flex-col gap-5">
       {taken ? (
-        <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
             <div className="flex flex-col">
@@ -297,7 +297,7 @@ function SessionsList({
             </div>
           </div>
           {tutoring.can_manage && (
-            <Button variant="outline" className="shrink-0" onClick={() => onOpenRegister(today)}>
+            <Button variant="secondary" className="shrink-0" onClick={() => onOpenRegister(today)}>
               <PencilIcon data-icon="inline-start" />Modificar lista de hoy
             </Button>
           )}
@@ -474,7 +474,7 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant="ghost"
+            variant="tertiary"
             size="icon"
             aria-label="Volver a las sesiones"
             title="Volver a las sesiones"
@@ -667,7 +667,7 @@ function SessionForm({
             </p>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               disabled={readOnly || active.length === 0}
               onClick={() => markAll(!allPresent)}

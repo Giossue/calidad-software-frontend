@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
@@ -179,8 +180,8 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
           {
             label: 'Acciones',
             render: (topic) => (
-              <Button variant="outline" size="sm" onClick={() => onOpen(topic.id)} className="gap-1.5 text-xs">
-                <EyeIcon className="size-3.5" />
+              <Button variant="secondary" size="sm" onClick={() => onOpen(topic.id)}>
+                <EyeIcon data-icon="inline-start" />
                 Seguimiento
               </Button>
             ),
@@ -289,12 +290,12 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
       <div className="flex flex-col gap-3">
         <Button
           type="button"
-          variant="ghost"
+          variant="tertiary"
           size="sm"
           onClick={onBack}
-          className="-ml-2 w-fit text-muted-foreground hover:text-foreground"
+          className="-ml-2 w-fit"
         >
-          <ArrowLeftIcon className="size-4" />
+          <ArrowLeftIcon data-icon="inline-start" />
           Volver a mis temas
         </Button>
 
@@ -363,8 +364,8 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
             <Button
               onClick={handleAddActivity}
               disabled={activitySubmitting || !newActivityDesc.trim()}
-              className="bg-brand-red hover:bg-brand-red/90 text-white"
             >
+              {activitySubmitting ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
               {activitySubmitting ? 'Registrando...' : 'Registrar tarea'}
             </Button>
           </div>
@@ -466,7 +467,7 @@ function EquipoTitulacionPanel({
       <CardContent className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estudiante</span>
-          <div className="flex items-center gap-3.5 rounded-xl border bg-muted/15 p-4">
+          <Card className="flex items-center gap-3.5 bg-muted/15 p-4 shadow-none">
             <InitialsAvatar name={topic.student?.name ?? 'Estudiante'} tone="gray" />
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-semibold text-foreground">{topic.student?.name}</span>
@@ -474,13 +475,13 @@ function EquipoTitulacionPanel({
                 Cédula: {topic.student?.identification} &bull; {topic.student?.email}
               </span>
             </div>
-          </div>
+          </Card>
         </div>
 
         <div className="flex flex-col gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Docentes Evaluadores</span>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-center gap-3.5 rounded-xl border p-4">
+            <Card className="flex items-center gap-3.5 p-4 shadow-none">
               <InitialsAvatar name={tutorAssignment?.teacher?.name ?? 'Sin tutor'} tone="red" />
               <div className="flex min-w-0 flex-col">
                 <Badge variant="outline" className="mb-1 w-fit text-[10px] font-semibold">
@@ -489,10 +490,10 @@ function EquipoTitulacionPanel({
                 <span className="truncate text-sm font-semibold">{tutorAssignment?.teacher?.name ?? 'Sin tutor asignado'}</span>
                 <span className="truncate text-xs text-muted-foreground">{tutorAssignment?.teacher?.email ?? '---'}</span>
               </div>
-            </div>
+            </Card>
 
             {peerAssignments.map((peer, idx) => (
-              <div key={peer.id} className="flex items-center gap-3.5 rounded-xl border p-4">
+              <Card key={peer.id} className="flex items-center gap-3.5 p-4 shadow-none">
                 <InitialsAvatar name={peer.teacher?.name ?? `Par ${idx + 1}`} tone="blue" />
                 <div className="flex min-w-0 flex-col">
                   <Badge variant="outline" className="mb-1 w-fit text-[10px] font-semibold">
@@ -501,7 +502,7 @@ function EquipoTitulacionPanel({
                   <span className="truncate text-sm font-semibold">{peer.teacher?.name ?? 'Docente'}</span>
                   <span className="truncate text-xs text-muted-foreground">{peer.teacher?.email ?? '---'}</span>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
@@ -537,8 +538,8 @@ function TareasPanel({
           <p className="text-xs text-muted-foreground">Cada docente marca como completada solo la tarea que registró.</p>
         </div>
 
-        <Button onClick={onAddActivity} className="bg-brand-red hover:bg-brand-red/90 text-white">
-          <PlusIcon className="size-4 mr-2" /> Asignar tarea
+        <Button onClick={onAddActivity}>
+          <PlusIcon data-icon="inline-start" /> Asignar tarea
         </Button>
       </div>
 

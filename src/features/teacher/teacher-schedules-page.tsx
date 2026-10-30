@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarClockIcon, CalendarDaysIcon, PencilIcon } from 'lucide-react'
+import { CalendarClockIcon, CalendarDaysIcon, SaveIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -164,7 +165,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <ErrorNotice message={formError || operation.error} />
 
-          <div className="flex flex-col gap-3 rounded-lg border p-3.5 bg-card">
+          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <CalendarClockIcon className="size-4 text-primary" />
               Horario de la asignatura
@@ -226,9 +227,9 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
                 const dayLabel = DAY_LABELS[day] ?? day
                 const currentTimes = dayTimes[day] ?? { start_time: '08:00', end_time: '10:00' }
                 return (
-                  <div
+                  <Card
                     key={day}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-muted/20"
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-muted/20 shadow-none"
                   >
                     <div className="sm:w-28 flex items-center gap-2 font-semibold text-sm text-foreground shrink-0">
                       <CalendarDaysIcon className="size-4 text-primary" />
@@ -270,7 +271,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
                         ))}
                       </SelectField>
                     </div>
-                  </div>
+                  </Card>
                 )
               })}
               {scheduleDays.length === 0 && (
@@ -279,7 +280,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
                 </p>
               )}
             </div>
-          </div>
+          </Card>
 
           <div className="flex justify-end gap-3 pt-2">
             <DialogCancelButton disabled={operation.pending}>
@@ -289,7 +290,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
               type="submit"
               disabled={operation.pending || scheduleDays.length === 0}
             >
-              <PencilIcon data-icon="inline-start" />
+              <SaveIcon data-icon="inline-start" />
               Guardar horarios
             </Button>
           </div>
