@@ -35,7 +35,7 @@ function PasswordStrength({ password, id, className }: PasswordStrengthProps) {
           <span
             key={requirement.id}
             className={cn(
-              "h-1 flex-1 rounded-full bg-slate-200 transition-colors duration-300 dark:bg-accent",
+              "h-1 flex-1 rounded-full bg-accent transition-colors duration-300",
               strength !== "empty" && index < metCount && style.bar,
             )}
           />

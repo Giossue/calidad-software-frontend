@@ -1,6 +1,7 @@
 import * as React from "react"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
@@ -17,23 +18,21 @@ function PasswordInput({ className, disabled, ...props }: PasswordInputProps) {
         className={cn("pr-10", className)}
         {...props}
       />
-      <button
+      <Button
         type="button"
+        variant="tertiary"
+        size="icon"
         tabIndex={-1}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setVisible((current) => !current)}
         disabled={disabled}
-        className="absolute right-2 z-10 flex size-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:pointer-events-none disabled:opacity-50 cursor-pointer transition-colors dark:hover:bg-accent dark:hover:text-foreground"
+        className="absolute right-1 z-10 size-7 text-muted-foreground"
         aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
         aria-pressed={visible}
         title={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
       >
-        {visible ? (
-          <EyeOffIcon className="size-4 text-brand-blue dark:text-blue-400" />
-        ) : (
-          <EyeIcon className="size-4" />
-        )}
-      </button>
+        {visible ? <EyeOffIcon className="text-primary" /> : <EyeIcon />}
+      </Button>
     </div>
   )
 }

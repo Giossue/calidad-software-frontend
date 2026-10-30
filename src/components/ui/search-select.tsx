@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { CheckIcon, ChevronDownIcon } from 'lucide-react'
+import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
 
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +28,7 @@ export function SearchSelect({ id, query, onQueryChange, options, selected, onSe
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const anchorRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const listId = `${id}-listbox`
 
   useEffect(() => {
@@ -41,12 +44,20 @@ export function SearchSelect({ id, query, onQueryChange, options, selected, onSe
 
   // Con una selección hecha el campo muestra su nombre; al escribir se descarta y se vuelve a buscar.
   const inputValue = selected && !open ? selected.label : query
+  const canClear = (selected !== null || query !== '') && !disabled
+
+  function clear() {
+    onSelect(null)
+    onQueryChange('')
+    inputRef.current?.focus()
+  }
 
   return (
     <PopoverPrimitive.Root open={open && !disabled} onOpenChange={setOpen}>
       <PopoverPrimitive.Anchor asChild>
         <div ref={anchorRef} className="relative flex items-center">
-          <input
+          <Input
+            ref={inputRef}
             id={id}
             type="text"
             role="combobox"
@@ -81,15 +92,24 @@ export function SearchSelect({ id, query, onQueryChange, options, selected, onSe
                 setOpen(false)
               }
             }}
-            className={cn(
-              'h-9 w-full rounded-lg border border-input bg-background max-md:bg-white max-md:dark:bg-input/30 pl-3 pr-16 text-sm outline-none',
-              'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50',
-            )}
+            className={canClear ? 'pr-16' : 'pr-9'}
           />
-          <span className="pointer-events-none absolute right-3 flex items-center gap-2 text-muted-foreground">
+          <span className={cn('pointer-events-none absolute flex items-center gap-2 text-muted-foreground', canClear ? 'right-10' : 'right-3')}>
             {loading && <Spinner className="size-4" />}
-            <ChevronDownIcon className="size-4" aria-hidden="true" />
+            {!canClear && <ChevronDownIcon className="size-4 opacity-50" aria-hidden="true" />}
           </span>
+          {canClear && (
+            <Button
+              type="button"
+              variant="tertiary"
+              size="icon"
+              className="absolute right-1 size-7 text-muted-foreground"
+              aria-label="Borrar selección"
+              onClick={clear}
+            >
+              <XIcon />
+            </Button>
+          )}
         </div>
       </PopoverPrimitive.Anchor>
       <PopoverPrimitive.Portal>

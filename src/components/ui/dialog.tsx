@@ -117,7 +117,7 @@ export function Dialog({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
         {/* Backdrop con desfoque suave */}
         <div
-          className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity animate-in fade-in"
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in"
           onClick={handleAttemptClose}
         />
 
@@ -127,19 +127,19 @@ export function Dialog({
           aria-modal="true"
           aria-label={title}
           className={cn(
-            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-lg bg-white shadow-2xl ring-1 ring-slate-900/10 dark:bg-card dark:ring-border animate-in zoom-in-95 duration-150',
+            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-lg bg-card shadow-2xl ring-1 ring-border animate-in zoom-in-95 duration-150',
             maxWidth,
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header del Modal */}
-          <div className="flex shrink-0 items-start justify-between border-b border-slate-100 p-4 sm:p-6 dark:border-border">
+          <div className="flex shrink-0 items-start justify-between border-b border-border p-4 sm:p-6 dark:border-border">
             <div className="flex flex-col gap-1 pr-6">
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
                 {title}
               </h2>
               {description && (
-                <p className="text-sm text-slate-500 dark:text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {description}
                 </p>
               )}
@@ -160,25 +160,25 @@ export function Dialog({
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (
             <div
-              className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-slate-950/60 p-6 backdrop-blur-xs animate-in fade-in duration-150"
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-black/60 p-6 backdrop-blur-xs animate-in fade-in duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex w-full max-w-md flex-col gap-5 rounded-lg border border-slate-200 bg-white p-6 shadow-2xl dark:border-border dark:bg-card animate-in zoom-in-95 duration-150">
+              <div className="flex w-full max-w-md flex-col gap-5 rounded-lg border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-150">
                 <div className="flex items-start gap-4">
                   <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
                     <AlertTriangleIcon className="size-6" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    <h3 className="text-base font-bold text-foreground">
                       {confirmCloseTitle}
                     </h3>
-                    <p className="text-sm text-slate-600 dark:text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       {confirmCloseDescription}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-end dark:border-border">
+                <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-end dark:border-border">
                   <Button
                     type="button"
                     variant="secondary"

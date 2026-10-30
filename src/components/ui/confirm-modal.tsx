@@ -32,18 +32,18 @@ export function ConfirmModal({
           <div
             className={`flex size-11 shrink-0 items-center justify-center rounded-full ${
               variant === 'destructive'
-                ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
-                : 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400'
+                ? 'bg-destructive/10 text-destructive'
+                : 'bg-primary/10 text-primary'
             }`}
           >
             <AlertTriangleIcon className="size-6" />
           </div>
-          <p className="text-sm text-slate-600 dark:text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {description}
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end border-t border-slate-100 pt-4 dark:border-border">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end border-t border-border pt-4">
           <Button variant="secondary" onClick={onClose} disabled={pending} className="max-sm:w-full">
             {cancelLabel}
           </Button>

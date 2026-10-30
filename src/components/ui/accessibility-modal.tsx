@@ -74,14 +74,14 @@ export function AccessibilityModal({
     >
       <div className="flex flex-col gap-5">
         {/* Tamaño de Texto */}
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-border dark:bg-muted/50">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-primary/15 dark:text-blue-400">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <TypeIcon className="size-5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900 dark:text-white">Tamaño de Texto</span>
-              <span className="text-xs text-slate-500 dark:text-muted-foreground">Escala de lectura global (+18%)</span>
+              <span className="text-sm font-semibold text-foreground">Tamaño de Texto</span>
+              <span className="text-xs text-muted-foreground">Escala de lectura global (+18%)</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -109,26 +109,28 @@ export function AccessibilityModal({
         </div>
 
         {/* Alto Contraste */}
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-border dark:bg-muted/50">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <EyeIcon className="size-5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900 dark:text-white">Alto Contraste</span>
-              <span className="text-xs text-slate-500 dark:text-muted-foreground">Realce de bordes, enfoque y diferenciación visual</span>
+              <span className="text-sm font-semibold text-foreground">Alto Contraste</span>
+              <span className="text-xs text-muted-foreground">Realce de bordes, enfoque y diferenciación visual</span>
             </div>
           </div>
           <button
             type="button"
             onClick={() => updateSetting('highContrast', !settings.highContrast)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              settings.highContrast ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-accent'
+            role="switch"
+            aria-checked={settings.highContrast}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+              settings.highContrast ? 'bg-primary' : 'bg-input'
             }`}
             aria-label="Conmutar Alto Contraste"
           >
             <span
-              className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
+              className={`inline-block size-4 transform rounded-full bg-background transition-transform ${
                 settings.highContrast ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
@@ -136,26 +138,28 @@ export function AccessibilityModal({
         </div>
 
         {/* Reducción de Animaciones */}
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-border dark:bg-muted/50">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <ZapIcon className="size-5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900 dark:text-white">Reducir Movimiento</span>
-              <span className="text-xs text-slate-500 dark:text-muted-foreground">Desactiva transiciones y animaciones</span>
+              <span className="text-sm font-semibold text-foreground">Reducir Movimiento</span>
+              <span className="text-xs text-muted-foreground">Desactiva transiciones y animaciones</span>
             </div>
           </div>
           <button
             type="button"
             onClick={() => updateSetting('reduceMotion', !settings.reduceMotion)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              settings.reduceMotion ? 'bg-amber-600' : 'bg-slate-300 dark:bg-accent'
+            role="switch"
+            aria-checked={settings.reduceMotion}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+              settings.reduceMotion ? 'bg-primary' : 'bg-input'
             }`}
             aria-label="Conmutar Reducción de Movimiento"
           >
             <span
-              className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
+              className={`inline-block size-4 transform rounded-full bg-background transition-transform ${
                 settings.reduceMotion ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
@@ -163,7 +167,7 @@ export function AccessibilityModal({
         </div>
 
         {/* Botones de Acción */}
-        <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-border">
+        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
           <DialogCancelButton onClick={handleCancel}>
             Cancelar
           </DialogCancelButton>
