@@ -1,17 +1,21 @@
 import { useState, type FormEvent } from 'react'
-import { GraduationCapIcon, PlusIcon, PowerOffIcon, RotateCcwIcon } from 'lucide-react'
+import { GraduationCapIcon, PlusIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FieldDescription } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource, useDegreeSearch } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
@@ -101,11 +105,19 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
 
   const isCedulaValid = isValidIdentification(form.identification)
   const isEmailValid = form.email.endsWith('@ueb.edu.ec')
+  const identificationError = form.identification && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null
+  const emailError = form.email && !isEmailValid ? 'El correo debe terminar en @ueb.edu.ec.' : null
+  const registerBlockReason = mode === 'existing'
+    ? (selected ? null : 'Selecciona un estudiante.')
+    : (!form.identification ? 'Escribe la cédula o pasaporte.' : identificationError)
+      ?? (form.name.trim() ? null : 'Escribe los nombres y apellidos.')
+      ?? (!form.email ? 'Escribe el correo institucional.' : emailError)
 
   const isDiagnosticValid = !gradesForm.diagnostic || isValidGrade(gradesForm.diagnostic, settings.maximum)
   const isPartialValid = !gradesForm.partial || isValidGrade(gradesForm.partial, settings.maximum)
   const isPartialTwoValid = !gradesForm.partial_two || isValidGrade(gradesForm.partial_two, settings.maximum)
   const isGradesValid = isDiagnosticValid && isPartialValid && isPartialTwoValid
+  const gradesBlockReason = isGradesValid ? null : `Las calificaciones deben estar entre ${settings.minimum} y ${settings.maximum}.`
 
   return <div className="flex flex-col gap-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -130,22 +142,24 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           : key.includes('medio')
           ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
           : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
-        return <Badge className={`font-semibold ${colorClass}`}>{student.knowledge_group}</Badge>
+        return <Badge className={`${colorClass}`}>{student.knowledge_group}</Badge>
       } },
       { label: 'Calificaciones', render: (student) => <div className="flex flex-col gap-0.5 text-xs tabular-nums">
-        <span>Diag: <span className="font-medium">{student.diagnostic_grade ?? '—'}</span></span>
+        <span>Diag: {student.diagnostic_grade ?? '—'}</span>
         <span className="text-muted-foreground">P1: {student.partial_grade ?? '—'} · P2: {student.second_partial_grade ?? '—'}</span>
       </div> },
       { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
       { label: 'Acciones', render: (student) => <div className="flex items-center gap-1">
-        {student.is_active && <Button variant="tertiary" size="icon" title="Añadir notas" aria-label={`Añadir notas de ${student.name}`} disabled={!tutoring.can_manage || operation.pending} onClick={() => openGrades(student)}><GraduationCapIcon /></Button>}
-        {student.is_active ? <Button variant="tertiary" size="icon" title="Deshabilitar inscripción" aria-label={`Deshabilitar a ${student.name}`} disabled={!tutoring.can_manage || operation.pending} onClick={() => { operation.clearError(); setDeactivating(student) }}><PowerOffIcon /></Button> : <Button variant="secondary" size="sm" disabled={!tutoring.can_manage || !student.student_is_active || operation.pending} onClick={() => void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: student.student_id }), 'Estudiante inscrito nuevamente.', list.reload)}><RotateCcwIcon data-icon="inline-start" />Reinscribir</Button>}
+        {student.is_active && <IconAction label={`Añadir notas de ${student.name}`} icon={GraduationCapIcon} disabled={!tutoring.can_manage || operation.pending} onClick={() => openGrades(student)} />}
+        {student.is_active
+          ? <IconAction label={`Deshabilitar a ${student.name}`} icon={PowerOffIcon} tone="destructive" disabled={!tutoring.can_manage || operation.pending} onClick={() => { operation.clearError(); setDeactivating(student) }} />
+          : <IconAction label={`Reinscribir a ${student.name}`} icon={RotateCcwIcon} disabled={!tutoring.can_manage || !student.student_is_active || operation.pending} onClick={() => void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: student.student_id }), 'Estudiante inscrito nuevamente.', list.reload)} />}
       </div> },
     ]} />
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
 
     {/* Modal para registrar un estudiante nuevo o inscribir uno existente */}
-    <MutationDialog open={open} title="Registrar estudiante" description={tutoring.subject_name} pending={operation.pending} error={operation.error} dirty={Boolean(selected) || JSON.stringify(form) !== JSON.stringify(EMPTY_FORM)} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'} submitDisabled={mode === 'existing' ? !selected : (!isCedulaValid || !isEmailValid || !form.name.trim())}>
+    <FormDialog open={open} title="Registrar estudiante" description={tutoring.subject_name} pending={operation.pending} error={operation.error} dirty={Boolean(selected) || JSON.stringify(form) !== JSON.stringify(EMPTY_FORM)} requireChanges={false} blockReason={registerBlockReason} onClose={() => setOpen(false)} onSubmit={submit} submitLabel={mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'} submitIcon={UserPlusIcon}>
       <Tabs value={mode} onValueChange={(value) => { setMode(value as Mode); operation.clearError() }}>
         <TabsList aria-label="Cómo registrar al estudiante">
           <TabsTrigger value="existing">Ya registrado</TabsTrigger>
@@ -153,8 +167,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         </TabsList>
       </Tabs>
       {mode === 'existing' && <>
-        <Field>
-          <FieldLabel htmlFor="teacher-student-search">Estudiante</FieldLabel>
+        <FormField id="teacher-student-search" label="Estudiante" tip={`Se listan los estudiantes del paralelo ${tutoring.section_name ?? ''} que aún no están inscritos en esta tutoría (hasta 100).`}>
           <SearchSelect
             id="teacher-student-search"
             query={search.input}
@@ -166,17 +179,12 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
             placeholder="Busca por nombre, cédula o correo…"
             emptyMessage="Ningún estudiante del paralelo coincide. Si no está registrado, usa «Estudiante nuevo»."
           />
-          <FieldDescription>Se listan los estudiantes del paralelo {tutoring.section_name ?? ''} que aún no están inscritos en esta tutoría (hasta 100).</FieldDescription>
-        </Field>
+        </FormField>
         <ErrorNotice message={available.error} retry={available.reload} />
       </>}
       {mode === 'new' && <>
         <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-student-identification">Cédula o pasaporte *</FieldLabel>
-            <FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} />
-          </div>
+        <FormField id="teacher-student-identification" label="Cédula o pasaporte" tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres." counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shouldShowIdentificationStatus(form.identification) ? identificationError : null}>
           <Input
             id="teacher-student-identification"
             value={form.identification}
@@ -185,20 +193,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
             required
             placeholder="0201234567 o AB1234567"
           />
-          <div className="flex justify-between items-center text-xs mt-1">
-            <FieldDescription>Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres.</FieldDescription>
-            <FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} />
-          </div>
-          {shouldShowIdentificationStatus(form.identification) && !isCedulaValid && (
-            <p className="text-xs text-destructive font-medium mt-1">La cédula o pasaporte no es válido.</p>
-          )}
-        </Field>
+        </FormField>
 
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-student-name">Nombres y Apellidos *</FieldLabel>
-            <FieldCounter current={form.name.length} max={150} />
-          </div>
+        <FormField id="teacher-student-name" label="Nombres y apellidos" tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
           <Input
             id="teacher-student-name"
             value={form.name}
@@ -207,14 +204,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
             required
             placeholder="Juan Carlos Pérez Rodríguez"
           />
-          <FieldDescription>Nombre completo del estudiante (solo letras y espacios).</FieldDescription>
-        </Field>
+        </FormField>
 
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-student-email">Correo Institucional *</FieldLabel>
-            <FieldCounter current={form.email.length} max={150} />
-          </div>
+        <FormField id="teacher-student-email" label="Correo institucional" tip="Debe pertenecer al dominio institucional (@ueb.edu.ec)." counter={{ current: form.email.length, max: 150 }} error={emailError}>
           <Input
             id="teacher-student-email"
             type="email"
@@ -224,19 +216,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
             required
             placeholder="jperez@ueb.edu.ec"
           />
-          <FieldDescription>Debe pertenecer al dominio institucional (@ueb.edu.ec).</FieldDescription>
-          {form.email && !isEmailValid && (
-            <p className="text-xs text-destructive font-medium mt-1">
-              El correo debe terminar en @ueb.edu.ec.
-            </p>
-          )}
-        </Field>
+        </FormField>
 
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-student-phone">Teléfono (opcional)</FieldLabel>
-            <FieldCounter current={form.phone.length} max={10} />
-          </div>
+        <FormField id="teacher-student-phone" label="Teléfono" optional counter={{ current: form.phone.length, max: 10 }}>
           <Input
             id="teacher-student-phone"
             value={form.phone}
@@ -244,12 +226,12 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
             maxLength={10}
             placeholder="0991234567"
           />
-        </Field>
+        </FormField>
       </>}
-    </MutationDialog>
+    </FormDialog>
 
     {/* Modal para añadir o corregir notas del estudiante */}
-    <MutationDialog
+    <FormDialog
       open={Boolean(gradingStudent)}
       title="Calificaciones del estudiante"
       description={gradingStudent ? `${gradingStudent.name} (${gradingStudent.identification}) · ${tutoring.subject_name}` : undefined}
@@ -259,13 +241,12 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       onClose={() => setGradingStudent(null)}
       onSubmit={submitGrades}
       submitLabel="Guardar calificaciones"
-      submitDisabled={!isGradesValid}
+      blockReason={gradesBlockReason}
     >
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">Ingresa o actualiza las calificaciones correspondientes a cada etapa.</p>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field>
-            <FieldLabel htmlFor="teacher-grade-diagnostic">Diagnóstico</FieldLabel>
+          <FormField id="teacher-grade-diagnostic" label="Diagnóstico" tip={`Hasta ${settings.maximum}.00`}>
             <Input
               id="teacher-grade-diagnostic"
               className="text-center tabular-nums"
@@ -278,13 +259,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
               onChange={(e) => setGradesForm({ ...gradesForm, diagnostic: sanitizeGradeInput(e.target.value, gradesForm.diagnostic, settings.maximum) })}
               onBlur={() => { if (gradesForm.diagnostic !== '') setGradesForm((prev) => ({ ...prev, diagnostic: normalizeGrade(prev.diagnostic) })) }}
             />
-            <FieldDescription>
-              {groupFor(gradesForm.diagnostic, settings) ? `Grupo: ${groupFor(gradesForm.diagnostic, settings)}` : `Hasta ${settings.maximum}.00`}
-            </FieldDescription>
-          </Field>
+            {groupFor(gradesForm.diagnostic, settings) && <FieldDescription>{`Grupo: ${groupFor(gradesForm.diagnostic, settings)}`}</FieldDescription>}
+          </FormField>
 
-          <Field>
-            <FieldLabel htmlFor="teacher-grade-partial">Parcial 1</FieldLabel>
+          <FormField id="teacher-grade-partial" label="Parcial 1" tip={`Hasta ${settings.maximum}.00`}>
             <Input
               id="teacher-grade-partial"
               className="text-center tabular-nums"
@@ -297,11 +275,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
               onChange={(e) => setGradesForm({ ...gradesForm, partial: sanitizeGradeInput(e.target.value, gradesForm.partial, settings.maximum) })}
               onBlur={() => { if (gradesForm.partial !== '') setGradesForm((prev) => ({ ...prev, partial: normalizeGrade(prev.partial) })) }}
             />
-            <FieldDescription>{`Hasta ${settings.maximum}.00`}</FieldDescription>
-          </Field>
+          </FormField>
 
-          <Field>
-            <FieldLabel htmlFor="teacher-grade-partial-two">Parcial 2</FieldLabel>
+          <FormField id="teacher-grade-partial-two" label="Parcial 2" tip={`Hasta ${settings.maximum}.00`}>
             <Input
               id="teacher-grade-partial-two"
               className="text-center tabular-nums"
@@ -314,11 +290,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
               onChange={(e) => setGradesForm({ ...gradesForm, partial_two: sanitizeGradeInput(e.target.value, gradesForm.partial_two, settings.maximum) })}
               onBlur={() => { if (gradesForm.partial_two !== '') setGradesForm((prev) => ({ ...prev, partial_two: normalizeGrade(prev.partial_two) })) }}
             />
-            <FieldDescription>{`Hasta ${settings.maximum}.00`}</FieldDescription>
-          </Field>
+          </FormField>
         </div>
       </div>
-    </MutationDialog>
+    </FormDialog>
 
     <ConfirmModal open={Boolean(deactivating)} title="¿Deshabilitar inscripción?" description={`${deactivating?.name ?? 'El estudiante'} dejará de participar en esta tutoría. Se conservarán sus notas y asistencias.`} confirmLabel="Deshabilitar inscripción" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => teacherApi.deactivateStudent(tutoring.id, deactivating.id), 'Inscripción deshabilitada.', async () => { setDeactivating(null); await list.reload() }) }} />
   </div>

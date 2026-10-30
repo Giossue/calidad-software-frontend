@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils'
 
 type IconType = ComponentType<{ className?: string; 'data-icon'?: string }>
 
-/** Ícono de tutoría: cuadro con tinte azul suave. */
+/** Ícono de tutoría: cuadro con tinte suave del color primario. */
 export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ icon?: IconType; className?: string }>) {
-  return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-primary/15 dark:text-blue-300', className)}><Icon className="size-5" /></span>
+  return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary', className)}><Icon className="size-5" /></span>
 }
 
 export function RedProgress({ value, label, className }: Readonly<{ value: number; label: string; className?: string }>) {

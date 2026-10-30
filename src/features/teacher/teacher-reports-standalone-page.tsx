@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
 import { ReportsPanel } from './teacher-reports-page'
 import { TeacherEmpty } from './teacher-shared'
@@ -69,7 +69,7 @@ export function TeacherReportsStandalonePage() {
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex flex-col gap-1 min-w-0">
-                    <span className="font-semibold truncate">{tutoring.subject_name}</span>
+                    <span className="font-medium truncate">{tutoring.subject_name}</span>
                     <span className="text-xs text-muted-foreground truncate">
                       {tutoring.career_name} · {tutoring.cycle_name}{tutoring.section_name ? ` · ${tutoring.section_name}` : ''}
                     </span>

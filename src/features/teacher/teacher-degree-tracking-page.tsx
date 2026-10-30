@@ -7,7 +7,6 @@ import {
   CalendarIcon,
   CheckCircle2Icon,
   ClockIcon,
-  EyeIcon,
   ListTodoIcon,
   PlusIcon,
   SparklesIcon,
@@ -21,10 +20,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
@@ -32,7 +30,8 @@ import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { InitialsAvatar, SectionCard } from '@/features/degree-coordination/degree-shared'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { describeError } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { type DegreeActivity, type DegreeAssignment, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { teacherApi } from '@/lib/teacher-api'
@@ -127,6 +126,8 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
       <RecordTable
         rows={list.data}
         loading={list.isInitialLoading || list.isFetching}
+        onRowClick={(topic) => onOpen(topic.id)}
+        rowTitle={(topic) => `Abrir seguimiento de ${topic.title}`}
         empty={
           <TeacherEmpty
             title="No tienes asignaciones de titulación para seguimiento"
@@ -138,7 +139,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
             label: 'Tema',
             render: (topic) => (
               <div className="flex flex-col gap-1">
-                <span className="font-semibold text-foreground">{topic.title}</span>
+                <span className="font-medium text-foreground">{topic.title}</span>
                 <span className="text-xs text-muted-foreground">{topic.academic_period?.name}</span>
               </div>
             ),
@@ -147,7 +148,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
             label: 'Estudiante',
             render: (topic) => (
               <div className="flex flex-col gap-1">
-                <span className="font-medium text-foreground">{topic.student?.name}</span>
+                <span className="text-foreground">{topic.student?.name}</span>
                 <span className="text-xs text-muted-foreground">{topic.student?.email}</span>
               </div>
             ),
@@ -172,19 +173,10 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div className={cn('h-full transition-all', progressTone(pct))} style={{ width: `${pct}%` }} />
                   </div>
-                  <span className={cn('text-xs font-semibold w-9 text-right', progressTextTone(pct))}>{pct}%</span>
+                  <span className={cn('text-xs font-medium w-9 text-right', progressTextTone(pct))}>{pct}%</span>
                 </div>
               )
             },
-          },
-          {
-            label: 'Acciones',
-            render: (topic) => (
-              <Button variant="secondary" size="sm" onClick={() => onOpen(topic.id)}>
-                <EyeIcon data-icon="inline-start" />
-                Seguimiento
-              </Button>
-            ),
           },
         ]}
       />
@@ -307,7 +299,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
             </p>
           </div>
           {myAssignment && (
-            <Badge variant="secondary" className="shrink-0 px-3 py-1 text-xs font-semibold">
+            <Badge variant="secondary" className="shrink-0 px-3 py-1 text-xs">
               {myAssignment.role === 'tutor' ? 'Docente Tutor' : 'Par Académico'}
             </Badge>
           )}
@@ -337,41 +329,30 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
         />
       )}
 
-      <Dialog
+      <FormDialog
         open={activityDialogOpen}
         title="Asignar nueva tarea de seguimiento"
         description={`Tema: ${topic.title}`}
+        pending={activitySubmitting}
+        error={null}
+        dirty={newActivityDesc.trim() !== ''}
+        blockReason={newActivityDesc.trim() ? null : 'Escribe la descripción de la tarea.'}
         onClose={() => setActivityDialogOpen(false)}
-        confirmClose={newActivityDesc.trim() !== ''}
+        onSubmit={(event) => { event.preventDefault(); void handleAddActivity() }}
+        submitLabel="Registrar tarea"
+        submitIcon={PlusIcon}
       >
-        <div className="flex flex-col gap-4">
-          <Field>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="activity-desc">Descripción de la tarea o entrega</FieldLabel>
-              <FieldCounter current={newActivityDesc.length} max={1000} />
-            </div>
-            <Textarea
-              id="activity-desc"
-              maxLength={1000}
-              placeholder="Ejemplo: Presentar avances del capítulo 2 y correcciones del marco metodológico..."
-              value={newActivityDesc}
-              onChange={(e) => setNewActivityDesc(e.target.value)}
-              rows={4}
-            />
-          </Field>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <DialogCancelButton disabled={activitySubmitting}>Cancelar</DialogCancelButton>
-            <Button
-              onClick={handleAddActivity}
-              disabled={activitySubmitting || !newActivityDesc.trim()}
-            >
-              {activitySubmitting ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
-              {activitySubmitting ? 'Registrando...' : 'Registrar tarea'}
-            </Button>
-          </div>
-        </div>
-      </Dialog>
+        <FormField id="activity-desc" label="Descripción de la tarea o entrega" counter={{ current: newActivityDesc.length, max: 1000 }}>
+          <Textarea
+            id="activity-desc"
+            maxLength={1000}
+            placeholder="Ejemplo: Presentar avances del capítulo 2 y correcciones del marco metodológico..."
+            value={newActivityDesc}
+            onChange={(e) => setNewActivityDesc(e.target.value)}
+            rows={4}
+          />
+        </FormField>
+      </FormDialog>
     </section>
   )
 }
@@ -399,7 +380,7 @@ function StatTile({
         </span>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-xs text-muted-foreground">{label}</span>
-          <span className="truncate text-sm font-semibold text-foreground">{value}</span>
+          <span className="truncate text-sm font-medium text-foreground">{value}</span>
         </div>
       </CardContent>
     </Card>
@@ -424,7 +405,7 @@ function EstadoFichaPanel({
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Progreso general</span>
-            <span className={cn('text-lg font-bold tabular-nums', progressTextTone(progress))}>{progress}%</span>
+            <span className={cn('text-lg font-semibold tabular-nums', progressTextTone(progress))}>{progress}%</span>
           </div>
           <div className="h-3.5 w-full overflow-hidden rounded-full bg-muted">
             <div className={cn('h-full transition-all duration-300', progressTone(progress))} style={{ width: `${progress}%` }} />
@@ -467,11 +448,11 @@ function EquipoTitulacionPanel({
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estudiante</span>
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">Estudiante</span>
           <Card className="flex items-center gap-3.5 bg-muted/15 p-4 shadow-none">
             <InitialsAvatar name={topic.student?.name ?? 'Estudiante'} tone="gray" />
             <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-semibold text-foreground">{topic.student?.name}</span>
+              <span className="truncate text-sm font-medium text-foreground">{topic.student?.name}</span>
               <span className="text-xs text-muted-foreground">
                 Cédula: {topic.student?.identification} &bull; {topic.student?.email}
               </span>
@@ -480,15 +461,15 @@ function EquipoTitulacionPanel({
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Docentes Evaluadores</span>
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">Docentes Evaluadores</span>
           <div className="grid gap-3 sm:grid-cols-2">
             <Card className="flex items-center gap-3.5 p-4 shadow-none">
               <InitialsAvatar name={tutorAssignment?.teacher?.name ?? 'Sin tutor'} tone="red" />
               <div className="flex min-w-0 flex-col">
-                <Badge variant="outline" className="mb-1 w-fit text-[10px] font-semibold">
+                <Badge variant="outline" className="mb-1 w-fit text-[10px]">
                   Docente Tutor
                 </Badge>
-                <span className="truncate text-sm font-semibold">{tutorAssignment?.teacher?.name ?? 'Sin tutor asignado'}</span>
+                <span className="truncate text-sm font-medium">{tutorAssignment?.teacher?.name ?? 'Sin tutor asignado'}</span>
                 <span className="truncate text-xs text-muted-foreground">{tutorAssignment?.teacher?.email ?? '---'}</span>
               </div>
             </Card>
@@ -497,10 +478,10 @@ function EquipoTitulacionPanel({
               <Card key={peer.id} className="flex items-center gap-3.5 p-4 shadow-none">
                 <InitialsAvatar name={peer.teacher?.name ?? `Par ${idx + 1}`} tone="blue" />
                 <div className="flex min-w-0 flex-col">
-                  <Badge variant="outline" className="mb-1 w-fit text-[10px] font-semibold">
+                  <Badge variant="outline" className="mb-1 w-fit text-[10px]">
                     Par Académico {idx + 1}
                   </Badge>
-                  <span className="truncate text-sm font-semibold">{peer.teacher?.name ?? 'Docente'}</span>
+                  <span className="truncate text-sm font-medium">{peer.teacher?.name ?? 'Docente'}</span>
                   <span className="truncate text-xs text-muted-foreground">{peer.teacher?.email ?? '---'}</span>
                 </div>
               </Card>
@@ -572,7 +553,7 @@ function TareasPanel({
         empty={
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
             <ListTodoIcon className="size-10 mb-2 opacity-40" />
-            <p className="font-medium">No hay tareas o actividades registradas con estos criterios.</p>
+            <p>No hay tareas o actividades registradas con estos criterios.</p>
             <p className="text-xs mt-1">Usa el botón "Asignar tarea" para añadir entregas al estudiante.</p>
           </div>
         }
@@ -581,7 +562,7 @@ function TareasPanel({
             label: 'Actividad / Tarea',
             render: (act) => (
               <div className="flex max-w-lg flex-col gap-1">
-                <span className="break-words font-medium text-foreground">{act.description}</span>
+                <span className="break-words text-foreground">{act.description}</span>
                 {act.registered_at && (
                   <span className="text-xs text-muted-foreground">Asignada el {formatDegreeDate(act.registered_at)}</span>
                 )}
@@ -600,8 +581,8 @@ function TareasPanel({
                 <div className="flex min-w-0 items-center gap-2.5">
                   <InitialsAvatar name={act.teacher.name} tone={isTutor ? 'red' : isPeer ? 'blue' : 'gray'} className="size-8 shrink-0 text-xs" />
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-xs font-semibold text-foreground">
-                      {act.teacher.name} {isMyTask && <span className="font-bold text-primary">(Tú)</span>}
+                    <span className="truncate text-xs text-foreground">
+                      {act.teacher.name} {isMyTask && <span className="font-medium text-primary">(Tú)</span>}
                     </span>
                     <Badge variant="outline" className="mt-0.5 w-fit px-1.5 py-0 text-[10px]">
                       {isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}
@@ -626,7 +607,7 @@ function TareasPanel({
                       onCheckedChange={() => onToggle(act)}
                       aria-label={act.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
                     />
-                    <span className={cn('text-xs font-medium', act.is_completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
+                    <span className={cn('text-xs', act.is_completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
                       {act.is_completed ? 'Completada' : 'Pendiente'}
                     </span>
                   </label>

@@ -186,7 +186,7 @@ describe('Módulo Estudiante', () => {
     const submit = within(dialog).getByRole('button', { name: 'Enviar propuesta' })
     expect(submit).toBeDisabled()
     expect(within(dialog).getByLabelText('Título del tema')).toHaveAttribute('placeholder', expect.stringContaining('Ej.:'))
-    expect(within(dialog).getByLabelText('Descripción')).toHaveAttribute('placeholder')
+    expect(within(dialog).getByLabelText(/Descripción/)).toHaveAttribute('placeholder')
     await user.type(within(dialog).getByLabelText('Título del tema'), 'Tema de prueba')
     await user.click(submit)
     expect(await within(dialog).findByRole('button', { name: /Guardando/ })).toBeDisabled()

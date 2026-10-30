@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import { EyeIcon } from 'lucide-react'
-
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { FilterBar } from '@/features/tutoring/filter-bar'
-import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
 import { teacherApi, type TeacherDegreeAssignment } from '@/lib/teacher-api'
@@ -26,11 +24,10 @@ export function TeacherDegreeAssignmentsPage() {
       { id: 'role', label: 'Participación', value: role, onChange: (value) => setRole(value as typeof role), allLabel: 'Todas', options: [{ value: 'tutor', label: 'Tutor' }, { value: 'par_academico', label: 'Par académico' }] },
     ]} />
     <ErrorNotice message={list.error} retry={list.reload} />
-    <RecordTable rows={list.data} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No tienes asignaciones de titulación con estos criterios" description="Las asignaciones aparecerán cuando el Coordinador de Titulación te designe como tutor o par académico." />} columns={[
+    <RecordTable rows={list.data} onRowClick={setReading} rowTitle={(item) => `Ver detalle de ${item.topic.title}`} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No tienes asignaciones de titulación con estos criterios" description="Las asignaciones aparecerán cuando el Coordinador de Titulación te designe como tutor o par académico." />} columns={[
       { label: 'Tema', render: (item) => <div className="flex flex-col gap-1"><span className="font-medium">{item.topic.title}</span><span className="text-xs text-muted-foreground">{item.period.name}</span></div> },
       { label: 'Estudiante', render: (item) => <div className="flex flex-col gap-1"><span>{item.student.name}</span><span className="text-xs text-muted-foreground break-all">{item.student.email}</span></div> },
       { label: 'Participación', render: (item) => <Badge variant="secondary">{ROLE_LABELS[item.role]}</Badge> }, { label: 'Asignación', render: (item) => item.assigned_at ? formatDate(item.assigned_at) : 'Sin fecha' },
-      { label: 'Acciones', render: (item) => <Button variant="tertiary" size="icon" title="Ver detalle" aria-label={`Ver detalle de ${item.topic.title}`} onClick={() => setReading(item)}><EyeIcon /></Button> },
     ]} />
     <CatalogPagination label="asignaciones" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     <Dialog open={Boolean(reading)} title={reading?.topic.title ?? 'Asignación de titulación'} description={reading ? `${ROLE_LABELS[reading.role]} · ${reading.period.name}` : undefined} onClose={() => setReading(null)} confirmClose={false}>

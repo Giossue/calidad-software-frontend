@@ -1,18 +1,21 @@
-import { useState, type FormEvent } from 'react'
-import { ArrowLeftIcon, BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ChevronRightIcon, ClockIcon, PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
+import { useState, type FormEvent, type ReactNode } from 'react'
+import { ArrowLeftIcon, BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ClockIcon, ListChecksIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
 import { teacherApi, type Activity, type Methodology, type TeacherTutoring, type TutoringSession, type TutoringTopic } from '@/lib/teacher-api'
@@ -25,6 +28,8 @@ type ContentRecord = TutoringTopic | Activity | Methodology
 type Editing = { kind: Kind; record: ContentRecord | null }
 const LABELS = { topic: 'tema', activity: 'actividad', methodology: 'metodología' }
 const EMPTY = { name: '', description: '', duration: '' }
+const HOUR_OPTIONS = [0, 1, 2, 3, 4].map((hours) => ({ value: String(hours), label: hours === 1 ? '1 hora' : `${hours} horas` }))
+const MINUTE_OPTIONS = [0, 10, 15, 20, 25, 30, 40, 45, 50].map((minutes) => ({ value: String(minutes), label: `${minutes} min` }))
 const NAME_PLACEHOLDERS = { topic: 'Ej. Pruebas unitarias', activity: 'Ej. Diseñar casos de prueba', methodology: '' }
 const DESCRIPTION_PLACEHOLDERS = { topic: '', activity: '', methodology: 'Ej. Trabajo colaborativo en parejas con revisión del docente' }
 
@@ -146,7 +151,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       if (!activity) throw new Error('Selecciona una actividad.')
       return teacherApi.deactivateMethodology(tutoring.id, topic.id, activity.id, record.id)
     }
-    void operation.run(command, 'Contenido deshabilitado.', async () => { setDeactivating(null); await list.reload(); await sessionsRes.reload() })
+    void operation.run(command, 'Contenido deshabilitado.', async () => { setDeactivating(null); setEditing(null); await list.reload(); await sessionsRes.reload() })
   }
   function toggleTopicCoverage(topicItem: TutoringTopic) {
     if (!canManage || !topicItem.is_active || operation.pending) return
@@ -167,13 +172,21 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     )
   }
 
-  function actions(record: ContentRecord, nextKind: Kind, label: string) {
-    return <div className="flex items-center gap-1">
-      <Button variant="tertiary" size="icon" title="Editar" aria-label={`Editar ${label}`} disabled={!canManage || !record.is_active || operation.pending} onClick={() => openForm(nextKind, record)}><PencilIcon /></Button>
-      <Button variant="tertiary" size="icon" title="Deshabilitar" aria-label={`Deshabilitar ${label}`} disabled={!canManage || !record.is_active || operation.pending} onClick={() => { operation.clearError(); setDeactivating({ kind: nextKind, record }) }}><PowerOffIcon /></Button>
-    </div>
+  // Los botones de la fila no deben abrir además el modal de edición (clic de fila).
+  function stopRow(content: ReactNode) {
+    return <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>{content}</div>
   }
+  function editRecord(record: ContentRecord, nextKind: Kind) {
+    if (!canManage || !record.is_active || operation.pending) return
+    openForm(nextKind, record)
+  }
+  const rowTitle = (record: ContentRecord) => canManage && record.is_active ? 'Editar' : ''
   const title = activity ? `Metodologías de ${activity.name}` : topic ? `Actividades de ${topic.name}` : 'Temas de la tutoría'
+  const contentBlockReason = editing?.kind === 'methodology'
+    ? (form.description.trim() ? null : 'Escribe la descripción de la metodología.')
+    : (form.name.trim() ? null : `Escribe el nombre del ${LABELS[editing?.kind ?? 'topic']}.`)
+  const assignedIds = assigningSession?.topics.map((t) => t.id) ?? []
+  const assignDirty = selectedTopicIds.length !== assignedIds.length || selectedTopicIds.some((id) => !assignedIds.includes(id))
   const dialogTitle = editing ? `${editing.record ? 'Editar' : 'Registrar'} ${LABELS[editing.kind]}` : ''
 
   return <div className="flex flex-col gap-5">
@@ -225,7 +238,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     {!topic && !activity && sessions.length > 0 && (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2.5">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarDaysIcon className="size-3.5 text-primary" />
             <span>Fecha de clase:</span>
           </div>
@@ -257,7 +270,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                     className={cn(
                       'text-[10px] px-1.5 py-0.2 rounded-full font-medium',
                       isSelected
-                        ? 'bg-white/20 text-white'
+                        ? 'bg-primary-foreground/20 text-primary-foreground'
                         : 'bg-muted text-muted-foreground'
                     )}
                   >
@@ -306,16 +319,19 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         rows={activity.methodologies}
         loading={list.isFetching}
         empty={<TeacherEmpty title="Esta actividad aún no tiene metodologías" />}
+        onRowClick={(item) => editRecord(item, 'methodology')}
+        rowTitle={rowTitle}
         columns={[
           { label: 'Metodología', render: (item) => <p className="whitespace-pre-wrap break-words">{item.description}</p> },
           { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
-          { label: 'Acciones', render: (item) => actions(item, 'methodology', item.description) },
         ]}
       />
     ) : topic ? (
       <RecordTable
         rows={topic.activities}
         loading={list.isFetching}
+        onRowClick={(item) => editRecord(item, 'activity')}
+        rowTitle={rowTitle}
         empty={<TeacherEmpty title="Este tema aún no tiene actividades" />}
         columns={[
           { label: 'Actividad', render: (item) => <span className="font-medium">{item.name}</span> },
@@ -323,15 +339,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
           {
             label: 'Acciones',
-            render: (item) => (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" disabled={operation.pending} onClick={() => setActivityId(item.id)}>
-                  Metodologías
-                  <ChevronRightIcon data-icon="inline-end" />
-                </Button>
-                {actions(item, 'activity', item.name)}
-              </div>
-            ),
+            render: (item) => stopRow(<IconAction label={`Metodologías de ${item.name}`} icon={ListChecksIcon} disabled={operation.pending} onClick={() => setActivityId(item.id)} />),
           },
         ]}
       />
@@ -346,10 +354,12 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                   : (list.data.filter((item) => item.is_covered).length > 0 ? list.data.filter((item) => item.is_covered) : list.data))
           }
           loading={list.isFetching || list.isInitialLoading}
+          onRowClick={(item) => editRecord(item, 'topic')}
+          rowTitle={rowTitle}
           empty={
             selectedSessionDate !== 'all' && activeSession ? (
               <div className="py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
-                <p className="font-medium text-foreground">No hay temas asociados a la clase del {formatDate(activeSession.date)}.</p>
+                <p className="text-foreground">No hay temas asociados a la clase del {formatDate(activeSession.date)}.</p>
                 <p className="max-w-md">Puedes asociar los temas o actividades abordados en esta fecha pulsando el botón a continuación.</p>
                 {canManage && (
                   <Button size="sm" onClick={() => openAssignModal(activeSession)}>
@@ -369,7 +379,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             { label: 'Tema', render: (item) => <span className="font-medium">{item.name}</span> },
             {
               label: 'Estado',
-              render: (item) => (
+              render: (item) => stopRow(
                 <Button
                   type="button"
                   size="sm"
@@ -386,34 +396,15 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             { label: 'Habilitado', render: (item) => <StatusBadge active={item.is_active} /> },
             {
               label: 'Acciones',
-              render: (item) => (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant={item.is_covered ? 'secondary' : 'primary'}
-                    size="sm"
-                    disabled={!canManage || !item.is_active || operation.pending}
-                    onClick={() => toggleTopicCoverage(item)}
-                    title={item.is_covered ? 'Marcar tema como pendiente' : 'Marcar tema como completado'}
-                  >
-                    {item.is_covered ? (
-                      <>
-                        <ClockIcon data-icon="inline-start" />
-                        Marcar pendiente
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2Icon data-icon="inline-start" />
-                        Marcar completado
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="secondary" size="sm" disabled={operation.pending} onClick={() => setTopicId(item.id)}>
-                    <BookOpenIcon data-icon="inline-start" />
-                    Actividades
-                  </Button>
-                  {actions(item, 'topic', item.name)}
-                </div>
-              ),
+              render: (item) => stopRow(<>
+                <IconAction
+                  label={item.is_covered ? 'Marcar pendiente' : 'Marcar completado'}
+                  icon={item.is_covered ? ClockIcon : CheckCircle2Icon}
+                  disabled={!canManage || !item.is_active || operation.pending}
+                  onClick={() => toggleTopicCoverage(item)}
+                />
+                <IconAction label={`Actividades de ${item.name}`} icon={BookOpenIcon} disabled={operation.pending} onClick={() => setTopicId(item.id)} />
+              </>),
             },
           ]}
         />
@@ -428,13 +419,21 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         )}
       </>
     )}
-    <MutationDialog open={Boolean(editing)} title={dialogTitle} description={activity?.name ?? topic?.name ?? tutoring.subject_name} pending={operation.pending} error={operation.error} dirty={JSON.stringify(form) !== JSON.stringify(initial)} onClose={() => setEditing(null)} onSubmit={submit} submitLabel={editing?.record ? 'Guardar cambios' : `Registrar ${editing ? LABELS[editing.kind] : ''}`}>
+    <FormDialog
+      open={Boolean(editing)}
+      title={dialogTitle}
+      description={activity?.name ?? topic?.name ?? tutoring.subject_name}
+      pending={operation.pending}
+      error={operation.error}
+      dirty={JSON.stringify(form) !== JSON.stringify(initial)}
+      blockReason={contentBlockReason}
+      onClose={() => setEditing(null)}
+      onSubmit={submit}
+      submitLabel={editing?.record ? 'Guardar cambios' : `Registrar ${editing ? LABELS[editing.kind] : ''}`}
+      headerActions={editing?.record ? <IconAction label={`Deshabilitar ${LABELS[editing.kind]}`} icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} /> : undefined}
+    >
       {editing?.kind !== 'methodology' && (
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-content-name">Nombre</FieldLabel>
-            <FieldCounter current={form.name.length} max={150} />
-          </div>
+        <FormField id="teacher-content-name" label="Nombre" counter={{ current: form.name.length, max: 150 }}>
           <Input
             id="teacher-content-name"
             value={form.name}
@@ -443,44 +442,29 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             required
             placeholder={editing ? NAME_PLACEHOLDERS[editing.kind] : undefined}
           />
-        </Field>
+        </FormField>
       )}
       {editing?.kind === 'activity' && (
-        <Field>
-          <FieldLabel htmlFor="activity-timer-hours">Duración de la actividad *</FieldLabel>
+        <FormField id="activity-timer-hours" label="Duración de la actividad">
           <div className="flex flex-col gap-2.5">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Horas</span>
-                <NativeSelect
+                <span className="text-xs text-muted-foreground">Horas</span>
+                <SelectInput
                   id="activity-timer-hours"
                   value={String(timerHours)}
-                  onChange={(e) => updateTimer(Number(e.target.value), timerMinutes)}
-                >
-                  <option value="0">0 horas</option>
-                  <option value="1">1 hora</option>
-                  <option value="2">2 horas</option>
-                  <option value="3">3 horas</option>
-                  <option value="4">4 horas</option>
-                </NativeSelect>
+                  onValueChange={(value) => updateTimer(Number(value), timerMinutes)}
+                  options={HOUR_OPTIONS}
+                />
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Minutos</span>
-                <NativeSelect
+                <span className="text-xs text-muted-foreground">Minutos</span>
+                <SelectInput
                   id="activity-timer-minutes"
                   value={String(timerMinutes)}
-                  onChange={(e) => updateTimer(timerHours, Number(e.target.value))}
-                >
-                  <option value="0">0 min</option>
-                  <option value="10">10 min</option>
-                  <option value="15">15 min</option>
-                  <option value="20">20 min</option>
-                  <option value="25">25 min</option>
-                  <option value="30">30 min</option>
-                  <option value="40">40 min</option>
-                  <option value="45">45 min</option>
-                  <option value="50">50 min</option>
-                </NativeSelect>
+                  onValueChange={(value) => updateTimer(timerHours, Number(value))}
+                  options={MINUTE_OPTIONS}
+                />
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -507,19 +491,15 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               ))}
             </div>
             {form.duration && (
-              <p className="text-xs font-medium text-primary mt-1">
+              <p className="text-xs text-primary mt-1">
                 ⏱ Duración seleccionada: {form.duration}
               </p>
             )}
           </div>
-        </Field>
+        </FormField>
       )}
       {editing?.kind === 'methodology' && (
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-content-description">Descripción</FieldLabel>
-            <FieldCounter current={form.description.length} max={255} />
-          </div>
+        <FormField id="teacher-content-description" label="Descripción" counter={{ current: form.description.length, max: 255 }}>
           <Textarea
             id="teacher-content-description"
             value={form.description}
@@ -528,16 +508,16 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             required
             placeholder={DESCRIPTION_PLACEHOLDERS.methodology}
           />
-        </Field>
+        </FormField>
       )}
-    </MutationDialog>
-    <MutationDialog
+    </FormDialog>
+    <FormDialog
       open={Boolean(assigningSession)}
       title={`Asignar temas a la clase del ${assigningSession ? formatDate(assigningSession.date) : ''}`}
       description="Selecciona los temas que fueron abordados en esta sesión de tutoría. Los temas seleccionados se marcarán automáticamente como completados."
       pending={operation.pending}
       error={operation.error}
-      dirty={true}
+      dirty={assignDirty}
       onClose={() => setAssigningSession(null)}
       onSubmit={saveAssignedTopics}
       submitLabel="Guardar temas de la clase"
@@ -562,9 +542,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                   className="mt-0.5"
                 />
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-semibold text-foreground">{t.name}</span>
+                  <span className="text-sm font-medium text-foreground">{t.name}</span>
                   {t.description && <span className="text-xs text-muted-foreground">{t.description}</span>}
-                  <span className="text-xs text-primary font-medium mt-1">
+                  <span className="text-xs text-primary mt-1">
                     {t.activities.length} {t.activities.length === 1 ? 'actividad planificada' : 'actividades planificadas'}
                   </span>
                 </div>
@@ -572,7 +552,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             ))
         )}
       </div>
-    </MutationDialog>
+    </FormDialog>
     <ConfirmModal open={Boolean(deactivating)} title={`¿Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}?`} description="El contenido dejará de estar disponible para nuevas sesiones. Su historial se conservará." pending={operation.pending} confirmLabel="Deshabilitar contenido" onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={deactivate} />
   </div>
 }

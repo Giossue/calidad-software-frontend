@@ -3,12 +3,14 @@ import { MailWarningIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Field, FieldCounter, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { formatDate } from '@/lib/format'
 import { studentApi, type StudentAbsenceNotice } from '@/lib/student-api'
 
@@ -80,28 +82,26 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
         />
       )}
 
-      <MutationDialog
+      <FormDialog
         open={open}
         title="Avisar inasistencia"
         description="Tu docente recibirá el aviso y lo verá al tomar lista."
         pending={operation.pending}
         error={operation.error}
         dirty={reason.trim() !== ''}
+        blockReason={!date ? 'Indica la fecha de la clase.' : reason.trim().length < 5 ? 'El motivo debe tener al menos 5 caracteres.' : null}
         onClose={() => setOpen(false)}
         onSubmit={submit}
         submitLabel="Enviar aviso"
-        submitDisabled={!date || reason.trim().length < 5}
+        submitIcon={MailWarningIcon}
       >
-        <Field>
-          <FieldLabel htmlFor="absence-date">Fecha de la clase</FieldLabel>
+        <FormField id="absence-date" label="Fecha de la clase">
           <Input id="absence-date" type="date" min={todayDate()} value={date} onChange={(event) => setDate(event.target.value)} required />
-        </Field>
-        <Field>
-          <div className="flex items-center justify-between"><FieldLabel htmlFor="absence-reason">Motivo</FieldLabel><FieldCounter current={reason.length} max={500} /></div>
+        </FormField>
+        <FormField id="absence-reason" label="Motivo" tip="Mínimo 5 caracteres." counter={{ current: reason.length, max: 500 }}>
           <Textarea id="absence-reason" value={reason} onChange={(event) => setReason(event.target.value.slice(0, 500))} maxLength={500} rows={3} required placeholder="Ej. Cita médica programada" />
-          <FieldDescription>Mínimo 5 caracteres.</FieldDescription>
-        </Field>
-      </MutationDialog>
+        </FormField>
+      </FormDialog>
     </section>
   )
 }

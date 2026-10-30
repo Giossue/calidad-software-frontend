@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarClockIcon, CalendarDaysIcon, SaveIcon } from 'lucide-react'
+import { CalendarClockIcon, CalendarDaysIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, RecordTable, SelectField } from '@/features/tutoring/tutoring-shared'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { DAY_LABELS, WEEK_DAYS, type TutoringSchedule } from '@/lib/tutoring-api'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
 import { cn } from '@/lib/utils'
@@ -21,6 +22,14 @@ export const SCHEDULE_TIME_OPTIONS = [
   '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00',
 ]
 
+type DayTimes = Record<string, { start_time: string; end_time: string }>
+
+function snapshotOf(days: readonly string[], times: DayTimes): string {
+  return JSON.stringify([...days].sort().map((day) => [day, times[day]?.start_time ?? '', times[day]?.end_time ?? '']))
+}
+
+const TIME_SELECT_OPTIONS = SCHEDULE_TIME_OPTIONS.map((time) => ({ value: time, label: time }))
+
 interface SchedulesPanelProps {
   tutoring: TeacherTutoring
   onReload?: () => Promise<unknown> | void
@@ -32,7 +41,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
   const [isEditing, setIsEditing] = useState(false)
   const [scheduleDays, setScheduleDays] = useState<string[]>([])
   const [dayTimes, setDayTimes] = useState<Record<string, { start_time: string; end_time: string }>>({})
-  const [formError, setFormError] = useState<string | null>(null)
+  const [initialSnapshot, setInitialSnapshot] = useState('')
 
   // Sync state if tutoring or schedules changes
   useEffect(() => {
@@ -41,7 +50,6 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
 
   function openEditModal() {
     operation.clearError()
-    setFormError(null)
 
     const activeSchedules = schedules.filter((s) => s.is_active)
     const days: string[] = []
@@ -57,40 +65,29 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
       }
     })
 
-    if (days.length > 0) {
-      setScheduleDays(days)
-      setDayTimes(times)
-    } else {
-      setScheduleDays(['lunes'])
-      setDayTimes({
-        lunes: { start_time: '08:00', end_time: '10:00' },
-      })
-    }
+    const initialDays = days.length > 0 ? days : ['lunes']
+    const initialTimes = days.length > 0 ? times : { lunes: { start_time: '08:00', end_time: '10:00' } }
+    setScheduleDays(initialDays)
+    setDayTimes(initialTimes)
+    setInitialSnapshot(snapshotOf(initialDays, initialTimes))
 
     setIsEditing(true)
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFormError(null)
-
-    if (scheduleDays.length === 0) {
-      setFormError('Selecciona al menos un día para el horario de la tutoría.')
-      return
-    }
-
+  function validate(): string | null {
+    if (scheduleDays.length === 0) return 'Selecciona al menos un día para el horario de la tutoría.'
     for (const day of scheduleDays) {
       const times = dayTimes[day]
       const dayLabel = DAY_LABELS[day] ?? day
-      if (!times?.start_time || !times?.end_time) {
-        setFormError(`Selecciona la hora de inicio y fin para el día ${dayLabel}.`)
-        return
-      }
-      if (times.start_time >= times.end_time) {
-        setFormError(`En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`)
-        return
-      }
+      if (!times?.start_time || !times?.end_time) return `Selecciona la hora de inicio y fin para el día ${dayLabel}.`
+      if (times.start_time >= times.end_time) return `En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`
     }
+    return null
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (validate()) return
 
     const payload = scheduleDays.map((day) => {
       const times = dayTimes[day] ?? { start_time: '08:00', end_time: '10:00' }
@@ -153,28 +150,26 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
         ]}
       />
 
-      <Dialog
+      <FormDialog
         open={isEditing}
         title="Editar horarios de tutoría"
         description={`Configura los días y horas de atención para ${tutoring.subject_name}.`}
-        confirmClose={false}
-        onClose={() => {
-          if (!operation.pending) setIsEditing(false)
-        }}
+        pending={operation.pending}
+        error={operation.error}
+        dirty={snapshotOf(scheduleDays, dayTimes) !== initialSnapshot}
+        blockReason={validate()}
+        onClose={() => setIsEditing(false)}
+        onSubmit={handleSubmit}
+        submitLabel="Guardar horarios"
+        maxWidth="max-w-2xl"
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <ErrorNotice message={formError || operation.error} />
-
           <Card className="flex flex-col gap-3 p-3.5 shadow-none">
             <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
               <CalendarClockIcon className="size-4 text-primary" />
               Horario de la asignatura
             </h4>
 
-            <Field>
-              <FieldLabel htmlFor="teacher-schedule-days">
-                Selección de días <span className="text-xs font-normal text-muted-foreground">(puedes seleccionar varios)</span>
-              </FieldLabel>
+            <FormField id="teacher-schedule-days" label="Selección de días" tip="Puedes seleccionar varios días.">
               <div id="teacher-schedule-days" className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Días de la semana">
                 {WEEK_DAYS.map((day) => {
                   const isChecked = scheduleDays.includes(day)
@@ -216,11 +211,11 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
                   )
                 })}
               </div>
-            </Field>
+            </FormField>
 
             {/* Horario por día */}
             <div className="flex flex-col gap-3 pt-1">
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 Horario por día (puedes configurar horas diferentes según el día):
               </span>
               {scheduleDays.map((day) => {
@@ -231,7 +226,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
                     key={day}
                     className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-muted/20 shadow-none"
                   >
-                    <div className="sm:w-28 flex items-center gap-2 font-semibold text-sm text-foreground shrink-0">
+                    <div className="sm:w-28 flex items-center gap-2 font-medium text-sm text-foreground shrink-0">
                       <CalendarDaysIcon className="size-4 text-primary" />
                       <span>{dayLabel}</span>
                     </div>
@@ -240,62 +235,40 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
                         id={`teacher-schedule-start-${day}`}
                         label={scheduleDays.length === 1 ? 'Hora de inicio' : `Hora de inicio (${dayLabel})`}
                         value={currentTimes.start_time}
-                        onChange={(val) => {
+                        onValueChange={(val) => {
                           setDayTimes((prev) => ({
                             ...prev,
                             [day]: { ...(prev[day] ?? { end_time: '10:00' }), start_time: val },
                           }))
                         }}
-                        required
-                      >
-                        <option value="">Selecciona hora</option>
-                        {SCHEDULE_TIME_OPTIONS.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </SelectField>
+                        options={TIME_SELECT_OPTIONS}
+                        placeholder="Selecciona hora"
+                      />
                       <SelectField
                         id={`teacher-schedule-end-${day}`}
                         label={scheduleDays.length === 1 ? 'Hora de fin' : `Hora de fin (${dayLabel})`}
                         value={currentTimes.end_time}
-                        onChange={(val) => {
+                        onValueChange={(val) => {
                           setDayTimes((prev) => ({
                             ...prev,
                             [day]: { ...(prev[day] ?? { start_time: '08:00' }), end_time: val },
                           }))
                         }}
-                        required
-                      >
-                        <option value="">Selecciona hora</option>
-                        {SCHEDULE_TIME_OPTIONS.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </SelectField>
+                        options={TIME_SELECT_OPTIONS}
+                        placeholder="Selecciona hora"
+                      />
                     </div>
                   </Card>
                 )
               })}
               {scheduleDays.length === 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
+                <p className="text-xs text-muted-foreground">
                   Selecciona al menos un día arriba para configurar su horario.
                 </p>
               )}
             </div>
           </Card>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <DialogCancelButton disabled={operation.pending}>
-              Cancelar
-            </DialogCancelButton>
-            <Button
-              type="submit"
-              disabled={operation.pending || scheduleDays.length === 0}
-            >
-              <SaveIcon data-icon="inline-start" />
-              Guardar horarios
-            </Button>
-          </div>
-        </form>
-      </Dialog>
+      </FormDialog>
     </div>
   )
 }

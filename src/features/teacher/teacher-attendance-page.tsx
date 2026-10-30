@@ -21,13 +21,16 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DataTable } from '@/components/ui/data-table'
 import { FieldLabel } from '@/components/ui/field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { compareNames, formatDate } from '@/lib/format'
 import { DAY_LABELS } from '@/lib/tutoring-api'
@@ -134,7 +137,7 @@ function clearDraft(tutoringId: number, date: string) {
 }
 
 // Pestañas internas como control segmentado: sin subrayado, para no repetir el separador de las pestañas principales.
-const SECTION_TRIGGER = 'mb-0 rounded-md border-b-0 px-3 py-2 data-[state=active]:border-transparent data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:shadow-sm'
+const SECTION_TRIGGER = 'mb-0 rounded-lg border-b-0 px-3 py-2 data-[state=active]:border-transparent data-[state=active]:bg-card data-[state=active]:shadow-sm'
 
 // --- Panel: dos secciones (Registrar asistencia y Consultar asistencia) ---
 
@@ -221,7 +224,7 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarDaysIcon className="size-3.5 text-primary" />
               <span>Días programados:</span>
-              <span className="font-semibold text-foreground">
+              <span className="font-medium text-foreground">
                 {activeScheduleDays.map((d) => DAY_LABELS[d] ?? d).join(', ')}
               </span>
             </div>
@@ -290,9 +293,9 @@ function SessionsList({
       {taken ? (
         <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
+            <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
             <div className="flex flex-col">
-              <p className="font-medium">La lista de hoy ya se tomó</p>
+              <p>La lista de hoy ya se tomó</p>
               <p className="text-sm text-muted-foreground">{attendanceSummary(taken)}. Puedes modificarla solo durante hoy.</p>
             </div>
           </div>
@@ -336,7 +339,7 @@ function SessionsList({
             render: (session) => {
               const day = getDayOfWeekFromDate(session.date)
               return (
-                <Badge variant="outline" className="font-medium">
+                <Badge variant="outline">
                   {DAY_LABELS[day] ?? day}
                 </Badge>
               )
@@ -472,23 +475,14 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="tertiary"
-            size="icon"
-            aria-label="Volver a las sesiones"
-            title="Volver a las sesiones"
-            onClick={onClose}
-          >
-            <ArrowLeftIcon />
-          </Button>
+          <IconAction label="Volver a las sesiones" icon={ArrowLeftIcon} onClick={onClose} />
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <h3 className="font-display text-xl font-semibold leading-tight">
                 Sesión del {formatDate(session.date)}
               </h3>
               {dayLabel && (
-                <Badge variant="outline" className="font-semibold">
+                <Badge variant="outline">
                   {dayLabel}
                 </Badge>
               )}
@@ -586,6 +580,12 @@ function SessionForm({
       },
     )
   }
+
+  const saveBlockReason = !isDayAllowed
+    ? 'La fecha no coincide con los días de horario de la tutoría.'
+    : active.length === 0
+      ? 'No hay estudiantes activos para registrar asistencia.'
+      : null
 
   const tableMeta: AttendanceTableMeta = {
     marks, notices: noticesByEnrollment, disabled: readOnly || operation.pending, onMark: mark,
@@ -691,13 +691,17 @@ function SessionForm({
         <ErrorNotice message={operation.error} />
 
         <div className="flex items-center justify-end">
-          <Button
-            type="submit"
-            disabled={!isDayAllowed || active.length === 0 || operation.pending}
-          >
-            {operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
-            {operation.pending ? 'Guardando…' : 'Guardar asistencia'}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={saveBlockReason ? 0 : -1}>
+                <Button type="submit" disabled={saveBlockReason !== null || operation.pending}>
+                  {operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
+                  {operation.pending ? 'Guardando…' : 'Guardar asistencia'}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {saveBlockReason && !operation.pending && <TooltipContent>{saveBlockReason}</TooltipContent>}
+          </Tooltip>
         </div>
       </div>
     </form>

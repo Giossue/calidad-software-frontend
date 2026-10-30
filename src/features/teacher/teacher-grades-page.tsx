@@ -10,9 +10,10 @@ import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { compareNames } from '@/lib/format'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
 import { teacherApi, type Enrollment, type GradeSettings, type GradeType, type TeacherTutoring } from '@/lib/teacher-api'
@@ -151,7 +152,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
   { id: 'name', header: 'Estudiante', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
   ...GRADE_FIELDS.map(({ type, label }): ColumnDef<Enrollment> => ({
     id: type,
-    header: ({ table }) => <div className={`text-center ${(table.options.meta as GradesTableMeta).stage === type ? 'font-semibold text-foreground' : ''}`}>{label}</div>,
+    header: ({ table }) => <div className={`text-center ${(table.options.meta as GradesTableMeta).stage === type ? 'text-foreground' : ''}`}>{label}</div>,
     cell: ({ row, table }) => {
       const meta = table.options.meta as GradesTableMeta
       const value = meta.grid[row.original.id]?.[type] ?? ''
@@ -174,14 +175,14 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => focusNextRow(event, type)}
         />
         {type === 'diagnostic' && value && groupFor(value, meta.settings) && (
-          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{groupFor(value, meta.settings)}</span>
+          <span className="text-[10px] font-medium text-success-foreground uppercase tracking-wider">{groupFor(value, meta.settings)}</span>
         )}
       </div>
     },
   })),
   {
     id: 'evolution',
-    header: () => <div className="text-center font-medium">Evolución (Diag → P2)</div>,
+    header: () => <div className="text-center">Evolución (Diag → P2)</div>,
     cell: ({ row, table }) => {
       const meta = table.options.meta as GradesTableMeta
       const diagStr = meta.grid[row.original.id]?.diagnostic ?? ''
@@ -192,7 +193,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
       if (evo.status === 'up') {
         return (
           <div className="flex justify-center">
-            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 font-semibold tabular-nums" title={evo.title}>
+            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 tabular-nums" title={evo.title}>
               <TrendingUpIcon className="size-3.5 shrink-0" aria-hidden="true" />
               <span>{evo.label}</span>
             </Badge>
@@ -203,7 +204,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
       if (evo.status === 'down') {
         return (
           <div className="flex justify-center">
-            <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 gap-1 font-semibold tabular-nums" title={evo.title}>
+            <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 gap-1 tabular-nums" title={evo.title}>
               <TrendingDownIcon className="size-3.5 shrink-0" aria-hidden="true" />
               <span>{evo.label}</span>
             </Badge>
@@ -214,7 +215,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
       if (evo.status === 'same') {
         return (
           <div className="flex justify-center">
-            <Badge variant="outline" className="text-muted-foreground gap-1 tabular-nums font-medium" title={evo.title}>
+            <Badge variant="outline" className="text-muted-foreground gap-1 tabular-nums" title={evo.title}>
               <MinusIcon className="size-3.5 shrink-0" aria-hidden="true" />
               <span>{evo.label}</span>
             </Badge>
@@ -300,6 +301,7 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
   }
 
   const tableMeta: GradesTableMeta = { grid, stage, settings, disabled: readOnly || operation.pending, onChange: setValue }
+  const saveBlocked = readOnly || !complete || hasInvalid || !changed
   const missing = total - filled
   const hint = readOnly ? '' : hasInvalid ? 'Hay notas incompletas o fuera de la escala.' : missing > 0 ? `Faltan ${missing} ${missing === 1 ? 'nota' : 'notas'} de ${label}.` : !changed ? 'No hay cambios por guardar.' : 'Todo listo para guardar.'
 
@@ -309,7 +311,7 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
   <form onSubmit={submit} aria-label="Calificaciones" className="flex flex-col gap-4">
     {readOnly && <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>}
     {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
-      <span className="mr-1 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground"><ClipboardCheckIcon className="size-4 text-muted-foreground" aria-hidden="true" />Etapa:</span>
+      <span className="mr-1 inline-flex items-center gap-1.5 text-sm font-medium text-foreground"><ClipboardCheckIcon className="size-4 text-muted-foreground" aria-hidden="true" />Etapa:</span>
       <Button type="button" size="sm" variant={stage === null ? 'primary' : 'secondary'} aria-pressed={stage === null} disabled={operation.pending} onClick={() => { if (stage) { if (changed) setConfirmCancel(true); else leaveStage() } }}>{stage === null && <CheckIcon data-icon="inline-start" />}Todas las etapas</Button>
       {GRADE_FIELDS.map(({ type, label: name }) => {
         const done = active.every((student) => saved[student.id]?.[type])
@@ -317,7 +319,7 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
         return <Button key={type} type="button" size="sm" variant={selected ? 'primary' : 'secondary'} aria-pressed={selected} disabled={operation.pending} onClick={() => setStage(type)}>
           {selected && <CheckIcon data-icon="inline-start" />}
           {name}{' '}
-          <span className={`rounded-full px-1.5 text-[11px] font-medium ${selected ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>{done ? 'Completo' : 'Pendiente'}</span>
+          <span className={`rounded-full px-1.5 text-[11px] font-medium ${selected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{done ? 'Completo' : 'Pendiente'}</span>
         </Button>
       })}
     </div>}
@@ -325,12 +327,19 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
     <ErrorNotice message={operation.error} />
     {stage && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 py-3 backdrop-blur">
       <div className="flex flex-col">
-        <p className="text-sm font-medium" aria-live="polite">{filled} de {total} notas de {label} ingresadas</p>
+        <p className="text-sm" aria-live="polite">{filled} de {total} notas de {label} ingresadas</p>
         <p className="text-xs text-muted-foreground"><span>{hint}</span> <span>Escala de 0 a {settings.maximum}, hasta dos decimales (ej. 9.42).</span></p>
       </div>
       <div className="flex items-center gap-2">
         <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => (changed ? setConfirmCancel(true) : leaveStage())}>Cancelar</Button>
-        <Button type="submit" disabled={readOnly || !complete || hasInvalid || !changed || operation.pending}>{operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}{operation.pending ? 'Guardando…' : `Guardar ${label}`}</Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={saveBlocked ? 0 : -1}>
+              <Button type="submit" disabled={saveBlocked || operation.pending}>{operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}{operation.pending ? 'Guardando…' : `Guardar ${label}`}</Button>
+            </span>
+          </TooltipTrigger>
+          {saveBlocked && !operation.pending && <TooltipContent>{hint || 'No hay cambios por guardar.'}</TooltipContent>}
+        </Tooltip>
       </div>
     </div>}
   </form>

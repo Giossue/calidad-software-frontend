@@ -2,22 +2,22 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { SendIcon } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Field, FieldCounter, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { FollowUpReportDocument } from '@/features/reports/follow-up-report-document'
 import { PrintReport, SheetFrame } from '@/features/reports/report-sheet'
 import { describeError, useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import type { FollowUpReportSummary } from '@/lib/follow-up-report'
 import { todayIsoDate } from '@/lib/format'
 import { teacherApi, type FollowUpReportParams, type TeacherTutoring } from '@/lib/teacher-api'
 
 const MAX_OBSERVATIONS = 5000
+const PARTIAL_OPTIONS = [{ value: '1', label: 'Primer parcial' }, { value: '2', label: 'Segundo parcial' }]
 
 function initialParams(tutoring: TeacherTutoring): FollowUpReportParams {
   const today = todayIsoDate()
@@ -89,89 +89,82 @@ export function FollowUpReportDialog({
 
   const today = todayIsoDate()
 
+  const blockReason = !validRange
+    ? 'Indica un rango de fechas válido.'
+    : loading
+      ? 'Calculando el reporte…'
+      : !hasSessions
+        ? 'No hay tutorías registradas entre las fechas indicadas.'
+        : !tutoring.can_manage
+          ? 'No tienes permiso para enviar este reporte.'
+          : null
+
   return (
-    <Dialog
+    <FormDialog
       open={open}
       title="Reporte de seguimiento a las tutorías"
       description={`${tutoring.subject_name} · Paralelo ${tutoring.section_name}`}
-      confirmClose={observations.trim() !== ''}
-      onClose={() => { if (!operation.pending) close() }}
+      pending={operation.pending}
+      error={operation.error}
+      dirty={observations.trim() !== ''}
+      requireChanges={false}
+      blockReason={blockReason}
+      onClose={close}
+      onSubmit={submit}
+      submitLabel="Enviar a coordinación"
+      submitIcon={SendIcon}
       maxWidth="max-w-5xl"
     >
-      <form onSubmit={submit} aria-label="Reporte de seguimiento a las tutorías" className="max-h-[70vh] overflow-y-auto p-1">
-        <fieldset disabled={operation.pending}>
-          <FieldGroup>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field>
-                <FieldLabel htmlFor="follow-up-partial">Parcial</FieldLabel>
-                <NativeSelect id="follow-up-partial" value={String(partial)} onChange={(event) => update({ partial: event.target.value === '2' ? 2 : 1 })}>
-                  <option value="1">Primer parcial</option>
-                  <option value="2">Segundo parcial</option>
-                </NativeSelect>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="follow-up-from">Tutorías desde</FieldLabel>
-                <Input id="follow-up-from" type="date" value={from} max={to || today} onChange={(event) => update({ from: event.target.value })} required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="follow-up-to">Tutorías hasta</FieldLabel>
-                <Input id="follow-up-to" type="date" value={to} min={from} max={today} onChange={(event) => update({ to: event.target.value })} required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="follow-up-date">Fecha de presentación</FieldLabel>
-                <Input id="follow-up-date" type="date" value={date} max={today} onChange={(event) => update({ date: event.target.value })} required />
-              </Field>
-            </div>
-            <Field>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="follow-up-observations">Observación</FieldLabel>
-                <FieldCounter current={observations.length} max={MAX_OBSERVATIONS} />
-              </div>
-              <Textarea
-                id="follow-up-observations"
-                value={observations}
-                onChange={(event) => setObservations(event.target.value)}
-                maxLength={MAX_OBSERVATIONS}
-                rows={3}
-                placeholder="Ej.: Los temas de refuerzo fueron seleccionados por los estudiantes según sus requerimientos académicos."
-              />
-            </Field>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <SelectField id="follow-up-partial" label="Parcial" value={String(partial)} onValueChange={(value) => update({ partial: value === '2' ? 2 : 1 })} options={PARTIAL_OPTIONS} />
+        <FormField id="follow-up-from" label="Tutorías desde">
+          <Input id="follow-up-from" type="date" value={from} max={to || today} onChange={(event) => update({ from: event.target.value })} required />
+        </FormField>
+        <FormField id="follow-up-to" label="Tutorías hasta">
+          <Input id="follow-up-to" type="date" value={to} min={from} max={today} onChange={(event) => update({ to: event.target.value })} required />
+        </FormField>
+        <FormField id="follow-up-date" label="Fecha de presentación">
+          <Input id="follow-up-date" type="date" value={date} max={today} onChange={(event) => update({ date: event.target.value })} required />
+        </FormField>
+      </div>
+      <FormField id="follow-up-observations" label="Observación" optional counter={{ current: observations.length, max: MAX_OBSERVATIONS }}>
+        <Textarea
+          id="follow-up-observations"
+          value={observations}
+          onChange={(event) => setObservations(event.target.value)}
+          maxLength={MAX_OBSERVATIONS}
+          rows={3}
+          placeholder="Ej.: Los temas de refuerzo fueron seleccionados por los estudiantes según sus requerimientos académicos."
+        />
+      </FormField>
 
-            {!validRange && (
-              <Alert variant="destructive">
-                <AlertDescription>Indica un rango de fechas válido: «desde» no puede ser posterior a «hasta».</AlertDescription>
-              </Alert>
-            )}
-            <ErrorNotice message={loadError} retry={() => { setLoadError(null); setAttempt((value) => value + 1) }} />
-            {loading && (
-              <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner aria-hidden="true" />
-                Calculando el reporte con las tutorías registradas…
-              </p>
-            )}
-            {validRange && preview && !hasSessions && (
-              <Alert>
-                <AlertDescription>No hay tutorías registradas entre las fechas indicadas. Ajusta el rango o registra la asistencia antes de enviar el reporte.</AlertDescription>
-              </Alert>
-            )}
-            {summary && (
-              <SheetFrame>
-                <FollowUpReportDocument summary={summary} />
-              </SheetFrame>
-            )}
-
-            <ErrorNotice message={operation.error} />
-            <div className="flex flex-wrap justify-end gap-3">
-              <DialogCancelButton disabled={operation.pending}>Cancelar</DialogCancelButton>
-              {summary && <PrintReport disabled={operation.pending}><FollowUpReportDocument summary={summary} /></PrintReport>}
-              <Button type="submit" disabled={operation.pending || !validRange || !hasSessions || !tutoring.can_manage}>
-                {operation.pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SendIcon data-icon="inline-start" />}
-                {operation.pending ? 'Enviando…' : 'Enviar a coordinación'}
-              </Button>
-            </div>
-          </FieldGroup>
-        </fieldset>
-      </form>
-    </Dialog>
+      {!validRange && (
+        <Alert variant="destructive">
+          <AlertDescription>Indica un rango de fechas válido: «desde» no puede ser posterior a «hasta».</AlertDescription>
+        </Alert>
+      )}
+      <ErrorNotice message={loadError} retry={() => { setLoadError(null); setAttempt((value) => value + 1) }} />
+      {loading && (
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner aria-hidden="true" />
+          Calculando el reporte con las tutorías registradas…
+        </p>
+      )}
+      {validRange && preview && !hasSessions && (
+        <Alert>
+          <AlertDescription>No hay tutorías registradas entre las fechas indicadas. Ajusta el rango o registra la asistencia antes de enviar el reporte.</AlertDescription>
+        </Alert>
+      )}
+      {summary && (
+        <SheetFrame>
+          <FollowUpReportDocument summary={summary} />
+        </SheetFrame>
+      )}
+      {summary && (
+        <div className="flex justify-end">
+          <PrintReport disabled={operation.pending}><FollowUpReportDocument summary={summary} /></PrintReport>
+        </div>
+      )}
+    </FormDialog>
   )
 }

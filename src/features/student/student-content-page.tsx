@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { studentApi, type StudentContent, type StudentTopic } from '@/lib/student-api'
@@ -22,9 +22,9 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
   const firstMethodology = firstActivity?.methodologies[0]
   return <li className="rounded-lg border bg-card transition-colors hover:border-primary/40">
     <button type="button" aria-expanded={open} aria-label={`${open ? 'Ocultar' : 'Ver'} detalle de ${topic.name}`} onClick={() => setOpen(!open)} className="flex w-full items-center gap-4 rounded-lg p-4 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
-      <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-base font-semibold text-foreground">{number}</span>
+      <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-base font-medium text-foreground">{number}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <span className="break-words font-semibold">{topic.name}</span>
+        <span className="break-words font-medium">{topic.name}</span>
         {topic.description && <span className="line-clamp-2 text-sm text-muted-foreground">{topic.description}</span>}
         <span className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {firstActivity && <span className="flex items-center gap-1.5"><ClockIcon className="size-3.5" aria-hidden="true" />{firstActivity.duration}</span>}
@@ -86,7 +86,7 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
 
     {sessions.length > 0 && (
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-2.5">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarDaysIcon className="size-3.5 text-primary" />
           <span>Fecha de clase:</span>
         </div>
@@ -118,7 +118,7 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
                   className={cn(
                     'text-[10px] px-1.5 py-0.2 rounded-full font-medium',
                     isSelected
-                      ? 'bg-white/20 text-white'
+                      ? 'bg-primary-foreground/20 text-primary-foreground'
                       : 'bg-muted text-muted-foreground'
                   )}
                 >

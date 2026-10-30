@@ -5,10 +5,8 @@ import {
   CalendarCheckIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
-  ChevronRightIcon,
   ClipboardListIcon,
   ClockIcon,
-  EyeIcon,
   FileCheck2Icon,
   FileTextIcon,
   SendIcon,
@@ -21,19 +19,21 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Field, FieldCounter, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { PrintStructuredReport, StructuredReport } from '@/features/reports/structured-report'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
-import { ErrorNotice, MutationDialog, RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
 import { isStructuredReport } from '@/lib/structured-report'
@@ -160,19 +160,12 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
             description="Envía un informe para compartir el desarrollo de esta tutoría con el coordinador."
           />
         }
+        onRowClick={(report) => { if (report.content) setReading(report) }}
+        rowTitle={(report) => (report.content ? 'Leer informe' : '')}
         columns={[
           { label: 'Informe', render: (report) => <span className="font-medium">{report.type}</span> },
           { label: 'Autor', render: (report) => report.author_name },
           { label: 'Enviado', render: (report) => formatDate(report.generated_at, true) },
-          {
-            label: 'Acciones',
-            render: (report) => (
-              <Button variant="secondary" size="sm" disabled={!report.content} onClick={() => setReading(report)}>
-                <FileTextIcon data-icon="inline-start" />
-                Leer informe
-              </Button>
-            ),
-          },
         ]}
       />
 
@@ -184,22 +177,21 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         onChange={list.setPage}
       />
 
-      <MutationDialog
+      <FormDialog
         open={open}
         title="Enviar informe al coordinador"
         description={tutoring.subject_name}
         pending={operation.pending}
         error={operation.error}
         dirty={JSON.stringify(form) !== JSON.stringify(INITIAL)}
+        requireChanges={false}
+        blockReason={form.title.trim() ? null : 'Escribe el título del informe.'}
         onClose={() => setOpen(false)}
         onSubmit={submit}
         submitLabel="Enviar informe"
+        submitIcon={SendIcon}
       >
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-report-title">Título del informe</FieldLabel>
-            <FieldCounter current={form.title.length} max={100} />
-          </div>
+        <FormField id="teacher-report-title" label="Título del informe" counter={{ current: form.title.length, max: 100 }}>
           <Input
             id="teacher-report-title"
             value={form.title}
@@ -207,12 +199,8 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
             maxLength={100}
             required
           />
-        </Field>
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="teacher-report-observations">Resultados y observaciones</FieldLabel>
-            <FieldCounter current={form.observations.length} max={10000} />
-          </div>
+        </FormField>
+        <FormField id="teacher-report-observations" label="Resultados y observaciones" optional counter={{ current: form.observations.length, max: 10000 }}>
           <Textarea
             id="teacher-report-observations"
             value={form.observations}
@@ -221,8 +209,8 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
             rows={6}
             placeholder="Describe los avances, dificultades y resultados de las sesiones."
           />
-        </Field>
-      </MutationDialog>
+        </FormField>
+      </FormDialog>
 
       <Dialog
         open={Boolean(reading)}
@@ -282,7 +270,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                   Tutoría del {formatDate(selectedSession.date)}
                 </h3>
                 {dayLabel && (
-                  <Badge variant="outline" className="font-semibold">
+                  <Badge variant="outline">
                     {dayLabel}
                   </Badge>
                 )}
@@ -293,11 +281,11 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success-foreground font-medium">
+              <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success-foreground">
                 <UsersIcon className="size-3.5" />
                 {presentStudents.length} {presentStudents.length === 1 ? 'estudiante presente' : 'estudiantes presentes'}
               </Badge>
-              <Badge variant="secondary" className="gap-1 font-medium">
+              <Badge variant="secondary" className="gap-1">
                 <BookOpenIcon className="size-3.5" />
                 {activities.length} {activities.length === 1 ? 'actividad realizada' : 'actividades realizadas'}
               </Badge>
@@ -333,7 +321,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                     className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-xs transition-colors hover:border-primary/30"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-semibold text-foreground text-sm">{act.name}</span>
+                      <span className="font-medium text-foreground text-sm">{act.name}</span>
                       {act.topic_name && (
                         <Badge variant="secondary" className="text-xs">
                           Tema: {act.topic_name}
@@ -343,7 +331,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
 
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       {act.duration && (
-                        <span className="flex items-center gap-1 font-medium text-foreground">
+                        <span className="flex items-center gap-1 text-foreground">
                           <ClockIcon className="size-3.5 text-primary" />
                           {act.duration}
                         </span>
@@ -392,7 +380,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                       className="flex items-center justify-between gap-3 p-3.5 transition-colors hover:bg-muted/40"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="size-6 shrink-0 flex items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                        <span className="size-6 shrink-0 flex items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
                           {idx + 1}
                         </span>
                         <div className="flex flex-col min-w-0">
@@ -409,7 +397,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
 
                       <Badge
                         variant="default"
-                        className="shrink-0 bg-success/15 text-success-foreground border-success/30 font-semibold gap-1 text-xs"
+                        className="shrink-0 bg-success/15 text-success-foreground border-success/30 gap-1 text-xs"
                       >
                         <CheckCircle2Icon className="size-3" />
                         Presente
@@ -442,6 +430,8 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
       <RecordTable
         rows={list.data}
         loading={list.isInitialLoading || list.isFetching}
+        onRowClick={setSelectedSession}
+        rowTitle={(session) => `Revisar actividades del ${formatDate(session.date)}`}
         empty={
           <TeacherEmpty
             title="Aún no hay asistencias registradas"
@@ -455,7 +445,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
               const day = getDayOfWeekFromDate(session.date)
               const label = DAY_LABELS[day] ?? day
               return (
-                <Badge variant="outline" className="font-medium">
+                <Badge variant="outline">
                   {label}
                 </Badge>
               )
@@ -472,7 +462,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
               return (
                 <Badge
                   variant="outline"
-                  className="gap-1 border-success/30 bg-success/5 text-success-foreground font-medium"
+                  className="gap-1 border-success/30 bg-success/5 text-success-foreground"
                 >
                   <UsersIcon className="size-3" />
                   {present} de {session.attendance.length} presentes
@@ -491,21 +481,6 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                 </Badge>
               )
             },
-          },
-          {
-            label: 'Acciones',
-            render: (session) => (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setSelectedSession(session)}
-                aria-label={`Revisar actividades del ${formatDate(session.date)}`}
-              >
-                <EyeIcon data-icon="inline-start" />
-                Revisar
-                <ChevronRightIcon data-icon="inline-end" />
-              </Button>
-            ),
           },
         ]}
       />

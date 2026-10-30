@@ -31,6 +31,11 @@ const topic: TutoringTopic = { id: 90, tutoring_id: 40, name: 'Pruebas', descrip
 function paginated<T>(data: readonly T[], page = 1, last = 1) {
   return { data, meta: { current_page: page, last_page: last, per_page: 15, total: data.length, from: data.length ? 1 : null, to: data.length || null, active_count: data.length, inactive_count: 0 } }
 }
+// Los selects son de shadcn (Radix): se abren y se elige la opción por su texto.
+async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
+  await user.click(trigger)
+  await user.click(await screen.findByRole('option', { name: option }))
+}
 function show(component: React.ReactNode, path = '/panel/teacher-tutorings?tutoring=40&tab=students') {
   return render(<MemoryRouter initialEntries={[path]}>{component}</MemoryRouter>)
 }
@@ -120,8 +125,8 @@ describe('Módulo Docente', () => {
     // Selecciona horario para martes
     const startSelect = screen.getByLabelText(/Hora de inicio/i)
     const endSelect = screen.getByLabelText(/Hora de fin/i)
-    await user.selectOptions(startSelect, '09:00')
-    await user.selectOptions(endSelect, '11:00')
+    await choose(user, startSelect, '09:00')
+    await choose(user, endSelect, '11:00')
 
     // Guarda
     await user.click(screen.getByRole('button', { name: 'Guardar horarios' }))
@@ -508,6 +513,27 @@ describe('Módulo Docente', () => {
     expect(await screen.findByText('Completado')).toBeInTheDocument()
   })
 
+  it('edita un tema con clic en la fila y lo deshabilita desde la cabecera del modal', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([topic]))
+    vi.mocked(teacherApi.updateTopic).mockResolvedValue({ ...topic, name: 'Pruebas 2' })
+    vi.mocked(teacherApi.deactivateTopic).mockResolvedValue({ ...topic, is_active: false })
+    workspace('content')
+    expect(screen.queryByRole('button', { name: /^Editar/ })).not.toBeInTheDocument()
+    await user.click(await screen.findByText('Pruebas'))
+    const form = await screen.findByRole('form', { name: 'Editar tema' })
+    // Sin cambios no se puede guardar.
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    await user.type(within(form).getByLabelText('Nombre'), ' 2')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(teacherApi.updateTopic).toHaveBeenCalledWith(40, 90, { name: 'Pruebas 2', description: '' }))
+
+    await user.click(await screen.findByText('Pruebas'))
+    await user.click(await screen.findByRole('button', { name: 'Deshabilitar tema' }))
+    await user.click(await screen.findByRole('button', { name: 'Deshabilitar contenido' }))
+    await waitFor(() => expect(teacherApi.deactivateTopic).toHaveBeenCalledWith(40, 90))
+  })
+
   it('recorre temas, actividades y metodologías con formularios integrados', async () => {
     const user = userEvent.setup()
     let topics = [topic]
@@ -523,12 +549,12 @@ describe('Módulo Docente', () => {
       return method
     })
     workspace('content')
-    await user.click(await screen.findByRole('button', { name: 'Actividades' }))
+    await user.click(await screen.findByRole('button', { name: 'Actividades de Pruebas' }))
     await user.click(screen.getByRole('button', { name: 'Registrar actividad' }))
     await user.type(screen.getByLabelText('Nombre'), 'Diseñar casos')
     await user.click(screen.getByRole('button', { name: '30m' }))
     await user.click(within(screen.getByRole('form', { name: 'Registrar actividad' })).getByRole('button', { name: 'Registrar actividad' }))
-    await user.click(await screen.findByRole('button', { name: 'Metodologías' }))
+    await user.click(await screen.findByRole('button', { name: 'Metodologías de Diseñar casos' }))
     await user.click(screen.getByRole('button', { name: 'Registrar metodología' }))
     await user.type(screen.getByLabelText('Descripción'), 'Trabajo colaborativo')
     await user.click(within(screen.getByRole('form', { name: 'Registrar metodología' })).getByRole('button', { name: 'Registrar metodología' }))
@@ -543,9 +569,9 @@ describe('Módulo Docente', () => {
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
     await user.click(await screen.findByRole('button', { name: 'Enviar informe' }))
-    await user.type(screen.getByLabelText('Resultados y observaciones'), 'Avance favorable.')
+    await user.type(screen.getByLabelText(/Resultados y observaciones/), 'Avance favorable.')
     await user.click(within(screen.getByRole('form', { name: 'Enviar informe al coordinador' })).getByRole('button', { name: 'Enviar informe' }))
-    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+    await user.click(await screen.findByRole('row', { name: /María López/ }))
     expect(screen.getByRole('article', { name: 'Contenido del informe' })).toHaveTextContent('Estudiantes inscritos: 1')
     expect(teacherApi.sendReport).toHaveBeenCalledWith(40, { title: 'Informe de tutorías', observations: 'Avance favorable.' })
   })
@@ -585,13 +611,13 @@ describe('Módulo Docente', () => {
     expect(within(grades).getByText('4,5')).toBeInTheDocument()
     expect(within(form).getByText('Galuth García')).toBeInTheDocument()
 
-    await user.type(within(form).getByLabelText('Observaciones'), 'Refuerzo de derivadas.')
+    await user.type(within(form).getByLabelText(/Observaciones/), 'Refuerzo de derivadas.')
     expect(within(parameters).getByText('Refuerzo de derivadas.')).toBeInTheDocument()
     await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
 
     expect(teacherApi.diagnosticReportPreview).toHaveBeenCalledWith(40, today)
     expect(teacherApi.sendDiagnosticReport).toHaveBeenCalledWith(40, { date: today, observations: 'Refuerzo de derivadas.' })
-    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+    await user.click(await screen.findByRole('row', { name: /María López/ }))
     expect(within(screen.getByRole('article', { name: 'Contenido del informe' })).getByRole('table', { name: 'Parámetros de la evaluación al estudiante' })).toHaveTextContent('Refuerzo de derivadas.')
   })
 
@@ -649,13 +675,13 @@ describe('Módulo Docente', () => {
     expect(within(improved).getByText('3,00')).toBeInTheDocument()
     expect(within(improved).getByText('6,00')).toBeInTheDocument()
 
-    await user.selectOptions(within(form).getByLabelText('Parcial'), '2')
+    await choose(user, within(form).getByLabelText('Parcial'), 'Segundo parcial')
     await waitFor(() => expect(teacherApi.followUpReportPreview).toHaveBeenLastCalledWith(40, { partial: 2, from: '2026-01-01', to: today, date: today }))
-    await user.type(within(form).getByLabelText('Observación'), 'Temas elegidos por los estudiantes.')
+    await user.type(within(form).getByLabelText(/Observación/), 'Temas elegidos por los estudiantes.')
     await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
 
     expect(teacherApi.sendFollowUpReport).toHaveBeenCalledWith(40, { partial: 2, from: '2026-01-01', to: today, date: today, observations: 'Temas elegidos por los estudiantes.' })
-    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+    await user.click(await screen.findByRole('row', { name: /María López/ }))
     expect(within(screen.getByRole('article', { name: 'Contenido del informe' })).getByRole('table', { name: 'Actividades programadas' })).toHaveTextContent('Regla del Trapecio')
   })
 
@@ -696,15 +722,15 @@ describe('Módulo Docente', () => {
 
     await user.click(within(form).getByLabelText('Métodos Numéricos · Paralelo A', { selector: 'button' }))
     await waitFor(() => expect(teacherApi.finalPaoReportPreview).toHaveBeenLastCalledWith(40, { date: today, tutoring_ids: [40, 41] }))
-    await user.type(within(form).getByLabelText('Calidad de software · Paralelo A', { selector: 'input' }), 'Asistencia constante.')
+    await user.type(within(form).getByLabelText(/Calidad de software · Paralelo A/, { selector: 'input' }), 'Asistencia constante.')
     expect(within(matrix).getByText('Asistencia constante.')).toBeInTheDocument()
-    await user.type(within(form).getByLabelText('Conclusiones'), 'Se redujo el riesgo.')
+    await user.type(within(form).getByLabelText(/Conclusiones/), 'Se redujo el riesgo.')
     await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
 
     expect(teacherApi.sendFinalPaoReport).toHaveBeenCalledWith(40, {
       date: today, report_number: '01-TA-2026', tutoring_ids: [40], observations: { 40: 'Asistencia constante.' }, conclusions: 'Se redujo el riesgo.', recommendations: '',
     })
-    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+    await user.click(await screen.findByRole('row', { name: /María López/ }))
     expect(within(screen.getByRole('article', { name: 'Contenido del informe' })).getByRole('table', { name: 'Matriz de operacionalización de tutorías' })).toHaveTextContent('Asistencia constante.')
   })
 
@@ -761,7 +787,7 @@ describe('Módulo Docente', () => {
     expect(screen.getByText(/1 actividad/i)).toBeInTheDocument()
 
     // Abrir la sesión para revisar
-    await user.click(screen.getByRole('button', { name: /Revisar actividades del/i }))
+    await user.click(screen.getByRole('row', { name: /Sábado/ }))
 
     // Comprobar detalle de actividades realizadas
     expect(await screen.findByText('Diseño de microservicios')).toBeInTheDocument()
@@ -791,12 +817,9 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.degreeAssignments).mockResolvedValue(paginated([{ id: 120, role: 'tutor', assigned_at: '2026-09-29', topic: { id: 130, title: 'Calidad en APIs', description: 'Investigación de calidad.', status: 'aprobado' }, student: { id: 80, name: 'Ana Pérez', email: 'ana.perez@ueb.edu.ec' }, period: { id: 50, name: '2026-2' } }]))
     show(<TeacherDegreeAssignmentsPage />)
     await screen.findByText('Calidad en APIs')
-    await user.click(screen.getByRole('button', { name: /Filtros/ }))
-    await user.selectOptions(screen.getByLabelText('Participación'), 'par_academico')
+    await choose(user, screen.getByLabelText('Filtrar por Participación'), 'Par académico')
     await waitFor(() => expect(teacherApi.degreeAssignments).toHaveBeenLastCalledWith({ page: 1, search: '', role: 'par_academico' }))
-    await user.click(screen.getByRole('button', { name: 'Ver resultados' }))
-    expect(screen.getByText(/Participación: Par académico/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Ver detalle de Calidad en APIs' }))
+    await user.click(screen.getByText('Calidad en APIs'))
     expect(await screen.findByText('Investigación de calidad.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Aprobar|Rechazar/ })).not.toBeInTheDocument()
   })
@@ -854,7 +877,7 @@ describe('Módulo Docente', () => {
     expect(screen.getByText('50%')).toBeInTheDocument()
 
     // Al abrir el detalle ya no hay pestañas en pantalla (se navegan desde el sidebar)
-    await user.click(screen.getByRole('button', { name: 'Seguimiento' }))
+    await user.click(screen.getByText('Desarrollo de Software Seguro'))
     expect(await screen.findByText('Estado de la Ficha de Seguimiento')).toBeInTheDocument()
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.getByText('Desarrollo de Software Seguro')).toBeInTheDocument()

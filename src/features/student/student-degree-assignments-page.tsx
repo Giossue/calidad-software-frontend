@@ -17,7 +17,7 @@ function Person({ role, person }: Readonly<{ role: string; person: NonNullable<S
     <InitialsAvatar name={person.name} tone={role === 'Tutor' ? 'red' : 'blue'} />
     <div className="flex min-w-0 flex-col gap-1">
       <Badge variant="secondary" className="w-fit">{role}</Badge>
-      <span className="font-semibold">{person.name}</span>
+      <span className="font-medium">{person.name}</span>
       <span className="flex items-center gap-2 break-all text-muted-foreground"><MailIcon className="size-4 shrink-0" aria-hidden="true" />{person.email}</span>
       {person.phone && <span className="flex items-center gap-2 text-muted-foreground"><PhoneIcon className="size-4 shrink-0" aria-hidden="true" />{person.phone}</span>}
       {person.assigned_at && <span className="text-xs text-muted-foreground">Asignado el {formatDate(person.assigned_at)}</span>}

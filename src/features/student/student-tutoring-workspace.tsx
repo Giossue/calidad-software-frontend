@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { formatDate } from '@/lib/format'
 import { formatSubjectName } from '@/lib/sanitize'
 import { studentApi, type StudentTutoring } from '@/lib/student-api'
@@ -157,7 +157,7 @@ function SchedulesPanel({ enrollment }: Readonly<{ enrollment: StudentTutoring }
     <PanelCard label="Docente" icon={UserIcon} title="Docente" description="Información de contacto de tu tutor.">
       {teacher ? <>
         <div className="flex items-center gap-4">
-          <span aria-hidden="true" className={`${TINT_CIRCLE} size-[4.5rem] text-2xl font-semibold`}>{initials(teacher.name)}</span>
+          <span aria-hidden="true" className={`${TINT_CIRCLE} size-[4.5rem] text-2xl font-medium`}>{initials(teacher.name)}</span>
           <div className="flex min-w-0 flex-col items-start gap-1.5">
             <p className="text-lg font-semibold leading-tight text-foreground">{teacher.name}</p>
             <span className="rounded-full bg-secondary px-3 py-0.5 text-xs font-medium text-secondary-foreground">Docente</span>

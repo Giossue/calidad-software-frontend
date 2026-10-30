@@ -5,7 +5,7 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { ErrorNotice } from '@/features/tutoring/tutoring-shared'
+import { ErrorNotice } from '@/components/ui/error-notice'
 
 export function StudentEmpty({ title, description }: Readonly<{ title: string; description?: string }>) {
   return <Empty><EmptyHeader><EmptyMedia variant="icon"><GraduationCapIcon /></EmptyMedia><EmptyTitle>{title}</EmptyTitle>{description && <EmptyDescription>{description}</EmptyDescription>}</EmptyHeader></Empty>
