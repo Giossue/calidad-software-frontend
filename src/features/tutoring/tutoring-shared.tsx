@@ -1,28 +1,25 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { PencilIcon, PlusIcon, PowerOffIcon, SaveIcon, type LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { ErrorModal, type FriendlyErrorInfo } from '@/components/ui/error-modal'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FieldGroup } from '@/components/ui/field'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { SearchInput } from '@/components/ui/search-input'
-import { NativeSelect } from '@/components/ui/native-select'
-import { Spinner } from '@/components/ui/spinner'
+import { SelectInput } from '@/components/ui/select-field'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Career } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import type { TutoringCatalogs } from './tutoring-hooks'
-
-export function ErrorNotice({ message, retry }: Readonly<{ message?: string | null; retry?: () => unknown }>) {
-  if (!message) return null
-  return <Alert variant="destructive"><AlertDescription className="flex flex-wrap items-center justify-between gap-3"><span>{message}</span>{retry && <Button type="button" variant="secondary" size="sm" onClick={() => void retry()}>Reintentar</Button>}</AlertDescription></Alert>
-}
 
 export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs }>) {
   if (catalogs.error) return <ErrorNotice message={catalogs.error} retry={catalogs.reload} />
-  if (catalogs.loading) return <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Spinner aria-hidden="true" />Cargando carreras y catálogos…</p>
+  if (catalogs.loading) return <div role="status" aria-label="Cargando carreras y catálogos" className="flex flex-col gap-2"><Skeleton className="h-5 w-64" /><Skeleton className="h-5 w-40" /></div>
   if (catalogs.careers.length === 0) return <Alert><AlertDescription>No tienes carreras disponibles para coordinar. Solicita al administrador que asigne una carrera activa a tu cuenta.</AlertDescription></Alert>
   return null
 }
@@ -33,105 +30,23 @@ export function ModuleHeader({ title, description, createLabel, onCreate, disabl
 
 export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }: Readonly<{ search: string; onSearch: (value: string) => void; careerId?: string; onCareer?: (value: string) => void; careers?: readonly Career[] }>) {
   return <FieldGroup className="flex flex-col gap-4 sm:flex-row">
-    <Field className="flex-1"><FieldLabel htmlFor="tutoring-search">Buscar</FieldLabel><SearchInput id="tutoring-search" placeholder="Escribe para buscar…" value={search} onValueChange={onSearch} /></Field>
-    {onCareer && <Field className="flex-1"><FieldLabel htmlFor="tutoring-career-filter">Carrera</FieldLabel><NativeSelect id="tutoring-career-filter" value={careerId} onChange={(event) => onCareer(event.target.value)}><option value="">Todas mis carreras</option>{careers?.map((career) => <option key={career.id} value={career.id}>{career.name}</option>)}</NativeSelect></Field>}
+    <FormField id="tutoring-search" label="Buscar" className="flex-1"><SearchInput id="tutoring-search" placeholder="Escribe para buscar…" value={search} onValueChange={onSearch} /></FormField>
+    {onCareer && <FormField id="tutoring-career-filter" label="Carrera" className="flex-1"><SelectInput id="tutoring-career-filter" value={careerId ?? ''} onValueChange={onCareer} emptyLabel="Todas mis carreras" options={(careers ?? []).map((career) => ({ value: String(career.id), label: career.name }))} /></FormField>}
   </FieldGroup>
 }
 
-export function RecordTable<T extends { readonly id: number | string }>({ rows, columns, loading, empty, onRowClick, rowTitle }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string }>) {
+function LoadingRows({ columns }: Readonly<{ columns: number }>) {
+  return <TableRow><TableCell colSpan={columns} className="whitespace-normal"><div role="status" aria-label="Cargando" className="flex flex-col gap-3 py-2"><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-4/5" /><Skeleton className="h-5 w-3/5" /></div></TableCell></TableRow>
+}
+
+export function RecordTable<T extends { readonly id: number | string }>({ rows, columns, loading, empty, onRowClick, rowTitle, isRowSelected }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string; isRowSelected?: (row: T) => boolean }>) {
   return <Card className="overflow-hidden shadow-none max-md:overflow-visible max-md:border-0 max-md:bg-transparent" aria-busy={loading}>
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody>
-      {loading ? <TableRow><TableCell colSpan={columns.length}><span role="status" className="flex items-center gap-2 py-5"><Spinner aria-hidden="true" />Cargando…</span></TableCell></TableRow> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), className: 'cursor-pointer', onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && event.key === 'Enter') onRowClick(row) } } : {})}>{columns.map((column) => <TableCell key={column.label} className="whitespace-normal">{column.render(row)}</TableCell>)}</TableRow>)}
+      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column) => <TableCell key={column.label} className="whitespace-normal">{column.render(row)}</TableCell>)}</TableRow>)}
     </TableBody></Table>
   </Card>
 }
 
 export function RecordActions({ name, onEdit, onDeactivate, disabled, children }: Readonly<{ name: string; onEdit?: () => void; onDeactivate?: () => void; disabled: boolean; children?: ReactNode }>) {
-  return <div className="flex flex-wrap items-center gap-2">{children}{onEdit && <Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={onEdit} aria-label={`Editar ${name}`}><PencilIcon data-icon="inline-start" />Editar</Button>}{onDeactivate && <Button type="button" variant="tertiary" size="sm" disabled={disabled} onClick={onDeactivate} aria-label={`Desactivar ${name}`}><PowerOffIcon data-icon="inline-start" />Desactivar</Button>}</div>
-}
-
-export function MutationDialog({
-  open,
-  title,
-  description,
-  pending,
-  error,
-  errorModal,
-  onCloseErrorModal,
-  dirty,
-  onClose,
-  onSubmit,
-  children,
-  submitLabel = 'Guardar cambios',
-  submitDisabled = false,
-  submitIcon: SubmitIcon = SaveIcon,
-}: Readonly<{
-  open: boolean
-  title: string
-  description?: string
-  pending: boolean
-  error: string | null
-  errorModal?: FriendlyErrorInfo | null
-  onCloseErrorModal?: () => void
-  dirty: boolean
-  onClose: () => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
-  children: ReactNode
-  submitLabel?: string
-  submitDisabled?: boolean
-  submitIcon?: LucideIcon
-}>) {
-  const [modalDismissed, setModalDismissed] = useState(false)
-  const lastErrorRef = useRef<FriendlyErrorInfo | null>(null)
-
-  useEffect(() => {
-    if (errorModal && errorModal !== lastErrorRef.current) {
-      setModalDismissed(false)
-      lastErrorRef.current = errorModal
-    } else if (!errorModal) {
-      lastErrorRef.current = null
-      setModalDismissed(false)
-    }
-  }, [errorModal])
-
-  const isErrorModalOpen = Boolean(open && errorModal && !modalDismissed)
-
-  function handleCloseErrorModal() {
-    setModalDismissed(true)
-    onCloseErrorModal?.()
-  }
-
-  return (
-    <>
-      <Dialog open={open} title={title} description={description} confirmClose={dirty} onClose={() => { if (!pending) onClose() }} maxWidth="max-w-xl">
-        <form onSubmit={onSubmit} aria-label={title} className="max-h-[65vh] overflow-y-auto p-1">
-          <fieldset disabled={pending}>
-            <FieldGroup>
-              {children}
-              <ErrorNotice message={error} />
-              <div className="flex flex-wrap justify-end gap-3">
-                <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
-                <Button type="submit" disabled={pending || submitDisabled}>
-                  {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SubmitIcon data-icon="inline-start" />}
-                  {pending ? 'Guardando…' : submitLabel}
-                </Button>
-              </div>
-            </FieldGroup>
-          </fieldset>
-        </form>
-      </Dialog>
-      {errorModal && (
-        <ErrorModal
-          open={isErrorModalOpen}
-          onClose={handleCloseErrorModal}
-          title={errorModal.title}
-          description={errorModal.description}
-        />
-      )}
-    </>
-  )
-}
-
-export function SelectField({ id, label, value, onChange, children, disabled = false, required = true }: Readonly<{ id: string; label: string; value: string; onChange: (value: string) => void; children: ReactNode; disabled?: boolean; required?: boolean }>) {
-  return <Field><FieldLabel htmlFor={id}>{label}</FieldLabel><NativeSelect id={id} value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} required={required}>{children}</NativeSelect></Field>
+  return <div className="flex flex-wrap items-center gap-1">{children}{onEdit && <IconAction label={`Editar ${name}`} icon={PencilIcon} disabled={disabled} onClick={onEdit} />}{onDeactivate && <IconAction label={`Desactivar ${name}`} icon={PowerOffIcon} tone="destructive" disabled={disabled} onClick={onDeactivate} />}</div>
 }

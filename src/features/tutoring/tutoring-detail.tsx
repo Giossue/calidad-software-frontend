@@ -11,9 +11,9 @@ import {
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -21,7 +21,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { getInitials } from '@/lib/format'
 import { tutoringApi, type Tutoring } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
-import { ErrorNotice, RecordTable } from './tutoring-shared'
+import { RecordTable } from './tutoring-shared'
 import { CoordinatorStudentsPanel } from './coordinator-students-panel'
 
 function formatDate(value: string, time = false): string {
@@ -74,14 +74,14 @@ export function TutoringDetail({
           <div className="flex items-center gap-4">
             <div
               className={cn(
-                'flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+                'flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-medium',
                 tutoring.teacher_name ? 'bg-brand-blue text-white' : 'bg-muted text-muted-foreground',
               )}
             >
               {tutoring.teacher_name ? getInitials(tutoring.teacher_name) : <UserIcon className="size-5" />}
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-semibold text-muted-foreground">Docente responsable</span>
+              <span className="text-sm text-muted-foreground">Docente responsable</span>
               <span className="text-lg font-semibold">{tutoring.teacher_name || 'Sin docente asignado'}</span>
               <span className="text-sm text-muted-foreground">
                 {tutoring.teacher_id && !tutoring.teacher_is_active
@@ -141,7 +141,7 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
           columns={[
             { label: 'Estudiante', render: (record) => record.student_name },
             { label: 'Fecha', render: (record) => formatDate(record.date) },
-            { label: 'Asistencia', render: (record) => <Badge variant={record.present ? 'secondary' : 'inactive'}>{record.present ? 'Presente' : 'Ausente'}</Badge> },
+            { label: 'Asistencia', render: (record) => <StatusBadge active={record.present} activeLabel="Presente" inactiveLabel="Ausente" /> },
           ]}
         />
         <CatalogPagination

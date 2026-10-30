@@ -5,6 +5,8 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { IconAction } from '@/components/ui/icon-action'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { PrintStructuredReport, StructuredReport } from '@/features/reports/structured-report'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -12,7 +14,7 @@ import { isStructuredReport } from '@/lib/structured-report'
 import { tutoringApi, type TutoringReport, type TutoringReportMeta } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
-import { ErrorNotice, ModuleHeader, RecordTable } from './tutoring-shared'
+import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { useTutoringCatalogs } from './tutoring-hooks'
 
 function formatDate(value: string, time = false): string {
@@ -100,6 +102,9 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             </EmptyDescription>
           </Empty>
         }
+        onRowClick={(report) => { if (report.content) setReadingReport(report) }}
+        rowTitle={(report) => report.content ? `Leer informe ${report.type}` : ''}
+        isRowSelected={(report) => readingReport?.id === report.id}
         columns={[
           {
             label: 'Asignatura / Tutoría',
@@ -124,7 +129,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             label: 'Tipo de informe',
             render: (report: TutoringReport) => (
               <div className="flex flex-col gap-0.5">
-                <span className="font-semibold text-foreground">{report.type}</span>
+                <span className="text-foreground">{report.type}</span>
                 <span className="text-xs text-muted-foreground">Informe #{report.id}</span>
               </div>
             ),
@@ -132,7 +137,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
           {
             label: 'Docente (Autor)',
             render: (report: TutoringReport) => (
-              <span className="text-sm font-medium">{report.author_name || 'Docente'}</span>
+              <span className="text-sm">{report.author_name || 'Docente'}</span>
             ),
           },
           {
@@ -144,18 +149,10 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             ),
           },
           {
-            label: 'Contenido',
+            label: 'Acciones',
             render: (report: TutoringReport) =>
               report.content ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setReadingReport(report)}
-                >
-                  <FileTextIcon data-icon="inline-start" />
-                  Leer informe
-                </Button>
+                <IconAction label="Leer informe" icon={FileTextIcon} onClick={() => setReadingReport(report)} />
               ) : (
                 <span className="text-xs text-muted-foreground">Sin contenido adjunto</span>
               ),
@@ -190,11 +187,11 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
               <dl className="grid gap-3 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-muted-foreground">Autor</dt>
-                  <dd className="font-medium text-foreground">{readingReport.author_name}</dd>
+                  <dd className="text-foreground">{readingReport.author_name}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Fecha de generación</dt>
-                  <dd className="font-medium text-foreground">{formatDate(readingReport.generated_at, true)}</dd>
+                  <dd className="text-foreground">{formatDate(readingReport.generated_at, true)}</dd>
                 </div>
               </dl>
               {readingStructured ? (

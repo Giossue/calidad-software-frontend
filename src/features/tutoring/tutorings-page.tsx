@@ -3,11 +3,9 @@ import {
   ArrowRightIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
-  MoreVerticalIcon,
-  PencilIcon,
+  EyeIcon,
   PlusIcon,
   PowerIcon,
-  SaveIcon,
   UserPlusIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -16,11 +14,14 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Spinner } from '@/components/ui/spinner'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
+import { SelectField } from '@/components/ui/select-field'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { findScheduleConflicts, type ScheduleConflict } from '@/lib/schedule-conflicts'
@@ -29,7 +30,7 @@ import { cn } from '@/lib/utils'
 import { TutoringDetail } from './tutoring-detail'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
-import { ErrorNotice, ModuleHeader, RecordTable, SelectField } from './tutoring-shared'
+import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { describeError, useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const SCHEDULE_TIME_OPTIONS = [
@@ -106,6 +107,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     lunes: { start_time: '08:00', end_time: '10:00' },
   })
   const [createParallelIds, setCreateParallelIds] = useState<string[]>([])
+  const [createInitialParallelIds, setCreateInitialParallelIds] = useState<string[]>([])
   const [createSaving, setCreateSaving] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
@@ -121,6 +123,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   })
   const [editOriginalSchedules, setEditOriginalSchedules] = useState<readonly TutoringSchedule[]>([])
   const [editParallelIds, setEditParallelIds] = useState<string[]>([])
+  // Estado inicial del formulario de edición, para saber si hay cambios reales.
+  const [editInitial, setEditInitial] = useState({ teacherId: '', schedule: '', parallel: '' })
 
   // Aviso previo de choques: el mismo docente no puede tener dos tutorías a la misma hora.
   const createSchedules = toScheduleItems(createScheduleDays, createDayTimes)
@@ -204,7 +208,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     const allRegisteredIds = Array.from(new Set([...subjParallelIds, ...directParallelIds]))
 
     // Cada paralelo es una tutoría con su propio docente: se elige uno solo.
-    setCreateParallelIds(allRegisteredIds.length === 1 ? allRegisteredIds : [])
+    const initialParallels = allRegisteredIds.length === 1 ? allRegisteredIds : []
+    setCreateParallelIds(initialParallels)
+    setCreateInitialParallelIds(initialParallels)
   }
 
   async function handleCreateTutoringSubmit(event: FormEvent<HTMLFormElement>) {
@@ -216,33 +222,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       return
     }
 
-    if (!createTeacherId) {
-      setCreateError('Selecciona un docente para la tutoría.')
-      return
-    }
-    if (createScheduleDays.length === 0) {
-      setCreateError('Selecciona al menos un día para el horario de la tutoría.')
-      return
-    }
-    for (const day of createScheduleDays) {
-      const times = createDayTimes[day]
-      const dayLabel = DAY_LABELS[day] ?? day
-      if (!times?.start_time || !times?.end_time) {
-        setCreateError(`Selecciona la hora de inicio y fin para el día ${dayLabel}.`)
-        return
-      }
-      if (times.start_time >= times.end_time) {
-        setCreateError(`En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`)
-        return
-      }
-    }
-    if (createParallelIds.length === 0) {
-      setCreateError('Selecciona el paralelo de la tutoría.')
-      return
-    }
-
-    if (createConflicts.length > 0) {
-      setCreateError(describeConflicts(createConflicts))
+    const invalid = validateTutoringForm({ teacherId: createTeacherId, days: createScheduleDays, times: createDayTimes, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
+    if (invalid) {
+      setCreateError(invalid)
       return
     }
 
@@ -332,6 +314,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setEditScheduleDays(days.length > 0 ? days : ['lunes'])
     setEditDayTimes(days.length > 0 ? dayTimes : { lunes: { start_time: '08:00', end_time: '10:00' } })
     setEditOriginalSchedules(existing)
+    const initialDays = days.length > 0 ? days : DEFAULT_DAYS
+    const initialTimes = days.length > 0 ? dayTimes : DEFAULT_TIMES_BY_DAY
 
     Promise.resolve(tutoringApi.schedules(item.tutoring.id))
       .then((data) => {
@@ -350,6 +334,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           })
           setEditScheduleDays(freshDays)
           setEditDayTimes(freshTimes)
+          setEditInitial((prev) => ({ ...prev, schedule: scheduleSignature(freshDays, freshTimes) }))
         }
       })
       .catch(() => {})
@@ -374,6 +359,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       }
     })
     setEditParallelIds(parallelIds.slice(0, 1))
+    setEditInitial({ teacherId: item.teacher_id ? String(item.teacher_id) : '', schedule: scheduleSignature(initialDays, initialTimes), parallel: parallelIds.slice(0, 1).join(',') })
   }
 
   async function handleEditTutoringSubmit(event: FormEvent<HTMLFormElement>) {
@@ -381,33 +367,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     if (!editingTutoringItem || !editingTutoringItem.tutoring) return
     const currentTutoring = editingTutoringItem.tutoring
 
-    if (!editTeacherId) {
-      setEditError('Selecciona un docente para la tutoría.')
-      return
-    }
-    if (editScheduleDays.length === 0) {
-      setEditError('Selecciona al menos un día para el horario de la tutoría.')
-      return
-    }
-    for (const day of editScheduleDays) {
-      const times = editDayTimes[day]
-      const dayLabel = DAY_LABELS[day] ?? day
-      if (!times?.start_time || !times?.end_time) {
-        setEditError(`Selecciona la hora de inicio y fin para el día ${dayLabel}.`)
-        return
-      }
-      if (times.start_time >= times.end_time) {
-        setEditError(`En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`)
-        return
-      }
-    }
-    if (editSubjectParallels.length > 0 && editParallelIds.length === 0) {
-      setEditError('Selecciona el paralelo de la tutoría.')
-      return
-    }
-
-    if (editConflicts.length > 0) {
-      setEditError(describeConflicts(editConflicts))
+    const invalid = validateTutoringForm({ teacherId: editTeacherId, days: editScheduleDays, times: editDayTimes, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })
+    if (invalid) {
+      setEditError(invalid)
       return
     }
 
@@ -641,23 +603,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
               )}
             </>
           ) : (
-            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Sin docente asignado</span>
+            <span className="text-xs text-amber-600 dark:text-amber-400">Sin docente asignado</span>
           )}
         </div>
-      ),
-    },
-    {
-      label: 'Horario',
-      render: (item: TutoringRowItem) => (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => setViewingScheduleItem(item)}
-          aria-label={`Ver horario de ${item.subject_name}`}
-        >
-          Ver Horario
-        </Button>
       ),
     },
     {
@@ -665,56 +613,36 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       render: (item: TutoringRowItem) => <StatusBadge active={item.is_active} activeLabel="Activa" inactiveLabel="Inactiva" />,
     },
     {
+      // Acciones de dominio (ver horario, supervisar): editar y activar viven en el modal de la fila.
       label: 'Acciones',
       render: (item: TutoringRowItem) => (
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="tertiary"
-            size="icon"
-            title="Supervisar"
-            aria-label={`Supervisar ${item.subject_name}`}
-            disabled={operation.pending}
-            onClick={() => setDetail(item.tutoring)}
-          >
-            <CalendarDaysIcon />
-          </Button>
-          {item.tutoring?.is_active ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="tertiary" size="icon" aria-label={`Más acciones para ${item.subject_name}`} disabled={operation.pending}>
-                  <MoreVerticalIcon />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => openEditTutoring(item)}>
-                  <PencilIcon />Editar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : item.tutoring && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              aria-label={`Activar ${item.subject_name}`}
-              disabled={operation.pending}
-              onClick={() =>
-                void operation.run(
-                  () => tutoringApi.activateTutoring(item.tutoring!.id),
-                  'Tutoría activada.',
-                  list.reload,
-                )
-              }
-            >
-              <PowerIcon data-icon="inline-start" />
-              Activar
-            </Button>
-          )}
+        <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+          <IconAction label={`Ver horario de ${item.subject_name}`} icon={CalendarClockIcon} onClick={() => setViewingScheduleItem(item)} />
+          <IconAction label={`Supervisar ${item.subject_name}`} icon={EyeIcon} disabled={operation.pending || !item.tutoring} onClick={() => setDetail(item.tutoring)} />
         </div>
       ),
     },
   ]
+
+  const creatingStep2 = Boolean(creatingTutoringSubject && creatingTutoringCycle)
+  const createBlockReason = creatingStep2
+    ? validateTutoringForm({ teacherId: createTeacherId, days: createScheduleDays, times: createDayTimes, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
+    : !chooserCycle ? 'Selecciona un ciclo.' : !chooserSubjectId ? 'Selecciona una asignatura.' : null
+  const createDirty = creatingStep2 && (
+    createTeacherId !== ''
+    || scheduleSignature(createScheduleDays, createDayTimes) !== scheduleSignature(DEFAULT_DAYS, DEFAULT_TIMES_BY_DAY)
+    || createParallelIds.join(',') !== createInitialParallelIds.join(',')
+  )
+
+  const editLocked = Boolean(editingTutoringItem && !editingTutoringItem.tutoring?.is_active)
+  const editDirty = Boolean(editingTutoringItem) && (
+    editTeacherId !== editInitial.teacherId
+    || scheduleSignature(editScheduleDays, editDayTimes) !== editInitial.schedule
+    || editParallelIds.join(',') !== editInitial.parallel
+  )
+  const editBlockReason = editLocked
+    ? 'Activa la tutoría para poder editarla.'
+    : validateTutoringForm({ teacherId: editTeacherId, days: editScheduleDays, times: editDayTimes, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })
 
   return <section className="flex flex-col gap-6">
     {detail ? <TutoringDetail tutoring={detail} onBack={() => setDetail(null)} /> : <>
@@ -743,6 +671,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         loading={list.isFetching || list.isInitialLoading}
         empty="Aún no hay tutorías para esta búsqueda. Usa «Crear tutoría» para registrar una."
         columns={columns}
+        onRowClick={openEditTutoring}
+        rowTitle={(item) => `Editar tutoría de ${item.subject_name}`}
+        isRowSelected={(item) => editingTutoringItem?.id === item.id}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -753,527 +684,141 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       </div>
     </>}
 
-
-
-    {/* Create Tutoring per Subject Dialog */}
-    <Dialog
+    {/* Crear tutoría: primero se elige ciclo y asignatura, luego docente, horario y paralelo */}
+    <FormDialog
       open={choosingTutoring}
       title="Crear tutoría"
       description={creatingTutoringSubject && creatingTutoringCycle ? `${creatingTutoringSubject.name} · ${creatingTutoringCycle.name}` : 'Elige el ciclo y la asignatura de la tutoría.'}
-      confirmClose={false}
+      pending={createSaving}
+      error={createError}
+      dirty={createDirty}
+      requireChanges={creatingStep2}
+      blockReason={createBlockReason}
       onClose={closeCreateDialog}
+      onSubmit={creatingStep2 ? (event) => void handleCreateTutoringSubmit(event) : (event) => { event.preventDefault(); continueCreate() }}
+      submitLabel={creatingStep2 ? 'Crear tutoría' : 'Continuar'}
+      submitIcon={creatingStep2 ? PlusIcon : ArrowRightIcon}
       maxWidth="max-w-2xl"
     >
-      {!(creatingTutoringSubject && creatingTutoringCycle) && (
-        <div className="flex flex-col gap-4">
-          <SelectField id="create-tutoring-cycle" label="Ciclo" value={chooserCycle} onChange={(value) => { setChooserCycle(value); setChooserSubjectId('') }}>
-            <option value="">Selecciona un ciclo</option>
-            {cycleLevels.map((level) => <option key={level.number} value={level.number}>{level.number}° {level.name}</option>)}
-          </SelectField>
-          <SelectField id="create-tutoring-subject" label="Asignatura" value={chooserSubjectId} onChange={setChooserSubjectId} disabled={!chooserCycle}>
-            <option value="">{chooserCycle ? 'Selecciona una asignatura' : 'Primero elige un ciclo'}</option>
-            {chooserSubjects.map((subj) => <option key={subj.id} value={subj.id}>{subj.name}</option>)}
-          </SelectField>
+      {!creatingStep2 && (
+        <>
+          <SelectField
+            id="create-tutoring-cycle"
+            label="Ciclo"
+            value={chooserCycle}
+            onValueChange={(value) => { setChooserCycle(value); setChooserSubjectId('') }}
+            placeholder="Selecciona un ciclo"
+            options={cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` }))}
+          />
+          <SelectField
+            id="create-tutoring-subject"
+            label="Asignatura"
+            value={chooserSubjectId}
+            onValueChange={setChooserSubjectId}
+            disabled={!chooserCycle}
+            placeholder={chooserCycle ? 'Selecciona una asignatura' : 'Primero elige un ciclo'}
+            options={chooserSubjects.map((subj) => ({ value: String(subj.id), label: subj.name }))}
+          />
           {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en Asignaturas.</p>}
-          <div className="flex items-center justify-end gap-3 border-t pt-4">
-            <DialogCancelButton onClick={closeCreateDialog}>Cancelar</DialogCancelButton>
-            <Button type="button" disabled={!chooserSubjectId} onClick={continueCreate}><ArrowRightIcon data-icon="inline-start" />Continuar</Button>
-          </div>
-        </div>
+        </>
       )}
       {creatingTutoringSubject && creatingTutoringCycle && (
-        <form onSubmit={(e) => void handleCreateTutoringSubmit(e)} aria-label="Crear tutoría" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-muted/40 p-3.5 border flex flex-col gap-1.5">
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Materia seleccionada</span>
-            <div className="flex items-center justify-between">
-              <span className="text-base font-bold text-foreground">{creatingTutoringSubject.name}</span>
-              {creatingTutoringSubject.code && (
-                <Badge variant="secondary" className="font-mono text-xs">{creatingTutoringSubject.code}</Badge>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{creatingTutoringCycle.name}</span>
-              <span>·</span>
-              <span>{catalogs.careers.find((c) => c.id === creatingTutoringSubject.career_id)?.name}</span>
-              <span>·</span>
-              <span>{catalogs.periods.find((p) => p.is_active)?.name ?? 'PAO actual'}</span>
-            </div>
-          </div>
-
-          <ErrorNotice message={createError} />
-
-          {/* Docente (recuperando de docentes) */}
-          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
-            <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <UserPlusIcon className="size-4 text-primary" />
-              Asignar docente
-            </h4>
-            {createTeachersError && <ErrorNotice message={createTeachersError} />}
-            {createTeachersLoading && (
-              <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Spinner aria-hidden="true" /> Cargando docentes…
-              </p>
-            )}
-            <SelectField
-              id="create-tutoring-teacher"
-              label="Docente"
-              value={createTeacherId}
-              onChange={(val) => setCreateTeacherId(val)}
-              disabled={createTeachersLoading}
-            >
-              <option value="">Selecciona un docente</option>
-              {createTeachers.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </SelectField>
-            {!createTeachersLoading && createTeachers.length === 0 && (
-              <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
-            )}
-            <ScheduleConflictNotice conflicts={createConflicts} />
-          </Card>
-
-          {/* Horario (selección de días y horas) */}
-          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
-            <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <CalendarClockIcon className="size-4 text-primary" />
-              Horario de tutoría
-            </h4>
-
-            <Field>
-              <FieldLabel htmlFor="create-schedule-days">
-                Selección de días <span className="text-xs font-normal text-muted-foreground">(puedes seleccionar varios)</span>
-              </FieldLabel>
-              <div id="create-schedule-days" className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Días de la semana">
-                {WEEK_DAYS.map((day) => {
-                  const isChecked = createScheduleDays.includes(day)
-                  return (
-                    <label
-                      key={day}
-                      className={cn(
-                        'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors select-none',
-                        isChecked
-                          ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20'
-                          : 'bg-background hover:bg-accent text-foreground border-input',
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        value={day}
-                        checked={isChecked}
-                        onChange={() => {
-                          setCreateScheduleDays((prev) => {
-                            if (prev.includes(day)) {
-                              return prev.filter((d) => d !== day)
-                            } else {
-                              const ref = prev[0] ? createDayTimes[prev[0]] : undefined
-                              setCreateDayTimes((times) => ({
-                                ...times,
-                                [day]: times[day] ?? {
-                                  start_time: ref?.start_time || '08:00',
-                                  end_time: ref?.end_time || '10:00',
-                                },
-                              }))
-                              return [...prev, day]
-                            }
-                          })
-                        }}
-                        className="size-4 rounded border-input text-primary focus:ring-primary/20"
-                      />
-                      <span>{DAY_LABELS[day]}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            </Field>
-
-            {/* Horario configurado individualmente según el día */}
-            <div className="flex flex-col gap-3 pt-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Horario por día (puedes configurar horas diferentes según el día):
-              </span>
-              {createScheduleDays.map((day) => {
-                const dayLabel = DAY_LABELS[day] ?? day
-                const currentTimes = createDayTimes[day] ?? { start_time: '08:00', end_time: '10:00' }
-                return (
-                  <div
-                    key={day}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-muted/20"
-                  >
-                    <div className="sm:w-28 flex items-center gap-2 font-semibold text-sm text-foreground shrink-0">
-                      <CalendarDaysIcon className="size-4 text-primary" />
-                      <span>{dayLabel}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 flex-1">
-                      <SelectField
-                        id={`create-schedule-start-${day}`}
-                        label={createScheduleDays.length === 1 ? 'Hora de inicio' : `Hora de inicio (${dayLabel})`}
-                        value={currentTimes.start_time}
-                        onChange={(val) => {
-                          setCreateDayTimes((prev) => ({
-                            ...prev,
-                            [day]: { ...(prev[day] ?? { end_time: '10:00' }), start_time: val },
-                          }))
-                        }}
-                        required
-                      >
-                        <option value="">Selecciona hora</option>
-                        {SCHEDULE_TIME_OPTIONS.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </SelectField>
-                      <SelectField
-                        id={`create-schedule-end-${day}`}
-                        label={createScheduleDays.length === 1 ? 'Hora de fin' : `Hora de fin (${dayLabel})`}
-                        value={currentTimes.end_time}
-                        onChange={(val) => {
-                          setCreateDayTimes((prev) => ({
-                            ...prev,
-                            [day]: { ...(prev[day] ?? { start_time: '08:00' }), end_time: val },
-                          }))
-                        }}
-                        required
-                      >
-                        <option value="">Selecciona hora</option>
-                        {SCHEDULE_TIME_OPTIONS.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </SelectField>
-                    </div>
-                  </div>
-                )
-              })}
-              {createScheduleDays.length === 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Selecciona al menos un día arriba para configurar su horario.
-                </p>
-              )}
-            </div>
-          </Card>
-
-          {/* Paralelo(s) de la asignatura registrados previamente */}
-          <Field>
-            <FieldLabel htmlFor="create-tutoring-parallels">
-              Paralelo de la tutoría <span className="text-xs font-normal text-muted-foreground">(cada paralelo es una tutoría con su propio docente)</span>
-            </FieldLabel>
-
-            {subjectParallelsForModal.length > 0 ? (
-              <div id="create-tutoring-parallels" className="flex flex-wrap gap-2 pt-1" role="radiogroup" aria-label="Paralelo">
-                {subjectParallelsForModal.map((parallel) => {
-                  const isChecked = createParallelIds.includes(String(parallel.id))
-                  return (
-                    <label
-                      key={parallel.id}
-                      className={cn(
-                        'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors select-none',
-                        isChecked
-                          ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20'
-                          : 'bg-background hover:bg-accent text-foreground border-input',
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="create-tutoring-parallel"
-                        value={parallel.id}
-                        checked={isChecked}
-                        onChange={() => setCreateParallelIds([String(parallel.id)])}
-                        className="size-4 border-input text-primary focus:ring-primary/20"
-                      />
-                      <span>Paralelo {parallel.name}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                Esta asignatura no tiene paralelos registrados previamente.
-              </p>
-            )}
-
-            {subjectParallelsForModal.length > 0 && createParallelIds.length === 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Selecciona el paralelo de la tutoría.</p>
-            )}
-          </Field>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t">
-            <DialogCancelButton onClick={closeCreateDialog}>
-              Cancelar
-            </DialogCancelButton>
-            <Button
-              type="submit"
-              disabled={
-                createSaving ||
-                !createTeacherId ||
-                createScheduleDays.length === 0 ||
-                !createScheduleDays.every((d) => {
-                  const t = createDayTimes[d]
-                  return t && t.start_time && t.end_time && t.start_time < t.end_time
-                }) ||
-                createParallelIds.length === 0 ||
-                createConflicts.length > 0
-              }
-            >
-              {createSaving ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
-              Crear tutoría
-            </Button>
-          </div>
-        </form>
+        <>
+          <SubjectSummary
+            name={creatingTutoringSubject.name}
+            code={creatingTutoringSubject.code}
+            cycle={creatingTutoringCycle.name}
+            career={catalogs.careers.find((c) => c.id === creatingTutoringSubject.career_id)?.name}
+            period={catalogs.periods.find((p) => p.is_active)?.name ?? 'PAO actual'}
+          />
+          <TeacherSection
+            prefix="create"
+            title="Asignar docente"
+            teachers={createTeachers}
+            loading={createTeachersLoading}
+            error={createTeachersError}
+            value={createTeacherId}
+            onChange={setCreateTeacherId}
+            conflicts={createConflicts}
+          />
+          <ScheduleSection
+            prefix="create"
+            days={createScheduleDays}
+            times={createDayTimes}
+            onChange={(days, times) => { setCreateScheduleDays(days); setCreateDayTimes(times) }}
+          />
+          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} />
+        </>
       )}
-    </Dialog>
+    </FormDialog>
 
-    {/* Edit Tutoring per Subject Dialog */}
-    <Dialog
+    {/* Editar tutoría (y activarla si está inactiva) */}
+    <FormDialog
       open={Boolean(editingTutoringItem)}
       title="Editar tutoría"
       description={editingTutoringItem ? `${editingTutoringItem.subject_name} · ${editingTutoringItem.cycle_name}` : ''}
-      confirmClose={false}
+      pending={editSaving}
+      error={editError}
+      dirty={editDirty}
+      blockReason={editBlockReason}
+      headerActions={editLocked && editingTutoringItem?.tutoring ? (
+        <IconAction
+          label="Activar tutoría"
+          icon={PowerIcon}
+          disabled={operation.pending}
+          onClick={() => {
+            const target = editingTutoringItem.tutoring
+            if (!target) return
+            void operation.run(
+              () => tutoringApi.activateTutoring(target.id),
+              'Tutoría activada.',
+              async () => { setEditingTutoringItem(null); await list.reload() },
+            )
+          }}
+        />
+      ) : undefined}
       onClose={() => {
         if (!editSaving) {
           setEditingTutoringItem(null)
           setEditError(null)
         }
       }}
+      onSubmit={(event) => void handleEditTutoringSubmit(event)}
       maxWidth="max-w-2xl"
     >
       {editingTutoringItem && (
-        <form onSubmit={(e) => void handleEditTutoringSubmit(e)} aria-label="Editar tutoría" className="flex flex-col gap-4">
-          <div className="rounded-lg bg-muted/40 p-3.5 border flex flex-col gap-1.5">
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Materia seleccionada</span>
-            <div className="flex items-center justify-between">
-              <span className="text-base font-bold text-foreground">{editingTutoringItem.subject_name}</span>
-              {editingTutoringItem.code && (
-                <Badge variant="secondary" className="font-mono text-xs">{editingTutoringItem.code}</Badge>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{editingTutoringItem.cycle_name}</span>
-              <span>·</span>
-              <span>{editingTutoringItem.career_name}</span>
-              <span>·</span>
-              <span>{editingTutoringItem.period_name || catalogs.periods.find((p) => p.is_active)?.name || 'PAO actual'}</span>
-            </div>
-          </div>
-
-          <ErrorNotice message={editError} />
-
-          {/* Docente */}
-          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
-            <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <UserPlusIcon className="size-4 text-primary" />
-              Docente
-            </h4>
-            {editTeachersError && <ErrorNotice message={editTeachersError} />}
-            {editTeachersLoading && (
-              <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Spinner aria-hidden="true" /> Cargando docentes…
-              </p>
-            )}
-            <SelectField
-              id="edit-tutoring-teacher"
-              label="Docente"
-              value={editTeacherId}
-              onChange={(val) => setEditTeacherId(val)}
-              disabled={editTeachersLoading}
-            >
-              <option value="">Selecciona un docente</option>
-              {editTeachers.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </SelectField>
-            {!editTeachersLoading && editTeachers.length === 0 && (
-              <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
-            )}
-            <ScheduleConflictNotice conflicts={editConflicts} />
-          </Card>
-
-          {/* Horario (selección de días y horas) */}
-          <Card className="flex flex-col gap-3 p-3.5 shadow-none">
-            <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <CalendarClockIcon className="size-4 text-primary" />
-              Horario de tutoría
-            </h4>
-
-            <Field>
-              <FieldLabel htmlFor="edit-schedule-days">
-                Selección de días <span className="text-xs font-normal text-muted-foreground">(puedes seleccionar varios)</span>
-              </FieldLabel>
-              <div id="edit-schedule-days" className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Días de la semana">
-                {WEEK_DAYS.map((day) => {
-                  const isChecked = editScheduleDays.includes(day)
-                  return (
-                    <label
-                      key={day}
-                      className={cn(
-                        'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors select-none',
-                        isChecked
-                          ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20'
-                          : 'bg-background hover:bg-accent text-foreground border-input',
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        value={day}
-                        checked={isChecked}
-                        onChange={() => {
-                          setEditScheduleDays((prev) => {
-                            if (prev.includes(day)) {
-                              return prev.filter((d) => d !== day)
-                            } else {
-                              const ref = prev[0] ? editDayTimes[prev[0]] : undefined
-                              setEditDayTimes((times) => ({
-                                ...times,
-                                [day]: times[day] ?? {
-                                  start_time: ref?.start_time || '08:00',
-                                  end_time: ref?.end_time || '10:00',
-                                },
-                              }))
-                              return [...prev, day]
-                            }
-                          })
-                        }}
-                        className="size-4 rounded border-input text-primary focus:ring-primary/20"
-                      />
-                      <span>{DAY_LABELS[day]}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            </Field>
-
-            {/* Horario por día */}
-            <div className="flex flex-col gap-3 pt-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Horario por día (puedes configurar horas diferentes según el día):
-              </span>
-              {editScheduleDays.map((day) => {
-                const dayLabel = DAY_LABELS[day] ?? day
-                const currentTimes = editDayTimes[day] ?? { start_time: '08:00', end_time: '10:00' }
-                return (
-                  <div
-                    key={day}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-muted/20"
-                  >
-                    <div className="sm:w-28 flex items-center gap-2 font-semibold text-sm text-foreground shrink-0">
-                      <CalendarDaysIcon className="size-4 text-primary" />
-                      <span>{dayLabel}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 flex-1">
-                      <SelectField
-                        id={`edit-schedule-start-${day}`}
-                        label={editScheduleDays.length === 1 ? 'Hora de inicio' : `Hora de inicio (${dayLabel})`}
-                        value={currentTimes.start_time}
-                        onChange={(val) => {
-                          setEditDayTimes((prev) => ({
-                            ...prev,
-                            [day]: { ...(prev[day] ?? { end_time: '10:00' }), start_time: val },
-                          }))
-                        }}
-                        required
-                      >
-                        <option value="">Selecciona hora</option>
-                        {SCHEDULE_TIME_OPTIONS.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </SelectField>
-                      <SelectField
-                        id={`edit-schedule-end-${day}`}
-                        label={editScheduleDays.length === 1 ? 'Hora de fin' : `Hora de fin (${dayLabel})`}
-                        value={currentTimes.end_time}
-                        onChange={(val) => {
-                          setEditDayTimes((prev) => ({
-                            ...prev,
-                            [day]: { ...(prev[day] ?? { start_time: '08:00' }), end_time: val },
-                          }))
-                        }}
-                        required
-                      >
-                        <option value="">Selecciona hora</option>
-                        {SCHEDULE_TIME_OPTIONS.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </SelectField>
-                    </div>
-                  </div>
-                )
-              })}
-              {editScheduleDays.length === 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Selecciona al menos un día arriba para configurar su horario.
-                </p>
-              )}
-            </div>
-          </Card>
-
-          {/* Paralelo(s) de la asignatura registrados previamente */}
-          <Field>
-            <FieldLabel htmlFor="edit-tutoring-parallels">
-              Paralelo de la tutoría <span className="text-xs font-normal text-muted-foreground">(cada paralelo es una tutoría con su propio docente)</span>
-            </FieldLabel>
-
-            {editSubjectParallels.length > 0 ? (
-              <div id="edit-tutoring-parallels" className="flex flex-wrap gap-2 pt-1" role="radiogroup" aria-label="Paralelo">
-                {editSubjectParallels.map((parallel) => {
-                  const isChecked = editParallelIds.includes(String(parallel.id))
-                  return (
-                    <label
-                      key={parallel.id}
-                      className={cn(
-                        'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors select-none',
-                        isChecked
-                          ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20'
-                          : 'bg-background hover:bg-accent text-foreground border-input',
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="edit-tutoring-parallel"
-                        value={parallel.id}
-                        checked={isChecked}
-                        onChange={() => setEditParallelIds([String(parallel.id)])}
-                        className="size-4 border-input text-primary focus:ring-primary/20"
-                      />
-                      <span>Paralelo {parallel.name}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                Esta asignatura no tiene paralelos registrados previamente.
-              </p>
-            )}
-
-            {editSubjectParallels.length > 0 && editParallelIds.length === 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Selecciona el paralelo de la tutoría.</p>
-            )}
-          </Field>
-
-          <div className="flex items-center justify-end gap-2 pt-2 border-t">
-            <DialogCancelButton onClick={() => setEditingTutoringItem(null)}>
-              Cancelar
-            </DialogCancelButton>
-            <Button
-              type="submit"
-              disabled={
-                editSaving ||
-                !editTeacherId ||
-                editScheduleDays.length === 0 ||
-                !editScheduleDays.every((d) => {
-                  const t = editDayTimes[d]
-                  return t && t.start_time && t.end_time && t.start_time < t.end_time
-                }) ||
-                (editSubjectParallels.length > 0 && editParallelIds.length === 0) ||
-                editConflicts.length > 0
-              }
-            >
-              {editSaving ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
-              Guardar cambios
-            </Button>
-          </div>
-        </form>
+        <>
+          <SubjectSummary
+            name={editingTutoringItem.subject_name}
+            code={editingTutoringItem.code}
+            cycle={editingTutoringItem.cycle_name}
+            career={editingTutoringItem.career_name}
+            period={editingTutoringItem.period_name || catalogs.periods.find((p) => p.is_active)?.name || 'PAO actual'}
+          />
+          <TeacherSection
+            prefix="edit"
+            title="Docente"
+            teachers={editTeachers}
+            loading={editTeachersLoading}
+            error={editTeachersError}
+            value={editTeacherId}
+            onChange={setEditTeacherId}
+            conflicts={editConflicts}
+            disabled={editLocked}
+          />
+          <ScheduleSection
+            prefix="edit"
+            days={editScheduleDays}
+            times={editDayTimes}
+            onChange={(days, times) => { setEditScheduleDays(days); setEditDayTimes(times) }}
+            disabled={editLocked}
+          />
+          <ParallelField prefix="edit" parallels={editSubjectParallels} value={editParallelIds} onChange={setEditParallelIds} disabled={editLocked} />
+        </>
       )}
-    </Dialog>
+    </FormDialog>
 
-    {/* View Schedules Modal */}
+    {/* Horarios de la tutoría (solo lectura) */}
     <Dialog
       open={Boolean(viewingScheduleItem)}
       title="Horarios de la asignatura"
@@ -1296,11 +841,11 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
                     className="flex items-center justify-between p-3 shadow-xs"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-sm">
+                      <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-medium text-sm">
                         <CalendarClockIcon className="size-4" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-foreground">
+                        <span className="text-sm font-medium text-foreground">
                           {DAY_LABELS[s.day] ?? s.day}
                         </span>
                         <span className="text-xs text-muted-foreground">
@@ -1333,6 +878,237 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     </Dialog>
     <ErrorModal open={Boolean(operation.errorModal)} onClose={operation.clearErrorModal} title={operation.errorModal?.title} description={operation.errorModal?.description} />
   </section>
+}
+
+const DEFAULT_TIMES = { start_time: '08:00', end_time: '10:00' }
+const DEFAULT_DAYS = ['lunes']
+const DEFAULT_TIMES_BY_DAY: DayTimes = { lunes: DEFAULT_TIMES }
+
+type DayTimes = Record<string, { start_time: string; end_time: string }>
+
+// Huella del horario (orden de días irrelevante) para detectar cambios reales.
+function scheduleSignature(days: readonly string[], times: Readonly<Record<string, { start_time: string; end_time: string } | undefined>>): string {
+  return JSON.stringify([...days].sort().map((day) => [day, times[day]?.start_time ?? DEFAULT_TIMES.start_time, times[day]?.end_time ?? DEFAULT_TIMES.end_time]))
+}
+
+// Primer error de validación del formulario de tutoría (o null si es válido).
+function validateTutoringForm({ teacherId, days, times, parallelRequired, parallelIds, conflicts }: Readonly<{
+  teacherId: string
+  days: readonly string[]
+  times: Readonly<Record<string, { start_time: string; end_time: string } | undefined>>
+  parallelRequired: boolean
+  parallelIds: readonly string[]
+  conflicts: readonly ScheduleConflict[]
+}>): string | null {
+  if (!teacherId) return 'Selecciona un docente para la tutoría.'
+  if (days.length === 0) return 'Selecciona al menos un día para el horario de la tutoría.'
+  for (const day of days) {
+    const dayTimes = times[day]
+    const dayLabel = DAY_LABELS[day] ?? day
+    if (!dayTimes?.start_time || !dayTimes?.end_time) return `Selecciona la hora de inicio y fin para el día ${dayLabel}.`
+    if (dayTimes.start_time >= dayTimes.end_time) return `En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`
+  }
+  if (parallelRequired && parallelIds.length === 0) return 'Selecciona el paralelo de la tutoría.'
+  if (conflicts.length > 0) return describeConflicts(conflicts)
+  return null
+}
+
+function timeOptions(current: string) {
+  const all = current && !SCHEDULE_TIME_OPTIONS.includes(current) ? [...SCHEDULE_TIME_OPTIONS, current].sort() : SCHEDULE_TIME_OPTIONS
+  return all.map((time) => ({ value: time, label: time }))
+}
+
+function SubjectSummary({ name, code, cycle, career, period }: Readonly<{ name: string; code: string | null; cycle: string; career?: string; period: string }>) {
+  return (
+    <div className="rounded-lg bg-muted/40 p-3.5 border flex flex-col gap-1.5">
+      <span className="text-xs text-muted-foreground uppercase tracking-wider">Materia seleccionada</span>
+      <div className="flex items-center justify-between">
+        <span className="text-base font-semibold text-foreground">{name}</span>
+        {code && <Badge variant="secondary" className="font-mono text-xs">{code}</Badge>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>{cycle}</span>
+        <span>·</span>
+        <span>{career}</span>
+        <span>·</span>
+        <span>{period}</span>
+      </div>
+    </div>
+  )
+}
+
+function TeacherSection({ prefix, title, teachers, loading, error, value, onChange, conflicts, disabled = false }: Readonly<{
+  prefix: 'create' | 'edit'
+  title: string
+  teachers: readonly AvailableTeacher[]
+  loading: boolean
+  error: string | null
+  value: string
+  onChange: (value: string) => void
+  conflicts: readonly ScheduleConflict[]
+  disabled?: boolean
+}>) {
+  return (
+    <Card className="flex flex-col gap-3 p-3.5 shadow-none">
+      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+        <UserPlusIcon className="size-4 text-primary" />
+        {title}
+      </h4>
+      {error && <ErrorNotice message={error} />}
+      {loading && <Skeleton role="status" aria-label="Cargando docentes" className="h-4 w-40" />}
+      <SelectField
+        id={`${prefix}-tutoring-teacher`}
+        label="Docente"
+        value={value}
+        onValueChange={onChange}
+        disabled={loading || disabled}
+        placeholder="Selecciona un docente"
+        options={teachers.map((teacher) => ({ value: String(teacher.id), label: teacher.name }))}
+      />
+      {!loading && teachers.length === 0 && (
+        <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
+      )}
+      <ScheduleConflictNotice conflicts={conflicts} />
+    </Card>
+  )
+}
+
+const CHIP_BASE = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors select-none'
+const CHIP_ON = 'bg-primary/10 border-primary text-primary dark:bg-primary/20'
+const CHIP_OFF = 'bg-background hover:bg-accent text-foreground border-input'
+
+function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Readonly<{
+  prefix: 'create' | 'edit'
+  days: readonly string[]
+  times: DayTimes
+  onChange: (days: string[], times: DayTimes) => void
+  disabled?: boolean
+}>) {
+  function toggleDay(day: string) {
+    if (days.includes(day)) {
+      onChange(days.filter((d) => d !== day), times)
+      return
+    }
+    const ref = days[0] ? times[days[0]] : undefined
+    onChange([...days, day], { ...times, [day]: times[day] ?? { start_time: ref?.start_time || DEFAULT_TIMES.start_time, end_time: ref?.end_time || DEFAULT_TIMES.end_time } })
+  }
+
+  function setTime(day: string, key: 'start_time' | 'end_time', value: string) {
+    onChange([...days], { ...times, [day]: { ...(times[day] ?? DEFAULT_TIMES), [key]: value } })
+  }
+
+  return (
+    <Card className="flex flex-col gap-3 p-3.5 shadow-none">
+      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+        <CalendarClockIcon className="size-4 text-primary" />
+        Horario de tutoría
+      </h4>
+
+      <FormField id={`${prefix}-schedule-days`} label="Selección de días" tip="Puedes seleccionar varios días y configurar horas diferentes según el día.">
+        <div id={`${prefix}-schedule-days`} className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Días de la semana">
+          {WEEK_DAYS.map((day) => {
+            const isChecked = days.includes(day)
+            return (
+              <label key={day} className={cn(CHIP_BASE, isChecked ? CHIP_ON : CHIP_OFF, disabled && 'pointer-events-none opacity-60')}>
+                <input
+                  type="checkbox"
+                  value={day}
+                  checked={isChecked}
+                  disabled={disabled}
+                  onChange={() => toggleDay(day)}
+                  className="size-4 rounded border-input text-primary focus:ring-primary/20"
+                />
+                <span>{DAY_LABELS[day]}</span>
+              </label>
+            )
+          })}
+        </div>
+      </FormField>
+
+      <div className="flex flex-col gap-3 pt-1">
+        {days.map((day) => {
+          const dayLabel = DAY_LABELS[day] ?? day
+          const currentTimes = times[day] ?? DEFAULT_TIMES
+          return (
+            <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-muted/20">
+              <div className="sm:w-28 flex items-center gap-2 font-medium text-sm text-foreground shrink-0">
+                <CalendarDaysIcon className="size-4 text-primary" />
+                <span>{dayLabel}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 flex-1">
+                <SelectField
+                  id={`${prefix}-schedule-start-${day}`}
+                  label={days.length === 1 ? 'Hora de inicio' : `Hora de inicio (${dayLabel})`}
+                  value={currentTimes.start_time}
+                  onValueChange={(value) => setTime(day, 'start_time', value)}
+                  placeholder="Selecciona hora"
+                  disabled={disabled}
+                  options={timeOptions(currentTimes.start_time)}
+                />
+                <SelectField
+                  id={`${prefix}-schedule-end-${day}`}
+                  label={days.length === 1 ? 'Hora de fin' : `Hora de fin (${dayLabel})`}
+                  value={currentTimes.end_time}
+                  onValueChange={(value) => setTime(day, 'end_time', value)}
+                  placeholder="Selecciona hora"
+                  disabled={disabled}
+                  options={timeOptions(currentTimes.end_time)}
+                />
+              </div>
+            </div>
+          )
+        })}
+        {days.length === 0 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Selecciona al menos un día arriba para configurar su horario.
+          </p>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+function ParallelField({ prefix, parallels, value, onChange, disabled = false }: Readonly<{
+  prefix: 'create' | 'edit'
+  parallels: readonly { id: number; name: string }[]
+  value: readonly string[]
+  onChange: (value: string[]) => void
+  disabled?: boolean
+}>) {
+  return (
+    <FormField
+      id={`${prefix}-tutoring-parallels`}
+      label="Paralelo de la tutoría"
+      tip="Cada paralelo es una tutoría con su propio docente."
+      error={parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null}
+    >
+      {parallels.length > 0 ? (
+        <div id={`${prefix}-tutoring-parallels`} className="flex flex-wrap gap-2 pt-1" role="radiogroup" aria-label="Paralelo">
+          {parallels.map((parallel) => {
+            const isChecked = value.includes(String(parallel.id))
+            return (
+              <label key={parallel.id} className={cn(CHIP_BASE, isChecked ? CHIP_ON : CHIP_OFF, disabled && 'pointer-events-none opacity-60')}>
+                <input
+                  type="radio"
+                  name={`${prefix}-tutoring-parallel`}
+                  value={parallel.id}
+                  checked={isChecked}
+                  disabled={disabled}
+                  onChange={() => onChange([String(parallel.id)])}
+                  className="size-4 border-input text-primary focus:ring-primary/20"
+                />
+                <span>Paralelo {parallel.name}</span>
+              </label>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+          Esta asignatura no tiene paralelos registrados previamente.
+        </p>
+      )}
+    </FormField>
+  )
 }
 
 function toScheduleItems(

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CheckIcon, LayersIcon, MoreVerticalIcon, PencilIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
+import { CheckIcon, LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -7,9 +7,12 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Field, FieldCounter, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
+import { FieldLabel } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
+import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -18,7 +21,9 @@ import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
-import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable, SelectField } from './tutoring-shared'
+import { RowActions } from './row-actions'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '' }
@@ -320,16 +325,9 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     {
       label: 'Acciones',
       render: (subject: Subject) => subject.is_active ? (
-        <div className="flex items-center gap-1">
-          <Button type="button" variant="tertiary" size="icon" title="Gestionar paralelos" aria-label={`Gestionar paralelos de ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => { operation.clearError(); setParallelId(''); setIsAddingParallelInModal(false); setNewModalParallelName(''); setModalParallelError(null); setAssigning(subject) }}><LayersIcon /></Button>
-          <Button type="button" variant="tertiary" size="icon" title="Editar" aria-label={`Editar ${formatSubjectName(subject.name)}`} disabled={operation.pending} onClick={() => edit(subject)}><PencilIcon /></Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button type="button" variant="tertiary" size="icon" aria-label={`Más acciones para ${formatSubjectName(subject.name)}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem variant="destructive" onSelect={() => { operation.clearError(); setDeactivating(subject) }}><PowerOffIcon />Desactivar</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <RowActions>
+          <IconAction label={`Gestionar paralelos de ${formatSubjectName(subject.name)}`} icon={LayersIcon} disabled={operation.pending} onClick={() => { operation.clearError(); setParallelId(''); setIsAddingParallelInModal(false); setNewModalParallelName(''); setModalParallelError(null); setAssigning(subject) }} />
+        </RowActions>
       ) : <span className="text-muted-foreground">—</span>,
     },
   ]
@@ -355,6 +353,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       loading={list.isFetching || list.isInitialLoading}
       empty={activeCycle === 'all' ? 'No se encontraron asignaturas para esta carrera.' : 'No hay asignaturas en este ciclo para la búsqueda actual.'}
       columns={renderSubjectColumns()}
+      onRowClick={(subject) => { if (subject.is_active && !operation.pending) edit(subject) }}
+      rowTitle={(subject) => subject.is_active ? `Editar ${formatSubjectName(subject.name)}` : ''}
     />
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground">
@@ -362,7 +362,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       </p>
       <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </div>
-    <MutationDialog
+    <FormDialog
       open={open}
       title={editing ? 'Editar asignatura' : 'Registrar asignatura'}
       description={
@@ -373,70 +373,45 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       pending={operation.pending}
       error={operation.error}
       dirty={JSON.stringify(form) !== JSON.stringify(initialForm) || Boolean(newSectionName)}
+      blockReason={form.name.trim() ? null : 'El nombre de la asignatura es obligatorio.'}
+      headerActions={editing ? <IconAction label="Desactivar asignatura" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} /> : undefined}
       onClose={() => setOpen(false)}
       onSubmit={submit}
       submitIcon={editing ? SaveIcon : PlusIcon} submitLabel={editing ? 'Guardar cambios' : 'Registrar asignatura'}
     >
       {!editing && (
         <>
-          <Field>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="subject-period">Período académico</FieldLabel>
-              <Badge variant="outline" className="text-xs font-semibold text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+          <FormField id="subject-period" label="Período académico" tip={`Todas las asignaturas corresponden automáticamente al período académico vigente (${currentPeriod?.name ?? 'sin período'}).`}>
+            <div className="relative flex items-center">
+              <Input
+                id="subject-period"
+                value={currentPeriod ? currentPeriod.name : 'Sin período académico activo'}
+                disabled
+                readOnly
+                className="bg-muted pr-24 text-foreground cursor-not-allowed select-none"
+                aria-readonly="true"
+              />
+              <Badge variant="outline" className="absolute right-2 text-xs text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
                 PAO actual
               </Badge>
             </div>
-            <Input
-              id="subject-period"
-              value={currentPeriod ? currentPeriod.name : 'Sin período académico activo'}
-              disabled
-              readOnly
-              className="bg-muted text-foreground font-medium cursor-not-allowed select-none"
-              aria-readonly="true"
-            />
-            <FieldDescription className="text-xs">
-              Todas las asignaturas corresponden automáticamente al período académico vigente ({currentPeriod?.name ?? 'sin período'}).
-            </FieldDescription>
-          </Field>
+          </FormField>
           <SelectField
             id="subject-new-cycle"
             label="Ciclo"
+            optional
             value={form.cycle_id}
-            onChange={(value) => setForm({ ...form, cycle_id: value })}
-            required={false}
-          >
-            <option value="">Seleccionar</option>
-            {uniqueCycleLevels.map((cycle) => (
-              <option key={cycle.id} value={cycle.id}>
-                {cycle.name}
-              </option>
-            ))}
-          </SelectField>
-          <Field data-invalid={Boolean(sectionError)}>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="subject-parallels">
-                Paralelo(s) <span className="text-xs font-normal text-muted-foreground">(puedes seleccionar varios)</span>
-              </FieldLabel>
-              {!isAddingSection && (
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  size="sm"
-                  onClick={() => {
-                    setIsAddingSection(true)
-                    setNewSectionName('')
-                    setSectionError(null)
-                  }}
-                  disabled={operation.pending}
-                >
-                  <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
-                </Button>
-              )}
-            </div>
+            onValueChange={(value) => setForm({ ...form, cycle_id: value })}
+            emptyLabel="Sin ciclo"
+            placeholder="Selecciona un ciclo"
+            options={uniqueCycleLevels.map((cycle) => ({ value: String(cycle.id), label: cycle.name }))}
+          />
+          <FormField id="subject-parallels" label="Paralelo(s)" tip="Puedes seleccionar varios paralelos." error={sectionError}>
             {isAddingSection ? (
               <div className="flex items-center gap-2">
                 <Input
                   id="new-parallel-name"
+                  aria-label="Nombre del nuevo paralelo"
                   value={newSectionName}
                   onChange={(e) => {
                     setNewSectionName(sanitizeLetters(e.target.value, 50))
@@ -471,7 +446,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 </Button>
               </div>
             ) : (
-              <div id="subject-parallels" className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Paralelos">
+              <div id="subject-parallels" className="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Paralelos">
                 {allParallels.map((parallel) => {
                   const isChecked = form.parallel_ids.includes(String(parallel.id))
                   return (
@@ -506,49 +481,51 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 {allParallels.length === 0 && (
                   <p className="text-xs text-muted-foreground">No hay paralelos activos registrados aún.</p>
                 )}
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  size="sm"
+                  onClick={() => {
+                    setIsAddingSection(true)
+                    setNewSectionName('')
+                    setSectionError(null)
+                  }}
+                  disabled={operation.pending}
+                >
+                  <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
+                </Button>
               </div>
             )}
-            {sectionError && <FieldError>{sectionError}</FieldError>}
-          </Field>
+          </FormField>
         </>
       )}
       <SelectField
         id="subject-modality"
         label="Modalidad"
+        optional
         value={form.modality_id}
-        onChange={(value) => setForm({ ...form, modality_id: value })}
-        required={false}
-      >
-        <option value="">Seleccionar</option>
-        {catalogs.modalities
+        onValueChange={(value) => setForm({ ...form, modality_id: value })}
+        emptyLabel="Sin modalidad"
+        placeholder="Selecciona una modalidad"
+        options={catalogs.modalities
           .filter((modality) => modality.is_active || String(modality.id) === form.modality_id)
-          .map((modality) => (
-            <option key={modality.id} value={modality.id}>
-              {modality.name}{modality.is_active ? '' : ' (inactiva)'}
-            </option>
-          ))}
-      </SelectField>
-      <Field>
-        <div className="flex items-center justify-between">
-          <FieldLabel htmlFor="subject-code">
-            Código <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
-          </FieldLabel>
-          {form.code.length > 0 && <FieldCounter current={form.code.length} max={30} />}
-        </div>
-        <Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} maxLength={30} placeholder="Ej. SW-B1-001 (opcional)" />
-      </Field>
-      <Field>
-        <div className="flex items-center justify-between"><FieldLabel htmlFor="subject-name">Nombre</FieldLabel><FieldCounter current={form.name.length} max={150} /></div>
+          .map((modality) => ({ value: String(modality.id), label: `${modality.name}${modality.is_active ? '' : ' (inactiva)'}` }))}
+      />
+      <FormField id="subject-code" label="Código" optional counter={form.code.length > 0 ? { current: form.code.length, max: 30 } : undefined}>
+        <Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} maxLength={30} placeholder="Ej. SW-B1-001" />
+      </FormField>
+      <FormField id="subject-name" label="Nombre" counter={{ current: form.name.length, max: 150 }}>
         <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150).toLocaleUpperCase('es') })} required maxLength={150} placeholder="Ej. ALGORITMOS Y LÓGICA DE PROGRAMACIÓN" />
-      </Field>
-    </MutationDialog>
-    <MutationDialog
+      </FormField>
+    </FormDialog>
+    <FormDialog
       open={Boolean(assigning)}
       title="Paralelos de la asignatura"
       description={assigning ? `${formatSubjectName(assigning.name)}${assignedCycleName ? ` · ${assignedCycleName}` : ''}` : ''}
       pending={operation.pending}
       error={operation.error}
       dirty={Boolean(parallelId || newModalParallelName.trim())}
+      noChangesReason="Selecciona o crea un paralelo para agregarlo."
       onClose={() => {
         setAssigning(null)
         setParallelId('')
@@ -557,7 +534,6 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         setModalParallelError(null)
       }}
       submitIcon={PlusIcon} submitLabel="Agregar paralelo"
-      submitDisabled={!parallelId && !newModalParallelName.trim()}
       onSubmit={addParallel}
     >
       {assignedParallels.length > 0 ? (
@@ -569,17 +545,14 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 key={item.key}
                 className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm bg-card"
               >
-                <span className="font-medium text-foreground">{item.label}</span>
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  size="icon"
+                <span className="text-foreground">{item.label}</span>
+                <IconAction
+                  label={`Quitar ${item.label}`}
+                  icon={XIcon}
+                  tone="destructive"
                   disabled={operation.pending}
-                  aria-label={`Quitar ${item.label}`}
                   onClick={() => removeParallel(item.cycleId, item.parallelId)}
-                >
-                  <XIcon />
-                </Button>
+                />
               </li>
             ))}
           </ul>
@@ -589,15 +562,60 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       )}
 
       <div className="flex flex-col gap-3 pt-2 border-t">
-        <div className="flex items-center justify-between">
-          <FieldLabel htmlFor="subject-parallel-select">
-            Agregar un paralelo
-          </FieldLabel>
-          {!isAddingParallelInModal && (
+        {isAddingParallelInModal ? (
+          <FormField id="new-modal-parallel-name" label="Nuevo paralelo" error={modalParallelError}>
+            <div className="flex items-center gap-2">
+              <Input
+                id="new-modal-parallel-name"
+                value={newModalParallelName}
+                onChange={(e) => {
+                  setNewModalParallelName(sanitizeLetters(e.target.value, 50))
+                  setModalParallelError(null)
+                }}
+                placeholder="Ej. C"
+                maxLength={50}
+                disabled={operation.pending}
+                autoFocus
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsAddingParallelInModal(false)
+                  setNewModalParallelName('')
+                  setModalParallelError(null)
+                }}
+                disabled={operation.pending}
+                className="shrink-0"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </FormField>
+        ) : (
+          <>
+            <SelectField
+              id="subject-parallel-select"
+              label="Agregar un paralelo"
+              value={parallelId}
+              onValueChange={(v) => {
+                setParallelId(v)
+                setModalParallelError(null)
+              }}
+              placeholder="Selecciona un paralelo"
+              error={modalParallelError}
+              options={availableParallelsForModal.map((p) => ({ value: String(p.id), label: p.name.startsWith('Paralelo') ? p.name : `Paralelo ${p.name}` }))}
+            />
+            {availableParallelsForModal.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Todos los paralelos registrados ya están asignados a esta asignatura. Puedes crear uno nuevo si lo requieres.
+              </p>
+            )}
             <Button
               type="button"
               variant="tertiary"
               size="sm"
+              className="self-start"
               onClick={() => {
                 setIsAddingParallelInModal(true)
                 setNewModalParallelName('')
@@ -607,63 +625,10 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             >
               <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
             </Button>
-          )}
-        </div>
-
-        {isAddingParallelInModal ? (
-          <div className="flex items-center gap-2">
-            <Input
-              id="new-modal-parallel-name"
-              value={newModalParallelName}
-              onChange={(e) => {
-                setNewModalParallelName(sanitizeLetters(e.target.value, 50))
-                setModalParallelError(null)
-              }}
-              placeholder="Ej. C"
-              maxLength={50}
-              disabled={operation.pending}
-              autoFocus
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setIsAddingParallelInModal(false)
-                setNewModalParallelName('')
-                setModalParallelError(null)
-              }}
-              disabled={operation.pending}
-              className="shrink-0"
-            >
-              Cancelar
-            </Button>
-          </div>
-        ) : (
-          <SelectField
-            id="subject-parallel-select"
-            label="Seleccionar paralelo"
-            value={parallelId}
-            onChange={(v) => {
-              setParallelId(v)
-              setModalParallelError(null)
-            }}
-          >
-            <option value="">Selecciona un paralelo</option>
-            {availableParallelsForModal.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name.startsWith('Paralelo') ? p.name : `Paralelo ${p.name}`}
-              </option>
-            ))}
-          </SelectField>
-        )}
-        {modalParallelError && <FieldError>{modalParallelError}</FieldError>}
-        {!isAddingParallelInModal && availableParallelsForModal.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            Todos los paralelos registrados ya están asignados a esta asignatura. Puedes crear uno nuevo si lo requieres.
-          </p>
+          </>
         )}
       </div>
-    </MutationDialog>
-    <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar asignatura?" description={`La asignatura «${deactivating?.name ?? ''}» dejará de estar disponible para nuevas tutorías. Sus tutorías existentes se conservarán.`} confirmLabel="Desactivar asignatura" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateSubject(deactivating.id), 'Asignatura desactivada.', async () => { setDeactivating(null); await list.reload() }) }} />
+    </FormDialog>
+    <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar asignatura?" description={`La asignatura «${deactivating?.name ?? ''}» dejará de estar disponible para nuevas tutorías. Sus tutorías existentes se conservarán.`} confirmLabel="Desactivar asignatura" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateSubject(deactivating.id), 'Asignatura desactivada.', async () => { setDeactivating(null); setOpen(false); await list.reload() }) }} />
   </section>
 }

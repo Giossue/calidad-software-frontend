@@ -20,9 +20,12 @@ import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { Field, FieldCounter, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { FieldGroup } from '@/components/ui/field'
+import { FormDialog } from '@/components/ui/form-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -41,7 +44,9 @@ import {
 import { FilterBar } from './filter-bar'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
-import { ErrorNotice, ModuleHeader, MutationDialog, RecordTable } from './tutoring-shared'
+import { RowActions } from './row-actions'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { ModuleHeader, RecordTable } from './tutoring-shared'
 
 const EMPTY_STUDENT_FORM = {
   identification: '',
@@ -272,6 +277,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const isCedulaValid = isValidIdentification(form.identification)
   const isEmailValid = form.email.endsWith('@ueb.edu.ec')
 
+  // Primer error de validación: bloquea "Registrar estudiante" y se muestra en su tooltip.
+  const createBlockReason =
+    (!form.identification ? 'La cédula o pasaporte es obligatoria.' : !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null) ??
+    (!form.name.trim() ? 'El nombre es obligatorio.' : null) ??
+    (!form.email ? 'El correo institucional es obligatorio.' : !isEmailValid ? 'El correo debe terminar en @ueb.edu.ec.' : null) ??
+    (!form.cycle_id ? 'Selecciona el ciclo que cursa el estudiante.' : null)
+
   function handleCycleChange(cycleId: string) {
     setForm((prev) => ({
       ...prev,
@@ -397,7 +409,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         empty={
           <Empty className="border-none py-12">
             <EmptyMedia>
-              <UsersIcon className="size-10 text-muted-foreground/60" />
             </EmptyMedia>
             <EmptyTitle>No se encontraron estudiantes</EmptyTitle>
             <EmptyDescription>
@@ -420,7 +431,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             label: 'Estudiante',
             render: (student) => (
               <div className="flex flex-col gap-0.5">
-                <span className="font-semibold text-foreground">{student.name}</span>
+                <span className="font-medium text-foreground">{student.name}</span>
                 <span className="text-xs text-muted-foreground">{student.email}</span>
               </div>
             ),
@@ -458,26 +469,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           {
             label: 'Acciones',
             render: (student) => (
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => openAssignModal(student)}
-                >
-                  <GraduationCapIcon data-icon="inline-start" />
-                  Gestionar tutorías
-                </Button>
-                <Button
-                  type="button"
-                  variant={student.cycle_id ? 'tertiary' : 'secondary'}
-                  size="sm"
+              <RowActions>
+                <IconAction label={`Gestionar tutorías de ${student.name}`} icon={GraduationCapIcon} onClick={() => openAssignModal(student)} />
+                <IconAction
+                  label={student.cycle_id ? `Cambiar ciclo de ${student.name}` : `Asignar ciclo a ${student.name}`}
+                  icon={ArrowRightLeftIcon}
                   onClick={() => openCycleModal(student)}
-                >
-                  <ArrowRightLeftIcon data-icon="inline-start" />
-                  {student.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
-                </Button>
-              </div>
+                />
+              </RowActions>
             ),
           },
         ]}
@@ -500,20 +499,26 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       )}
 
       {/* Modal: Registrar Nuevo Estudiante */}
-      <MutationDialog
+      <FormDialog
         open={createOpen}
         title="Registrar Nuevo Estudiante"
         description="Ingresa los datos personales del estudiante y, opcionalmente, asígnalo a una tutoría inicial."
         pending={operation.pending}
         error={operation.error}
         dirty={isFormDirty}
+        blockReason={createBlockReason}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateSubmit}
-        submitIcon={UserPlusIcon} submitLabel="Registrar estudiante"
-        submitDisabled={!isCedulaValid || !isEmailValid || !form.name.trim() || !form.cycle_id}
+        submitIcon={UserPlusIcon}
+        submitLabel="Registrar estudiante"
       >
-        <Field>
-          <FieldLabel htmlFor="new-student-cedula">Cédula o pasaporte *</FieldLabel>
+        <FormField
+          id="new-student-cedula"
+          label="Cédula o pasaporte"
+          tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres."
+          counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }}
+          error={shouldShowIdentificationStatus(form.identification) && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null}
+        >
           <Input
             id="new-student-cedula"
             required
@@ -522,20 +527,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             onChange={(e) => setForm({ ...form, identification: sanitizeIdentification(e.target.value) })}
             placeholder="0201234567 o AB1234567"
           />
-          <div className="flex justify-between items-center text-xs mt-1">
-            <FieldDescription>Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres.</FieldDescription>
-            <FieldCounter current={form.identification.length} max={identificationMaxLength(form.identification)} />
-          </div>
-          {shouldShowIdentificationStatus(form.identification) && !isCedulaValid && (
-            <p className="text-xs text-destructive font-medium mt-1">La cédula o pasaporte no es válido.</p>
-          )}
-        </Field>
+        </FormField>
 
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="new-student-name">Nombres y Apellidos *</FieldLabel>
-            <FieldCounter current={form.name.length} max={150} />
-          </div>
+        <FormField id="new-student-name" label="Nombres y Apellidos" tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
           <Input
             id="new-student-name"
             required
@@ -544,14 +538,15 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             onChange={(e) => setForm({ ...form, name: sanitizeLetters(e.target.value, 150) })}
             placeholder="Juan Carlos Pérez Rodríguez"
           />
-          <FieldDescription>Nombre completo del estudiante (solo letras y espacios).</FieldDescription>
-        </Field>
+        </FormField>
 
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="new-student-email">Correo Institucional *</FieldLabel>
-            <FieldCounter current={form.email.length} max={150} />
-          </div>
+        <FormField
+          id="new-student-email"
+          label="Correo Institucional"
+          tip="Debe pertenecer al dominio institucional (@ueb.edu.ec)."
+          counter={{ current: form.email.length, max: 150 }}
+          error={form.email && !isEmailValid ? 'El correo debe terminar en @ueb.edu.ec.' : null}
+        >
           <Input
             id="new-student-email"
             type="email"
@@ -561,19 +556,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             onChange={(e) => setForm({ ...form, email: e.target.value.trim() })}
             placeholder="jperez@ueb.edu.ec"
           />
-          <FieldDescription>Debe pertenecer al dominio institucional (@ueb.edu.ec).</FieldDescription>
-          {form.email && !isEmailValid && (
-            <p className="text-xs text-destructive font-medium mt-1">
-              El correo debe terminar en @ueb.edu.ec.
-            </p>
-          )}
-        </Field>
+        </FormField>
 
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="new-student-phone">Teléfono (opcional)</FieldLabel>
-            <FieldCounter current={form.phone.length} max={10} />
-          </div>
+        <FormField id="new-student-phone" label="Teléfono" optional counter={{ current: form.phone.length, max: 10 }}>
           <Input
             id="new-student-phone"
             maxLength={10}
@@ -581,63 +566,52 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             onChange={(e) => setForm({ ...form, phone: sanitizeDigits(e.target.value, 10) })}
             placeholder="0991234567"
           />
-        </Field>
+        </FormField>
 
-        <Field>
-          <FieldLabel htmlFor="new-student-cycle">Ciclo *</FieldLabel>
-          <NativeSelect
-            id="new-student-cycle"
-            value={form.cycle_id}
-            onChange={(e) => handleCycleChange(e.target.value)}
-            disabled={loadingCycles}
-            required
-          >
-            <option value="">-- Selecciona un ciclo --</option>
-            {cycles.filter((cycle) => tabCycleNumber === undefined || cycle.number === tabCycleNumber).map((cycle) => (
-              <option key={cycle.id} value={cycle.id}>
-                {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}{isLastCycle(cycle) ? ' · Titulación' : ''}
-              </option>
-            ))}
-          </NativeSelect>
-          <FieldDescription>
-            Ciclo que cursa el estudiante. El último ciclo de la carrera es de titulación; los anteriores, de tutorías.
-          </FieldDescription>
-        </Field>
+        <SelectField
+          id="new-student-cycle"
+          label="Ciclo"
+          tip="Ciclo que cursa el estudiante. El último ciclo de la carrera es de titulación; los anteriores, de tutorías."
+          value={form.cycle_id}
+          onValueChange={handleCycleChange}
+          disabled={loadingCycles}
+          placeholder="Selecciona un ciclo"
+          options={cycles.filter((cycle) => tabCycleNumber === undefined || cycle.number === tabCycleNumber).map((cycle) => ({
+            value: String(cycle.id),
+            label: `${cycle.name}${cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}${isLastCycle(cycle) ? ' · Titulación' : ''}`,
+          }))}
+        />
 
-        <Field>
-          <FieldLabel htmlFor="new-student-tutoring">Tutoría (opcional)</FieldLabel>
-          <NativeSelect
-            id="new-student-tutoring"
-            value={form.tutoring_id}
-            onChange={(e) => setForm({ ...form, tutoring_id: e.target.value })}
-            disabled={!form.cycle_id || isDegreeCycle || loadingTutorings}
-          >
-            <option value="">
-              {!form.cycle_id
-                ? '-- Primero selecciona un ciclo --'
-                : isDegreeCycle
-                  ? '-- Ciclo de titulación: sin tutorías --'
-                  : availableTutoringsForCycle.length === 0
-                  ? '-- No hay tutorías activas en este ciclo --'
-                  : '-- No asignar tutoría por ahora --'}
-            </option>
-            {availableTutoringsForCycle.map((tutoring) => (
-              <option key={tutoring.id} value={tutoring.id}>
-                {tutoring.subject_name}
-                {tutoring.section_name ? ` (Paralelo ${tutoring.section_name})` : ''}
-                {tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}
-              </option>
-            ))}
-          </NativeSelect>
-          <FieldDescription>
-            {isDegreeCycle
+        <SelectField
+          id="new-student-tutoring"
+          label="Tutoría"
+          optional
+          tip={
+            isDegreeCycle
               ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.'
               : form.cycle_id
-              ? 'Puedes inscribir al estudiante en una tutoría de este ciclo de inmediato o hacerlo después.'
-              : 'Selecciona primero un ciclo para habilitar las tutorías.'}
-          </FieldDescription>
-        </Field>
-      </MutationDialog>
+                ? 'Puedes inscribir al estudiante en una tutoría de este ciclo de inmediato o hacerlo después.'
+                : 'Selecciona primero un ciclo para habilitar las tutorías.'
+          }
+          value={form.tutoring_id}
+          onValueChange={(value) => setForm({ ...form, tutoring_id: value })}
+          disabled={!form.cycle_id || isDegreeCycle || loadingTutorings}
+          emptyLabel={form.cycle_id && !isDegreeCycle && availableTutoringsForCycle.length > 0 ? 'No asignar tutoría por ahora' : undefined}
+          placeholder={
+            !form.cycle_id
+              ? 'Primero selecciona un ciclo'
+              : isDegreeCycle
+                ? 'Ciclo de titulación: sin tutorías'
+                : availableTutoringsForCycle.length === 0
+                  ? 'No hay tutorías activas en este ciclo'
+                  : 'No asignar tutoría por ahora'
+          }
+          options={availableTutoringsForCycle.map((tutoring) => ({
+            value: String(tutoring.id),
+            label: `${tutoring.subject_name}${tutoring.section_name ? ` (Paralelo ${tutoring.section_name})` : ''}${tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}`,
+          }))}
+        />
+      </FormDialog>
 
       {/* Modal: Gestionar y Asignar Tutorías del Estudiante */}
       {assignStudent && (
@@ -675,17 +649,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                           <span>• {tutoring.period_name}</span>
                         </div>
                       </div>
-                      <Button
+                      <IconAction
+                        label={`Desvincular ${tutoring.subject_name}`}
+                        icon={Trash2Icon}
                         tone="destructive"
-                        type="button"
-                        variant="tertiary"
-                        size="sm"
                         disabled={operation.pending}
                         onClick={() => setUnlinking({ student: assignStudent, tutoring })}
-                      >
-                        <Trash2Icon data-icon="inline-start" />
-                        Desvincular
-                      </Button>
+                      />
                     </Card>
                   ))}
                 </div>
@@ -696,15 +666,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
             {/* Asignar a nueva tutoría */}
             <form onSubmit={handleAssignSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <UserPlusIcon className="size-4 text-primary" />
-                  Asignar a una nueva tutoría
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Selecciona una de las tutorías disponibles de la carrera para inscribir al estudiante.
-                </p>
-              </div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <UserPlusIcon className="size-4 text-primary" />
+                Asignar a una nueva tutoría
+              </h3>
 
               {loadingAvailable ? (
                 <div className="flex items-center justify-center p-6 text-sm text-muted-foreground gap-2">
@@ -717,27 +682,19 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 </div>
               ) : (
                 <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="assign-tutoring-select">
-                      Seleccionar tutoría disponible *
-                    </FieldLabel>
-                    <NativeSelect
-                      id="assign-tutoring-select"
-                      required
-                      value={selectedTutoringId}
-                      onChange={(e) => setSelectedTutoringId(e.target.value)}
-                      disabled={operation.pending}
-                    >
-                      <option value="">-- Elige una tutoría --</option>
-                      {filteredAvailableTutorings.map((tutoring) => (
-                        <option key={tutoring.id} value={tutoring.id}>
-                          {tutoring.subject_name} ({tutoring.cycle_name}
-                          {tutoring.section_name ? ` - ${tutoring.section_name}` : ''})
-                          {tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </Field>
+                  <SelectField
+                    id="assign-tutoring-select"
+                    label="Seleccionar tutoría disponible"
+                    tip="Tutorías disponibles de la carrera para inscribir al estudiante."
+                    value={selectedTutoringId}
+                    onValueChange={setSelectedTutoringId}
+                    disabled={operation.pending}
+                    placeholder="Elige una tutoría"
+                    options={filteredAvailableTutorings.map((tutoring) => ({
+                      value: String(tutoring.id),
+                      label: `${tutoring.subject_name} (${tutoring.cycle_name}${tutoring.section_name ? ` - ${tutoring.section_name}` : ''})${tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}`,
+                    }))}
+                  />
 
                   <ErrorNotice message={operation.error} />
 
@@ -812,7 +769,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             empty={
               <Empty className="border-none py-12">
                 <EmptyMedia>
-                  <GraduationCapIcon className="size-10 text-muted-foreground/60" />
                 </EmptyMedia>
                 <EmptyTitle>No se encontraron estudiantes</EmptyTitle>
                 <EmptyDescription>
@@ -827,7 +783,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 label: 'Estudiante',
                 render: (student) => (
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-semibold text-foreground">{student.name}</span>
+                    <span className="font-medium text-foreground">{student.name}</span>
                     <span className="text-xs text-muted-foreground">{student.email}</span>
                   </div>
                 ),
@@ -873,41 +829,31 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               {
                 label: 'Acciones',
                 render: (student) => (
-                  <div className="flex items-center gap-2">
+                  <RowActions>
                     {student.is_degree_enrolled ? (
-                      <Button
+                      <IconAction
+                        label={`Dar de baja a ${student.name} de titulación`}
+                        icon={UserMinusIcon}
                         tone="destructive"
-                        type="button"
-                        variant="secondary"
-                        size="sm"
                         onClick={() => setUnenrollTarget(student)}
                         disabled={degreeOperation.pending}
-                      >
-                        <UserMinusIcon data-icon="inline-start" />
-                        Dar de baja
-                      </Button>
+                      />
                     ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => setEnrollTarget(student)}
-                        disabled={degreeOperation.pending || student.academic_stage !== 'titulacion'}
-                        title={student.academic_stage !== 'titulacion' ? 'Solo se matriculan en titulación los estudiantes que estén en el último ciclo de la carrera.' : undefined}
-                      >
-                        <GraduationCapIcon data-icon="inline-start" />
-                        Matricular en Titulación
-                      </Button>
+                      <span title={student.academic_stage !== 'titulacion' ? 'Solo se matriculan en titulación los estudiantes que estén en el último ciclo de la carrera.' : undefined}>
+                        <IconAction
+                          label={`Matricular a ${student.name} en titulación`}
+                          icon={GraduationCapIcon}
+                          onClick={() => setEnrollTarget(student)}
+                          disabled={degreeOperation.pending || student.academic_stage !== 'titulacion'}
+                        />
+                      </span>
                     )}
-                    <Button
-                      type="button"
-                      variant="tertiary"
-                      size="sm"
+                    <IconAction
+                      label={`Cambiar ciclo de ${student.name}`}
+                      icon={ArrowRightLeftIcon}
                       onClick={() => openCycleModal({ id: student.student_id, name: student.name, cycle_id: student.cycle_id })}
-                    >
-                      <ArrowRightLeftIcon data-icon="inline-start" />
-                      Cambiar ciclo
-                    </Button>
-                  </div>
+                    />
+                  </RowActions>
                 ),
               },
             ]}
@@ -929,31 +875,31 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       )}
 
       {/* Modal: Cambiar ciclo del estudiante */}
-      <MutationDialog
+      <FormDialog
         open={Boolean(cycleTarget)}
         title={cycleTarget?.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
         description={cycleTarget?.name}
         pending={operation.pending}
         error={operation.error}
         dirty={targetCycleId !== (cycleTarget?.cycle_id ? String(cycleTarget.cycle_id) : '')}
+        blockReason={targetCycleId ? null : 'Selecciona el ciclo que cursa el estudiante.'}
         onClose={() => setCycleTarget(null)}
         onSubmit={handleCycleSubmit}
         submitLabel="Guardar ciclo"
-        submitDisabled={!targetCycleId || targetCycleId === String(cycleTarget?.cycle_id ?? '')}
       >
-        <Field>
-          <FieldLabel htmlFor="student-cycle">Ciclo que cursa *</FieldLabel>
-          <NativeSelect id="student-cycle" value={targetCycleId} onChange={(event) => setTargetCycleId(event.target.value)} required>
-            <option value="">-- Selecciona un ciclo --</option>
-            {[...careerCycles].sort((a, b) => a.number - b.number).map((cycle) => (
-              <option key={cycle.id} value={cycle.id}>
-                {cycle.number}° {cycle.name}{cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}{isDegreeCycleNumber(cycle.number, careerMaxCycle) ? ' · Titulación' : ''}
-              </option>
-            ))}
-          </NativeSelect>
-          <FieldDescription>El estudiante pasa a la pestaña de ese ciclo y a su paralelo. Sus tutorías actuales se conservan.</FieldDescription>
-        </Field>
-      </MutationDialog>
+        <SelectField
+          id="student-cycle"
+          label="Ciclo que cursa"
+          tip="El estudiante pasa a la pestaña de ese ciclo y a su paralelo. Sus tutorías actuales se conservan."
+          value={targetCycleId}
+          onValueChange={setTargetCycleId}
+          placeholder="Selecciona un ciclo"
+          options={[...careerCycles].sort((a, b) => a.number - b.number).map((cycle) => ({
+            value: String(cycle.id),
+            label: `${cycle.number}° ${cycle.name}${cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}${isDegreeCycleNumber(cycle.number, careerMaxCycle) ? ' · Titulación' : ''}`,
+          }))}
+        />
+      </FormDialog>
 
       {/* Modal Confirmación Matrícula Titulación */}
       <ConfirmModal
