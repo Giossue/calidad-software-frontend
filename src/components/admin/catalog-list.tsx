@@ -9,7 +9,7 @@ export function CatalogList({ title, icon, loading, loadingMessage, emptyMessage
   return <Card>
     <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 px-5 py-4">
       <div className="flex items-center gap-3">
-        <span className="text-brand-red" aria-hidden="true">{icon}</span>
+        <span className="text-primary" aria-hidden="true">{icon}</span>
         <CardTitle className="text-base">{title}</CardTitle>
       </div>
     </CardHeader>

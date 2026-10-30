@@ -78,10 +78,10 @@ function AdminTabButton({ tab, active, onSelect }: Readonly<{ tab: AdminTab; act
     onClick={() => onSelect(tab.id)}
     className={cn(
       'flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg border px-3 py-3 text-left transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:px-4',
-      active ? 'border-brand-red/30 bg-brand-red/5 text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
+      active ? 'border-primary/30 bg-primary/5 text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
     )}
   >
-    <Icon className={cn('size-5', active ? 'text-brand-red' : 'text-muted-foreground')} aria-hidden="true" />
+    <Icon className={cn('size-5', active ? 'text-primary' : 'text-muted-foreground')} aria-hidden="true" />
     <span className="flex flex-col gap-0.5">
       <span className="text-sm font-semibold">{tab.label}</span>
       <span className="hidden text-xs font-normal text-muted-foreground sm:block">{tab.description}</span>

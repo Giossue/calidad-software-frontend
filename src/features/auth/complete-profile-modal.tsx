@@ -147,7 +147,7 @@ export function CompleteProfileModal() {
                 <span
                   className={cn(
                     'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px]',
-                    active && 'bg-brand-red text-white',
+                    active && 'bg-primary text-primary-foreground',
                     !active && reached && 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
                     !reached && 'bg-slate-100 text-slate-400 dark:bg-slate-800',
                   )}

@@ -148,7 +148,7 @@ export function DegreeTrackingPage() {
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <SparklesIcon className="size-5 text-brand-red" /> Estado de la Ficha
+                <SparklesIcon className="size-5 text-primary" /> Estado de la Ficha
               </CardTitle>
               <CardDescription>Resumen del avance acumulado</CardDescription>
             </CardHeader>
@@ -160,7 +160,7 @@ export function DegreeTrackingPage() {
                 </div>
                 <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full bg-brand-red transition-all duration-300"
+                    className="h-full bg-primary transition-all duration-300"
                     style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
                   />
                 </div>
@@ -193,7 +193,7 @@ export function DegreeTrackingPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <ListTodoIcon className="size-5 text-brand-red" /> Cronograma de Actividades
+                  <ListTodoIcon className="size-5 text-primary" /> Cronograma de Actividades
                 </CardTitle>
                 <CardDescription>Seguimiento de entregables y avances del estudiante</CardDescription>
               </div>
@@ -381,7 +381,7 @@ export function DegreeTrackingPage() {
               return (
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full bg-brand-red" style={{ width: `${Math.min(progress, 100)}%` }} />
+                    <div className="h-full bg-primary" style={{ width: `${Math.min(progress, 100)}%` }} />
                   </div>
                   <span className="text-xs font-semibold text-foreground">{progress}%</span>
                 </div>

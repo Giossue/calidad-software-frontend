@@ -63,7 +63,7 @@
   --table-header: #FAFBFC;
   --border: #CBD5DC;
   --input: #B9C6CF;
-  --ring: var(--brand-red);
+  --ring: #2F6FA8;
   --radius: 0.75rem;
   --radius-shell: 2rem;
   --shadow-shell: 0 24px 80px -32px oklch(0.2 0.06 170 / 0.45);
@@ -74,7 +74,7 @@
   --sidebar-accent: #17364D;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: #28475D;
-  --sidebar-ring: var(--brand-red);
+  --sidebar-ring: #6CA8DB;
 }
 
 .dark {
@@ -84,7 +84,7 @@
   --card-foreground: #F5F7F9;
   --popover: #0F2434;
   --popover-foreground: #F5F7F9;
-  --primary: var(--brand-red);
+  --primary: #2F6FA8;
   --primary-foreground: #FFFFFF;
   --secondary: #17364D;
   --secondary-foreground: #F5F7F9;
@@ -99,7 +99,7 @@
   --table-header: #1D4260;
   --border: #28475D;
   --input: #36576D;
-  --ring: #E06C67;
+  --ring: #6CA8DB;
   --radius-shell: 2rem;
   --shadow-shell: 0 24px 80px -32px oklch(0.02 0.03 220 / 0.7);
   --sidebar: var(--brand-blue);
@@ -109,7 +109,7 @@
   --sidebar-accent: #17364D;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: #28475D;
-  --sidebar-ring: #E06C67;
+  --sidebar-ring: #6CA8DB;
 }
 
 @layer base {

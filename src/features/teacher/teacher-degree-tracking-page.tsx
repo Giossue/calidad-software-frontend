@@ -460,7 +460,7 @@ function EquipoTitulacionPanel({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <UsersIcon className="size-5 text-brand-red" /> Equipo de Titulación
+          <UsersIcon className="size-5 text-primary" /> Equipo de Titulación
         </CardTitle>
         <CardDescription>Estudiante y docentes evaluadores designados para esta titulación</CardDescription>
       </CardHeader>
@@ -600,7 +600,7 @@ function TareasPanel({
                   <InitialsAvatar name={act.teacher.name} tone={isTutor ? 'red' : isPeer ? 'blue' : 'gray'} className="size-8 shrink-0 text-xs" />
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-xs font-semibold text-foreground">
-                      {act.teacher.name} {isMyTask && <span className="font-bold text-brand-red">(Tú)</span>}
+                      {act.teacher.name} {isMyTask && <span className="font-bold text-primary">(Tú)</span>}
                     </span>
                     <Badge variant="outline" className="mt-0.5 w-fit px-1.5 py-0 text-[10px]">
                       {isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}

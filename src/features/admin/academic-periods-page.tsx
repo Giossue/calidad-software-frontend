@@ -365,7 +365,7 @@ export function AcademicPeriodsPage() {
                       {/* Nombre con icono */}
                       <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-normal">
                         <div className="flex items-center gap-3">
-                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-red/10 text-brand-red dark:bg-brand-red/20 dark:text-brand-red-contrast">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground">
                             <CalendarIcon className="size-4" />
                           </div>
                           <span>{period.name}</span>
