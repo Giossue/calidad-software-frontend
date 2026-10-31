@@ -409,7 +409,7 @@ export function AcademicPeriodsPage() {
         {/* Paginación */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Mostrando {periods.length} de {meta?.total ?? periods.length} {meta?.total ?? periods.length === 1 ? 'período' : 'períodos'}
+            Mostrando {periods.length} de {meta?.total ?? periods.length} {(meta?.total ?? periods.length) === 1 ? 'período' : 'períodos'}
           </p>
           <CatalogPagination
             label="períodos"

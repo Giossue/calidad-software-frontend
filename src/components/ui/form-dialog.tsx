@@ -99,7 +99,7 @@ export function FormDialog({
             <FieldGroup>
               {children}
               <ErrorNotice message={error} />
-              <div className="flex flex-wrap justify-end gap-3">
+              <div className="sticky -bottom-1 z-10 flex flex-wrap justify-end gap-3 bg-card pt-3 pb-1">
                 <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
                 <Tooltip>
                   <TooltipTrigger asChild>

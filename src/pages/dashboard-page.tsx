@@ -366,7 +366,7 @@ export function DashboardPage() {
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-5xl min-w-0 flex-1 p-3 sm:p-4 md:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-5xl min-w-0 flex-1 p-3 max-md:pb-16 sm:p-4 md:p-6 lg:p-8">
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (

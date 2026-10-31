@@ -280,10 +280,31 @@ input[type='search']::-webkit-search-decoration {
     overflow-wrap: anywhere;
   }
 
-  /* Acciones: ocupan todo el ancho, sin etiqueta. */
+  /* Acciones: sin etiqueta. En tablas con título de tarjeta van en la esquina superior derecha
+     (sin fila propia) y el título deja espacio según cuántos botones haya. */
   table[data-stacked] tbody td[data-label="Acciones"] {
     justify-content: flex-end;
     border-top: 1px solid var(--border);
+  }
+  table[data-card-title] tbody tr {
+    position: relative;
+  }
+  table[data-card-title] tbody td[data-label="Acciones"] {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    width: auto;
+    padding: 0;
+    border: 0;
+  }
+  table[data-card-title] tbody tr:has(td[data-label="Acciones"]) td:first-child[data-label] {
+    padding-right: 3.25rem;
+  }
+  table[data-card-title] tbody tr:has(td[data-label="Acciones"] button + button) td:first-child[data-label] {
+    padding-right: 5.5rem;
+  }
+  table[data-card-title] tbody tr:has(td[data-label="Acciones"] button + button + button) td:first-child[data-label] {
+    padding-right: 7.75rem;
   }
   table[data-stacked] tbody td[data-label="Acciones"]::before {
     display: none;

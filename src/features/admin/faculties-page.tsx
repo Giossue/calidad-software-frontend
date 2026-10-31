@@ -319,7 +319,7 @@ export function FacultiesPage() {
         {/* Paginación */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Mostrando {faculties.length} de {meta?.total ?? faculties.length} {meta?.total ?? faculties.length === 1 ? 'facultad' : 'facultades'}
+            Mostrando {faculties.length} de {meta?.total ?? faculties.length} {(meta?.total ?? faculties.length) === 1 ? 'facultad' : 'facultades'}
           </p>
           <CatalogPagination
             label="facultades"

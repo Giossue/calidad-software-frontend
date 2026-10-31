@@ -13,9 +13,9 @@ export function AccessibilityButton({ onClick }: Readonly<{ onClick: () => void 
           size="icon"
           onClick={onClick}
           aria-label="Opciones de accesibilidad"
-          className="fixed right-4 bottom-4 z-40 size-12 shadow-lg sm:right-6 sm:bottom-6"
+          className="fixed right-3 bottom-3 z-40 size-10 shadow-lg sm:right-6 sm:bottom-6 sm:size-12"
         >
-          <AccessibilityIcon className="size-6" />
+          <AccessibilityIcon className="size-5 sm:size-6" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side="left">Accesibilidad</TooltipContent>
