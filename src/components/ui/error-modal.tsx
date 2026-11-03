@@ -112,7 +112,7 @@ export function getFriendlyError(error: unknown): FriendlyErrorInfo {
           title: 'Correo institucional requerido',
           description: isReadableSpanishMessage(rawMessage)
             ? rawMessage
-            : 'El correo electrónico debe pertenecer al dominio institucional de la Universidad (@ueb.edu.ec).',
+            : 'El correo electrónico debe pertenecer al dominio institucional de la Universidad (@ueb.edu.ec o @mailes.ueb.edu.ec).',
           field: 'email',
         }
       }

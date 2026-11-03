@@ -9,7 +9,7 @@ export interface BulkImportColumn {
 /** Formato común de las cargas de cuentas; cada pantalla marca cuáles exige. */
 function accountColumns(required: readonly string[], hints: Readonly<Record<string, string>>): readonly BulkImportColumn[] {
   const base: readonly BulkImportColumn[] = [
-    { name: 'correo', required: true, hint: 'Correo institucional @ueb.edu.ec.' },
+    { name: 'correo', required: true, hint: 'Correo institucional @ueb.edu.ec o @mailes.ueb.edu.ec.' },
     { name: 'cedula', required: false, hint: 'Cédula o pasaporte; si falta, la completa el usuario.' },
     { name: 'nombres', required: false, hint: 'Si faltan, los completa el usuario.' },
     { name: 'apellidos', required: false },

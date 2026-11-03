@@ -33,6 +33,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import type { Cycle } from '@/lib/api'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
+import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import {
   tutoringApi,
@@ -275,13 +276,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   const isFormDirty = JSON.stringify(form) !== JSON.stringify(initialForm)
   const isCedulaValid = isValidIdentification(form.identification)
-  const isEmailValid = form.email.endsWith('@ueb.edu.ec')
+  const isEmailValid = isInstitutionalEmail(form.email)
 
   // Primer error de validación: bloquea "Registrar estudiante" y se muestra en su tooltip.
   const createBlockReason =
     (!form.identification ? 'La cédula o pasaporte es obligatoria.' : !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null) ??
     (!form.name.trim() ? 'El nombre es obligatorio.' : null) ??
-    (!form.email ? 'El correo institucional es obligatorio.' : !isEmailValid ? 'El correo debe terminar en @ueb.edu.ec.' : null) ??
+    (!form.email ? 'El correo institucional es obligatorio.' : !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null) ??
     (!form.cycle_id ? 'Selecciona el ciclo que cursa el estudiante.' : null)
 
   function handleCycleChange(cycleId: string) {
@@ -543,9 +544,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         <FormField
           id="new-student-email"
           label="Correo Institucional"
-          tip="Debe pertenecer al dominio institucional (@ueb.edu.ec)."
+          tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`}
           counter={{ current: form.email.length, max: 150 }}
-          error={form.email && !isEmailValid ? 'El correo debe terminar en @ueb.edu.ec.' : null}
+          error={form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null}
         >
           <Input
             id="new-student-email"
