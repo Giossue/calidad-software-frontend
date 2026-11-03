@@ -18,6 +18,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
+import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { teacherApi, type AvailableStudent, type Enrollment, type GradeEntry, type GradeSettings, type TeacherTutoring } from '@/lib/teacher-api'
@@ -104,9 +105,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   }
 
   const isCedulaValid = isValidIdentification(form.identification)
-  const isEmailValid = form.email.endsWith('@ueb.edu.ec')
+  const isEmailValid = isInstitutionalEmail(form.email)
   const identificationError = form.identification && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null
-  const emailError = form.email && !isEmailValid ? 'El correo debe terminar en @ueb.edu.ec.' : null
+  const emailError = form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null
   const registerBlockReason = mode === 'existing'
     ? (selected ? null : 'Selecciona un estudiante.')
     : (!form.identification ? 'Escribe la cédula o pasaporte.' : identificationError)
@@ -206,7 +207,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           />
         </FormField>
 
-        <FormField id="teacher-student-email" label="Correo institucional" tip="Debe pertenecer al dominio institucional (@ueb.edu.ec)." counter={{ current: form.email.length, max: 150 }} error={emailError}>
+        <FormField id="teacher-student-email" label="Correo institucional" tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`} counter={{ current: form.email.length, max: 150 }} error={emailError}>
           <Input
             id="teacher-student-email"
             type="email"
