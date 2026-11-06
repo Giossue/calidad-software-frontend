@@ -27,6 +27,7 @@ export function UserMenu({ name, email, roleLabel, initials, onSignOut, signingO
         <button
           type="button"
           aria-label={`Menú de ${name}`}
+          data-tour="user-menu"
           className="flex items-center gap-2 rounded-lg p-1 text-left transition-colors hover:bg-muted max-md:p-0 sm:gap-3 sm:p-1.5 sm:pr-3"
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-medium text-white sm:size-9">

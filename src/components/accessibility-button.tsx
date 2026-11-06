@@ -13,6 +13,7 @@ export function AccessibilityButton({ onClick }: Readonly<{ onClick: () => void 
           size="icon"
           onClick={onClick}
           aria-label="Opciones de accesibilidad"
+          data-tour="accessibility"
           className="fixed right-3 bottom-3 z-40 size-10 shadow-lg sm:right-6 sm:bottom-6 sm:size-12"
         >
           <AccessibilityIcon className="size-5 sm:size-6" />

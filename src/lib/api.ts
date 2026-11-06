@@ -26,6 +26,8 @@ export interface User {
   readonly must_complete_profile?: boolean
   /** Además debe reemplazar la contraseña provisional que recibió por correo. */
   readonly must_change_password?: boolean
+  /** Ya vio el tutorial del sistema; mientras sea falso se le presenta al ingresar. */
+  readonly tour_completed?: boolean
 }
 
 /** Facultades, carreras y ciclos activos que el estudiante elige al completar su cuenta. */
@@ -330,6 +332,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(input),
     })
+    return response.data
+  },
+
+  /** Registra que el usuario ya vio el tutorial del sistema. */
+  async completeTour(): Promise<User> {
+    const response = await request<Resource<User>>('/api/v1/auth/tour/complete', { method: 'POST' })
     return response.data
   },
 

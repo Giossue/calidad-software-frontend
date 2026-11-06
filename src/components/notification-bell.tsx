@@ -81,7 +81,7 @@ export function NotificationBell() {
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="tertiary" size="icon" aria-label={label} className="relative">
+            <Button type="button" variant="tertiary" size="icon" aria-label={label} className="relative" data-tour="notifications">
               <BellIcon />
               {unread > 0 && (
                 <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-medium leading-none text-white">
