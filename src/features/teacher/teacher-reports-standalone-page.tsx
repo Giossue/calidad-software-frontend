@@ -19,7 +19,7 @@ export function TeacherReportsStandalonePage() {
 
   if (selected) {
     return (
-      <section className="flex flex-col gap-6">
+      <section className="flex flex-col gap-6" data-tour-view="tutoring">
         <div className="flex flex-col gap-1">
           <Button
             type="button"

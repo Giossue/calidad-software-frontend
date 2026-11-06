@@ -81,7 +81,7 @@ export function BulkImportButton({
 
   return (
     <>
-      <Button variant="secondary" onClick={() => setOpen(true)} className={cn('whitespace-nowrap max-sm:w-full', className)}>
+      <Button variant="secondary" onClick={() => setOpen(true)} className={cn('whitespace-nowrap max-sm:w-full', className)} data-tour="page-bulk-import">
         <FileUpIcon data-icon="inline-start" />
         Cargar datos masivos
       </Button>

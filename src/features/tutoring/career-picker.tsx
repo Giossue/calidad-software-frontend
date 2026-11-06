@@ -38,7 +38,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
   const offset = (Math.min(page, lastPage) - 1) * CAREERS_PER_PAGE
   const rows = filtered.slice(offset, offset + CAREERS_PER_PAGE)
 
-  return <section className="flex flex-col gap-6">
+  return <section className="flex flex-col gap-6" data-tour-view="career-picker">
     <ModuleHeader title={title} description={description} />
     <ScopeNotice catalogs={catalogs} />
     <FilterBar id="career-picker" search={search} onSearch={(value) => { setSearch(value); setPage(1) }} searchLabel="Buscar carrera" searchPlaceholder="Busca por nombre de carrera…" filters={[]} onClear={() => { setSearch(''); setPage(1) }} />
@@ -66,7 +66,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
 
 export function CareerBreadcrumb({ root, career, onBack }: Readonly<{ root: string; career: string; onBack?: () => void }>) {
   if (!onBack) return null
-  return <nav aria-label="Ruta" className="-mb-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+  return <nav aria-label="Ruta" className="-mb-3 flex items-center gap-1.5 text-sm text-muted-foreground" data-tour="page-career-back">
     <Button type="button" variant="tertiary" size="sm" onClick={onBack} className="-ml-3">{root}</Button>
     <span aria-hidden="true">/</span>
     <span className="text-foreground" aria-current="page">{career}</span>

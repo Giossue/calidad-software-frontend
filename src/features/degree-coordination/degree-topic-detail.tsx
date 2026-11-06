@@ -135,7 +135,7 @@ export function DegreeTopicDetail({ topicId, onBack }: Readonly<{ topicId: numbe
     void operation.run(mutation, message, () => { setAction(null); resource.reload(); teachers.reload() })
   }
 
-  return <section className="flex flex-col gap-6">
+  return <section className="flex flex-col gap-6" data-tour-view="detail">
     <div><Button type="button" variant="tertiary" onClick={onBack} disabled={operation.pending}><ArrowLeftIcon data-icon="inline-start" />Volver a propuestas</Button></div>
     {resource.loading && <Skeleton role="status" aria-label="Cargando propuesta" className="h-40 w-full" />}
     <ErrorNotice message={resource.error} retry={resource.reload} />

@@ -194,7 +194,7 @@ export function buildTourSteps(moduleIds: readonly string[], userName?: string):
       element: tour('help'),
       popover: {
         title: '¿Necesitas ayuda?',
-        description: 'Vuelve a ver este recorrido cuando quieras desde el botón de ayuda.',
+        description: 'Cada pantalla tiene su propia guía, que verás la primera vez que entres. Desde este botón puedes volver a abrirla, o repetir este recorrido, cuando quieras.',
         side: 'bottom',
         align: 'end',
       },

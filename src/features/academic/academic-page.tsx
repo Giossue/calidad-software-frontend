@@ -679,7 +679,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const cycleBlockReason = Object.values(validateCycleForm(cycleName))[0] ?? null
 
   return (
-    <section className="flex flex-col gap-8">
+    <section className="flex flex-col gap-8" data-tour-view="cycles">
       <Button type="button" variant="tertiary" size="sm" onClick={onBack} className="-ml-3 w-fit">
         <ArrowLeftIcon />
         Volver a Carreras

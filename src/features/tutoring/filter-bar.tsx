@@ -39,7 +39,7 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
   const hasActive = filters.some((filter) => filter.value !== '')
 
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3" data-tour="page-filters">
       <SearchInput
         id={`${id}-search`}
         icon

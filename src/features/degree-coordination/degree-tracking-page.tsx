@@ -111,7 +111,7 @@ export function DegreeTrackingPage() {
     const tutor = selectedTopic.assignments.find((a) => a.role === 'tutor')?.teacher
 
     return (
-      <section className="flex flex-col gap-6">
+      <section className="flex flex-col gap-6" data-tour-view="detail">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <Button variant="tertiary" size="sm" onClick={() => setSelectedTopic(null)} className="mb-2 -ml-3">

@@ -15,7 +15,9 @@ vi.mock('@/lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api')>()
   return { ...actual, api: { ...actual.api, completeTour: vi.fn() } }
 })
-vi.mock('@/features/teacher/teacher-tutorings-page', () => ({ TeacherTutoringsPage: () => <div>Vista Mis Tutorías</div> }))
+vi.mock('@/features/teacher/teacher-tutorings-page', () => ({
+  TeacherTutoringsPage: () => <div><div data-tour="page-header">Mis tutorías</div><div data-tour="page-table" /></div>,
+}))
 vi.mock('@/components/notification-bell', () => ({ NotificationBell: () => null }))
 
 const teacher: User = {
@@ -23,8 +25,11 @@ const teacher: User = {
   email_verified_at: null, has_two_factor: false, is_active: true, must_complete_profile: false,
 }
 
-function renderDashboard(user: User, replaceUser = vi.fn()) {
-  vi.mocked(useAuth).mockReturnValue({ user, replaceUser, logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn() })
+const WAIT = { timeout: 3000 }
+const tourTitles = (call: number) => vi.mocked(startSystemTour).mock.calls[call][0].map((step) => step.popover?.title)
+
+function renderDashboard(user: User) {
+  vi.mocked(useAuth).mockReturnValue({ user, replaceUser: vi.fn(), logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn() })
   render(
     <TooltipProvider>
       <MemoryRouter initialEntries={['/panel/teacher-tutorings']}>
@@ -32,42 +37,53 @@ function renderDashboard(user: User, replaceUser = vi.fn()) {
       </MemoryRouter>
     </TooltipProvider>,
   )
-  return replaceUser
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.spyOn(Element.prototype, 'getClientRects').mockReturnValue([{}] as unknown as DOMRectList)
   vi.mocked(startSystemTour).mockReturnValue({ isActive: () => false, destroy: vi.fn() } as never)
+  vi.mocked(api.completeTour).mockImplementation(async (tour) => ({ ...teacher, completed_tours: [tour] }))
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 describe('Tutorial del sistema', () => {
-  it('se presenta solo la primera vez y al cerrarlo queda registrado', async () => {
-    const updated = { ...teacher, tour_completed: true }
-    vi.mocked(api.completeTour).mockResolvedValue(updated)
-    const replaceUser = renderDashboard({ ...teacher, tour_completed: false })
+  it('la primera vez presenta el recorrido general y después la guía de la pantalla', async () => {
+    renderDashboard({ ...teacher, completed_tours: [] })
 
-    await waitFor(() => expect(startSystemTour).toHaveBeenCalledTimes(1))
-    const [steps, onFinish] = vi.mocked(startSystemTour).mock.calls[0]
-    expect(steps.map((step) => step.popover?.title)).toEqual(expect.arrayContaining(['Mis tutorías', 'Titulación']))
+    await waitFor(() => expect(startSystemTour).toHaveBeenCalledTimes(1), WAIT)
+    expect(tourTitles(0)).toEqual(expect.arrayContaining(['¡Hola, Luis!', 'Mis tutorías', 'Titulación']))
 
-    onFinish?.()
-    await waitFor(() => expect(replaceUser).toHaveBeenCalledWith(updated))
-    expect(api.completeTour).toHaveBeenCalledTimes(1)
+    vi.mocked(startSystemTour).mock.calls[0][1]?.()
+    expect(api.completeTour).toHaveBeenCalledWith('general')
+
+    await waitFor(() => expect(startSystemTour).toHaveBeenCalledTimes(2), WAIT)
+    expect(tourTitles(1)).toEqual(['Mis tutorías', 'Listado'])
+    vi.mocked(startSystemTour).mock.calls[1][1]?.()
+    expect(api.completeTour).toHaveBeenLastCalledWith('teacher-tutorings')
   })
 
-  it('no se presenta solo a quien ya lo vio, pero se abre desde el botón de ayuda', async () => {
-    renderDashboard({ ...teacher, tour_completed: true })
+  it('no repite guías ya vistas, pero se abren desde el botón de ayuda', async () => {
+    renderDashboard({ ...teacher, completed_tours: ['general', 'teacher-tutorings'] })
+    await new Promise((resolve) => setTimeout(resolve, 1200))
     expect(startSystemTour).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Ver tutorial del sistema' }))
-    expect(startSystemTour).toHaveBeenCalledTimes(1)
-    vi.mocked(startSystemTour).mock.calls[0][1]?.()
+    await userEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Guía de esta pantalla' }))
+    expect(tourTitles(0)).toEqual(['Mis tutorías', 'Listado'])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Recorrido general del sistema' }))
+    expect(tourTitles(1)[0]).toBe('¡Hola, Luis!')
     expect(api.completeTour).not.toHaveBeenCalled()
   })
 
-  it('espera a que la cuenta complete su perfil', () => {
-    renderDashboard({ ...teacher, tour_completed: false, must_complete_profile: true })
+  it('espera a que la cuenta complete su perfil', async () => {
+    renderDashboard({ ...teacher, completed_tours: [], must_complete_profile: true })
+    await new Promise((resolve) => setTimeout(resolve, 1200))
     expect(startSystemTour).not.toHaveBeenCalled()
   })
 })

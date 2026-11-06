@@ -48,7 +48,7 @@ export function TutoringDetail({
   onAssignTeacher?: () => void
 }>) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8" data-tour-view="detail">
       <div>
         <Button type="button" variant="tertiary" onClick={onBack}>
           <ArrowLeftIcon data-icon="inline-start" />

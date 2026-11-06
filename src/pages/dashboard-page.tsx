@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   BookOpenIcon,
@@ -12,8 +12,6 @@ import {
   UserCheckIcon,
   UsersIcon,
 } from 'lucide-react'
-
-import type { Driver } from 'driver.js'
 
 import uebLogo from '@/assets/ueb-logo.png'
 import { HelpButton } from '@/components/help-button'
@@ -51,8 +49,7 @@ import {
   type AdminSection,
 } from '@/features/admin/admin-page'
 import { useAuth } from '@/features/auth/auth-context'
-import { startSystemTour } from '@/features/help/system-tour'
-import { buildTourSteps } from '@/features/help/tour-steps'
+import { useSystemTours } from '@/features/help/use-system-tours'
 import { canCoordinateDegrees, type DegreeSection } from '@/features/degree-coordination/degree-navigation'
 import { DegreeStudentsPage } from '@/features/degree-coordination/degree-students-page'
 import { DegreeTopicsPage } from '@/features/degree-coordination/degree-topics-page'
@@ -74,7 +71,6 @@ import { TeacherTutoringsPage } from '@/features/teacher/teacher-tutorings-page'
 import { TeacherDegreeAssignmentsPage } from '@/features/teacher/teacher-degree-assignments-page'
 import { TEACHER_TRACKING_TABS, TeacherDegreeTrackingPage } from '@/features/teacher/teacher-degree-tracking-page'
 import { TeacherReportsStandalonePage } from '@/features/teacher/teacher-reports-standalone-page'
-import { api } from '@/lib/api'
 import { tutoringApi } from '@/lib/tutoring-api'
 
 type NavItem = {
@@ -178,7 +174,7 @@ function getInitials(name?: string): string {
 }
 
 export function DashboardPage() {
-  const { user, logout, replaceUser } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -241,32 +237,9 @@ export function DashboardPage() {
   const sectionLabel = navGroups.flatMap((group) => group.items).find((item) => item.id === activeSection)?.label
   const moduleIds = navGroups.flatMap((group) => group.items.map((item) => item.id))
 
-  const tourRef = useRef<Driver | null>(null)
-  const tourAutoStartedRef = useRef(false)
-
-  function openTour() {
-    if (tourRef.current?.isActive()) return
-    const alreadyCompleted = Boolean(user?.tour_completed)
-    tourRef.current = startSystemTour(buildTourSteps(moduleIds, user?.name), () => {
-      tourRef.current = null
-      // Terminado o cerrado, cuenta como visto. Si falla, se volverá a presentar en el próximo ingreso.
-      if (!alreadyCompleted) api.completeTour().then(replaceUser).catch(() => undefined)
-    })
-  }
-
-  // La primera vez se presenta solo, cuando la cuenta ya completó su perfil y el menú
-  // está definido (los estudiantes sin ciclo esperan a saber si están en titulación).
+  // Los estudiantes sin ciclo esperan a saber si están en titulación para tener el menú completo.
   const menuReady = user?.role !== 'estudiante' || studentStage !== null || studentDegreeEnrolled !== null
-  const shouldAutoStartTour = user?.tour_completed === false && !user.must_complete_profile && menuReady
-  useEffect(() => {
-    if (!shouldAutoStartTour || tourAutoStartedRef.current) return
-    tourAutoStartedRef.current = true
-    openTour()
-    // openTour lee el estado del render actual; solo debe dispararse al cumplirse la condición.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldAutoStartTour])
-
-  useEffect(() => () => tourRef.current?.destroy(), [])
+  const { openPageTour, openGeneralTour } = useSystemTours({ section: activeSection, moduleIds, menuReady })
 
   const trackingTopicId = Number(searchParams.get('topic'))
   const showTrackingSubNav = activeSection === 'teacher-degree-tracking' && Number.isInteger(trackingTopicId) && trackingTopicId > 0
@@ -388,7 +361,7 @@ export function DashboardPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
-            <HelpButton onClick={openTour} />
+            <HelpButton onPageTour={openPageTour} onGeneralTour={openGeneralTour} />
             <ThemeToggle />
             <NotificationBell />
 
