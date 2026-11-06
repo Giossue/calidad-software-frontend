@@ -494,6 +494,53 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(teacherApi.createTopic).toHaveBeenCalledWith(40, { name: 'Introducción', description: '' }))
   })
 
+  it('adjunta recursos al registrar un tema y rechaza los archivos no permitidos', async () => {
+    const user = userEvent.setup({ applyAccept: false })
+    vi.mocked(teacherApi.createTopic).mockResolvedValue({ ...topic, id: 95, name: 'Introducción', files: [] })
+    vi.mocked(teacherApi.uploadTopicFile).mockResolvedValue({ id: 1, name: 'guia.pdf', mime_type: 'application/pdf', size: 2048, uploaded_at: null })
+    workspace('content')
+    await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
+    const form = screen.getByRole('form', { name: 'Registrar tema' })
+    await user.type(within(form).getByLabelText('Nombre'), 'Introducción')
+
+    const input = form.querySelector<HTMLInputElement>('input[type="file"]')!
+    const pdf = new File(['%PDF'], 'guia.pdf', { type: 'application/pdf' })
+    const exe = new File(['MZ'], 'virus.exe', { type: 'application/x-msdownload' })
+    await user.upload(input, [pdf, exe])
+    expect(within(form).getByText('guia.pdf')).toBeInTheDocument()
+    expect(within(form).getByText(/Se subirá al guardar/)).toBeInTheDocument()
+    expect(within(form).getByText(/«virus.exe» no es un PDF/)).toBeInTheDocument()
+    expect(within(form).queryByText('virus.exe')).not.toBeInTheDocument()
+
+    await user.click(within(form).getByRole('button', { name: 'Registrar tema' }))
+    await waitFor(() => expect(teacherApi.uploadTopicFile).toHaveBeenCalledWith(40, 95, pdf))
+    expect(teacherApi.uploadTopicFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('quita y descarga los recursos ya adjuntos de un tema', async () => {
+    const user = userEvent.setup()
+    const stored = { id: 7, name: 'Clase 1.pptx', mime_type: 'application/vnd.ms-powerpoint', size: 3 * 1024 * 1024, uploaded_at: null }
+    const withFiles = { ...topic, files: [stored, { ...stored, id: 8, name: 'Lectura.docx' }] }
+    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([withFiles]))
+    vi.mocked(teacherApi.updateTopic).mockResolvedValue(withFiles)
+    vi.mocked(teacherApi.deleteTopicFile).mockResolvedValue(undefined)
+    vi.mocked(teacherApi.downloadTopicFile).mockResolvedValue(undefined)
+    workspace('content')
+    expect(await screen.findByText('2 archivos')).toBeInTheDocument()
+
+    await user.click(screen.getByText('Pruebas'))
+    const form = await screen.findByRole('form', { name: 'Editar tema' })
+    expect(within(form).getByText(/Presentación · 3.0 MB/)).toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Descargar Clase 1.pptx' }))
+    expect(teacherApi.downloadTopicFile).toHaveBeenCalledWith(40, 90, stored)
+
+    await user.click(within(form).getByRole('button', { name: 'Quitar Lectura.docx' }))
+    expect(within(form).queryByText('Lectura.docx')).not.toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(teacherApi.deleteTopicFile).toHaveBeenCalledWith(40, 90, 8))
+    expect(teacherApi.uploadTopicFile).not.toHaveBeenCalled()
+  })
+
   it('permite al docente marcar un tema como completado o pendiente directamente desde la tabla', async () => {
     const user = userEvent.setup()
     let currentTopic = { ...topic, is_covered: false }

@@ -90,6 +90,19 @@ describe('Módulo Estudiante', () => {
     expect(screen.getByText('Ningún tema coincide con tu búsqueda.')).toBeInTheDocument()
   })
 
+  it('descarga los recursos que adjuntó el docente a un tema', async () => {
+    const user = userEvent.setup()
+    const file = { id: 3, name: 'Guía.pdf', mime_type: 'application/pdf', size: 512 * 1024, uploaded_at: null }
+    vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
+    vi.mocked(studentApi.content).mockResolvedValue({ ...content, topics: [{ ...content.topics[0], files: [file] }, content.topics[1]] })
+    vi.mocked(studentApi.downloadTopicFile).mockResolvedValue(undefined)
+    workspace('content')
+    expect(await screen.findByText('1 recurso')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Ver detalle de Pruebas unitarias' }))
+    await user.click(screen.getByRole('button', { name: 'Descargar Guía.pdf' }))
+    expect(studentApi.downloadTopicFile).toHaveBeenCalledWith(40, 1, file)
+  })
+
   it('pagina los temas del plan didáctico cuando hay más de cinco', async () => {
     const user = userEvent.setup()
     const many = Array.from({ length: 7 }, (_, index) => ({ ...content.topics[1], id: 100 + index, name: `Tema ${index + 1}` }))

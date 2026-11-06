@@ -213,8 +213,8 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
   'teacher-tutorings/content': [
     filters('Busca un tema y filtra por estado.'),
-    step({ button: 'Registrar tema' }, 'Registrar tema', 'Planifica los temas de la tutoría. Dentro de cada tema registras sus actividades y metodologías.'),
-    table('Temas de la tutoría. Haz clic en uno para editarlo.'),
+    step({ button: 'Registrar tema' }, 'Registrar tema', 'Planifica los temas de la tutoría y adjunta recursos (PDF, Word, PowerPoint, Excel) para tus estudiantes. Dentro de cada tema registras sus actividades y metodologías.'),
+    table('Temas de la tutoría y sus recursos. Haz clic en uno para editarlo o adjuntarle archivos.'),
     rowActions('Entra a las actividades del tema; dentro de cada actividad están sus metodologías.'),
   ],
   'teacher-tutorings/attendance': [
@@ -275,7 +275,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
   'student-tutorings/content': [
     step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre contenido, asistencia, calificaciones y horarios. Cada pestaña tiene su propia guía.'),
-    table('Temas, actividades y metodologías que publica tu docente.'),
+    table('Temas, actividades y metodologías que publica tu docente. Abre un tema para ver sus detalles y descargar sus recursos.'),
   ],
   'student-tutorings/attendance': [
     table('Tu récord de asistencia por sesión.'),

@@ -1,5 +1,6 @@
-import { request } from '@/lib/api'
+import { downloadFile, request } from '@/lib/api'
 import type { DegreeTopic } from '@/lib/degree-coordination-api'
+import type { TopicFile } from '@/lib/topic-files'
 
 const ROOT = '/api/v1/student'
 type Resource<T> = { readonly data: T }
@@ -88,6 +89,8 @@ export interface StudentTopic {
   readonly is_covered: boolean
   readonly activities_count: number
   readonly activities: readonly StudentActivity[]
+  /** Recursos que adjuntó el docente. */
+  readonly files?: readonly TopicFile[]
 }
 export interface StudentClassSession {
   readonly id: number
@@ -141,6 +144,7 @@ export const studentApi = {
   grades: async () => (await request<Collection<StudentGrades>>(`${ROOT}/tutoring/grades`)).data,
   attendance: async () => (await request<Collection<StudentAttendance>>(`${ROOT}/tutoring/attendance`)).data,
   content: async (tutoringId: number) => (await request<Resource<StudentContent>>(`${ROOT}/tutoring/${tutoringId}/topics`)).data,
+  downloadTopicFile: (tutoringId: number, topicId: number, file: TopicFile) => downloadFile(`${ROOT}/tutoring/${tutoringId}/topics/${topicId}/files/${file.id}`, file.name),
   absenceNotices: async (tutoringId: number) => (await request<Collection<StudentAbsenceNotice>>(`${ROOT}/tutoring/${tutoringId}/absence-notices`)).data,
   createAbsenceNotice: (tutoringId: number, input: { date: string; reason: string }) => mutate<StudentAbsenceNotice>(`tutoring/${tutoringId}/absence-notices`, 'POST', input),
   sessions: async (tutoringId: number) => (await request<Collection<StudentClassSession>>(`${ROOT}/tutoring/${tutoringId}/sessions`)).data,

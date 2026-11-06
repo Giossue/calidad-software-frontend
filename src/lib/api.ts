@@ -273,6 +273,28 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   return response.json() as Promise<T>
 }
 
+/** Descarga con la sesión del usuario un archivo de la API y lo guarda con `filename`. */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = tokenStore.get()
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Accept: '*/*', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  })
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ErrorPayload
+    throw new ApiError(response.status, payload)
+  }
+
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.append(link)
+  link.click()
+  link.remove()
+  // Se libera después para que el navegador alcance a iniciar la descarga.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export const api = {
   async login(email: string, password: string): Promise<LoginData> {
     const response = await request<Resource<LoginData>>('/api/v1/auth/login', {

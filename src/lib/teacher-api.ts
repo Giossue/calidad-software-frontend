@@ -1,8 +1,9 @@
-import { buildQuery, request, type PaginatedResourceCollection } from '@/lib/api'
+import { buildQuery, downloadFile, request, type PaginatedResourceCollection } from '@/lib/api'
 import type { DegreeActivity, DegreeTopic } from '@/lib/degree-coordination-api'
 import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
 import type { FinalPaoReportSummary } from '@/lib/final-pao-report'
 import type { FollowUpReportSummary } from '@/lib/follow-up-report'
+import type { TopicFile } from '@/lib/topic-files'
 import type { Attendance, Tutoring, TutoringReport, TutoringSchedule } from '@/lib/tutoring-api'
 
 const ROOT = '/api/v1/teacher'
@@ -62,6 +63,8 @@ export interface TutoringTopic {
   readonly is_active: boolean
   readonly is_covered: boolean
   readonly activities: readonly Activity[]
+  /** Recursos adjuntos (PDF, Word, PowerPoint…). */
+  readonly files?: readonly TopicFile[]
 }
 export interface SessionActivity {
   readonly id: number
@@ -177,6 +180,13 @@ export const teacherApi = {
   updateTopic: (id: number, topicId: number, input: { name?: string; description?: string; is_covered?: boolean }) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}`, 'PATCH', input),
   toggleTopicCovered: (id: number, topicId: number, is_covered?: boolean) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}/toggle-covered`, 'PATCH', is_covered !== undefined ? { is_covered } : {}),
   deactivateTopic: (id: number, topicId: number) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}/deactivate`, 'PATCH'),
+  uploadTopicFile: async (id: number, topicId: number, file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return (await request<Resource<TopicFile>>(`${ROOT}/tutorings/${id}/topics/${topicId}/files`, { method: 'POST', body })).data
+  },
+  deleteTopicFile: (id: number, topicId: number, fileId: number) => request<void>(`${ROOT}/tutorings/${id}/topics/${topicId}/files/${fileId}`, { method: 'DELETE' }),
+  downloadTopicFile: (id: number, topicId: number, file: TopicFile) => downloadFile(`${ROOT}/tutorings/${id}/topics/${topicId}/files/${file.id}`, file.name),
   createActivity: (id: number, topicId: number, input: { name: string; duration: string }) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities`, 'POST', input),
   updateActivity: (id: number, topicId: number, activityId: number, input: { name: string; duration: string }) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities/${activityId}`, 'PATCH', input),
   deactivateActivity: (id: number, topicId: number, activityId: number) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities/${activityId}/deactivate`, 'PATCH'),
