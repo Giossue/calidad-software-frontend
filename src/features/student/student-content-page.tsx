@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ChevronDownIcon, CircleDashedIcon, ClockIcon, FileTextIcon, UsersIcon } from 'lucide-react'
+import { CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ChevronDownIcon, CircleDashedIcon, ClockIcon, FileTextIcon, PaperclipIcon, UsersIcon } from 'lucide-react'
 
+import { TopicFileList } from '@/components/topic-file-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,6 +21,7 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
   const [open, setOpen] = useState(false)
   const firstActivity = topic.activities[0]
   const firstMethodology = firstActivity?.methodologies[0]
+  const files = (topic.files ?? []).map((file) => ({ key: file.id, name: file.name, size: file.size, file }))
   return <li className="rounded-lg border bg-card transition-colors hover:border-primary/40">
     <button type="button" aria-expanded={open} aria-label={`${open ? 'Ocultar' : 'Ver'} detalle de ${topic.name}`} onClick={() => setOpen(!open)} className="flex w-full items-center gap-4 rounded-lg p-4 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-base font-medium text-foreground">{number}</span>
@@ -29,6 +31,7 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
         <span className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {firstActivity && <span className="flex items-center gap-1.5"><ClockIcon className="size-3.5" aria-hidden="true" />{firstActivity.duration}</span>}
           <span className="flex items-center gap-1.5"><FileTextIcon className="size-3.5" aria-hidden="true" />{topic.activities_count === 1 ? '1 actividad' : `${topic.activities_count} actividades`}</span>
+          {files.length > 0 && <span className="flex items-center gap-1.5"><PaperclipIcon className="size-3.5" aria-hidden="true" />{files.length === 1 ? '1 recurso' : `${files.length} recursos`}</span>}
           {firstMethodology && <span className="flex min-w-0 items-center gap-1.5"><UsersIcon className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{firstMethodology.description}</span></span>}
         </span>
       </span>
@@ -43,6 +46,10 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
           {activity.methodologies.length > 0 && <ul className="list-disc pl-5 text-muted-foreground">{activity.methodologies.map((methodology) => <li key={methodology.id} className="break-words">{methodology.description}</li>)}</ul>}
         </li>)}
       </ul>}
+      {files.length > 0 && <div className="flex flex-col gap-2 pt-1">
+        <span className="font-medium">Recursos</span>
+        <TopicFileList files={files} onDownload={(item) => studentApi.downloadTopicFile(topic.tutoring_id, topic.id, item.file)} />
+      </div>}
     </div>}
   </li>
 }

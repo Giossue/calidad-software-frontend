@@ -1,7 +1,8 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeftIcon, BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ClockIcon, ListChecksIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
+import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
+import { ArrowLeftIcon, BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ClockIcon, ListChecksIcon, PaperclipIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { TopicFileList } from '@/components/topic-file-list'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -18,6 +19,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
+import { TOPIC_FILE_ACCEPT, TOPIC_FILES_PER_TOPIC, topicFileError, type TopicFile } from '@/lib/topic-files'
 import { teacherApi, type Activity, type Methodology, type TeacherTutoring, type TutoringSession, type TutoringTopic } from '@/lib/teacher-api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { cn } from '@/lib/utils'
@@ -26,6 +28,8 @@ import { TeacherEmpty } from './teacher-shared'
 type Kind = 'topic' | 'activity' | 'methodology'
 type ContentRecord = TutoringTopic | Activity | Methodology
 type Editing = { kind: Kind; record: ContentRecord | null }
+/** Recurso en el formulario: ya subido (`stored`) o por subir al guardar (`upload`). */
+type FormFile = { key: string | number; name: string; size: number; stored?: TopicFile; upload?: File }
 const LABELS = { topic: 'tema', activity: 'actividad', methodology: 'metodología' }
 const EMPTY = { name: '', description: '', duration: '' }
 const HOUR_OPTIONS = [0, 1, 2, 3, 4].map((hours) => ({ value: String(hours), label: hours === 1 ? '1 hora' : `${hours} horas` }))
@@ -81,6 +85,11 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const [initial, setInitial] = useState(EMPTY)
   const [timerHours, setTimerHours] = useState(0)
   const [timerMinutes, setTimerMinutes] = useState(30)
+  // Recursos del tema en el formulario: los nuevos se suben y los quitados se borran al guardar.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [removedFileIds, setRemovedFileIds] = useState<number[]>([])
+  const [fileError, setFileError] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
   const topic = list.data.find((item) => item.id === topicId)
   const activity = topic?.activities.find((item) => item.id === activityId)
   const kind: Kind = activity ? 'methodology' : topic ? 'activity' : 'topic'
@@ -127,19 +136,59 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       }
     }
     setForm(next); setInitial(next); operation.clearError(); setEditing({ kind: nextKind, record })
+    setPendingFiles([]); setRemovedFileIds([]); setFileError(null)
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!editing) return
     const command = () => {
       const id = editing.record?.id
-      if (editing.kind === 'topic') return id ? teacherApi.updateTopic(tutoring.id, id, { name: form.name.trim(), description: '' }) : teacherApi.createTopic(tutoring.id, { name: form.name.trim(), description: '' })
+      if (editing.kind === 'topic') return saveTopic(id)
       if (!topic) throw new Error('Selecciona un tema.')
       if (editing.kind === 'activity') return id ? teacherApi.updateActivity(tutoring.id, topic.id, id, { name: form.name.trim(), duration: form.duration.trim() || '30 minutos' }) : teacherApi.createActivity(tutoring.id, topic.id, { name: form.name.trim(), duration: form.duration.trim() || '30 minutos' })
       if (!activity) throw new Error('Selecciona una actividad.')
       return id ? teacherApi.updateMethodology(tutoring.id, topic.id, activity.id, id, { description: form.description.trim() }) : teacherApi.createMethodology(tutoring.id, topic.id, activity.id, { description: form.description.trim() })
     }
     void operation.run(command, 'Contenido guardado.', async () => { setEditing(null); await list.reload(); await sessionsRes.reload() })
+  }
+  async function saveTopic(id: number | undefined) {
+    const saved = id ? await teacherApi.updateTopic(tutoring.id, id, { name: form.name.trim(), description: '' }) : await teacherApi.createTopic(tutoring.id, { name: form.name.trim(), description: '' })
+    // Si falla un archivo, el tema ya existe: reintentar debe editarlo, no crearlo otra vez.
+    if (!id) setEditing({ kind: 'topic', record: saved })
+    for (const fileId of removedFileIds) {
+      await teacherApi.deleteTopicFile(tutoring.id, saved.id, fileId)
+    }
+    setRemovedFileIds([])
+    for (const file of pendingFiles) {
+      await teacherApi.uploadTopicFile(tutoring.id, saved.id, file)
+      setPendingFiles((current) => current.filter((item) => item !== file))
+    }
+    return saved
+  }
+  const storedFiles = editing?.kind === 'topic' && editing.record && 'files' in editing.record ? editing.record.files ?? [] : []
+  const formFiles: FormFile[] = [
+    ...storedFiles.filter((file) => !removedFileIds.includes(file.id)).map((file) => ({ key: file.id, name: file.name, size: file.size, stored: file })),
+    ...pendingFiles.map((file, index) => ({ key: `new-${index}-${file.name}`, name: file.name, size: file.size, upload: file })),
+  ]
+  function addFiles(event: ChangeEvent<HTMLInputElement>) {
+    const chosen = [...(event.target.files ?? [])]
+    event.target.value = ''
+    const errors: string[] = []
+    const accepted: File[] = []
+    for (const file of chosen) {
+      const error = topicFileError(file)
+      if (error) errors.push(error)
+      else if (formFiles.length + accepted.length >= TOPIC_FILES_PER_TOPIC) errors.push(`Un tema puede tener como máximo ${TOPIC_FILES_PER_TOPIC} archivos.`)
+      else accepted.push(file)
+    }
+    setPendingFiles((current) => [...current, ...accepted])
+    setFileError(errors.length > 0 ? [...new Set(errors)].join(' ') : null)
+  }
+  function removeFormFile(file: FormFile) {
+    setFileError(null)
+    const stored = file.stored
+    if (stored) setRemovedFileIds((current) => [...current, stored.id])
+    else setPendingFiles((current) => current.filter((item) => item !== file.upload))
   }
   function deactivate() {
     const record = deactivating?.record
@@ -378,6 +427,12 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           columns={[
             { label: 'Tema', render: (item) => <span className="font-medium">{item.name}</span> },
             {
+              label: 'Recursos',
+              render: (item) => (item.files?.length ?? 0) > 0
+                ? <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground" title={item.files?.map((file) => file.name).join('\n')}><PaperclipIcon className="size-3.5" aria-hidden="true" />{item.files?.length === 1 ? '1 archivo' : `${item.files?.length} archivos`}</span>
+                : <span className="text-sm text-muted-foreground">—</span>,
+            },
+            {
               label: 'Estado',
               render: (item) => stopRow(
                 <Button
@@ -425,7 +480,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       description={activity?.name ?? topic?.name ?? tutoring.subject_name}
       pending={operation.pending}
       error={operation.error}
-      dirty={JSON.stringify(form) !== JSON.stringify(initial)}
+      dirty={JSON.stringify(form) !== JSON.stringify(initial) || pendingFiles.length > 0 || removedFileIds.length > 0}
       blockReason={contentBlockReason}
       onClose={() => setEditing(null)}
       onSubmit={submit}
@@ -442,6 +497,25 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             required
             placeholder={editing ? NAME_PLACEHOLDERS[editing.kind] : undefined}
           />
+        </FormField>
+      )}
+      {editing?.kind === 'topic' && (
+        <FormField id="teacher-topic-files" label="Recursos" optional tip="Los estudiantes inscritos podrán descargarlos desde el contenido de la tutoría." error={fileError}>
+          <div className="flex flex-col gap-2">
+            <TopicFileList
+              files={formFiles}
+              onDownload={(file) => (file.stored && editing.record ? teacherApi.downloadTopicFile(tutoring.id, editing.record.id, file.stored) : Promise.resolve())}
+              onRemove={removeFormFile}
+              removeDisabled={operation.pending}
+              pendingLabel={(file) => (file.upload ? 'Se subirá al guardar' : null)}
+            />
+            <input ref={fileInput} id="teacher-topic-files" type="file" multiple accept={TOPIC_FILE_ACCEPT} className="sr-only" tabIndex={-1} onChange={addFiles} />
+            <Button type="button" variant="secondary" className="w-fit" disabled={operation.pending || formFiles.length >= TOPIC_FILES_PER_TOPIC} onClick={() => fileInput.current?.click()}>
+              <PaperclipIcon data-icon="inline-start" />
+              Adjuntar archivos
+            </Button>
+            <p className="text-xs text-muted-foreground">PDF, Word, PowerPoint, Excel o texto. Hasta 20 MB por archivo y {TOPIC_FILES_PER_TOPIC} por tema.</p>
+          </div>
         </FormField>
       )}
       {editing?.kind === 'activity' && (
