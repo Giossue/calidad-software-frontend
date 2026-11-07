@@ -148,7 +148,7 @@ type GradesTableMeta = { grid: Grid; stage: GradeType | null; settings: GradeSet
 
 // Columnas estables: el estado llega por `meta` para que las casillas no se remonten (y pierdan el foco) al escribir.
 const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
-  { id: 'number', header: 'N.°', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
+  { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
   { id: 'name', header: 'Estudiante', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
   ...GRADE_FIELDS.map(({ type, label }): ColumnDef<Enrollment> => ({
     id: type,

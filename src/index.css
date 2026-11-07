@@ -344,6 +344,28 @@ input[type='search']::-webkit-search-decoration {
     display: none;
   }
 
+  /* Tablas numeradas (`numberFrom`): la celda «#» se oculta y el número encabeza la tarjeta. */
+  table[data-stacked] tbody tr td[data-row-number]:first-child {
+    display: none;
+  }
+  table[data-stacked] tbody[data-numbered] tr {
+    counter-increment: row-number;
+  }
+  table[data-card-title] tbody td[data-row-number] + td[data-label] {
+    display: block;
+    text-align: left;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+  }
+  table[data-card-title] tbody td[data-row-number] + td[data-label]::before {
+    content: '#' counter(row-number);
+    display: block;
+    max-width: none;
+    margin-bottom: 0.25rem;
+    letter-spacing: normal;
+  }
+
   /* Valores largos: pueden partirse en varias líneas sin desbordar la tarjeta. */
   table[data-stacked] tbody td > * {
     min-width: 0;
