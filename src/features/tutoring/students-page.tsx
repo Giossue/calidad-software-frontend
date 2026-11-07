@@ -27,7 +27,7 @@ import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { cn } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
@@ -429,6 +429,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         }
         columns={[
           {
+            label: '#',
+            render: (student) => <span className="text-sm tabular-nums text-muted-foreground">{(list.meta?.from ?? 1) + list.data.indexOf(student)}</span>,
+          },
+          {
             label: 'Estudiante',
             render: (student) => (
               <div className="flex flex-col gap-0.5">
@@ -448,30 +452,20 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           },
           {
             label: 'Tutorías',
-            render: (student) => {
-              if (student.tutorings.length === 0) {
-                return <span className="text-sm text-muted-foreground">Sin tutorías</span>
-              }
-              const shown = student.tutorings.slice(0, 2)
-              const hidden = student.tutorings.length - shown.length
-              return (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {shown.map((tutoring) => (
-                    <Badge key={tutoring.enrollment_id} variant="secondary" className="text-xs">
-                      {tutoring.subject_name}{tutoring.section_name ? ` · ${tutoring.section_name}` : ''}
-                    </Badge>
-                  ))}
-                  {hidden > 0 && <Badge variant="outline" className="text-xs" title={student.tutorings.slice(2).map((tutoring) => tutoring.subject_name).join(', ')}>+{hidden}</Badge>}
-                </div>
-              )
-            },
+            render: (student) => (
+              <RowActions>
+                <Button type="button" variant="secondary" size="sm" onClick={() => openAssignModal(student)} aria-label={`Gestionar tutorías de ${student.name}`}>
+                  <GraduationCapIcon data-icon="inline-start" />
+                  {student.tutorings.length === 0 ? 'Asignar' : student.tutorings.length === 1 ? '1 tutoría' : `${student.tutorings.length} tutorías`}
+                </Button>
+              </RowActions>
+            ),
           },
-          { label: 'Estado', render: (student) => <StatusBadge active={student.is_active} /> },
+          { label: 'Estado', render: (student) => <span className={cn('text-sm', !student.is_active && 'text-muted-foreground')}>{student.is_active ? 'Activo' : 'Inactivo'}</span> },
           {
             label: 'Acciones',
             render: (student) => (
               <RowActions>
-                <IconAction label={`Gestionar tutorías de ${student.name}`} icon={GraduationCapIcon} onClick={() => openAssignModal(student)} />
                 <IconAction
                   label={student.cycle_id ? `Cambiar ciclo de ${student.name}` : `Asignar ciclo a ${student.name}`}
                   icon={ArrowRightLeftIcon}

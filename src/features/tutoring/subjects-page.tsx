@@ -340,7 +340,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   return <section className="flex flex-col gap-6">
     <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-    <ModuleHeader title={currentCareerName} description={activeCycle === ALL_CYCLES ? 'Todas las asignaturas de la carrera.' : `Asignaturas de ${selectedLevel?.number ?? activeCycle}° ciclo${selectedLevel?.name ? ` (${selectedLevel.name})` : ''}.`} createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title={currentCareerName} createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     {cycleLevels.length > 0 && <Tabs value={activeCycle} onValueChange={setCycleSelection} className="w-full">
       <div className="overflow-x-auto pb-1">
         <TabsList aria-label="Ciclos de la carrera" className="w-max">

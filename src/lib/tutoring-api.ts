@@ -46,6 +46,8 @@ export interface Teacher {
   readonly is_active: boolean
   readonly career_ids: readonly number[]
   readonly can_manage: boolean
+  /** Tutorías vigentes que dicta, en las carreras de quien consulta. */
+  readonly tutorings?: readonly { readonly id: number; readonly subject_name: string; readonly cycle_name: string | null; readonly cycle_number: number | null; readonly section_name: string | null }[]
 }
 
 /** Franja ocupada por una tutoría activa del docente en el período vigente. */
