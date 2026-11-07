@@ -90,7 +90,8 @@ describe('Coordinación de tutorías', () => {
     fireEvent.submit(form)
     fireEvent.submit(form)
     expect(tutoringApi.createSubject).toHaveBeenCalledTimes(1)
-    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', period_id: 50 })
+    // Toma el ciclo de la pestaña abierta.
+    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', cycle_id: 20, period_id: 50 })
     expect(within(form).getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     await act(async () => reject(new ApiError(422, { message: 'No se pudo guardar.', errors: { code: ['El código ya existe.'] } })))
     expect(await screen.findByText('El código ya existe.')).toBeInTheDocument()
@@ -98,7 +99,7 @@ describe('Coordinación de tutorías', () => {
     expect(within(form).getByRole('button', { name: 'Registrar asignatura' })).toBeEnabled()
   })
 
-  it('permite elegir el ciclo de la asignatura al registrarla con código opcional', async () => {
+  it('propone el ciclo de la pestaña abierta al registrar una asignatura y permite cambiarlo, con código opcional', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.createSubject).mockResolvedValue(subject)
     await openSubjects()
@@ -106,12 +107,12 @@ describe('Coordinación de tutorías', () => {
     await user.click(screen.getByRole('button', { name: 'Registrar asignatura' }))
     const form = screen.getByRole('form', { name: 'Registrar asignatura' })
     expect(within(form).queryByLabelText('Carrera')).not.toBeInTheDocument()
-    expect(within(form).getByLabelText(/^Ciclo/)).toHaveTextContent('Sin ciclo')
+    expect(within(form).getByLabelText(/^Ciclo/)).toHaveTextContent('Segundo')
     // Código es opcional: se envía solo con nombre y ciclo
     await user.type(within(form).getByLabelText('Nombre'), 'Programación')
-    await choose(user, within(form).getByLabelText(/^Ciclo/), 'Segundo')
+    await choose(user, within(form).getByLabelText(/^Ciclo/), 'Tercero')
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'PROGRAMACIÓN', cycle_id: 20, period_id: 50 }))
+    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'PROGRAMACIÓN', cycle_id: 21, period_id: 50 }))
   })
 
   it('muestra el período académico actual sobre los demás campos de solo lectura y lo asocia automáticamente al registrar una asignatura', async () => {
@@ -203,24 +204,28 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(next).toBeEnabled())
     await user.click(next)
     expect(await screen.findByText('Física', {}, { timeout: 10000 })).toBeInTheDocument()
-    expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 2, search: '', career_id: career.id, cycle_number: undefined, status: undefined })
+    expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 2, search: '', career_id: career.id, cycle_number: 2, status: undefined })
   })
 
-  it('filtra por ciclo desde los filtros junto al buscador, permite limpiarlo y empieza en Todos', async () => {
+  it('organiza las asignaturas en pestañas por ciclo, empieza en el primero y permite ver todas', async () => {
     const user = userEvent.setup()
     await openSubjects()
     await screen.findByText('Matemática')
-    expect(screen.queryByRole('group', { name: 'Ciclo' })).not.toBeInTheDocument()
-    expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined })
+    const tabs = screen.getByRole('tablist', { name: 'Ciclos de la carrera' })
+    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['2° ciclo', '3° ciclo · Titulación', 'Todas'])
+    expect(within(tabs).getByRole('tab', { name: '2° ciclo' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByLabelText('Filtrar por Ciclo')).not.toBeInTheDocument()
+    expect(screen.getByText('Asignaturas de 2° ciclo (Segundo).')).toBeInTheDocument()
+    expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 2, status: undefined })
 
-    const cycleSelect = screen.getByLabelText('Filtrar por Ciclo')
-    await user.click(cycleSelect)
-    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['Todos', '2° Segundo', '3° Tercero'])
-    await user.click(screen.getByRole('option', { name: '3° Tercero' }))
+    await user.click(within(tabs).getByRole('tab', { name: '3° ciclo · Titulación' }))
     await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 3, status: undefined }))
 
-    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
+    await user.click(within(tabs).getByRole('tab', { name: 'Todas' }))
     await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined }))
+    expect(screen.getByText('Todas las asignaturas de la carrera.')).toBeInTheDocument()
+    // Con todas las asignaturas se muestra la columna del ciclo.
+    expect(screen.getByRole('columnheader', { name: 'Ciclo' })).toBeInTheDocument()
   })
 
   it('con varias carreras lista primero las carreras con búsqueda y entra a la elegida; con una sola entra directo', async () => {
@@ -236,7 +241,7 @@ describe('Coordinación de tutorías', () => {
     await user.type(screen.getByLabelText('Buscar carrera'), 'comu')
     expect(screen.queryByTitle('Ver asignaturas de Software')).not.toBeInTheDocument()
     await user.click(screen.getByTitle('Ver asignaturas de Comunicación'))
-    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: 11, cycle_number: undefined, status: undefined }))
+    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: 11, cycle_number: 1, status: undefined }))
     await user.click(screen.getByRole('button', { name: 'Asignaturas' }))
     expect(await screen.findByLabelText('Buscar carrera')).toBeInTheDocument()
   })
@@ -247,7 +252,7 @@ describe('Coordinación de tutorías', () => {
     await screen.findByText('Matemática')
     await choose(user, screen.getByLabelText('Filtrar por Estado'), 'Activas')
     await user.click(screen.getByRole('button', { name: 'Limpiar' }))
-    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined }))
+    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 2, status: undefined }))
   })
 
   it('permite asignar y desasignar paralelos de una asignatura sin cerrar el diálogo', async () => {
