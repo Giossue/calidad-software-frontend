@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CheckIcon, LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
+import { BookOpenIcon, CheckIcon, GraduationCapIcon, LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -15,7 +15,9 @@ import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
+import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
@@ -26,6 +28,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
+const ALL_CYCLES = 'all'
 const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '' }
 
 export function TutoringSubjectsPage() {
@@ -48,13 +51,17 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const cycleLevels = Array.from(
     new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === Number(activeCareerId)).map((cycle) => [cycle.number, cycle])).values(),
   ).sort((a, b) => a.number - b.number)
-  const activeCycle = cycleLevels.some((level) => String(level.number) === cycleSelection) ? cycleSelection : 'all'
+  // Como en Estudiantes, se trabaja por ciclo: se abre en el primero y «Todas» reúne la carrera completa.
+  const activeCycle = cycleSelection === ALL_CYCLES || cycleLevels.length === 0
+    ? ALL_CYCLES
+    : cycleLevels.some((level) => String(level.number) === cycleSelection) ? cycleSelection : String(cycleLevels[0].number)
+  const careerMaxCycle = maxCycleNumber(catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId)))
   const list = usePaginatedCatalog(
     (page, search) => tutoringApi.subjects({
       page,
       search,
       career_id: Number(activeCareerId) || undefined,
-      cycle_number: activeCycle === 'all' ? undefined : Number(activeCycle),
+      cycle_number: activeCycle === ALL_CYCLES ? undefined : Number(activeCycle),
       status: statusFilter || undefined,
     }),
     `${activeCareerId}|${activeCycle}|${statusFilter}`,
@@ -172,7 +179,6 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   function clearFilters() {
     setStatusFilter('')
-    setCycleSelection('')
   }
 
   const currentCareerId = Number(form.career_id || activeCareerId || catalogs.careers[0]?.id)
@@ -288,7 +294,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   const currentCareerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Asignaturas'
   const selectedLevel = cycleLevels.find((level) => String(level.number) === activeCycle)
-  const selectedCycleIds = activeCycle === 'all'
+  const selectedCycleIds = activeCycle === ALL_CYCLES
     ? []
     : catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId) && cycle.number === Number(activeCycle)).map((cycle) => cycle.id)
 
@@ -305,7 +311,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         </div>
       ),
     },
-    ...(activeCycle === 'all' ? [{
+    ...(activeCycle === ALL_CYCLES ? [{
       label: 'Ciclo',
       render: (subject: Subject) => {
         const level = cycleLevels.find((item) => catalogs.cycles.some((cycle) => cycle.number === item.number && cycle.career_id === item.career_id && subject.cycle_ids.includes(cycle.id)))
@@ -334,7 +340,23 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   return <section className="flex flex-col gap-6">
     <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-    <ModuleHeader title={currentCareerName} createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title={currentCareerName} description={activeCycle === ALL_CYCLES ? 'Todas las asignaturas de la carrera.' : `Asignaturas de ${selectedLevel?.number ?? activeCycle}° ciclo${selectedLevel?.name ? ` (${selectedLevel.name})` : ''}.`} createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    {cycleLevels.length > 0 && <Tabs value={activeCycle} onValueChange={setCycleSelection} className="w-full">
+      <div className="overflow-x-auto pb-1">
+        <TabsList aria-label="Ciclos de la carrera" className="w-max">
+          {cycleLevels.map((level) => (
+            <TabsTrigger key={level.number} value={String(level.number)} className="gap-2">
+              {isDegreeCycleNumber(level.number, careerMaxCycle) ? <GraduationCapIcon className="size-4" /> : <BookOpenIcon className="size-4" />}
+              <span>{level.number}° ciclo{isDegreeCycleNumber(level.number, careerMaxCycle) ? ' · Titulación' : ''}</span>
+            </TabsTrigger>
+          ))}
+          <TabsTrigger value={ALL_CYCLES} className="gap-2">
+            <LayersIcon className="size-4" />
+            <span>Todas</span>
+          </TabsTrigger>
+        </TabsList>
+      </div>
+    </Tabs>}
     <FilterBar
       id="subjects"
       search={list.searchInput}
@@ -342,7 +364,6 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       searchPlaceholder="Busca por nombre o código…"
       onClear={clearFilters}
       filters={[
-        { id: 'cycle', label: 'Ciclo', value: activeCycle === 'all' ? '' : activeCycle, onChange: setCycleSelection, allLabel: 'Todos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
         { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
       ]}
     />
@@ -351,14 +372,14 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     <RecordTable
       rows={list.data}
       loading={list.isFetching || list.isInitialLoading}
-      empty={activeCycle === 'all' ? 'No se encontraron asignaturas para esta carrera.' : 'No hay asignaturas en este ciclo para la búsqueda actual.'}
+      empty={activeCycle === ALL_CYCLES ? 'No se encontraron asignaturas para esta carrera.' : 'No hay asignaturas en este ciclo para la búsqueda actual.'}
       columns={renderSubjectColumns()}
       onRowClick={(subject) => { if (subject.is_active && !operation.pending) edit(subject) }}
       rowTitle={(subject) => subject.is_active ? `Editar ${formatSubjectName(subject.name)}` : ''}
     />
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground">
-        Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === 'all' ? '' : ` del ${selectedLevel?.name ?? 'ciclo seleccionado'}`}
+        Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === ALL_CYCLES ? '' : ` del ${selectedLevel?.name ?? 'ciclo seleccionado'}`}
       </p>
       <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </div>
