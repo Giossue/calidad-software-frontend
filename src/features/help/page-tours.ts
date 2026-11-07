@@ -103,7 +103,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Asignaturas de la carrera', 'Aquí administras las asignaturas de cada ciclo.'),
     step(CREATE, 'Registrar asignatura', 'Agrega una asignatura indicando su ciclo.'),
     bulk('Registra varias asignaturas a la vez.'),
-    step('[aria-label="Ciclos de la carrera"]', 'Ciclos', 'Cambia de ciclo para ver sus asignaturas. «Todas» muestra la carrera completa.'),
+    step('[aria-label="Ciclos de la carrera"]', 'Ciclos', 'Cambia de ciclo para ver sus asignaturas.'),
     filters('Busca por nombre o código y filtra por estado.'),
     table('Cada fila es una asignatura con su ciclo y sus paralelos. Haz clic en ella para editarla.'),
     rowActions('Gestiona los paralelos de la asignatura o desactívala.'),
