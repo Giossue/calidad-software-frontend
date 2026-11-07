@@ -110,6 +110,7 @@ export function DegreeStudentsPage() {
       <ErrorNotice message={degreeList.error} retry={degreeList.reload} />
 
       <RecordTable<DegreeEnrollmentStudent>
+        numberFrom={degreeList.meta?.from}
         rows={degreeList.data}
         loading={degreeList.isFetching || degreeList.isInitialLoading}
         empty={

@@ -327,6 +327,7 @@ describe('Coordinación de titulación', () => {
     expect(await screen.findByRole('heading', { level: 2, name: /Matrícula de Estudiantes en Titulación/i })).toBeInTheDocument()
     expect(screen.getByText('Estudiante Titulación')).toBeInTheDocument()
     expect(screen.getByText('0209999999')).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader')[0]).toHaveTextContent('#')
     expect(screen.getByText('No matriculado')).toBeInTheDocument()
 
     const enrollBtn = screen.getByRole('button', { name: 'Matricular en Titulación' })

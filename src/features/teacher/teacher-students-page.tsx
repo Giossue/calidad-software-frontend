@@ -130,7 +130,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       <Button className="shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>
     </div>
     <ErrorNotice message={list.error} retry={list.reload} />{!open && !gradingStudent && <ErrorNotice message={operation.error} />}
-    <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
+    <RecordTable rows={list.data} numberFrom={list.meta?.from} loading={list.isFetching || list.isInitialLoading} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
       { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span className="font-medium">{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
       { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
       { label: 'Grupo de Conocimiento', render: (student) => {

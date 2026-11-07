@@ -406,6 +406,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
       <RecordTable<CoordinatorStudent>
         rows={list.data}
+        numberFrom={list.meta?.from}
         loading={list.isFetching || list.isInitialLoading}
         empty={
           <Empty className="border-none py-12">
@@ -428,10 +429,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           </Empty>
         }
         columns={[
-          {
-            label: '#',
-            render: (student) => <span className="text-sm tabular-nums text-muted-foreground">{(list.meta?.from ?? 1) + list.data.indexOf(student)}</span>,
-          },
           {
             label: 'Estudiante',
             render: (student) => (
@@ -759,6 +756,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           <ErrorNotice message={degreeList.error} retry={degreeList.reload} />
 
           <RecordTable<DegreeStudent>
+            numberFrom={degreeList.meta?.from}
             rows={degreeList.data}
             loading={degreeList.isFetching || degreeList.isInitialLoading}
             empty={

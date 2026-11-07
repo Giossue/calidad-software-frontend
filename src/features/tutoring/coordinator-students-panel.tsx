@@ -126,6 +126,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
       <ErrorNotice message={list.error} retry={list.reload} />
       {!open && <ErrorNotice message={operation.error} />}
       <RecordTable
+        numberFrom={list.meta?.from}
         rows={list.data}
         loading={list.isFetching || list.isInitialLoading}
         onRowClick={openForm}

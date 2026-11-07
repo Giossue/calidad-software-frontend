@@ -129,6 +129,7 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
       <CardContent className="flex flex-col gap-4">
         <ErrorNotice message={attendance.error} retry={attendance.reload} />
         <RecordTable
+          numberFrom={attendance.meta?.from}
           rows={attendance.data}
           loading={attendance.isFetching || attendance.isInitialLoading}
           empty={

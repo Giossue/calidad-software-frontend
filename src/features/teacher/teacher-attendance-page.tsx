@@ -365,7 +365,7 @@ type AttendanceTableMeta = {
 }
 
 const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
-  { id: 'number', header: 'N.°', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
+  { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
   {
     id: 'name',
     header: 'Estudiante',
@@ -406,7 +406,7 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
 ]
 
 const CONSULT_COLUMNS: ColumnDef<TutoringSession['attendance'][number]>[] = [
-  { id: 'number', header: 'N.°', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
+  { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
   { id: 'name', header: 'Estudiante', cell: ({ row }) => <span className="font-medium">{row.original.student_name}</span> },
   {
     id: 'present',
