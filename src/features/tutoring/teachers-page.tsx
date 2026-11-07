@@ -1,12 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, GraduationCapIcon, LinkIcon, MoreVerticalIcon, PowerOffIcon, SaveIcon, UserPlusIcon, XCircleIcon, XIcon } from 'lucide-react'
+import { CheckCircle2Icon, LinkIcon, MoreVerticalIcon, PowerOffIcon, SaveIcon, UserPlusIcon, XCircleIcon, XIcon } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Dialog } from '@/components/ui/dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -18,7 +16,7 @@ import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { formatSubjectName, sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { tutoringApi, type AvailableTeacher, type Teacher } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { FilterBar } from './filter-bar'
@@ -49,7 +47,6 @@ export function TutoringTeachersPage() {
   const [initialForm, setInitialForm] = useState(EMPTY_FORM)
   const [deactivating, setDeactivating] = useState<Teacher | null>(null)
   const [unlinking, setUnlinking] = useState<{ teacher: Teacher; careerId: number; careerName: string } | null>(null)
-  const [viewingCareersTeacher, setViewingCareersTeacher] = useState<Teacher | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkCareerId, setLinkCareerId] = useState('')
   const [linkSearch, setLinkSearch] = useState('')
@@ -146,20 +143,18 @@ export function TutoringTeachersPage() {
       { label: 'Docente', render: (teacher) => <div className="flex flex-col gap-1"><span className="font-medium">{teacher.name}</span><span className="text-xs text-muted-foreground">{teacher.identification}</span></div> },
       { label: 'Contacto', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono'}</span></div> },
       {
-        label: 'Carreras', render: (teacher) => {
-          if (teacher.career_ids.length === 0) return <span className="text-xs text-muted-foreground">Sin carreras</span>
+        label: 'Asignaturas', render: (teacher) => {
+          const tutorings = teacher.tutorings ?? []
+          if (tutorings.length === 0) return <span className="text-sm text-muted-foreground">Sin tutorías</span>
           return (
-            <RowActions>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setViewingCareersTeacher(teacher)}
-                aria-label={`Ver carreras de ${teacher.name}`}
-              >
-                Carreras
-              </Button>
-            </RowActions>
+            <ul className="flex flex-col gap-1" aria-label={`Asignaturas de ${teacher.name}`}>
+              {tutorings.map((tutoring) => (
+                <li key={tutoring.id} className="text-sm leading-snug">
+                  {formatSubjectName(tutoring.subject_name)}
+                  <span className="text-xs text-muted-foreground">{[tutoring.cycle_number ? ` · ${tutoring.cycle_number}° ciclo` : '', tutoring.section_name ? ` · ${tutoring.section_name.replace(/^Paralelo\s+/i, 'Paralelo ')}` : ''].join('')}</span>
+                </li>
+              ))}
+            </ul>
           )
         },
       },
@@ -262,55 +257,5 @@ export function TutoringTeachersPage() {
     <ConfirmModal open={Boolean(unlinking)} title="¿Quitar docente de la carrera?" description={`«${unlinking?.teacher.name ?? ''}» dejará de estar vinculado a «${unlinking?.careerName ?? ''}». Su cuenta y sus otras carreras no cambian. Si tiene tutorías activas en esa carrera, primero debes reasignarlas.`} confirmLabel="Quitar de la carrera" pending={operation.pending} onClose={() => { if (!operation.pending) setUnlinking(null) }} onConfirm={() => { if (unlinking) void operation.run(() => tutoringApi.unlinkTeacherFromCareer(unlinking.teacher.id, unlinking.careerId), 'Docente quitado de la carrera.', async () => { setUnlinking(null); await list.reload() }) }} />
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar docente?" description={`La cuenta de «${deactivating?.name ?? ''}» perderá el acceso y no podrá recibir nuevas asignaciones de tutorías.`} confirmLabel="Desactivar docente" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateTeacher(deactivating.id), 'Docente desactivado.', async () => { setDeactivating(null); setOpen(false); await list.reload() }) }} />
     <ErrorModal open={Boolean(operation.errorModal && !open && !linkOpen)} onClose={operation.clearErrorModal} title={operation.errorModal?.title} description={operation.errorModal?.description} />
-    <Dialog
-      open={Boolean(viewingCareersTeacher)}
-      title="Carreras asignadas"
-      description={viewingCareersTeacher ? viewingCareersTeacher.name : ''}
-      confirmClose={false}
-      onClose={() => setViewingCareersTeacher(null)}
-      maxWidth="max-w-md"
-    >
-      {viewingCareersTeacher && (() => {
-        const teacherCareers = viewingCareersTeacher.career_ids.map((id) => {
-          const career = catalogs.careers.find((item) => item.id === id)
-          return { id, name: career?.name ?? `Carrera #${id}` }
-        })
-
-        return (
-          <div className="flex flex-col gap-4">
-            {teacherCareers.length > 0 ? (
-              <div className="flex flex-col gap-2" role="list" aria-label="Lista de carreras">
-                {teacherCareers.map((c) => (
-                  <Card
-                    key={c.id}
-                    role="listitem"
-                    className="flex items-center gap-2.5 p-3 shadow-xs transition-colors hover:border-primary/40"
-                  >
-                    <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium text-sm shrink-0">
-                      <GraduationCapIcon className="size-4" />
-                    </div>
-                    <span className="text-sm font-medium text-foreground leading-snug break-words">{c.name}</span>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 rounded-lg bg-muted/30 border border-dashed text-center">
-                <p className="text-sm text-muted-foreground">Este docente no tiene carreras asignadas.</p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end pt-2 border-t">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setViewingCareersTeacher(null)}
-              >
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        )
-      })()}
-    </Dialog>
   </section>
 }

@@ -20,10 +20,13 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
+import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
+import { sanitizeLetters } from '@/lib/sanitize'
 import { findScheduleConflicts, type ScheduleConflict } from '@/lib/schedule-conflicts'
 import { DAY_LABELS, tutoringApi, WEEK_DAYS, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule, type TutoringScheduleItem } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
@@ -170,8 +173,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   }, [subjectsRevision])
 
 
+  // Volver a cargar docentes solo al cambiar de asignatura, no al actualizarla (p. ej. al crear un paralelo).
+  const creatingSubjectId = creatingTutoringSubject?.id
   useEffect(() => {
-    if (!creatingTutoringSubject) return
+    if (!creatingSubjectId) return
     let cancelled = false
     setCreateTeachersLoading(true)
     setCreateTeachersError(null)
@@ -180,7 +185,22 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       .catch((caught: unknown) => { if (!cancelled) setCreateTeachersError(describeError(caught)) })
       .finally(() => { if (!cancelled) setCreateTeachersLoading(false) })
     return () => { cancelled = true }
-  }, [creatingTutoringSubject])
+  }, [creatingSubjectId])
+
+  /** Crea un paralelo para la asignatura sin salir del formulario y lo deja elegido. */
+  async function createParallelForTutoring(name: string) {
+    if (!creatingTutoringSubject || !creatingTutoringCycle) return
+    const subject = creatingTutoringSubject
+    const level = creatingTutoringCycle
+    const subjectCycle = catalogs.cycles.find((cycle) => subject.cycle_ids.includes(cycle.id) && cycle.number === level.number) ?? level
+    const before = new Set(subject.parallel_ids ?? [])
+    const updated = await tutoringApi.assignSubjectParallel(subject.id, { new_parallel_name: name, cycle_id: subjectCycle.id })
+    setCreatingTutoringSubject(updated)
+    catalogs.reload()
+    const created = (updated.parallel_ids ?? []).find((id) => !before.has(id))
+    if (created) setCreateParallelIds([String(created)])
+    toast.success(`Paralelo ${name} creado.`)
+  }
 
   function openCreateTutoring(subject: Subject, cycle: Cycle) {
     if (!subject.is_active) {
@@ -728,8 +748,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             name={creatingTutoringSubject.name}
             code={creatingTutoringSubject.code}
             cycle={creatingTutoringCycle.name}
-            career={catalogs.careers.find((c) => c.id === creatingTutoringSubject.career_id)?.name}
-            period={catalogs.periods.find((p) => p.is_active)?.name ?? 'PAO actual'}
           />
           <TeacherSection
             prefix="create"
@@ -747,7 +765,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             times={createDayTimes}
             onChange={(days, times) => { setCreateScheduleDays(days); setCreateDayTimes(times) }}
           />
-          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} />
+          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} onCreate={createParallelForTutoring} />
         </>
       )}
     </FormDialog>
@@ -792,8 +810,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             name={editingTutoringItem.subject_name}
             code={editingTutoringItem.code}
             cycle={editingTutoringItem.cycle_name}
-            career={editingTutoringItem.career_name}
-            period={editingTutoringItem.period_name || catalogs.periods.find((p) => p.is_active)?.name || 'PAO actual'}
           />
           <TeacherSection
             prefix="edit"
@@ -918,7 +934,7 @@ function timeOptions(current: string) {
   return all.map((time) => ({ value: time, label: time }))
 }
 
-function SubjectSummary({ name, code, cycle, career, period }: Readonly<{ name: string; code: string | null; cycle: string; career?: string; period: string }>) {
+function SubjectSummary({ name, code, cycle }: Readonly<{ name: string; code: string | null; cycle: string }>) {
   return (
     <div className="rounded-lg bg-muted/40 p-3.5 border flex flex-col gap-1.5">
       <span className="text-xs text-muted-foreground uppercase tracking-wider">Materia seleccionada</span>
@@ -926,13 +942,7 @@ function SubjectSummary({ name, code, cycle, career, period }: Readonly<{ name: 
         <span className="text-base font-semibold text-foreground">{name}</span>
         {code && <Badge variant="secondary" className="font-mono text-xs">{code}</Badge>}
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span>{cycle}</span>
-        <span>·</span>
-        <span>{career}</span>
-        <span>·</span>
-        <span>{period}</span>
-      </div>
+      <span className="text-xs text-muted-foreground">{cycle}</span>
     </div>
   )
 }
@@ -1068,13 +1078,34 @@ function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Re
   )
 }
 
-function ParallelField({ prefix, parallels, value, onChange, disabled = false }: Readonly<{
+function ParallelField({ prefix, parallels, value, onChange, disabled = false, onCreate }: Readonly<{
   prefix: 'create' | 'edit'
   parallels: readonly { id: number; name: string }[]
   value: readonly string[]
   onChange: (value: string[]) => void
   disabled?: boolean
+  /** Si la asignatura no tiene paralelos, permite crear uno aquí mismo. */
+  onCreate?: (name: string) => Promise<void>
 }>) {
+  const [newName, setNewName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  async function create() {
+    const name = newName.trim().toUpperCase()
+    if (!onCreate || !name || creating) return
+    setCreating(true)
+    setCreateError(null)
+    try {
+      await onCreate(name)
+      setNewName('')
+    } catch (caught) {
+      setCreateError(describeError(caught))
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <FormField
       id={`${prefix}-tutoring-parallels`}
@@ -1101,6 +1132,31 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false }:
               </label>
             )
           })}
+        </div>
+      ) : onCreate ? (
+        <div className="flex flex-col gap-2 pt-1">
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Esta asignatura aún no tiene paralelos. Crea uno para continuar.
+          </p>
+          <div className="flex items-start gap-2">
+            <Input
+              id={`${prefix}-tutoring-new-parallel`}
+              aria-label="Nombre del nuevo paralelo"
+              value={newName}
+              onChange={(event) => { setNewName(sanitizeLetters(event.target.value, 50)); setCreateError(null) }}
+              onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void create() } }}
+              placeholder="Ej. A"
+              maxLength={50}
+              disabled={disabled || creating}
+              aria-invalid={Boolean(createError)}
+              className="max-w-40"
+            />
+            <Button type="button" variant="secondary" disabled={disabled || creating || !newName.trim()} onClick={() => void create()}>
+              {creating ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
+              Crear paralelo
+            </Button>
+          </div>
+          {createError && <p role="alert" className="text-xs text-destructive">{createError}</p>}
         </div>
       ) : (
         <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">

@@ -215,7 +215,7 @@ describe('Coordinación de tutorías', () => {
     expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['2° ciclo', '3° ciclo · Titulación'])
     expect(within(tabs).getByRole('tab', { name: '2° ciclo' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByLabelText('Filtrar por Ciclo')).not.toBeInTheDocument()
-    expect(screen.getByText('Asignaturas de 2° ciclo (Segundo).')).toBeInTheDocument()
+    expect(screen.queryByText(/Asignaturas de 2° ciclo/)).not.toBeInTheDocument()
     expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 2, status: undefined })
 
     await user.click(within(tabs).getByRole('tab', { name: '3° ciclo · Titulación' }))
@@ -318,21 +318,18 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.linkTeacherToCareer).toHaveBeenCalledWith(70, career.id))
   })
 
-  it('abre un modal con las carreras al hacer clic en el botón Carreras de la columna en Docentes', async () => {
-    const user = userEvent.setup()
-    const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [career.id], can_manage: true }
-    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher]))
+  it('muestra en Docentes las asignaturas que dicta cada docente en lugar de sus carreras', async () => {
+    const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [career.id], can_manage: true,
+      tutorings: [{ id: 40, subject_name: 'PROGRAMACION WEB I', cycle_name: 'Tercero', cycle_number: 3, section_name: 'A' }] }
+    const idle = { ...teacher, id: 2, name: 'Luis Mora', tutorings: [] }
+    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher, idle]))
     render(<TutoringTeachersPage />)
     await screen.findByText('Ana Torres')
-    const viewBtn = screen.getByRole('button', { name: 'Ver carreras de Ana Torres' })
-    expect(viewBtn).toBeInTheDocument()
-    expect(viewBtn).toHaveTextContent('Carreras')
-    await user.click(viewBtn)
-    const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText('Carreras asignadas')).toBeInTheDocument()
-    expect(within(dialog).getByText(career.name)).toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Asignaturas' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Carreras' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Asignaturas de Ana Torres' })).getByRole('listitem')).toHaveTextContent('PROGRAMACION WEB I · 3° ciclo · A')
+    expect(screen.getByText('Sin tutorías')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ver carreras de/ })).not.toBeInTheDocument()
   })
 
   it('quita a un docente de una de sus carreras tras confirmar', async () => {
@@ -409,6 +406,38 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByRole('button', { name: 'Limpiar' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Limpiar' }))
     await waitFor(() => expect(tutoringApi.teachers).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: undefined, status: undefined }))
+  })
+
+  it('si la asignatura no tiene paralelos, permite crear uno desde el formulario de la tutoría y lo deja elegido', async () => {
+    const user = userEvent.setup()
+    // El ciclo existe pero sin paralelo asignado.
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([{ ...cycle, paralelo_id: null, paralelo_name: null }])
+    vi.mocked(tutoringApi.availableTeachers).mockResolvedValue([])
+    vi.mocked(tutoringApi.assignSubjectParallel).mockResolvedValue({ ...subject, parallel_ids: [9] })
+    vi.mocked(tutoringApi.sections).mockResolvedValue([{ id: 1, name: 'A', is_active: true }, { id: 9, name: 'B', is_active: true }])
+
+    render(<TutoringsPage />)
+    await screen.findByText('Matemática')
+    await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
+    await choose(user, screen.getByLabelText(/^Ciclo/), '2° Segundo')
+    await choose(user, screen.getByLabelText('Asignatura'), 'Matemática')
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+    const form = await screen.findByRole('form', { name: 'Crear tutoría' })
+
+    // La materia seleccionada muestra solo el ciclo, sin carrera ni período.
+    expect(within(form).getByText('Segundo')).toBeInTheDocument()
+    expect(within(form).queryByText('Software')).not.toBeInTheDocument()
+    expect(within(form).queryByText('2026-2')).not.toBeInTheDocument()
+
+    expect(within(form).getByText('Esta asignatura aún no tiene paralelos. Crea uno para continuar.')).toBeInTheDocument()
+    const createButton = within(form).getByRole('button', { name: 'Crear paralelo' })
+    expect(createButton).toBeDisabled()
+    await user.type(within(form).getByLabelText('Nombre del nuevo paralelo'), 'b')
+    await user.click(createButton)
+
+    await waitFor(() => expect(tutoringApi.assignSubjectParallel).toHaveBeenCalledWith(30, { new_parallel_name: 'B', cycle_id: 20 }))
+    expect(await within(form).findByRole('radio', { name: 'Paralelo B' })).toBeChecked()
+    expect(tutoringApi.availableTeachers).toHaveBeenCalledTimes(1)
   })
 
   it('crea una tutoría con un solo botón: elige ciclo y asignatura y luego asigna docente y horario', async () => {
@@ -866,9 +895,14 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByText('Carlos Estudiante')).toBeInTheDocument()
     expect(screen.getByText('0201999999')).toBeInTheDocument()
     expect(screen.getByText('carlos@ueb.edu.ec')).toBeInTheDocument()
-    expect(screen.getByText('Matemática · A')).toBeInTheDocument()
     expect(screen.getByText('Mostrando 1 de 1 estudiante')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Gestionar tutorías de Carlos Estudiante' })).toBeInTheDocument()
+    // Numeración de filas, tutorías como botón (sin acción duplicada) y estado en texto plano.
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Estudiante', 'Cédula / Teléfono', 'Tutorías', 'Estado', 'Acciones'])
+    const row = screen.getByText('Carlos Estudiante').closest('tr')!
+    expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('1')
+    expect(within(row).getAllByRole('button', { name: 'Gestionar tutorías de Carlos Estudiante' })).toHaveLength(1)
+    expect(within(row).getByRole('button', { name: 'Gestionar tutorías de Carlos Estudiante' })).toHaveTextContent('1 tutoría')
+    expect(within(row).getByText('Activo').closest('[data-slot="badge"]')).toBeNull()
 
     const newBtn = screen.getByRole('button', { name: 'Nuevo estudiante' })
     await user.click(newBtn)
