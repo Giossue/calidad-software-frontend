@@ -51,8 +51,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const cycleLevels = Array.from(
     new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === Number(activeCareerId)).map((cycle) => [cycle.number, cycle])).values(),
   ).sort((a, b) => a.number - b.number)
-  // Como en Estudiantes, se trabaja por ciclo: se abre en el primero y «Todas» reúne la carrera completa.
-  const activeCycle = cycleSelection === ALL_CYCLES || cycleLevels.length === 0
+  // Como en Estudiantes, se trabaja por ciclo y se abre en el primero. Sin ciclos registrados se listan todas.
+  const activeCycle = cycleLevels.length === 0
     ? ALL_CYCLES
     : cycleLevels.some((level) => String(level.number) === cycleSelection) ? cycleSelection : String(cycleLevels[0].number)
   const careerMaxCycle = maxCycleNumber(catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId)))
@@ -350,10 +350,6 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               <span>{level.number}° ciclo{isDegreeCycleNumber(level.number, careerMaxCycle) ? ' · Titulación' : ''}</span>
             </TabsTrigger>
           ))}
-          <TabsTrigger value={ALL_CYCLES} className="gap-2">
-            <LayersIcon className="size-4" />
-            <span>Todas</span>
-          </TabsTrigger>
         </TabsList>
       </div>
     </Tabs>}

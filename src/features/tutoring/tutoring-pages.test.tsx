@@ -207,12 +207,12 @@ describe('Coordinación de tutorías', () => {
     expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 2, search: '', career_id: career.id, cycle_number: 2, status: undefined })
   })
 
-  it('organiza las asignaturas en pestañas por ciclo, empieza en el primero y permite ver todas', async () => {
+  it('organiza las asignaturas en pestañas por ciclo y empieza en el primero', async () => {
     const user = userEvent.setup()
     await openSubjects()
     await screen.findByText('Matemática')
     const tabs = screen.getByRole('tablist', { name: 'Ciclos de la carrera' })
-    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['2° ciclo', '3° ciclo · Titulación', 'Todas'])
+    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['2° ciclo', '3° ciclo · Titulación'])
     expect(within(tabs).getByRole('tab', { name: '2° ciclo' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByLabelText('Filtrar por Ciclo')).not.toBeInTheDocument()
     expect(screen.getByText('Asignaturas de 2° ciclo (Segundo).')).toBeInTheDocument()
@@ -220,12 +220,8 @@ describe('Coordinación de tutorías', () => {
 
     await user.click(within(tabs).getByRole('tab', { name: '3° ciclo · Titulación' }))
     await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 3, status: undefined }))
-
-    await user.click(within(tabs).getByRole('tab', { name: 'Todas' }))
-    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined }))
-    expect(screen.getByText('Todas las asignaturas de la carrera.')).toBeInTheDocument()
-    // Con todas las asignaturas se muestra la columna del ciclo.
-    expect(screen.getByRole('columnheader', { name: 'Ciclo' })).toBeInTheDocument()
+    // Dentro de un ciclo la columna «Ciclo» sobra.
+    expect(screen.queryByRole('columnheader', { name: 'Ciclo' })).not.toBeInTheDocument()
   })
 
   it('con varias carreras lista primero las carreras con búsqueda y entra a la elegida; con una sola entra directo', async () => {
