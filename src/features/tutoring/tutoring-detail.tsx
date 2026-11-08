@@ -149,7 +149,7 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
               columns={[
                 { label: 'Sesión', render: (session) => <span className="font-medium">Sesión {session.number}</span> },
                 { label: 'Fecha', render: (session) => formatDate(session.date) },
-                { label: 'Temas tratados', render: (session) => <span className="text-muted-foreground">{session.topics.length > 0 ? session.topics.map((topic) => topic.name).join(', ') : session.topics_covered ? 'Sin temas registrados' : 'Sin temas vistos'}</span> },
+                { label: 'Temas tratados', render: (session) => <span className="text-muted-foreground" title={session.topics.map((topic) => topic.name).join(', ') || undefined}>{firstTopic(session.topics) ?? (session.topics_covered ? 'Sin temas registrados' : 'Sin temas vistos')}</span> },
                 { label: 'Asistencia', render: (session) => `${session.present_count} de ${session.present_count + session.absent_count} presentes` },
               ]}
             />
@@ -165,6 +165,12 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
       </CardContent>
     </Card>
   )
+}
+
+/** El primer tema de la sesión y cuántos más hubo. */
+function firstTopic(topics: readonly { readonly name: string }[]): string | null {
+  if (topics.length === 0) return null
+  return topics.length === 1 ? topics[0].name : `${topics[0].name} +${topics.length - 1} más`
 }
 
 function SessionDetail({ session, onClose }: Readonly<{ session: SupervisionSession; onClose: () => void }>) {

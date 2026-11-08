@@ -861,7 +861,7 @@ describe('Coordinación de tutorías', () => {
   it('la supervisión separa la asistencia por sesión y abre la lista de cada una', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.sessions).mockResolvedValue(paginated([
-      { id: 2, number: 2, date: '2026-05-11', topics_covered: true, topics: [{ id: 1, name: 'Derivadas' }], present_count: 1, absent_count: 1, attendance: [
+      { id: 2, number: 2, date: '2026-05-11', topics_covered: true, topics: [{ id: 1, name: 'Derivadas' }, { id: 2, name: 'Integrales' }, { id: 3, name: 'Límites' }], present_count: 1, absent_count: 1, attendance: [
         { id: 21, student_id: 7, student_name: 'Ana Pérez', student_identification: '0201112233', present: true },
         { id: 22, student_id: 8, student_name: 'Luis Mora', student_identification: '0201112244', present: false },
       ] },
@@ -872,6 +872,7 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByText('Sesión 2')).toBeInTheDocument()
     expect(screen.getByText('Sesión 1')).toBeInTheDocument()
     expect(screen.getByText('1 de 2 presentes')).toBeInTheDocument()
+    expect(screen.getByText('Derivadas +2 más')).toBeInTheDocument()
     expect(screen.getByText('Sin temas vistos')).toBeInTheDocument()
     expect(tutoringApi.sessions).toHaveBeenCalledWith(40, 1)
 
@@ -879,7 +880,7 @@ describe('Coordinación de tutorías', () => {
     const detail = screen.getByRole('region', { name: 'Sesión 2' })
     expect(within(detail).getByText('Luis Mora')).toBeInTheDocument()
     expect(within(detail).getByText('Ausente')).toBeInTheDocument()
-    expect(within(detail).getByText(/1 presentes · 1 ausentes · Derivadas/)).toBeInTheDocument()
+    expect(within(detail).getByText(/1 presentes · 1 ausentes · Derivadas, Integrales, Límites/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Volver a las sesiones' }))
     expect(screen.getByText('Sesión 1')).toBeInTheDocument()
   })
