@@ -147,14 +147,24 @@ export function TutoringTeachersPage() {
           const tutorings = teacher.tutorings ?? []
           if (tutorings.length === 0) return <span className="text-sm text-muted-foreground">Sin tutorías</span>
           return (
-            <ul className="flex flex-col gap-1" aria-label={`Asignaturas de ${teacher.name}`}>
-              {tutorings.map((tutoring) => (
-                <li key={tutoring.id} className="text-sm leading-snug">
-                  {formatSubjectName(tutoring.subject_name)}
-                  <span className="text-xs text-muted-foreground">{[tutoring.cycle_number ? ` · ${tutoring.cycle_number}° ciclo` : '', tutoring.section_name ? ` · ${tutoring.section_name.replace(/^Paralelo\s+/i, 'Paralelo ')}` : ''].join('')}</span>
-                </li>
-              ))}
-            </ul>
+            <table className="w-full min-w-72 text-sm" aria-label={`Asignaturas de ${teacher.name}`}>
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th scope="col" className="pb-1 pr-3 font-medium">Asignatura</th>
+                  <th scope="col" className="whitespace-nowrap pb-1 pr-3 font-medium">Ciclo</th>
+                  <th scope="col" className="whitespace-nowrap pb-1 font-medium">Paralelo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {tutorings.map((tutoring) => (
+                  <tr key={tutoring.id} className="align-top">
+                    <td className="py-1.5 pr-3 leading-snug">{formatSubjectName(tutoring.subject_name)}</td>
+                    <td className="whitespace-nowrap py-1.5 pr-3 tabular-nums text-muted-foreground">{tutoring.cycle_number ? `${tutoring.cycle_number}° ciclo` : '—'}</td>
+                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{tutoring.section_name ? tutoring.section_name.replace(/^Paralelo\s+/i, '') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )
         },
       },
