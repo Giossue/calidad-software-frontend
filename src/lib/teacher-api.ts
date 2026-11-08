@@ -100,6 +100,8 @@ export interface TeacherAbsenceNotice {
 export interface TutoringSession {
   readonly id: number
   readonly tutoring_id: number
+  /** Número de la sesión en la tutoría (la primera es la 1). */
+  readonly number?: number
   readonly date: string
   readonly topics_covered: boolean
   readonly topics: readonly (Pick<TutoringTopic, 'id' | 'name' | 'is_active'> & { description?: string | null; is_covered?: boolean; activities?: readonly Activity[] })[]

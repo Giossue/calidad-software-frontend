@@ -197,6 +197,18 @@ export interface RosterImport {
   readonly students: readonly RosterImportStudent[]
 }
 
+/** Una sesión de la tutoría vista por el coordinador. */
+export interface SupervisionSession {
+  readonly id: number
+  readonly number: number
+  readonly date: string
+  readonly topics_covered: boolean
+  readonly topics: readonly { readonly id: number; readonly name: string }[]
+  readonly present_count: number
+  readonly absent_count: number
+  readonly attendance: readonly { readonly id: number; readonly student_id: number; readonly student_name: string; readonly student_identification: string; readonly present: boolean }[]
+}
+
 /** Versión de la malla curricular de una carrera. */
 export interface Curriculum {
   readonly id: number
@@ -276,6 +288,8 @@ export const tutoringApi = {
   updateSchedule: (id: number, scheduleId: number, input: ScheduleInput) => mutate<TutoringSchedule>(`tutorings/${id}/schedules/${scheduleId}`, 'PATCH', input),
   deactivateSchedule: (id: number, scheduleId: number) => mutate<TutoringSchedule>(`tutorings/${id}/schedules/${scheduleId}/deactivate`, 'PATCH'),
   attendance: (id: number, page: number) => list<Attendance>(`tutorings/${id}/attendance`, { page }),
+  /** Sesiones de la tutoría, de la más reciente a la primera, cada una con su lista. */
+  sessions: (id: number, page: number) => list<SupervisionSession>(`tutorings/${id}/sessions`, { page }),
   reports: (id: number, page: number) => request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/tutorings/${id}/reports${buildQuery({ page })}`),
   allReports: (params?: { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; tutoring_id?: number }) =>
     request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/reports${buildQuery(params ?? {})}`),

@@ -63,6 +63,8 @@ export interface StudentGrades {
 
 export interface StudentAttendanceRecord {
   readonly id: number
+  /** Número de la sesión en la tutoría (la primera es la 1). */
+  readonly session_number?: number | null
   readonly date: string | null
   readonly present: boolean
   readonly status: 'presente' | 'ausente'

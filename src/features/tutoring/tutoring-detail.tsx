@@ -1,4 +1,4 @@
-import { type ComponentType } from 'react'
+import { useState, type ComponentType } from 'react'
 import {
   ArrowLeftIcon,
   BookOpenIcon,
@@ -19,7 +19,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { getInitials } from '@/lib/format'
-import { tutoringApi, type Tutoring } from '@/lib/tutoring-api'
+import { tutoringApi, type SupervisionSession, type Tutoring } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { RecordTable } from './tutoring-shared'
 import { CoordinatorStudentsPanel } from './coordinator-students-panel'
@@ -112,10 +112,12 @@ export function TutoringDetail({
 }
 
 function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
-  const attendance = usePaginatedCatalog(
-    (page) => tutoringApi.attendance(tutoring.id, page),
+  const sessions = usePaginatedCatalog(
+    (page) => tutoringApi.sessions(tutoring.id, page),
     String(tutoring.id),
   )
+  const [openSessionId, setOpenSessionId] = useState<number | null>(null)
+  const open = sessions.data.find((session) => session.id === openSessionId) ?? null
 
   return (
     <Card>
@@ -124,35 +126,73 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
           <UsersIcon className="size-5" />
           Supervisión de asistencias
         </CardTitle>
-        <CardDescription>Consulta las asistencias registradas por los docentes.</CardDescription>
+        <CardDescription>Cada vez que se imparte la tutoría es una sesión. Abre una para ver su lista.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <ErrorNotice message={attendance.error} retry={attendance.reload} />
-        <RecordTable
-          numberFrom={attendance.meta?.from}
-          rows={attendance.data}
-          loading={attendance.isFetching || attendance.isInitialLoading}
-          empty={
-            <Empty className="border-none p-0">
-              <EmptyMedia variant="icon"><CalendarClockIcon /></EmptyMedia>
-              <EmptyTitle>Aún no hay asistencias registradas</EmptyTitle>
-              <EmptyDescription>Las asistencias aparecerán aquí cuando los docentes las registren.</EmptyDescription>
-            </Empty>
-          }
-          columns={[
-            { label: 'Estudiante', render: (record) => record.student_name },
-            { label: 'Fecha', render: (record) => formatDate(record.date) },
-            { label: 'Asistencia', render: (record) => <StatusBadge active={record.present} activeLabel="Presente" inactiveLabel="Ausente" /> },
-          ]}
-        />
-        <CatalogPagination
-          label="asistencias"
-          page={attendance.page}
-          lastPage={attendance.meta?.last_page ?? 1}
-          disabled={attendance.isFetching}
-          onChange={attendance.setPage}
-        />
+        <ErrorNotice message={sessions.error} retry={sessions.reload} />
+        {open ? (
+          <SessionDetail session={open} onClose={() => setOpenSessionId(null)} />
+        ) : (
+          <>
+            <RecordTable
+              rows={sessions.data}
+              loading={sessions.isFetching || sessions.isInitialLoading}
+              onRowClick={(session) => setOpenSessionId(session.id)}
+              rowTitle={(session) => `Abrir la sesión ${session.number} del ${formatDate(session.date)}`}
+              empty={
+                <Empty className="border-none p-0">
+                  <EmptyMedia variant="icon"><CalendarClockIcon /></EmptyMedia>
+                  <EmptyTitle>Aún no hay sesiones registradas</EmptyTitle>
+                  <EmptyDescription>Cada sesión aparecerá aquí cuando el docente tome la asistencia.</EmptyDescription>
+                </Empty>
+              }
+              columns={[
+                { label: 'Sesión', render: (session) => <span className="font-medium">Sesión {session.number}</span> },
+                { label: 'Fecha', render: (session) => formatDate(session.date) },
+                { label: 'Temas tratados', render: (session) => <span className="text-muted-foreground">{session.topics.length > 0 ? session.topics.map((topic) => topic.name).join(', ') : session.topics_covered ? 'Sin temas registrados' : 'Sin temas vistos'}</span> },
+                { label: 'Asistencia', render: (session) => `${session.present_count} de ${session.present_count + session.absent_count} presentes` },
+              ]}
+            />
+            <CatalogPagination
+              label="sesiones"
+              page={sessions.page}
+              lastPage={sessions.meta?.last_page ?? 1}
+              disabled={sessions.isFetching}
+              onChange={sessions.setPage}
+            />
+          </>
+        )}
       </CardContent>
     </Card>
+  )
+}
+
+function SessionDetail({ session, onClose }: Readonly<{ session: SupervisionSession; onClose: () => void }>) {
+  return (
+    <section aria-label={`Sesión ${session.number}`} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" variant="tertiary" size="sm" onClick={onClose}>
+          <ArrowLeftIcon data-icon="inline-start" />Volver a las sesiones
+        </Button>
+        <div className="flex flex-col">
+          <h3 className="font-display text-lg font-semibold">Sesión {session.number} · {formatDate(session.date)}</h3>
+          <p className="text-sm text-muted-foreground">
+            {session.present_count} presentes · {session.absent_count} ausentes
+            {session.topics.length > 0 ? ` · ${session.topics.map((topic) => topic.name).join(', ')}` : ''}
+          </p>
+        </div>
+      </div>
+      <RecordTable
+        numberFrom={1}
+        rows={session.attendance}
+        loading={false}
+        empty="Esta sesión no tiene estudiantes registrados."
+        columns={[
+          { label: 'Estudiante', render: (record) => record.student_name },
+          { label: 'Cédula', render: (record) => <span className="text-muted-foreground">{record.student_identification || '—'}</span> },
+          { label: 'Asistencia', render: (record) => <StatusBadge active={record.present} activeLabel="Presente" inactiveLabel="Ausente" /> },
+        ]}
+      />
+    </section>
   )
 }

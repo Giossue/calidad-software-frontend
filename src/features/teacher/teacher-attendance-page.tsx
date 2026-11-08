@@ -328,7 +328,7 @@ function SessionsList({
         rows={list.data}
         loading={list.isInitialLoading || list.isFetching}
         onRowClick={(session) => onOpenConsult(session)}
-        rowTitle={(session) => `Abrir la sesión del ${formatDate(session.date)}`}
+        rowTitle={(session) => `Abrir la ${session.number ? `sesión ${session.number}` : 'sesión'} del ${formatDate(session.date)}`}
         empty={
           <TeacherEmpty
             title="Aún no hay sesiones registradas"
@@ -336,6 +336,7 @@ function SessionsList({
           />
         }
         columns={[
+          { label: 'Sesión', render: (session) => <span className="font-medium">{session.number ? `Sesión ${session.number}` : 'Sesión'}</span> },
           {
             label: 'Día',
             render: (session) => {
@@ -492,7 +493,7 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <h3 className="font-display text-xl font-semibold leading-tight">
-                Sesión del {formatDate(session.date)}
+                {session.number ? `Sesión ${session.number} · ` : 'Sesión del '}{formatDate(session.date)}
               </h3>
               {dayLabel && (
                 <Badge variant="outline">

@@ -33,7 +33,8 @@ function AttendanceView({ item }: Readonly<{ item: StudentAttendance }>) {
           loading={false}
           empty="No hay sesiones para este filtro."
           columns={[
-            { label: 'Fecha', render: (record) => <span className="font-medium text-foreground">{record.date ? formatDate(record.date) : 'Sin fecha'}</span> },
+            { label: 'Sesión', render: (record) => <span className="font-medium text-foreground">{record.session_number ? `Sesión ${record.session_number}` : 'Sesión'}</span> },
+            { label: 'Fecha', render: (record) => <span className="text-foreground">{record.date ? formatDate(record.date) : 'Sin fecha'}</span> },
             { label: 'Temas tratados', render: (record) => <span className="text-muted-foreground">{record.topics.length ? record.topics.map((topic) => topic.name).join(', ') : record.topics_covered === false ? 'Sin temas vistos' : 'Sin temas registrados'}</span> },
             { label: 'Asistencia', render: (record) => <Badge variant={record.present ? 'success' : 'danger'}>{record.present ? 'Presente' : 'Ausente'}</Badge> },
           ]}
