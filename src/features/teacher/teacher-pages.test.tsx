@@ -550,6 +550,38 @@ describe('Módulo Docente', () => {
     expect(screen.getByRole('button', { name: 'Guardar asistencia' })).toBeDisabled()
   })
 
+  it('muestra el contenido por sesión: cada sesión con sus temas y la sesión de cada tema', async () => {
+    const user = userEvent.setup()
+    const other = { ...topic, id: 91, name: 'Integración' }
+    const loose = { ...topic, id: 92, name: 'Despliegue' }
+    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([topic, other, loose]))
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([
+      { id: 2, tutoring_id: 40, number: 2, date: '2026-09-28', topics_covered: true, topics: [{ id: 91, name: 'Integración', is_active: true }], attendance: [] },
+      { id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: false, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [] },
+    ])
+    workspace('content')
+
+    const sessions = await screen.findByRole('group', { name: 'Sesiones' })
+    const chips = within(sessions).getAllByRole('button').map((button) => button.textContent)
+    expect(chips[1]).toMatch(/^Sesión 1 · .*1 tema$/)
+    expect(chips[2]).toMatch(/^Sesión 2 · /)
+    expect(screen.getByRole('columnheader', { name: 'Sesión' })).toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Despliegue/ })).getByText('Sin sesión')).toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Integración/ })).getByText('Sesión 2')).toBeInTheDocument()
+
+    await user.click(within(sessions).getByRole('button', { name: /^Sesión 2/ }))
+    expect(screen.getByText(/Contenido de la/)).toHaveTextContent('Contenido de la Sesión 2')
+    expect(screen.getByRole('row', { name: /Integración/ })).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Pruebas/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Despliegue/ })).not.toBeInTheDocument()
+  })
+
+  it('sin sesiones avisa que se habilitan al tomar asistencia', async () => {
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([])
+    workspace('content')
+    expect(await screen.findByText(/Las sesiones se habilitan al tomar asistencia/)).toBeInTheDocument()
+  })
+
   it('registra un tema nuevo en contenido solicitando solo el nombre, sin campo de descripción', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.createTopic).mockResolvedValue({ ...topic, id: 95, name: 'Introducción' })

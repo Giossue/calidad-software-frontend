@@ -69,7 +69,11 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.topics(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
   const sessionsRes = useDegreeResource(() => teacherApi.allSessions(tutoring.id), `teacher-sessions-${tutoring.id}`)
-  const sessions = sessionsRes.data ?? []
+  // Cada vez que se toma asistencia nace una sesión; se listan de la primera a la última.
+  const sessions = [...(sessionsRes.data ?? [])].sort((a, b) => a.date.localeCompare(b.date))
+  const sessionLabel = (session: TutoringSession) => `Sesión ${session.number ?? sessions.indexOf(session) + 1}`
+  /** Sesiones en que se trató cada tema. */
+  const topicSessions = (topicItem: TutoringTopic) => sessions.filter((session) => session.topics.some((item) => item.id === topicItem.id))
   const [selectedSessionDate, setSelectedSessionDate] = useState<string>('all')
   const [assigningSession, setAssigningSession] = useState<TutoringSession | null>(null)
   const [selectedTopicIds, setSelectedTopicIds] = useState<number[]>([])
@@ -117,7 +121,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     if (!assigningSession) return
     void operation.run(
       () => teacherApi.updateSessionTopics(tutoring.id, assigningSession.id, selectedTopicIds),
-      'Temas de la clase guardados.',
+      'Temas de la sesión guardados.',
       async () => {
         setAssigningSession(null)
         await Promise.all([sessionsRes.reload(), list.reload()])
@@ -284,12 +288,19 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       </div>
     )}
 
+    {!topic && !activity && !sessionsRes.loading && sessions.length === 0 && (
+      <p className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
+        <CalendarDaysIcon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+        Las sesiones se habilitan al tomar asistencia. Luego podrás ver aquí el contenido de cada una.
+      </p>
+    )}
+
     {!topic && !activity && sessions.length > 0 && (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2.5" role="group" aria-label="Sesiones">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarDaysIcon className="size-3.5 text-primary" />
-            <span>Fecha de clase:</span>
+            <span>Sesión:</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <Button
@@ -300,7 +311,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               onClick={() => setSelectedSessionDate('all')}
             >
               {selectedSessionDate === 'all' && <CheckIcon data-icon="inline-start" />}
-              Todas las clases
+              Todas
             </Button>
             {sessions.map((s) => {
               const isSelected = selectedSessionDate === s.date
@@ -314,7 +325,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                   onClick={() => setSelectedSessionDate(s.date)}
                 >
                   {isSelected && <CheckIcon data-icon="inline-start" />}
-                  <span>{formatDate(s.date)}</span>
+                  <span>{sessionLabel(s)} · {formatDate(s.date)}</span>
                   <span
                     className={cn(
                       'text-[10px] px-1.5 py-0.2 rounded-full font-medium',
@@ -323,7 +334,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                         : 'bg-muted text-muted-foreground'
                     )}
                   >
-                    {(s.topics.length > 0 ? s.topics.length : (list.data.filter((t) => t.is_covered).length || list.data.length))} {(s.topics.length > 0 ? s.topics.length : (list.data.filter((t) => t.is_covered).length || list.data.length)) === 1 ? 'tema' : 'temas'}
+                    {s.topics.length === 0 ? 'sin temas' : `${s.topics.length} ${s.topics.length === 1 ? 'tema' : 'temas'}`}
                   </span>
                 </Button>
               )
@@ -337,7 +348,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             onClick={() => openAssignModal(activeSession)}
           >
             <CheckCircle2Icon data-icon="inline-start" />
-            <span>Asignar temas a esta clase</span>
+            <span>Asignar temas a esta sesión</span>
           </Button>
         )}
       </div>
@@ -347,7 +358,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3.5 py-2 text-xs">
         <div className="flex items-center gap-2">
           <CalendarDaysIcon className="size-4 text-primary shrink-0" />
-          <span>Mostrando temas tratados en la clase del <strong>{formatDate(activeSession.date)}</strong></span>
+          <span>Contenido de la <strong>{sessionLabel(activeSession)}</strong> · {formatDate(activeSession.date)}</span>
         </div>
         <Button
           type="button"
@@ -355,7 +366,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           size="sm"
           onClick={() => setSelectedSessionDate('all')}
         >
-          Ver todas las clases
+          Ver todas las sesiones
         </Button>
       </div>
     )}
@@ -398,9 +409,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           rows={
             selectedSessionDate === 'all'
               ? list.data
-              : (activeSession && activeSession.topics.length > 0
-                  ? list.data.filter((item) => activeSession.topics.some((st) => st.id === item.id))
-                  : (list.data.filter((item) => item.is_covered).length > 0 ? list.data.filter((item) => item.is_covered) : list.data))
+              : list.data.filter((item) => activeSession?.topics.some((st) => st.id === item.id))
           }
           loading={list.isFetching || list.isInitialLoading}
           onRowClick={(item) => editRecord(item, 'topic')}
@@ -408,12 +417,12 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           empty={
             selectedSessionDate !== 'all' && activeSession ? (
               <div className="py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
-                <p className="text-foreground">No hay temas asociados a la clase del {formatDate(activeSession.date)}.</p>
-                <p className="max-w-md">Puedes asociar los temas o actividades abordados en esta fecha pulsando el botón a continuación.</p>
+                <p className="text-foreground">La {sessionLabel(activeSession)} ({formatDate(activeSession.date)}) aún no tiene temas.</p>
+                <p className="max-w-md">Asocia los temas que trataste en esta sesión.</p>
                 {canManage && (
                   <Button size="sm" onClick={() => openAssignModal(activeSession)}>
                     <PlusIcon data-icon="inline-start" />
-                    Asignar temas a esta clase
+                    Asignar temas a esta sesión
                   </Button>
                 )}
               </div>
@@ -426,6 +435,15 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           }
           columns={[
             { label: 'Tema', render: (item) => <span className="font-medium">{item.name}</span> },
+            ...(selectedSessionDate === 'all' && sessions.length > 0 ? [{
+              label: 'Sesión',
+              render: (item: TutoringTopic) => {
+                const found = topicSessions(item)
+                return found.length > 0
+                  ? <span className="whitespace-nowrap text-sm">{found.map(sessionLabel).join(', ')}</span>
+                  : <span className="text-sm text-muted-foreground">Sin sesión</span>
+              },
+            }] : []),
             {
               label: 'Recursos',
               render: (item) => (item.files?.length ?? 0) > 0
@@ -587,14 +605,14 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     </FormDialog>
     <FormDialog
       open={Boolean(assigningSession)}
-      title={`Asignar temas a la clase del ${assigningSession ? formatDate(assigningSession.date) : ''}`}
+      title={assigningSession ? `Asignar temas a la ${sessionLabel(assigningSession)} · ${formatDate(assigningSession.date)}` : 'Asignar temas'}
       description="Selecciona los temas que fueron abordados en esta sesión de tutoría. Los temas seleccionados se marcarán automáticamente como completados."
       pending={operation.pending}
       error={operation.error}
       dirty={assignDirty}
       onClose={() => setAssigningSession(null)}
       onSubmit={saveAssignedTopics}
-      submitLabel="Guardar temas de la clase"
+      submitLabel="Guardar temas de la sesión"
     >
       <div className="flex flex-col gap-2.5 py-2 max-h-80 overflow-y-auto pr-1">
         {list.data.length === 0 ? (
