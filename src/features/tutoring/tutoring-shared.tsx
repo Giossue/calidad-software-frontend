@@ -40,18 +40,23 @@ function LoadingRows({ columns }: Readonly<{ columns: number }>) {
 }
 
 /**
+ * Una columna puede agrupar filas con `span` (p. ej. un docente con varias asignaturas).
  * `numberFrom` agrega al inicio la columna «#» con la numeración de las filas, empezando
  * en ese número (en listas paginadas, el `from` de la página) para que siga entre páginas.
  */
-export function RecordTable<T extends { readonly id: number | string }>({ rows, columns: baseColumns, loading, empty, onRowClick, rowTitle, isRowSelected, numberFrom }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string; isRowSelected?: (row: T) => boolean; numberFrom?: number | null }>) {
+export function RecordTable<T extends { readonly id: number | string }>({ rows, columns: baseColumns, loading, empty, onRowClick, rowTitle, isRowSelected, numberFrom }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode; span?: (row: T) => number }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string; isRowSelected?: (row: T) => boolean; numberFrom?: number | null }>) {
   const numbered = numberFrom !== undefined
-  const columns = !numbered ? baseColumns : [
+  const columns: readonly { label: string; render: (row: T) => ReactNode; span?: (row: T) => number }[] = !numbered ? baseColumns : [
     { label: '#', render: (row: T) => <span className="text-sm tabular-nums text-muted-foreground">{(numberFrom ?? 1) + rows.indexOf(row)}</span> },
     ...baseColumns,
   ]
   return <Card className="overflow-hidden shadow-none max-md:overflow-visible max-md:border-0 max-md:bg-transparent" aria-busy={loading} data-tour="page-table">
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody {...(numbered ? { 'data-numbered': '', style: { counterReset: `row-number ${(numberFrom ?? 1) - 1}` } } : {})}>
-      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => <TableCell key={column.label} className="whitespace-normal" data-row-number={numbered && index === 0 ? '' : undefined}>{column.render(row)}</TableCell>)}</TableRow>)}
+      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {
+        // `span` agrupa filas: 0 omite la celda (la cubre la de arriba) y n > 1 la extiende n filas.
+        const span = column.span?.(row) ?? 1
+        return span === 0 ? null : <TableCell key={column.label} rowSpan={span > 1 ? span : undefined} className={cn('whitespace-normal', span > 1 && 'align-top')} data-row-number={numbered && index === 0 ? '' : undefined}>{column.render(row)}</TableCell>
+      })}</TableRow>)}
     </TableBody></Table>
   </Card>
 }

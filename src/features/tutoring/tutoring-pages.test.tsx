@@ -406,16 +406,20 @@ describe('Coordinación de tutorías', () => {
 
   it('muestra en Docentes las asignaturas que dicta cada docente en lugar de sus carreras', async () => {
     const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [career.id], can_manage: true,
-      tutorings: [{ id: 40, subject_name: 'PROGRAMACION WEB I', cycle_name: 'Tercero', cycle_number: 3, section_name: 'A' }] }
+      tutorings: [{ id: 40, subject_name: 'ALGEBRA LINEAL', cycle_name: 'Primero', cycle_number: 1, section_name: 'A' }, { id: 41, subject_name: 'PROGRAMACION WEB I', cycle_name: 'Tercero', cycle_number: 3, section_name: 'Paralelo B' }] }
     const idle = { ...teacher, id: 2, name: 'Luis Mora', tutorings: [] }
     vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher, idle]))
     render(<TutoringTeachersPage />)
     await screen.findByText('Ana Torres')
-    expect(screen.getByRole('columnheader', { name: 'Asignaturas' })).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado', 'Acciones'])
     expect(screen.queryByRole('columnheader', { name: 'Carreras' })).not.toBeInTheDocument()
-    const subjects = screen.getByRole('table', { name: 'Asignaturas de Ana Torres' })
-    expect(within(subjects).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Asignatura', 'Ciclo', 'Paralelo'])
-    expect(within(subjects).getAllByRole('row')[1].textContent).toBe('PROGRAMACION WEB I3° cicloA')
+    // Una fila por asignatura; el docente abarca sus dos filas.
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(3)
+    expect(within(rows[0]).getByRole('cell', { name: /Ana Torres/ })).toHaveAttribute('rowspan', '2')
+    expect(within(rows[0]).getAllByRole('cell').slice(2, 5).map((cell) => cell.textContent)).toEqual(['ALGEBRA LINEAL', '1', 'A'])
+    expect(within(rows[1]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['PROGRAMACION WEB I', '3', 'B'])
+    expect(within(rows[2]).getAllByRole('cell').slice(2, 5).map((cell) => cell.textContent)).toEqual(['Sin tutorías', '—', '—'])
     expect(screen.getByText('Sin tutorías')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ver carreras de/ })).not.toBeInTheDocument()
   })

@@ -122,6 +122,17 @@ export function TutoringTeachersPage() {
   if (!form.phone.trim()) teacherErrors.phone = 'El teléfono es obligatorio.'
   else if (!/^\d{10}$/.test(form.phone.trim())) teacherErrors.phone = 'El teléfono debe tener 10 dígitos numéricos.'
 
+  // Una fila por asignatura; los datos del docente abarcan todas sus filas.
+  const teacherRows = list.data.flatMap((teacher) => {
+    const tutorings = teacher.tutorings ?? []
+    return (tutorings.length > 0 ? tutorings : [null]).map((tutoring, index, all) => ({
+      id: `${teacher.id}-${tutoring?.id ?? 'none'}`,
+      teacher,
+      tutoring,
+      span: index === 0 ? all.length : 0,
+    }))
+  })
+
   return <section className="flex flex-col gap-6">
     <ModuleHeader title="Docentes" createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="secondary" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <ScopeNotice catalogs={catalogs} />
@@ -139,38 +150,15 @@ export function TutoringTeachersPage() {
       ]}
     />
     <ErrorNotice message={list.error} retry={list.reload} />
-    <RecordTable rows={list.data} loading={list.isFetching || list.isInitialLoading} empty="No se encontraron docentes para esta búsqueda." onRowClick={(teacher) => { if (teacher.can_manage && teacher.is_active && !operation.pending) edit(teacher) }} rowTitle={(teacher) => teacher.can_manage && teacher.is_active ? `Editar ${teacher.name}` : ''} columns={[
-      { label: 'Docente', render: (teacher) => <div className="flex flex-col gap-1"><span className="font-medium">{teacher.name}</span><span className="text-xs text-muted-foreground">{teacher.identification}</span></div> },
-      { label: 'Contacto', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono'}</span></div> },
+    <RecordTable rows={teacherRows} loading={list.isFetching || list.isInitialLoading} empty="No se encontraron docentes para esta búsqueda." onRowClick={({ teacher }) => { if (teacher.can_manage && teacher.is_active && !operation.pending) edit(teacher) }} rowTitle={({ teacher }) => teacher.can_manage && teacher.is_active ? `Editar ${teacher.name}` : ''} columns={[
+      { label: 'Docente', span: ({ span }) => span, render: ({ teacher }) => <div className="flex flex-col gap-1"><span className="font-medium">{teacher.name}</span><span className="text-xs text-muted-foreground">{teacher.identification}</span></div> },
+      { label: 'Contacto', span: ({ span }) => span, render: ({ teacher }) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono'}</span></div> },
+      { label: 'Asignatura', render: ({ tutoring }) => tutoring ? <span className="leading-snug">{formatSubjectName(tutoring.subject_name)}</span> : <span className="text-sm text-muted-foreground">Sin tutorías</span> },
+      { label: 'Ciclo', render: ({ tutoring }) => <span className="whitespace-nowrap text-muted-foreground">{tutoring?.cycle_number ?? '—'}</span> },
+      { label: 'Paralelo', render: ({ tutoring }) => <span className="text-muted-foreground">{tutoring?.section_name ? tutoring.section_name.replace(/^Paralelo\s+/i, '') : '—'}</span> },
+      { label: 'Estado', span: ({ span }) => span, render: ({ teacher }) => <StatusBadge active={teacher.is_active} /> },
       {
-        label: 'Asignaturas', render: (teacher) => {
-          const tutorings = teacher.tutorings ?? []
-          if (tutorings.length === 0) return <span className="text-sm text-muted-foreground">Sin tutorías</span>
-          return (
-            <table className="w-full min-w-72 text-sm" aria-label={`Asignaturas de ${teacher.name}`}>
-              <thead>
-                <tr className="text-left text-xs text-muted-foreground">
-                  <th scope="col" className="pb-1 pr-3 font-medium">Asignatura</th>
-                  <th scope="col" className="whitespace-nowrap pb-1 pr-3 font-medium">Ciclo</th>
-                  <th scope="col" className="whitespace-nowrap pb-1 font-medium">Paralelo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {tutorings.map((tutoring) => (
-                  <tr key={tutoring.id} className="align-top">
-                    <td className="py-1.5 pr-3 leading-snug">{formatSubjectName(tutoring.subject_name)}</td>
-                    <td className="whitespace-nowrap py-1.5 pr-3 tabular-nums text-muted-foreground">{tutoring.cycle_number ? `${tutoring.cycle_number}° ciclo` : '—'}</td>
-                    <td className="whitespace-nowrap py-1.5 text-muted-foreground">{tutoring.section_name ? tutoring.section_name.replace(/^Paralelo\s+/i, '') : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
-        },
-      },
-      { label: 'Estado', render: (teacher) => <StatusBadge active={teacher.is_active} /> },
-      {
-        label: 'Acciones', render: (teacher) => {
+        label: 'Acciones', span: ({ span }) => span, render: ({ teacher }) => {
           if (!teacher.can_manage) return <span className="text-xs text-muted-foreground">Consulta · cambios a cargo de administración</span>
           if (!teacher.is_active) return <span className="text-muted-foreground">—</span>
           const coordinatedCareers = catalogs.careers.filter((c) => teacher.career_ids.includes(c.id))
