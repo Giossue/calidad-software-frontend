@@ -1,15 +1,20 @@
 import { useState } from 'react'
-import { ArrowDownIcon, ArrowUpIcon, FlagIcon, XIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, FlagIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
+import { SelectField } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
+import { ApiError } from '@/lib/api'
 import { formatSubjectName } from '@/lib/sanitize'
-import { tutoringApi, type Subject } from '@/lib/tutoring-api'
+import { tutoringApi, type Curriculum, type Subject } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
+import { CurriculumUploadButton } from './curriculum-upload-dialog'
 import { ModuleHeader } from './tutoring-shared'
 import { useTutoringCatalogs } from './tutoring-hooks'
 
@@ -27,13 +32,13 @@ export function TutoringCurriculumPage() {
   return <CareerPicker catalogs={catalogs} title="Malla curricular" rowTitle={(career) => `Ver malla de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
-/** Todas las asignaturas activas de la carrera (la malla completa cabe en pocas páginas). */
-async function loadCareerSubjects(careerId: number): Promise<Subject[]> {
+/** Todas las asignaturas activas de una malla de la carrera (la malla completa cabe en pocas páginas). */
+async function loadCareerSubjects(careerId: number, curriculumId: number): Promise<Subject[]> {
   const subjects: Subject[] = []
   let page = 1
   let lastPage = 1
   do {
-    const response = await tutoringApi.subjects({ career_id: careerId, status: 'active', page, per_page: 100 })
+    const response = await tutoringApi.subjects({ career_id: careerId, curriculum_id: curriculumId, status: 'active', page, per_page: 100 })
     subjects.push(...response.data)
     lastPage = response.meta?.last_page ?? 1
     page += 1
@@ -41,9 +46,38 @@ async function loadCareerSubjects(careerId: number): Promise<Subject[]> {
   return subjects
 }
 
+/** A quién se aplica la malla. */
+function curriculumScope(curriculum: Curriculum): string {
+  if (curriculum.is_initial) return 'Malla con la que se registró la carrera.'
+  return `Rige desde ${curriculum.from_period_name ?? 'su PAO'} para quienes estaban de 1.º a ${curriculum.up_to_cycle ?? '?'}.º ciclo al subirla y para quienes ingresen después. Los de ciclos superiores siguen con ${curriculum.previous_name ?? 'la malla anterior'}.`
+}
+
 function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ catalogs: Catalogs; careerId: number; careerName: string; onBack?: () => void }>) {
-  const resource = useDegreeResource(() => loadCareerSubjects(careerId), `curriculum-${careerId}`)
+  const curricula = useDegreeResource(() => tutoringApi.curricula(careerId), `curricula-${careerId}`)
+  const [chosenCurriculumId, setChosenCurriculumId] = useState<number | null>(null)
+  const versions = curricula.data?.data ?? []
+  const curriculum = versions.find((item) => item.id === chosenCurriculumId) ?? versions.find((item) => item.in_force) ?? versions[0] ?? null
+  const curriculumId = curriculum?.id ?? null
+  const resource = useDegreeResource(() => (curriculumId ? loadCareerSubjects(careerId, curriculumId) : Promise.resolve(null)), `curriculum-${careerId}-${curriculumId ?? 'none'}`)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deletePending, setDeletePending] = useState(false)
+
+  async function deleteCurriculum() {
+    if (!curriculum) return
+    setDeletePending(true)
+    try {
+      await tutoringApi.deleteCurriculum(curriculum.id)
+      toast.success(`Malla «${curriculum.name}» eliminada.`)
+      setDeleting(false)
+      setChosenCurriculumId(null)
+      curricula.reload()
+    } catch (caught: unknown) {
+      toast.error(caught instanceof ApiError ? caught.firstValidationMessage ?? caught.message : 'No fue posible eliminar la malla.')
+    } finally {
+      setDeletePending(false)
+    }
+  }
 
   const careerCycles = catalogs.cycles.filter((cycle) => cycle.career_id === careerId)
   const maxCycle = maxCycleNumber(careerCycles)
@@ -70,10 +104,56 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
       <ModuleHeader
         title={careerName}
         description="Asignaturas por ciclo y su secuencia. Elige una para ver de cuál viene y en cuál continúa. La secuencia se edita en Asignaturas."
+        extraActions={(
+          <CurriculumUploadButton
+            careerId={careerId}
+            careerName={careerName}
+            info={curricula.data}
+            maxCycle={maxCycle ?? 1}
+            onCreated={(id) => {
+              setChosenCurriculumId(id)
+              setSelectedId(null)
+              curricula.reload()
+            }}
+          />
+        )}
       />
-      <ErrorNotice message={resource.error} retry={resource.reload} />
+      <ErrorNotice message={curricula.error ?? resource.error} retry={curricula.error ? curricula.reload : resource.reload} />
 
-      {resource.loading ? (
+      {curriculum && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between" data-tour="curriculum-version">
+          {versions.length > 1 ? (
+            <SelectField
+              id="curriculum-version"
+              label="Malla"
+              className="sm:max-w-sm"
+              value={String(curriculum.id)}
+              onValueChange={(value) => {
+                setChosenCurriculumId(Number(value))
+                setSelectedId(null)
+              }}
+              options={versions.map((item) => ({ value: String(item.id), label: `${item.name}${item.in_force ? ' · vigente' : item.is_initial ? '' : ` · desde ${item.from_period_name ?? ''}`}` }))}
+            />
+          ) : <span className="text-sm font-medium">{curriculum.name}</span>}
+          {!curriculum.is_initial && (
+            <Button type="button" variant="tertiary" tone="destructive" size="sm" className="self-start sm:self-end" onClick={() => setDeleting(true)}>
+              <Trash2Icon data-icon="inline-start" />Eliminar esta malla
+            </Button>
+          )}
+        </div>
+      )}
+      {curriculum && versions.length > 1 && <p className="-mt-3 text-sm text-muted-foreground">{curriculumScope(curriculum)}</p>}
+      <ConfirmModal
+        open={deleting}
+        onClose={() => !deletePending && setDeleting(false)}
+        onConfirm={() => void deleteCurriculum()}
+        title="¿Eliminar esta malla?"
+        description={`Se eliminan «${curriculum?.name ?? ''}», sus asignaturas y secuencias. Solo es posible mientras ninguna tutoría use sus asignaturas.`}
+        confirmLabel="Eliminar malla"
+        pending={deletePending}
+      />
+
+      {curricula.loading || resource.loading ? (
         <div role="status" aria-label="Cargando malla curricular" className="flex flex-col gap-3">
           {[1, 2, 3].map((index) => <Skeleton key={index} className="h-28 w-full" />)}
         </div>

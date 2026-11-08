@@ -553,7 +553,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       {editing && (
         <NextSubjectsField
           subject={editing}
-          options={careerSubjects}
+          options={careerSubjects?.filter((subject) => subject.curriculum_id === editing.curriculum_id) ?? null}
           cycleNumber={(id) => catalogs.cycles.find((cycle) => cycle.id === id)?.number}
           value={form.next_subject_ids}
           onChange={(ids) => setForm({ ...form, next_subject_ids: ids })}

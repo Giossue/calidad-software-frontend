@@ -113,6 +113,8 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   'tutoring-curriculum/curriculum': [
     careerBack,
     step(HEADER, 'Malla curricular', 'Las asignaturas de la carrera ordenadas por ciclo, como en la malla oficial.'),
+    step('[data-tour="curriculum-upload"]', 'Subir nueva malla curricular', 'Sube la malla nueva en Excel, CSV o PDF, elige desde qué PAO rige y hasta qué ciclo se aplica. Los estudiantes de ciclos superiores terminan con la malla anterior.'),
+    step('[data-tour="curriculum-version"]', 'Versiones de la malla', 'Si la carrera tiene varias mallas, elige cuál ver. Debajo se indica desde qué PAO rige y a quiénes se aplica.'),
     step('[data-tour="curriculum-detail"]', 'Secuencia de la asignatura', 'Al elegir una asignatura, aquí ves de cuál viene y en cuál continúa. En la malla se resaltan en ámbar las previas y en verde las que continúan.'),
     step('section[aria-label$="ciclo"] button', 'Asignaturas', 'Cada tarjeta indica en qué asignatura continúa, o «Fin de secuencia» si ahí termina. La secuencia se edita en Asignaturas.'),
   ],
