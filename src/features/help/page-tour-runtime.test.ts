@@ -55,7 +55,7 @@ describe('buildPageTourSteps', () => {
   })
 
   it('todas las pantallas del menú tienen guía', () => {
-    for (const key of ['users', 'periods', 'faculties', 'careers', 'tutoring-subjects', 'tutoring-teachers', 'tutoring-students', 'tutorings', 'tutoring-reports',
+    for (const key of ['users', 'periods', 'faculties', 'careers', 'tutoring-subjects', 'tutoring-curriculum/curriculum', 'tutoring-teachers', 'tutoring-students', 'tutorings', 'tutoring-reports',
       'degree-students', 'degree-topics', 'degree-tracking', 'degree-reports', 'teacher-tutorings', 'teacher-reports', 'teacher-degree-assignments',
       'teacher-degree-tracking', 'student-tutorings', 'student-degree-topics', 'student-degree-tracking', 'student-degree-assignments']) {
       expect(PAGE_TOURS[key]?.length, key).toBeGreaterThan(0)

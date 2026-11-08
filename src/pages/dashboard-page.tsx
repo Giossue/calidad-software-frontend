@@ -8,6 +8,7 @@ import {
   GraduationCapIcon,
   FileTextIcon,
   MonitorDownIcon,
+  NetworkIcon,
   TrendingUpIcon,
   UserCheckIcon,
   UsersIcon,
@@ -58,6 +59,7 @@ import { DegreeReportsPage } from '@/features/degree-coordination/degree-reports
 import { StudentDegreeTopicsPage } from '@/features/student-degree-topics/student-degree-topics-page'
 import { StudentDegreeTrackingPage } from '@/features/student-degree-tracking/student-degree-tracking-page'
 import { TutoringSubjectsPage } from '@/features/tutoring/subjects-page'
+import { TutoringCurriculumPage } from '@/features/tutoring/curriculum-page'
 import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
 import { TutoringsPage } from '@/features/tutoring/tutorings-page'
 import { TutoringStudentsPage } from '@/features/tutoring/students-page'
@@ -88,6 +90,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 
 const TUTORING_NAV_ITEMS: readonly NavItem[] = [
   { id: 'tutoring-subjects', label: 'Asignaturas', icon: BookOpenIcon },
+  { id: 'tutoring-curriculum', label: 'Malla curricular', icon: NetworkIcon },
   { id: 'tutoring-teachers', label: 'Docentes', icon: UsersIcon },
   { id: 'tutoring-students', label: 'Estudiantes', icon: UserCheckIcon },
   { id: 'tutorings', label: 'Tutorías', icon: GraduationCapIcon },
@@ -381,6 +384,8 @@ export function DashboardPage() {
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (
             <TutoringSubjectsPage />
+          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-curriculum' ? (
+            <TutoringCurriculumPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-teachers' ? (
             <TutoringTeachersPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutorings' ? (

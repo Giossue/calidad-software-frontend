@@ -38,7 +38,12 @@ export interface Enrollment {
   readonly second_partial_grade: string | null
   readonly knowledge_group: string | null
   readonly knowledge_group_key: string | null
+  /** Resultado al cerrar el ciclo; el aprobado avanza a la asignatura siguiente de la malla. */
+  readonly final_result?: FinalResult | null
+  /** Sugerencia según el promedio de los dos parciales. */
+  readonly suggested_result?: FinalResult | null
 }
+export type FinalResult = 'approved' | 'failed'
 export type AvailableStudent = Pick<Enrollment, 'identification' | 'name' | 'email'> & { readonly id: number }
 export type NewStudentInput = { identification: string; name: string; email: string; phone: string | null }
 export interface Methodology {
@@ -171,6 +176,7 @@ export const teacherApi = {
   availableStudents: async (id: number, search = '') => (await request<Collection<AvailableStudent>>(`${ROOT}/tutorings/${id}/available-students${buildQuery({ search })}`)).data,
   enrollStudent: (id: number, input: NewStudentInput | { student_id: number }) => mutate<Enrollment>(`tutorings/${id}/students`, 'POST', input),
   updateStudent: (id: number, enrollmentId: number, input: { name: string; phone: string | null }) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
+  setFinalResult: (id: number, enrollmentId: number, result: FinalResult | null) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/final-result`, 'PUT', { result }),
   deactivateStudent: (id: number, enrollmentId: number) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),
   saveGrades: async (id: number, grades: readonly GradeEntry[]) => (await request<Collection<Enrollment>>(`${ROOT}/tutorings/${id}/grades`, { method: 'PUT', body: JSON.stringify({ grades }) })).data,
   registerGrade: (id: number, enrollmentId: number, type: GradeType, value: string) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/grades/${type}`, 'PUT', { value }),

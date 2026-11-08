@@ -3,13 +3,14 @@ import { canCoordinateDegrees, isDegreeSection, type DegreeSection } from '@/fea
 import { isStudentSection, type StudentSection } from '@/features/student/student-navigation'
 import { isTeacherSection, type TeacherSection } from '@/features/teacher/teacher-navigation'
 
-export type TutoringSection = 'tutoring-subjects' | 'tutoring-teachers' | 'tutorings' | 'tutoring-students' | 'tutoring-reports'
+export type TutoringSection = 'tutoring-subjects' | 'tutoring-curriculum' | 'tutoring-teachers' | 'tutorings' | 'tutoring-students' | 'tutoring-reports'
 export function canCoordinateTutorings(role?: string): boolean {
   return role === 'coordinador_carrera'
 }
 export function isTutoringSection(section?: string): section is TutoringSection {
   return (
     section === 'tutoring-subjects' ||
+    section === 'tutoring-curriculum' ||
     section === 'tutoring-teachers' ||
     section === 'tutorings' ||
     section === 'tutoring-students' ||

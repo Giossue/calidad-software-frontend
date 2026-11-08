@@ -92,6 +92,17 @@ describe('Módulo Docente', () => {
     expect(teacherApi.students).toHaveBeenLastCalledWith(40, { page: 1, search: '', status: undefined })
   })
 
+  it('registra el resultado final de un estudiante con la sugerencia según los parciales', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, final_result: null, suggested_result: 'approved' }]))
+    vi.mocked(teacherApi.setFinalResult).mockResolvedValue({ ...student, final_result: 'approved' })
+    workspace('students')
+    await screen.findByText('Ana Pérez')
+    expect(screen.getByText('Sugerido: Aprobó')).toBeInTheDocument()
+    await choose(user, screen.getByLabelText('Resultado final de Ana Pérez'), 'Aprobó')
+    await waitFor(() => expect(teacherApi.setFinalResult).toHaveBeenCalledWith(40, student.id, 'approved'))
+  })
+
   it('cambia de sección dentro de la misma tutoría sin volver a elegirla', async () => {
     const user = userEvent.setup()
     workspace('students')
