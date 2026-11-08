@@ -34,7 +34,7 @@ import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import type { Cycle } from '@/lib/api'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { formatSubjectName, sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import {
   tutoringApi,
   type CoordinatorStudent,
@@ -366,7 +366,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         }
         createLabel="Nuevo estudiante"
         onCreate={openCreateModal}
-        extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. Los importados quedan en «Sin ciclo» hasta que les asignes uno." onFinished={list.reload} />}
+        extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
       />
 
       <Tabs value={activeTab} onValueChange={setCycleTab} className="w-full">
@@ -435,6 +435,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               <div className="flex flex-col gap-0.5">
                 <span className="font-medium text-foreground">{student.name}</span>
                 <span className="text-xs text-muted-foreground">{student.email}</span>
+                {(student.pending_subjects ?? []).length > 0 && (
+                  <span className="text-xs text-amber-700 dark:text-amber-300">
+                    Arrastra: {(student.pending_subjects ?? []).map((subject) => formatSubjectName(subject.name)).join(', ')}
+                  </span>
+                )}
               </div>
             ),
           },

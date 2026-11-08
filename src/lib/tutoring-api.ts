@@ -304,6 +304,8 @@ export interface CoordinatorStudent {
   readonly cycle_name?: string | null
   readonly section_name?: string | null
   readonly academic_stage?: 'tutorias' | 'titulacion' | null
+  /** Asignaturas que arrastra: no se le inscribe en las que las continúan hasta aprobarlas. */
+  readonly pending_subjects?: readonly SubjectReference[]
   readonly tutoring_count: number
   readonly tutorings: readonly CoordinatorStudentTutoring[]
 }

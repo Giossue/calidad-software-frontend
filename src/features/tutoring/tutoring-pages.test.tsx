@@ -916,6 +916,7 @@ describe('Coordinación de tutorías', () => {
         email: 'carlos@ueb.edu.ec',
         phone: '0981112233',
         is_active: true,
+        pending_subjects: [{ id: 6, code: 'TI-B2-006', name: 'PROGRAMACIÓN I' }],
         tutoring_count: 1,
         tutorings: [
           {
@@ -951,6 +952,7 @@ describe('Coordinación de tutorías', () => {
     expect(within(row).getAllByRole('button', { name: 'Gestionar tutorías de Carlos Estudiante' })).toHaveLength(1)
     expect(within(row).getByRole('button', { name: 'Gestionar tutorías de Carlos Estudiante' })).toHaveTextContent('1 tutoría')
     expect(within(row).getByText('Activo').closest('[data-slot="badge"]')).toBeNull()
+    expect(within(row).getByText('Arrastra: PROGRAMACIÓN I')).toBeInTheDocument()
 
     const newBtn = screen.getByRole('button', { name: 'Nuevo estudiante' })
     await user.click(newBtn)
