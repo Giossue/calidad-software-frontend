@@ -167,7 +167,20 @@ async function collectPages<T>(loader: (page: number) => Promise<PaginatedResour
   return rows
 }
 
+/** Tutoría que el docente dicta a la misma hora y de la misma asignatura (clase conjunta). */
+export interface JointTutoring {
+  readonly id: number
+  readonly name: string
+  readonly career_name: string | null
+  readonly cycle_number: number | null
+  readonly section_name: string | null
+  /** Días (sin tildes, en minúsculas) en que coinciden los horarios. */
+  readonly days: readonly string[]
+  readonly can_manage: boolean
+}
+
 export const teacherApi = {
+  jointTutorings: async (id: number) => (await request<Collection<JointTutoring>>(`${ROOT}/tutorings/${id}/joint-tutorings`)).data,
   tutorings: (params?: TeacherListParams) => list<TeacherTutoring>('tutorings', params),
   allTutorings: () => collectPages((page) => list<TeacherTutoring>('tutorings', { page, per_page: 100 })),
   gradeSettings: async () => (await request<Resource<GradeSettings>>(`${ROOT}/grade-settings`)).data,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { findScheduleConflicts } from '@/lib/schedule-conflicts'
+import { findScheduleConflicts, sameSubjectName } from '@/lib/schedule-conflicts'
 
 const busy = [
   { tutoring_id: 1, tutoring_name: 'Cálculo', day: 'lunes', start_time: '10:00', end_time: '12:00' },
@@ -22,5 +22,11 @@ describe('findScheduleConflicts', () => {
 
   it('ignora la tutoría que se está editando', () => {
     expect(findScheduleConflicts(busy, [{ day: 'lunes', start_time: '10:00', end_time: '12:00' }], 1)).toEqual([])
+  })
+
+  it('la misma asignatura a la misma hora es una clase conjunta, no un cruce', () => {
+    expect(sameSubjectName('Cálculo  ', 'CALCULO')).toBe(true)
+    expect(findScheduleConflicts(busy, [{ day: 'lunes', start_time: '11:00', end_time: '13:00' }], undefined, 'CALCULO')).toEqual([])
+    expect(findScheduleConflicts(busy, [{ day: 'lunes', start_time: '11:00', end_time: '13:00' }], undefined, 'Estadística')).toEqual([busy[0]])
   })
 })

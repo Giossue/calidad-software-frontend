@@ -135,12 +135,15 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const createConflicts = findScheduleConflicts(
     createTeachers.find((t) => String(t.id) === createTeacherId)?.busy_schedules ?? [],
     createSchedules,
+    undefined,
+    creatingTutoringSubject?.name,
   )
   const editSchedules = toScheduleItems(editScheduleDays, editDayTimes)
   const editConflicts = findScheduleConflicts(
     editTeachers.find((t) => String(t.id) === editTeacherId)?.busy_schedules ?? [],
     editSchedules,
     editingTutoringItem?.tutoring?.id,
+    editingTutoringItem?.tutoring?.subject_name,
   )
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)

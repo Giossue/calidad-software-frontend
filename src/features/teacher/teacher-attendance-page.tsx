@@ -35,6 +35,8 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { compareNames, formatDate } from '@/lib/format'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { teacherApi, type Enrollment, type TeacherAbsenceNotice, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
+import { jointGroup, ownGroup, type ClassGroup } from './joint-groups'
+import { JointNotice } from './joint-notice'
 import { TeacherEmpty } from './teacher-shared'
 
 const SESSION_PARAM = 'session'
@@ -437,12 +439,23 @@ function SessionFlow({
   onClose: () => void
 }>) {
   const resource = useDegreeResource(async () => {
-    const [students, sessions, notices] = await Promise.all([
+    const [students, sessions, notices, joints] = await Promise.all([
       teacherApi.allStudents(tutoring.id),
       teacherApi.sessions(tutoring.id, { date }),
       teacherApi.absenceNotices(tutoring.id, date),
+      teacherApi.jointTutorings(tutoring.id),
     ])
-    return { students, session: sessions.data[0] ?? null, notices }
+    // Clase conjunta: los grupos de la misma asignatura que coinciden a la misma hora ese día.
+    const day = getDayOfWeekFromDate(date)
+    const joint = await Promise.all(joints.filter((item) => item.can_manage && item.days.includes(day)).map(async (item): Promise<JointClass> => {
+      const [groupStudents, groupSessions, groupNotices] = await Promise.all([
+        teacherApi.allStudents(item.id),
+        teacherApi.sessions(item.id, { date }),
+        teacherApi.absenceNotices(item.id, date),
+      ])
+      return { group: jointGroup(item), students: groupStudents, session: groupSessions.data[0] ?? null, notices: groupNotices }
+    }))
+    return { students, session: sessions.data[0] ?? null, notices, joint }
   }, `${tutoring.id}:${date}`)
 
   return (
@@ -503,6 +516,11 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
   )
 }
 
+type JointClass = Readonly<{ group: ClassGroup; students: readonly Enrollment[]; session: TutoringSession | null; notices: readonly TeacherAbsenceNotice[] }>
+
+const activeStudents = (students: readonly Enrollment[]) =>
+  students.filter((student) => student.is_active && student.student_is_active).sort((a, b) => compareNames(a.name, b.name))
+
 function SessionForm({
   tutoring,
   date,
@@ -512,6 +530,7 @@ function SessionForm({
   students,
   session,
   notices,
+  joint,
 }: Readonly<{
   tutoring: TeacherTutoring
   date: string
@@ -521,21 +540,31 @@ function SessionForm({
   students: readonly Enrollment[]
   session: TutoringSession | null
   notices: readonly TeacherAbsenceNotice[]
+  joint: readonly JointClass[]
 }>) {
   const operation = useOperation()
-  const active = useMemo(
-    () => students.filter((student) => student.is_active && student.student_is_active).sort((a, b) => compareNames(a.name, b.name)),
-    [students],
+  const own = useMemo(() => activeStudents(students), [students])
+  const [includeJoint, setIncludeJoint] = useState(true)
+  const jointGroups = useMemo(
+    () => (includeJoint ? joint : []).map((item) => ({ ...item, active: activeStudents(item.students) })),
+    [joint, includeJoint],
   )
+  // Todos los estudiantes de la clase: los del grupo propio y, si se incluyen, los de los grupos conjuntos.
+  const active = useMemo(() => [...own, ...jointGroups.flatMap((item) => item.active)], [own, jointGroups])
 
   const selectedDay = getDayOfWeekFromDate(date)
   const isDayAllowed = allowedDays.length === 0 || allowedDays.includes(selectedDay)
 
   // El borrador local tiene prioridad sobre lo guardado en el servidor
   const [draft] = useState(() => readDraft(tutoring.id, date))
-  const [marks, setMarks] = useState<Marks>(() => draft?.marks ?? Object.fromEntries((session?.attendance ?? []).map((record) => [record.enrollment_id, record.present])))
+  const [marks, setMarks] = useState<Marks>(() => draft?.marks ?? Object.fromEntries(
+    [session, ...joint.map((item) => item.session)].flatMap((saved) => saved?.attendance ?? []).map((record) => [record.enrollment_id, record.present]),
+  ))
   const [touched, setTouched] = useState(false)
-  const noticesByEnrollment = useMemo(() => new Map(notices.map((notice) => [notice.enrollment_id, notice])), [notices])
+  const noticesByEnrollment = useMemo(
+    () => new Map([...notices, ...joint.flatMap((item) => item.notices)].map((notice) => [notice.enrollment_id, notice])),
+    [notices, joint],
+  )
   const noticedStudents = active.filter((student) => noticesByEnrollment.has(student.id))
 
   useEffect(() => {
@@ -565,15 +594,21 @@ function SessionForm({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!isDayAllowed || active.length === 0 || readOnly || operation.pending) return
+    // Cada grupo guarda su sesión en su propia tutoría.
+    const groups = [{ id: tutoring.id, active: own }, ...jointGroups.map((item) => ({ id: item.group.id, active: item.active }))]
+      .filter((group) => group.active.length > 0)
     void operation.run(
-      () =>
-        teacherApi.saveSession(tutoring.id, {
-          date,
-          topics_covered: false,
-          topic_ids: [],
-          attendance: active.map((student) => ({ enrollment_id: student.id, present: marks[student.id] === true })),
-        }),
-      'Asistencia guardada.',
+      async () => {
+        for (const group of groups) {
+          await teacherApi.saveSession(group.id, {
+            date,
+            topics_covered: false,
+            topic_ids: [],
+            attendance: group.active.map((student) => ({ enrollment_id: student.id, present: marks[student.id] === true })),
+          })
+        }
+      },
+      groups.length > 1 ? `Asistencia guardada en los ${groups.length} grupos.` : 'Asistencia guardada.',
       () => {
         clearDraft(tutoring.id, date)
         onClose()
@@ -678,15 +713,22 @@ function SessionForm({
           </div>
         </div>
 
-        <DataTable
-          dense
-          columns={ATTENDANCE_COLUMNS}
-          meta={tableMeta}
-          data={active}
-          getRowId={(student) => String(student.id)}
-          onRowClick={readOnly || operation.pending ? undefined : (student) => mark(student.id, marks[student.id] !== true)}
-          emptyMessage="No hay estudiantes activos en esta tutoría. Inscríbelos en la pestaña Estudiantes."
-        />
+        <JointNotice groups={joint.map((item) => item.group)} include={includeJoint} onIncludeChange={setIncludeJoint} action="tomar asistencia" />
+
+        {[{ group: ownGroup(tutoring), active: own }, ...jointGroups].map(({ group, active: groupStudents }) => (
+          <section key={group.id} aria-label={jointGroups.length > 0 ? `Grupo ${group.label}` : undefined} className="flex flex-col gap-2">
+            {jointGroups.length > 0 && <h3 className="text-sm font-semibold">{group.label} <span className="font-normal text-muted-foreground">· {groupStudents.length} estudiantes</span></h3>}
+            <DataTable
+              dense
+              columns={ATTENDANCE_COLUMNS}
+              meta={tableMeta}
+              data={groupStudents}
+              getRowId={(student) => String(student.id)}
+              onRowClick={readOnly || operation.pending ? undefined : (student) => mark(student.id, marks[student.id] !== true)}
+              emptyMessage="No hay estudiantes activos en esta tutoría. Inscríbelos en la pestaña Estudiantes."
+            />
+          </section>
+        ))}
 
         <ErrorNotice message={operation.error} />
 

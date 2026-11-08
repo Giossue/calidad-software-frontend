@@ -17,6 +17,8 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { compareNames } from '@/lib/format'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
 import { teacherApi, type Enrollment, type GradeSettings, type GradeType, type TeacherTutoring } from '@/lib/teacher-api'
+import { jointGroup, ownGroup, type ClassGroup } from './joint-groups'
+import { JointNotice } from './joint-notice'
 import { TeacherEmpty } from './teacher-shared'
 
 const GRADE_FIELDS = [
@@ -134,8 +136,10 @@ function groupFor(value: string, settings: GradeSettings): string | null {
 
 export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const resource = useDegreeResource(async () => {
-    const [students, settings] = await Promise.all([teacherApi.allStudents(tutoring.id), teacherApi.gradeSettings()])
-    return { students, settings }
+    const [students, settings, joints] = await Promise.all([teacherApi.allStudents(tutoring.id), teacherApi.gradeSettings(), teacherApi.jointTutorings(tutoring.id)])
+    // Clase conjunta: los grupos de la misma asignatura a la misma hora se califican juntos.
+    const joint = await Promise.all(joints.filter((item) => item.can_manage).map(async (item) => ({ group: jointGroup(item), students: await teacherApi.allStudents(item.id) })))
+    return { students, settings, joint }
   }, String(tutoring.id))
 
   return <div className="flex flex-col gap-5">
@@ -250,9 +254,24 @@ function focusNextRow(event: KeyboardEvent<HTMLInputElement>, type: GradeType) {
   inputs[inputs.indexOf(event.currentTarget) + 1]?.focus()
 }
 
-function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutoring: TeacherTutoring; students: readonly Enrollment[]; settings: GradeSettings; onSaved: () => void }>) {
+const activeStudents = (students: readonly Enrollment[]) =>
+  students.filter((student) => student.is_active && student.student_is_active).sort((a, b) => compareNames(a.name, b.name))
+
+function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
+  tutoring: TeacherTutoring
+  students: readonly Enrollment[]
+  settings: GradeSettings
+  joint: readonly Readonly<{ group: ClassGroup; students: readonly Enrollment[] }>[]
+  onSaved: () => void
+}>) {
   const operation = useOperation()
-  const active = useMemo(() => students.filter((student) => student.is_active && student.student_is_active).sort((a, b) => compareNames(a.name, b.name)), [students])
+  const [includeJoint, setIncludeJoint] = useState(true)
+  // Grupo propio y, si se incluyen, los grupos de la clase conjunta; cada uno se guarda en su tutoría.
+  const groups = useMemo(() => [
+    { group: ownGroup(tutoring), active: activeStudents(students) },
+    ...(includeJoint ? joint : []).map((item) => ({ group: item.group, active: activeStudents(item.students) })),
+  ], [tutoring, students, joint, includeJoint])
+  const active = useMemo(() => groups.flatMap((item) => item.active), [groups])
   const saved = useMemo<Grid>(() => Object.fromEntries(active.map((student) => [student.id, serverValues(student)])), [active])
   const [grid, setGrid] = useState<Grid>(() => {
     const draft = readDraft(tutoring.id) ?? {}
@@ -293,8 +312,12 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!stage || !complete || hasInvalid || !changed || readOnly || operation.pending) return
-    const entries = active.map((student) => ({ enrollment_id: student.id, [stage]: valueOf(student.id, stage) }))
-    void operation.run(() => teacherApi.saveGrades(tutoring.id, entries), `${label} guardado para todos los estudiantes.`, () => {
+    const batches = groups.filter((item) => item.active.length > 0)
+    void operation.run(async () => {
+      for (const { group, active: groupStudents } of batches) {
+        await teacherApi.saveGrades(group.id, groupStudents.map((student) => ({ enrollment_id: student.id, [stage]: valueOf(student.id, stage) })))
+      }
+    }, batches.length > 1 ? `${label} guardado en los ${batches.length} grupos.` : `${label} guardado para todos los estudiantes.`, () => {
       clearDraft(tutoring.id, stage)
       onSaved()
     })
@@ -323,7 +346,13 @@ function GradesForm({ tutoring, students, settings, onSaved }: Readonly<{ tutori
         </Button>
       })}
     </div>}
-    <DataTable dense columns={GRADE_COLUMNS} meta={tableMeta} data={active} getRowId={(student) => String(student.id)} />
+    <JointNotice groups={joint.map((item) => item.group)} include={includeJoint} onIncludeChange={setIncludeJoint} action="calificar" />
+    {groups.map(({ group, active: groupStudents }) => (
+      <section key={group.id} aria-label={groups.length > 1 ? `Grupo ${group.label}` : undefined} className="flex flex-col gap-2">
+        {groups.length > 1 && <h3 className="text-sm font-semibold">{group.label} <span className="font-normal text-muted-foreground">· {groupStudents.length} estudiantes</span></h3>}
+        <DataTable dense columns={GRADE_COLUMNS} meta={tableMeta} data={groupStudents} getRowId={(student) => String(student.id)} />
+      </section>
+    ))}
     <ErrorNotice message={operation.error} />
     {stage && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 py-3 backdrop-blur">
       <div className="flex flex-col">

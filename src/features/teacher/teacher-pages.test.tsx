@@ -62,6 +62,7 @@ beforeEach(() => {
   vi.mocked(teacherApi.allTopics).mockResolvedValue([topic])
   vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([]))
   vi.mocked(teacherApi.absenceNotices).mockResolvedValue([])
+  vi.mocked(teacherApi.jointTutorings).mockResolvedValue([])
   vi.mocked(teacherApi.attendance).mockResolvedValue(paginated([]))
   vi.mocked(teacherApi.allAttendance).mockResolvedValue([])
   vi.mocked(teacherApi.reports).mockResolvedValue(paginated([]))
@@ -354,6 +355,59 @@ describe('Módulo Docente', () => {
       { enrollment_id: 70, present: false },
       { enrollment_id: 71, present: true },
     ] })))
+  })
+
+  it('en una clase conjunta toma asistencia a ambos grupos y la guarda en cada tutoría', async () => {
+    const user = userEvent.setup()
+    const todayName = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'][new Date().getDay()]
+    const other = { ...student, id: 75, tutoring_id: 41, student_id: 85, name: 'Bruno Vera' }
+    vi.mocked(teacherApi.jointTutorings).mockResolvedValue([{ id: 41, name: 'CALIDAD DE SOFTWARE', career_name: 'Tecnologías de la Información', cycle_number: 3, section_name: 'A', days: [todayName], can_manage: true }])
+    vi.mocked(teacherApi.allStudents).mockImplementation(async (id: number) => (id === 41 ? [other] : [student]))
+    vi.mocked(teacherApi.saveSession).mockResolvedValue({ id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [] })
+    attendance()
+
+    expect(await screen.findByText(/Clase conjunta con Tecnologías de la Información · paralelo A/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Grupo Software · paralelo A' })).toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: 'Presente: Bruno Vera' }))
+    expect(screen.getByText('1 de 2 presentes')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
+    await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledTimes(2))
+    expect(teacherApi.saveSession).toHaveBeenCalledWith(40, expect.objectContaining({ attendance: [{ enrollment_id: 70, present: false }] }))
+    expect(teacherApi.saveSession).toHaveBeenCalledWith(41, expect.objectContaining({ attendance: [{ enrollment_id: 75, present: true }] }))
+  })
+
+  it('en una clase conjunta se puede trabajar solo con el grupo propio', async () => {
+    const user = userEvent.setup()
+    const todayName = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'][new Date().getDay()]
+    vi.mocked(teacherApi.jointTutorings).mockResolvedValue([{ id: 41, name: 'CALIDAD DE SOFTWARE', career_name: 'TI', cycle_number: 3, section_name: null, days: [todayName], can_manage: true }])
+    vi.mocked(teacherApi.allStudents).mockImplementation(async (id: number) => (id === 41 ? [{ ...student, id: 75, tutoring_id: 41, name: 'Bruno Vera' }] : [student]))
+    vi.mocked(teacherApi.saveSession).mockResolvedValue({ id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [] })
+    attendance()
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Incluir el grupo conjunto' }))
+    expect(screen.queryByText('Bruno Vera')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Guardar asistencia' }))
+    await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledTimes(1))
+    expect(teacherApi.saveSession).toHaveBeenCalledWith(40, expect.anything())
+  })
+
+  it('en una clase conjunta califica a ambos grupos y guarda las notas en cada tutoría', async () => {
+    const user = userEvent.setup()
+    const other = { ...student, id: 75, tutoring_id: 41, student_id: 85, name: 'Bruno Vera' }
+    vi.mocked(teacherApi.jointTutorings).mockResolvedValue([{ id: 41, name: 'CALIDAD DE SOFTWARE', career_name: 'TI', cycle_number: 3, section_name: 'A', days: ['lunes'], can_manage: true }])
+    vi.mocked(teacherApi.allStudents).mockImplementation(async (id: number) => (id === 41 ? [other] : [student]))
+    vi.mocked(teacherApi.saveGrades).mockResolvedValue([])
+    workspace('grades')
+
+    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
+    await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '9')
+    await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Bruno Vera' }), '7')
+    await user.click(screen.getByRole('button', { name: 'Guardar Diagnóstico' }))
+
+    await waitFor(() => expect(teacherApi.saveGrades).toHaveBeenCalledTimes(2))
+    expect(teacherApi.saveGrades).toHaveBeenCalledWith(40, [{ enrollment_id: 70, diagnostic: '9.00' }])
+    expect(teacherApi.saveGrades).toHaveBeenCalledWith(41, [{ enrollment_id: 75, diagnostic: '7.00' }])
   })
 
   it('ordena a los estudiantes alfabéticamente, ignorando tildes y mayúsculas', async () => {
