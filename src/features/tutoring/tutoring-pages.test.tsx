@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api'
 import { tutoringApi, type Subject, type Tutoring } from '@/lib/tutoring-api'
 import { TutoringSubjectsPage } from './subjects-page'
+import { TutoringCurriculumPage } from './curriculum-page'
 import { TutoringTeachersPage } from './teachers-page'
 import { TutoringDetail } from './tutoring-detail'
 import { TutoringReportsPage } from './reports-page'
@@ -61,6 +62,7 @@ describe('Coordinación de tutorías', () => {
   it('restringe la navegación según el rol y elige la portada correspondiente', () => {
     expect(dashboardSection('coordinador_carrera', 'users')).toBe('tutorings')
     expect(dashboardSection('coordinador_carrera', 'tutoring-subjects')).toBe('tutoring-subjects')
+    expect(dashboardSection('coordinador_carrera', 'tutoring-curriculum')).toBe('tutoring-curriculum')
     expect(dashboardSection('coordinador_carrera', 'tutoring-students')).toBe('tutoring-students')
     expect(dashboardSection('coordinador_carrera', 'tutoring-reports')).toBe('tutoring-reports')
     expect(dashboardSection('administrador', 'users')).toBe('users')
@@ -222,6 +224,52 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 3, status: undefined }))
     // Dentro de un ciclo la columna «Ciclo» sobra.
     expect(screen.queryByRole('columnheader', { name: 'Ciclo' })).not.toBeInTheDocument()
+  })
+
+  it('define en qué asignatura continúa la malla al editar una asignatura y lo muestra en la tabla', async () => {
+    const user = userEvent.setup()
+    const physics = { ...subject, id: 31, code: 'FIS', name: 'Física', cycle_ids: [21] }
+    vi.mocked(tutoringApi.subjects).mockImplementation(async (params) => params?.per_page === 100
+      ? paginated([subject, physics])
+      : paginated([{ ...subject, next_subjects: [], previous_subjects: [{ id: 5, code: 'AL', name: 'ALGEBRA' }] }]))
+    vi.mocked(tutoringApi.updateSubject).mockResolvedValue({ ...subject, next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }] })
+    await openSubjects()
+    await user.click(await screen.findByText('Matemática'))
+    const form = await screen.findByRole('form', { name: 'Editar asignatura' })
+    expect(within(form).getByText('Viene de: ALGEBRA')).toBeInTheDocument()
+    // Solo ofrece asignaturas de ciclos posteriores (Física es del 3.°; Matemática, del 2.°).
+    const options = await within(form).findByRole('group', { name: 'Asignaturas que continúan' })
+    expect(within(options).getAllByRole('checkbox')).toHaveLength(1)
+    expect(within(form).getByText('Sin asignatura siguiente: aquí termina la secuencia.')).toBeInTheDocument()
+    await user.click(within(options).getByRole('checkbox', { name: /Física/ }))
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(tutoringApi.updateSubject).toHaveBeenCalledWith(30, expect.objectContaining({ next_subject_ids: [31] })))
+    expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: 10, per_page: 100 })
+    expect(screen.getByRole('columnheader', { name: 'Continúa en' })).toBeInTheDocument()
+  })
+
+  it('muestra la malla curricular por ciclo y resalta de dónde viene y en qué continúa la asignatura elegida', async () => {
+    const user = userEvent.setup()
+    const math = { ...subject, name: 'MATEMATICA', next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }], previous_subjects: [] }
+    const physics = { ...subject, id: 31, code: 'FIS', name: 'FISICA', cycle_ids: [21], next_subjects: [], previous_subjects: [{ id: 30, code: 'MAT', name: 'MATEMATICA' }] }
+    vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, physics]))
+    render(<TutoringCurriculumPage />)
+
+    const second = await screen.findByRole('region', { name: '2° ciclo' })
+    expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: 10, status: 'active', page: 1, per_page: 100 })
+    expect(screen.getByRole('heading', { name: '3° ciclo · Titulación' })).toBeInTheDocument()
+    expect(screen.getByText('2 asignaturas · 1 continúan en otra. Elige una para ver su secuencia.')).toBeInTheDocument()
+    const third = screen.getByRole('region', { name: '3° ciclo' })
+    expect(within(third).getByText('Fin de secuencia')).toBeInTheDocument()
+
+    await user.click(within(second).getByRole('button', { name: /MATEMATICA/ }))
+    expect(within(second).getByRole('button', { name: /MATEMATICA/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText(/ninguna \(inicia una secuencia\)/)).toBeInTheDocument()
+    expect(within(third).getByText('Continúa')).toBeInTheDocument()
+
+    await user.click(within(third).getByRole('button', { name: /FISICA/ }))
+    expect(within(second).getByText('Previa')).toBeInTheDocument()
+    expect(screen.getByText(/ninguna \(aquí termina la secuencia\)/)).toBeInTheDocument()
   })
 
   it('con varias carreras lista primero las carreras con búsqueda y entra a la elegida; con una sola entra directo', async () => {

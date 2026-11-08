@@ -24,6 +24,10 @@ export const MODULE_HELP: Readonly<Record<string, { readonly title: string; read
     title: 'Asignaturas',
     description: 'Elige una carrera y administra sus asignaturas por ciclo. También puedes cargarlas de forma masiva.',
   },
+  'tutoring-curriculum': {
+    title: 'Malla curricular',
+    description: 'Consulta las asignaturas de cada ciclo y su secuencia: de cuál viene cada una y en cuál continúa. Quien aprueba una asignatura pasa a la siguiente en el nuevo período.',
+  },
   'tutoring-teachers': {
     title: 'Docentes',
     description: 'Registra docentes nuevos o vincula docentes ya registrados a tus carreras. Cada docente nuevo recibe una contraseña provisional por correo.',

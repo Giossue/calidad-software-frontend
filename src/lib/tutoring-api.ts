@@ -35,6 +35,15 @@ export interface Subject {
   readonly is_active: boolean
   readonly cycle_ids: readonly number[]
   readonly parallel_ids?: readonly number[]
+  /** Secuencia de la malla: asignaturas que continúan a esta y las que hay que aprobar antes. */
+  readonly next_subjects?: readonly SubjectReference[]
+  readonly previous_subjects?: readonly SubjectReference[]
+}
+
+export interface SubjectReference {
+  readonly id: number
+  readonly code: string | null
+  readonly name: string
 }
 
 export interface Teacher {
@@ -129,6 +138,8 @@ export type SubjectInput = {
   new_parallel_name?: string
   modality_id?: number
   period_id?: number
+  /** Asignaturas que continúan a esta en la malla. */
+  next_subject_ids?: readonly number[]
 }
 export type TeacherInput = { career_id: number; identification: string; name: string; email: string; phone: string }
 export type TutoringInput = {

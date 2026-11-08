@@ -6,6 +6,7 @@ import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { FieldLabel } from '@/components/ui/field'
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -29,7 +30,7 @@ import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const ALL_CYCLES = 'all'
-const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '' }
+const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '', next_subject_ids: [] as string[] }
 
 export function TutoringSubjectsPage() {
   const catalogs = useTutoringCatalogs()
@@ -70,6 +71,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Subject | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
+  // Asignaturas de la carrera, para elegir cuáles continúan a la que se edita.
+  const [careerSubjects, setCareerSubjects] = useState<readonly Subject[] | null>(null)
   const [initialForm, setInitialForm] = useState(EMPTY_FORM)
   const [deactivating, setDeactivating] = useState<Subject | null>(null)
   const [assigning, setAssigning] = useState<Subject | null>(null)
@@ -89,11 +92,17 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       : (catalogs.careers[0] ? String(catalogs.careers[0].id) : '')
     const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
     const next = subject
-      ? { career_id: String(subject.career_id), cycle_id: '', parallel_ids: [] as string[], modality_id: subject.modality_id ? String(subject.modality_id) : '', period_id: subject.period_id ? String(subject.period_id) : (activePeriod ? String(activePeriod.id) : ''), code: subject.code ?? '', name: subject.name }
+      ? { next_subject_ids: (subject.next_subjects ?? []).map((item) => String(item.id)), career_id: String(subject.career_id), cycle_id: '', parallel_ids: [] as string[], modality_id: subject.modality_id ? String(subject.modality_id) : '', period_id: subject.period_id ? String(subject.period_id) : (activePeriod ? String(activePeriod.id) : ''), code: subject.code ?? '', name: subject.name }
       : { ...EMPTY_FORM, career_id: defaultCareerId, cycle_id: preselectedCycleId ? String(preselectedCycleId) : '', period_id: activePeriod ? String(activePeriod.id) : '' }
     setEditing(subject)
     setForm(next)
     setInitialForm(next)
+    setCareerSubjects(null)
+    if (subject) {
+      tutoringApi.subjects({ career_id: subject.career_id, per_page: 100 })
+        .then((response) => setCareerSubjects(response.data))
+        .catch(() => setCareerSubjects([]))
+    }
     setIsAddingSection(false)
     setNewSectionName('')
     setSectionError(null)
@@ -158,6 +167,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             code: trimmedCode ? trimmedCode : null,
             name: form.name.trim(),
             ...(form.modality_id ? { modality_id: Number(form.modality_id) } : {}),
+            next_subject_ids: form.next_subject_ids.map(Number),
           })
         : tutoringApi.createSubject({
             ...input,
@@ -318,6 +328,12 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         return level ? <Badge variant="outline">{level.number}°</Badge> : <span className="text-muted-foreground">—</span>
       },
     }] : []),
+    {
+      label: 'Continúa en',
+      render: (subject: Subject) => (subject.next_subjects ?? []).length > 0
+        ? <span className="text-sm">{(subject.next_subjects ?? []).map((next) => formatSubjectName(next.name)).join(', ')}</span>
+        : <span className="text-muted-foreground">—</span>,
+    },
     {
       label: 'Paralelo(s)',
       render: (subject: Subject) => {
@@ -534,6 +550,16 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       <FormField id="subject-name" label="Nombre" counter={{ current: form.name.length, max: 150 }}>
         <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150).toLocaleUpperCase('es') })} required maxLength={150} placeholder="Ej. ALGORITMOS Y LÓGICA DE PROGRAMACIÓN" />
       </FormField>
+      {editing && (
+        <NextSubjectsField
+          subject={editing}
+          options={careerSubjects}
+          cycleNumber={(id) => catalogs.cycles.find((cycle) => cycle.id === id)?.number}
+          value={form.next_subject_ids}
+          onChange={(ids) => setForm({ ...form, next_subject_ids: ids })}
+          disabled={operation.pending}
+        />
+      )}
     </FormDialog>
     <FormDialog
       open={Boolean(assigning)}
@@ -648,4 +674,63 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     </FormDialog>
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar asignatura?" description={`La asignatura «${deactivating?.name ?? ''}» dejará de estar disponible para nuevas tutorías. Sus tutorías existentes se conservarán.`} confirmLabel="Desactivar asignatura" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateSubject(deactivating.id), 'Asignatura desactivada.', async () => { setDeactivating(null); setOpen(false); await list.reload() }) }} />
   </section>
+}
+
+/**
+ * Asignaturas que continúan a `subject` en la malla: el estudiante que aprueba todas
+ * sus previas pasa a ellas. Se ofrecen las de ciclos posteriores de la misma carrera.
+ */
+function NextSubjectsField({ subject, options, cycleNumber, value, onChange, disabled }: Readonly<{
+  subject: Subject
+  options: readonly Subject[] | null
+  cycleNumber: (cycleId: number) => number | undefined
+  value: readonly string[]
+  onChange: (ids: string[]) => void
+  disabled: boolean
+}>) {
+  const levelOf = (item: Subject) => Math.min(...item.cycle_ids.map((id) => cycleNumber(id) ?? Infinity))
+  const ownLevel = levelOf(subject)
+  const candidates = (options ?? [])
+    .filter((item) => item.id !== subject.id && (value.includes(String(item.id)) || !Number.isFinite(ownLevel) || levelOf(item) > ownLevel))
+    .sort((a, b) => levelOf(a) - levelOf(b) || a.name.localeCompare(b.name))
+  const previous = subject.previous_subjects ?? []
+
+  return (
+    <FormField
+      id="subject-next"
+      label="Continúa en"
+      optional
+      tip="Quien aprueba esta asignatura (y las demás previas de la siguiente) queda inscrito en la tutoría de la siguiente en el nuevo período."
+    >
+      <div className="flex flex-col gap-2">
+        {previous.length > 0 && (
+          <p className="text-xs text-muted-foreground">Viene de: {previous.map((item) => formatSubjectName(item.name)).join(', ')}</p>
+        )}
+        {options === null ? (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Spinner />Cargando asignaturas…</p>
+        ) : candidates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No hay asignaturas de ciclos posteriores en esta carrera.</p>
+        ) : (
+          <div role="group" aria-label="Asignaturas que continúan" className="flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border p-3">
+            {candidates.map((item) => {
+              const id = String(item.id)
+              const level = levelOf(item)
+              return (
+                <label key={item.id} htmlFor={`subject-next-${item.id}`} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                  <Checkbox
+                    id={`subject-next-${item.id}`}
+                    checked={value.includes(id)}
+                    disabled={disabled}
+                    onCheckedChange={(checked) => onChange(checked === true ? [...value, id] : value.filter((current) => current !== id))}
+                  />
+                  <span>{formatSubjectName(item.name)}{Number.isFinite(level) && <span className="text-xs text-muted-foreground"> · {level}° ciclo</span>}</span>
+                </label>
+              )
+            })}
+          </div>
+        )}
+        {value.length === 0 && options !== null && <p className="text-xs text-muted-foreground">Sin asignatura siguiente: aquí termina la secuencia.</p>}
+      </div>
+    </FormField>
+  )
 }

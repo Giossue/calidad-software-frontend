@@ -11,6 +11,7 @@ import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SearchSelect } from '@/components/ui/search-select'
+import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource, useDegreeSearch } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -21,7 +22,7 @@ import { identificationMaxLength, isValidIdentification, sanitizeIdentification,
 import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
-import { teacherApi, type AvailableStudent, type Enrollment, type GradeEntry, type GradeSettings, type TeacherTutoring } from '@/lib/teacher-api'
+import { teacherApi, type AvailableStudent, type Enrollment, type FinalResult, type GradeEntry, type GradeSettings, type TeacherTutoring } from '@/lib/teacher-api'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { TeacherEmpty } from './teacher-shared'
@@ -40,10 +41,23 @@ function groupFor(value: string, settings: GradeSettings): string | null {
   return settings.groups.find((group) => number >= group.min && number <= group.max)?.label ?? null
 }
 
+const FINAL_RESULT_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', failed: 'Reprobó' }
+const FINAL_RESULT_OPTIONS = [{ value: 'approved', label: 'Aprobó' }, { value: 'failed', label: 'Reprobó' }]
+
 export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.students(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
   const operation = useOperation()
+
+  function recordFinalResult(student: Enrollment, result: FinalResult | null) {
+    void operation.run(
+      () => teacherApi.setFinalResult(tutoring.id, student.id, result),
+      result === 'approved'
+        ? `${student.name} aprobó. Si existe la tutoría de la asignatura siguiente, quedó inscrito en ella.`
+        : result === 'failed' ? `${student.name} reprobó.` : 'Resultado final quitado.',
+      list.reload,
+    )
+  }
   const [open, setOpen] = useState(false)
   const [deactivating, setDeactivating] = useState<Enrollment | null>(null)
   const [gradingStudent, setGradingStudent] = useState<Enrollment | null>(null)
@@ -148,6 +162,17 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       { label: 'Calificaciones', render: (student) => <div className="flex flex-col gap-0.5 text-xs tabular-nums">
         <span>Diag: {student.diagnostic_grade ?? '—'}</span>
         <span className="text-muted-foreground">P1: {student.partial_grade ?? '—'} · P2: {student.second_partial_grade ?? '—'}</span>
+      </div> },
+      { label: 'Resultado final', render: (student) => <div className="flex min-w-36 flex-col gap-1">
+        <SelectInput
+          ariaLabel={`Resultado final de ${student.name}`}
+          value={student.final_result ?? ''}
+          onValueChange={(value) => recordFinalResult(student, (value || null) as FinalResult | null)}
+          emptyLabel="Sin registrar"
+          options={FINAL_RESULT_OPTIONS}
+          disabled={!tutoring.can_manage || !student.is_active || operation.pending}
+        />
+        {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
       </div> },
       { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
       { label: 'Acciones', render: (student) => <div className="flex items-center gap-1">
