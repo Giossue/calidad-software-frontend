@@ -166,7 +166,44 @@ function list<T>(path: string, params: TutoringListParams = {}) {
   return request<PaginatedResourceCollection<T>>(`${ROOT}/${path}${buildQuery(params)}`)
 }
 
+/** Qué pasa con cada estudiante del listado PDF: se crea, se inscribe, ya estaba, no puede o falló. */
+export type RosterStudentStatus = 'new' | 'enroll' | 'enrolled' | 'blocked' | 'error'
+
+export interface RosterImportStudent {
+  readonly number: number
+  readonly name: string
+  readonly email: string
+  readonly phone: string | null
+  readonly status: RosterStudentStatus
+  readonly message: string | null
+}
+
+/** Vista previa o resultado de cargar el listado PDF de una asignatura. */
+export interface RosterImport {
+  readonly applied: boolean
+  readonly career_name: string | null
+  readonly subject_name: string
+  readonly section_name: string
+  readonly teacher_name: string | null
+  readonly subject: SubjectReference | null
+  readonly cycle_number: number | null
+  readonly period_name: string | null
+  readonly teacher: { readonly id: number; readonly name: string; readonly assign: boolean } | null
+  readonly tutoring: { readonly id: number | null; readonly exists: boolean } | null
+  readonly errors: readonly string[]
+  readonly notes: readonly string[]
+  readonly students: readonly RosterImportStudent[]
+}
+
 export const tutoringApi = {
+  /** Lee el listado PDF; con `confirm` crea la tutoría, las cuentas y las inscripciones. */
+  importRoster: async (careerId: number, file: File, confirm: boolean): Promise<RosterImport> => {
+    const body = new FormData()
+    body.append('file', file)
+    body.append('career_id', String(careerId))
+    body.append('confirm', confirm ? '1' : '0')
+    return (await request<Resource<RosterImport>>(`${ROOT}/roster-imports`, { method: 'POST', body })).data
+  },
   careers: () => collection<Career>('careers'),
   cycles: () => collection<Cycle>('cycles'),
   periods: () => collection<AcademicPeriod>('periods'),

@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils'
 import { TutoringDetail } from './tutoring-detail'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
+import { RosterImportButton } from './roster-import-dialog'
 import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { describeError, useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
@@ -672,6 +673,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         createLabel="Crear tutoría"
         onCreate={openCreateChooser}
         disabled={operation.pending || catalogs.loading || subjects.length === 0}
+        extraActions={<RosterImportButton careerId={careerId} onFinished={list.reload} />}
       />
       <FilterBar
         id="tutorings"
