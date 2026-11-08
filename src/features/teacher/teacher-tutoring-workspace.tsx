@@ -1,3 +1,4 @@
+import { ClipboardCheckIcon, UsersIcon } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -14,26 +15,30 @@ import { SchedulesPanel } from './teacher-schedules-page'
 import { StudentsPanel } from './teacher-students-page'
 
 const TABS = [
-  { id: 'students', label: 'Estudiantes' },
-  { id: 'content', label: 'Contenido' },
   { id: 'attendance', label: 'Asistencia' },
-  { id: 'grades', label: 'Calificaciones' },
+  { id: 'content', label: 'Contenido' },
   { id: 'schedules', label: 'Horarios' },
+  { id: 'students', label: 'Estudiantes y Calificaciones' },
 ] as const
 type TabId = typeof TABS[number]['id']
+// `tab=grades` abre la sección Calificaciones dentro de «Estudiantes y Calificaciones».
+type TabParam = TabId | 'grades'
 
-function isTabId(value: string | null): value is TabId {
-  return TABS.some((tab) => tab.id === value)
+const SECTION_TRIGGER = 'mb-0 rounded-lg border-b-0 px-3 py-2 data-[state=active]:border-transparent data-[state=active]:bg-card data-[state=active]:shadow-sm'
+
+function isTabParam(value: string | null): value is TabParam {
+  return value === 'grades' || TABS.some((tab) => tab.id === value)
 }
 
 // Espacio de trabajo de una tutoría: todo lo que el docente gestiona de ella
-// (estudiantes, notas, asistencia, contenido, informes y horarios) en un solo lugar,
+// (asistencia, contenido, horarios, estudiantes y notas) en un solo lugar,
 // sin volver a elegir la tutoría en cada sección.
 export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: number }>) {
   const [params, setParams] = useSearchParams()
   const resource = useDegreeResource(() => teacherApi.allTutorings())
   const requestedTab = params.get('tab')
-  const tab: TabId = isTabId(requestedTab) ? requestedTab : 'students'
+  const tabParam: TabParam = isTabParam(requestedTab) ? requestedTab : 'attendance'
+  const tab: TabId = tabParam === 'grades' ? 'students' : tabParam
   const tutoring = resource.data?.find((item) => item.id === tutoringId)
 
   function selectTab(value: string) {
@@ -54,11 +59,19 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
         <Tabs value={tab} onValueChange={selectTab}>
           <TabsList aria-label="Secciones de la tutoría">{TABS.map((item) => <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>)}</TabsList>
           {/* key: al cambiar de tutoría no se reutiliza el estado de la anterior. */}
-          <TabsContent value="students" key={`students-${tutoring.id}`}><StudentsPanel tutoring={tutoring} /></TabsContent>
-          <TabsContent value="content" key={`content-${tutoring.id}`}><ContentPanel tutoring={tutoring} /></TabsContent>
           <TabsContent value="attendance" key={`attendance-${tutoring.id}`}><AttendancePanel tutoring={tutoring} /></TabsContent>
-          <TabsContent value="grades" key={`grades-${tutoring.id}`}><GradesPanel tutoring={tutoring} /></TabsContent>
+          <TabsContent value="content" key={`content-${tutoring.id}`}><ContentPanel tutoring={tutoring} /></TabsContent>
           <TabsContent value="schedules" key={`schedules-${tutoring.id}`}><SchedulesPanel tutoring={tutoring} onReload={resource.reload} /></TabsContent>
+          <TabsContent value="students" key={`students-${tutoring.id}`}>
+            <Tabs value={tabParam === 'grades' ? 'grades' : 'students'} onValueChange={selectTab} className="flex flex-col gap-4">
+              <TabsList aria-label="Estudiantes o calificaciones" className="w-fit gap-1 rounded-lg border-b-0 bg-muted p-1">
+                <TabsTrigger value="students" className={SECTION_TRIGGER}><UsersIcon data-icon="inline-start" />Estudiantes</TabsTrigger>
+                <TabsTrigger value="grades" className={SECTION_TRIGGER}><ClipboardCheckIcon data-icon="inline-start" />Calificaciones</TabsTrigger>
+              </TabsList>
+              <TabsContent value="students"><StudentsPanel tutoring={tutoring} /></TabsContent>
+              <TabsContent value="grades"><GradesPanel tutoring={tutoring} /></TabsContent>
+            </Tabs>
+          </TabsContent>
         </Tabs>
       </>}
   </section>

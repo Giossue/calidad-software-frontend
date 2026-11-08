@@ -89,8 +89,15 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(teacherApi.tutorings).toHaveBeenLastCalledWith({ page: 2, search: '', status: undefined }))
     await user.click(screen.getByText('Calidad de software'))
     expect(await screen.findByRole('heading', { name: 'Calidad de software' })).toBeInTheDocument()
+    // Abre en Asistencia; las pestañas van en el orden de trabajo del docente.
+    const sections = screen.getByRole('tablist', { name: 'Secciones de la tutoría' })
+    expect(within(sections).getAllByRole('tab').map((item) => item.textContent)).toEqual(['Asistencia', 'Contenido', 'Horarios', 'Estudiantes y Calificaciones'])
+    expect(within(sections).getByRole('tab', { name: 'Asistencia' })).toHaveAttribute('aria-selected', 'true')
+    await user.click(within(sections).getByRole('tab', { name: 'Estudiantes y Calificaciones' }))
     expect(await screen.findByText('Ana Pérez')).toBeInTheDocument()
     expect(teacherApi.students).toHaveBeenLastCalledWith(40, { page: 1, search: '', status: undefined })
+    await user.click(within(screen.getByRole('tablist', { name: 'Estudiantes o calificaciones' })).getByRole('tab', { name: 'Calificaciones' }))
+    expect(await screen.findByRole('tab', { name: 'Calificaciones', selected: true })).toBeInTheDocument()
   })
 
   it('registra el resultado final de un estudiante con la sugerencia según los parciales', async () => {

@@ -17,7 +17,7 @@ const titles = (key: string) => buildPageTourSteps(key).map((step) => step.popov
 describe('currentPageTourKey', () => {
   it('usa la pestaña de la URL dentro de una tutoría o ficha', () => {
     expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4&tab=grades'))).toBe('teacher-tutorings/grades')
-    expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4'))).toBe('teacher-tutorings/students')
+    expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4'))).toBe('teacher-tutorings/attendance')
     expect(currentPageTourKey('student-tutorings', new URLSearchParams('tutoring=4'))).toBe('student-tutorings/content')
     expect(currentPageTourKey('teacher-tutorings', new URLSearchParams())).toBe('teacher-tutorings')
   })

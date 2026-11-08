@@ -30,7 +30,7 @@ function resolveTarget(target: TourTarget, root: ParentNode): Element | null {
  */
 export function currentPageTourKey(section: string, params: URLSearchParams): string {
   const tabbed: Record<string, readonly [param: string, defaultTab: string]> = {
-    'teacher-tutorings': ['tutoring', 'students'],
+    'teacher-tutorings': ['tutoring', 'attendance'],
     'student-tutorings': ['tutoring', 'content'],
     'teacher-degree-tracking': ['topic', 'estado-ficha'],
   }
