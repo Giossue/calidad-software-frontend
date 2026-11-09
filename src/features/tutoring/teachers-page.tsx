@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, LinkIcon, MoreVerticalIcon, PowerOffIcon, SaveIcon, UserPlusIcon, XCircleIcon, XIcon } from 'lucide-react'
+import { BanIcon, CheckCircle2Icon, LinkIcon, MoreVerticalIcon, PowerOffIcon, SaveIcon, UserPlusIcon, XCircleIcon, XIcon } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { formatSubjectName, sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
@@ -159,7 +160,12 @@ export function TutoringTeachersPage() {
       { label: 'Estado', span: ({ span }) => span, render: ({ teacher }) => <StatusBadge active={teacher.is_active} /> },
       {
         label: 'Acciones', span: ({ span }) => span, render: ({ teacher }) => {
-          if (!teacher.can_manage) return <span className="text-xs text-muted-foreground">Consulta · cambios a cargo de administración</span>
+          if (!teacher.can_manage) return <Tooltip>
+            <TooltipTrigger asChild>
+              <Button type="button" variant="tertiary" size="icon" className="text-muted-foreground" aria-label={`Solo consulta: los cambios de ${teacher.name} están a cargo de administración`} onClick={(event) => event.stopPropagation()}><BanIcon /></Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-64 text-balance">Solo consulta. Este docente no lo puedes modificar: los cambios están a cargo de administración.</TooltipContent>
+          </Tooltip>
           if (!teacher.is_active) return <span className="text-muted-foreground">—</span>
           const coordinatedCareers = catalogs.careers.filter((c) => teacher.career_ids.includes(c.id))
           if (coordinatedCareers.length === 0) return <span className="text-muted-foreground">—</span>
