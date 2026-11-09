@@ -251,7 +251,6 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step({ button: 'Elegir otra tutoría' }, 'Cambiar de tutoría', 'Vuelve a la lista de tutorías.'),
     step('[aria-label="Secciones de informes"]', 'Informes y actividades', '«Informes enviados» lista lo que ya enviaste; «Revisión de actividades» resume lo trabajado en la tutoría.'),
     step({ button: 'Reportes oficiales' }, 'Reportes oficiales', 'Genera el reporte de evaluación diagnóstica, las calificaciones diagnósticas, el seguimiento de tutorías o el informe final PAO en el formato institucional.'),
-    step({ button: 'Enviar informe' }, 'Enviar informe', 'Envía un informe al Coordinador de Carrera.'),
     table('Informes enviados.'),
   ],
   'teacher-degree-assignments': [

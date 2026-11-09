@@ -715,18 +715,15 @@ describe('Módulo Docente', () => {
     expect(teacherApi.createMethodology).toHaveBeenCalledWith(40, 90, 91, { description: 'Trabajo colaborativo' })
   })
 
-  it('envía el informe y permite leer el consolidado que devolvió el servidor', async () => {
+  it('ya no ofrece el informe libre y sigue mostrando como texto los informes libres anteriores', async () => {
     const user = userEvent.setup()
-    const report = { id: 110, type: 'Informe de tutorías', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'Estudiantes inscritos: 1\nObservaciones: Avance favorable.', summary: null }
-    vi.mocked(teacherApi.sendReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
+    vi.mocked(teacherApi.reports).mockResolvedValue(paginated([{ id: 110, type: 'Informe de tutorías', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'Estudiantes inscritos: 1', summary: null }]))
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
-    await user.click(await screen.findByRole('button', { name: 'Enviar informe' }))
-    await user.type(screen.getByLabelText(/Resultados y observaciones/), 'Avance favorable.')
-    await user.click(within(screen.getByRole('form', { name: 'Enviar informe al coordinador' })).getByRole('button', { name: 'Enviar informe' }))
+    expect(await screen.findByRole('button', { name: 'Reportes oficiales' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enviar informe' })).not.toBeInTheDocument()
     await user.click(await screen.findByRole('row', { name: /María López/ }))
     expect(screen.getByRole('article', { name: 'Contenido del informe' })).toHaveTextContent('Estudiantes inscritos: 1')
-    expect(teacherApi.sendReport).toHaveBeenCalledWith(40, { title: 'Informe de tutorías', observations: 'Avance favorable.' })
   })
 
   it('prepara el reporte de evaluación diagnóstica con el formato oficial y lo envía a coordinación', async () => {

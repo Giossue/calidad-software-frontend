@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import {
   ArrowLeftIcon,
   BookOpenIcon,
@@ -9,7 +9,6 @@ import {
   ClockIcon,
   FileCheck2Icon,
   FileTextIcon,
-  SendIcon,
   SheetIcon,
   TrendingUpIcon,
   UsersIcon,
@@ -20,19 +19,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { FormDialog } from '@/components/ui/form-dialog'
-import { FormField } from '@/components/ui/form-field'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
 import { PrintStructuredReport, StructuredReport } from '@/features/reports/structured-report'
-import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -47,7 +41,6 @@ import { FinalPaoReportDialog } from './teacher-final-pao-report-dialog'
 import { FollowUpReportDialog } from './teacher-follow-up-report-dialog'
 import { TeacherEmpty } from './teacher-shared'
 
-const INITIAL = { title: 'Informe de tutorías', observations: '' }
 
 export function ReportsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [tab, setTab] = useState<'reports' | 'activities'>('reports')
@@ -80,27 +73,12 @@ export function ReportsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
 
 function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const list = usePaginatedCatalog((page) => teacherApi.reports(tutoring.id, { page }), String(tutoring.id))
-  const operation = useOperation()
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState(INITIAL)
   const [reading, setReading] = useState<TeacherReport | null>(null)
   const [diagnosticOpen, setDiagnosticOpen] = useState(false)
   const [gradesOpen, setGradesOpen] = useState(false)
   const [followUpOpen, setFollowUpOpen] = useState(false)
   const [finalOpen, setFinalOpen] = useState(false)
   const readingStructured = Boolean(reading && isStructuredReport(reading.summary))
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    void operation.run(
-      () => teacherApi.sendReport(tutoring.id, { title: form.title.trim(), observations: form.observations.trim() }),
-      'Informe enviado al Coordinador de Carrera.',
-      async () => {
-        setOpen(false)
-        await list.reload()
-      }
-    )
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -138,17 +116,6 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            disabled={!tutoring.can_manage || operation.pending}
-            onClick={() => {
-              operation.clearError()
-              setForm(INITIAL)
-              setOpen(true)
-            }}
-          >
-            <SendIcon data-icon="inline-start" />
-            Enviar informe
-          </Button>
         </div>
       </div>
 
@@ -165,7 +132,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         empty={
           <TeacherEmpty
             title="Aún no hay informes enviados"
-            description="Envía un informe para compartir el desarrollo de esta tutoría con el coordinador."
+            description="Genera uno de los reportes oficiales para compartir el desarrollo de esta tutoría con el coordinador."
           />
         }
         onRowClick={(report) => { if (report.content) setReading(report) }}
@@ -184,41 +151,6 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         disabled={list.isFetching}
         onChange={list.setPage}
       />
-
-      <FormDialog
-        open={open}
-        title="Enviar informe al coordinador"
-        description={tutoring.subject_name}
-        pending={operation.pending}
-        error={operation.error}
-        dirty={JSON.stringify(form) !== JSON.stringify(INITIAL)}
-        requireChanges={false}
-        blockReason={form.title.trim() ? null : 'Escribe el título del informe.'}
-        onClose={() => setOpen(false)}
-        onSubmit={submit}
-        submitLabel="Enviar informe"
-        submitIcon={SendIcon}
-      >
-        <FormField id="teacher-report-title" label="Título del informe" counter={{ current: form.title.length, max: 100 }}>
-          <Input
-            id="teacher-report-title"
-            value={form.title}
-            onChange={(event) => setForm({ ...form, title: event.target.value })}
-            maxLength={100}
-            required
-          />
-        </FormField>
-        <FormField id="teacher-report-observations" label="Resultados y observaciones" optional counter={{ current: form.observations.length, max: 10000 }}>
-          <Textarea
-            id="teacher-report-observations"
-            value={form.observations}
-            onChange={(event) => setForm({ ...form, observations: event.target.value })}
-            maxLength={10000}
-            rows={6}
-            placeholder="Describe los avances, dificultades y resultados de las sesiones."
-          />
-        </FormField>
-      </FormDialog>
 
       <Dialog
         open={Boolean(reading)}
