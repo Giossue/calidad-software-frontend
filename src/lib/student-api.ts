@@ -134,6 +134,14 @@ async function mutate<T>(path: string, method: string, input: unknown): Promise<
 }
 
 /** Aviso de inasistencia enviado por el estudiante. */
+/** Próxima clase en la que el estudiante aún puede avisar su inasistencia. */
+export interface StudentAbsenceDate {
+  readonly date: string
+  readonly day_of_week: string
+  readonly start_time: string
+  readonly end_time: string
+}
+
 export interface StudentAbsenceNotice {
   readonly id: number
   readonly date: string
@@ -150,6 +158,7 @@ export const studentApi = {
   content: async (tutoringId: number) => (await request<Resource<StudentContent>>(`${ROOT}/tutoring/${tutoringId}/topics`)).data,
   downloadTopicFile: (tutoringId: number, topicId: number, file: TopicFile) => downloadFile(`${ROOT}/tutoring/${tutoringId}/topics/${topicId}/files/${file.id}`, file.name),
   absenceNotices: async (tutoringId: number) => (await request<Collection<StudentAbsenceNotice>>(`${ROOT}/tutoring/${tutoringId}/absence-notices`)).data,
+  absenceDates: async (tutoringId: number) => (await request<Collection<StudentAbsenceDate>>(`${ROOT}/tutoring/${tutoringId}/absence-notices/available-dates`)).data,
   createAbsenceNotice: (tutoringId: number, input: { date: string; reason: string }) => mutate<StudentAbsenceNotice>(`tutoring/${tutoringId}/absence-notices`, 'POST', input),
   sessions: async (tutoringId: number) => (await request<Collection<StudentClassSession>>(`${ROOT}/tutoring/${tutoringId}/sessions`)).data,
   degreeAssignments: async (topicId: number) => (await request<Resource<StudentDegreeAssignments>>(`${ROOT}/degree-topics/${topicId}/assignments`)).data,

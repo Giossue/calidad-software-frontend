@@ -6,14 +6,15 @@ import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
-import { Input } from '@/components/ui/input'
+import { SelectInput } from '@/components/ui/select-field'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { formatDate } from '@/lib/format'
-import { studentApi, type StudentAbsenceNotice } from '@/lib/student-api'
+import { studentApi, type StudentAbsenceDate, type StudentAbsenceNotice } from '@/lib/student-api'
+import { DAY_LABELS } from '@/lib/tutoring-api'
 
 const STATUS: Record<StudentAbsenceNotice['status'], { label: string; variant: 'success' | 'danger' | 'outline' }> = {
   pendiente: { label: 'Enviado al docente', variant: 'outline' },
@@ -21,9 +22,11 @@ const STATUS: Record<StudentAbsenceNotice['status'], { label: string; variant: '
   ausente: { label: 'Registrado: ausente', variant: 'danger' },
 }
 
-function todayDate(): string {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+// Las próximas clases bastan para avisar con tiempo; evita una lista de todo el período.
+const MAX_DATES = 10
+
+function classLabel(item: StudentAbsenceDate): string {
+  return `${DAY_LABELS[item.day_of_week] ?? item.day_of_week} ${formatDate(item.date)} · ${item.start_time} – ${item.end_time}`
 }
 
 /** Avisos al docente de que el estudiante no podrá asistir a una clase. */
@@ -32,24 +35,30 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
   const operation = useOperation()
   const [open, setOpen] = useState(false)
   const [listOpen, setListOpen] = useState(false)
-  const [date, setDate] = useState(todayDate)
+  const dates = useDegreeResource(() => studentApi.absenceDates(tutoringId), `absence-dates-${tutoringId}`)
+  const options = (dates.data ?? []).slice(0, MAX_DATES)
+  const [date, setDate] = useState('')
   const [reason, setReason] = useState('')
 
-  function openDialog() {
-    setDate(todayDate())
+  async function openDialog() {
+    setDate('')
     setReason('')
     operation.clearError()
     setOpen(true)
+    await dates.reload()
   }
+
+  // Sin elegir, se propone la próxima clase.
+  const selectedDate = date || options[0]?.date || ''
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     void operation.run(
-      () => studentApi.createAbsenceNotice(tutoringId, { date, reason: reason.trim() }),
+      () => studentApi.createAbsenceNotice(tutoringId, { date: selectedDate, reason: reason.trim() }),
       'Aviso enviado a tu docente.',
       async () => {
         setOpen(false)
-        await notices.reload()
+        await Promise.all([notices.reload(), dates.reload()])
       },
     )
   }
@@ -70,7 +79,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
             </Button>
           )}
           {canNotify && (
-            <Button type="button" onClick={openDialog}>
+            <Button type="button" onClick={() => void openDialog()}>
               <MailWarningIcon data-icon="inline-start" />Avisar inasistencia
             </Button>
           )}
@@ -98,14 +107,25 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
         pending={operation.pending}
         error={operation.error}
         dirty={reason.trim() !== ''}
-        blockReason={!date ? 'Indica la fecha de la clase.' : reason.trim().length < 5 ? 'El motivo debe tener al menos 5 caracteres.' : null}
+        blockReason={!selectedDate ? 'No hay próximas clases para avisar.' : reason.trim().length < 5 ? 'El motivo debe tener al menos 5 caracteres.' : null}
         onClose={() => setOpen(false)}
         onSubmit={submit}
         submitLabel="Enviar aviso"
         submitIcon={MailWarningIcon}
       >
-        <FormField id="absence-date" label="Fecha de la clase">
-          <Input id="absence-date" type="date" min={todayDate()} value={date} onChange={(event) => setDate(event.target.value)} required />
+        <FormField id="absence-date" label="Clase" tip="Solo aparecen las próximas clases de tu horario en las que aún no avisaste.">
+          {dates.loading && options.length === 0
+            ? <p className="text-sm text-muted-foreground">Cargando tus próximas clases…</p>
+            : options.length === 0
+              ? <p className="text-sm text-muted-foreground">No hay próximas clases para avisar en este período.</p>
+              : <SelectInput
+                id="absence-date"
+                ariaLabel="Clase"
+                className="w-full"
+                value={selectedDate}
+                onValueChange={setDate}
+                options={options.map((item) => ({ value: item.date, label: classLabel(item) }))}
+              />}
         </FormField>
         <FormField id="absence-reason" label="Motivo" tip="Mínimo 5 caracteres." counter={{ current: reason.length, max: 500 }}>
           <Textarea id="absence-reason" value={reason} onChange={(event) => setReason(event.target.value.slice(0, 500))} maxLength={500} rows={3} required placeholder="Ej. Cita médica programada" />

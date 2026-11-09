@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -181,11 +181,21 @@ describe('Módulo Estudiante', () => {
     vi.mocked(studentApi.attendance).mockResolvedValue([attendance])
     vi.mocked(studentApi.absenceNotices).mockResolvedValueOnce([]).mockResolvedValue([{ id: 1, date: '2026-12-01', reason: 'Cita médica programada', created_at: null, status: 'ausente' }])
     vi.mocked(studentApi.createAbsenceNotice).mockResolvedValue({ id: 1, date: '2026-12-01', reason: 'Cita médica programada', created_at: null, status: 'pendiente' })
+    vi.mocked(studentApi.absenceDates).mockResolvedValue([
+      { date: '2026-11-24', day_of_week: 'martes', start_time: '08:00', end_time: '10:00' },
+      { date: '2026-12-01', day_of_week: 'martes', start_time: '08:00', end_time: '10:00' },
+    ])
     workspace('attendance')
 
     await user.click(await screen.findByRole('button', { name: 'Avisar inasistencia' }))
     const dialog = await screen.findByRole('dialog', { name: 'Avisar inasistencia' })
-    fireEvent.change(within(dialog).getByLabelText('Fecha de la clase'), { target: { value: '2026-12-01' } })
+    // La fecha sale de las próximas clases del horario, no de un calendario libre.
+    expect(within(dialog).queryByDisplayValue(/\d{4}-\d{2}-\d{2}/)).not.toBeInTheDocument()
+    const picker = await within(dialog).findByRole('combobox', { name: 'Clase' })
+    expect(picker).toHaveTextContent('Martes 24 nov 2026 · 08:00 – 10:00')
+    await user.click(picker)
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Martes 24 nov 2026 · 08:00 – 10:00', 'Martes 1 dic 2026 · 08:00 – 10:00'])
+    await user.click(screen.getByRole('option', { name: 'Martes 1 dic 2026 · 08:00 – 10:00' }))
     await user.type(within(dialog).getByLabelText('Motivo'), 'Cita médica programada')
     await user.click(within(dialog).getByRole('button', { name: 'Enviar aviso' }))
 
@@ -196,6 +206,21 @@ describe('Módulo Estudiante', () => {
     const list = await screen.findByRole('dialog', { name: 'Avisos de inasistencia' })
     expect(within(list).getByText('Registrado: ausente')).toBeInTheDocument()
     expect(within(list).getByText('Cita médica programada')).toBeInTheDocument()
+  })
+
+  it('no permite enviar un aviso cuando no quedan clases para avisar', async () => {
+    const user = userEvent.setup()
+    vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
+    vi.mocked(studentApi.attendance).mockResolvedValue([attendance])
+    vi.mocked(studentApi.absenceNotices).mockResolvedValue([])
+    vi.mocked(studentApi.absenceDates).mockResolvedValue([])
+    workspace('attendance')
+
+    await user.click(await screen.findByRole('button', { name: 'Avisar inasistencia' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Avisar inasistencia' })
+    expect(await within(dialog).findByText('No hay próximas clases para avisar en este período.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Enviar aviso' })).toBeDisabled()
+    expect(studentApi.createAbsenceNotice).not.toHaveBeenCalled()
   })
 
   it('presenta las tres notas y el grupo de conocimiento, sin historial', async () => {
