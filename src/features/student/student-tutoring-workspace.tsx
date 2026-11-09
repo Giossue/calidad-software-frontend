@@ -1,7 +1,8 @@
 import { useSearchParams } from 'react-router-dom'
-import { MailIcon, PhoneIcon } from 'lucide-react'
+import { ArrowLeftIcon, MailIcon, PhoneIcon } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -30,7 +31,7 @@ function isTabId(value: string | null): value is TabId {
 
 // Espacio de una tutoría del estudiante: contenido, asistencia, notas y horarios reunidos,
 // sin volver a elegir la tutoría en cada sección.
-export function StudentTutoringWorkspace({ subjectId }: Readonly<{ subjectId: number }>) {
+export function StudentTutoringWorkspace({ subjectId, onBack }: Readonly<{ subjectId: number; onBack: () => void }>) {
   const [params, setParams] = useSearchParams()
   const resource = useDegreeResource(studentApi.tutorings)
   const requestedTab = params.get('tab')
@@ -45,6 +46,7 @@ export function StudentTutoringWorkspace({ subjectId }: Readonly<{ subjectId: nu
   }
 
   return <section className="flex min-w-0 flex-col gap-6">
+    <div><Button type="button" variant="tertiary" size="sm" className="-ml-2" onClick={onBack}><ArrowLeftIcon data-icon="inline-start" />Volver a mis tutorías</Button></div>
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {resource.loading ? <div role="status" aria-label="Cargando tutoría" className="flex flex-col gap-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
       : resource.error ? null

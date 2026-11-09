@@ -62,7 +62,10 @@ describe('Módulo Estudiante', () => {
     await user.click(await screen.findByTitle('Abrir Calidad de software'))
     expect(await screen.findByRole('heading', { name: /calidad de software/i })).toBeInTheDocument()
     expect(await screen.findByText((_, element) => element?.tagName === 'P' && element.textContent === '50 % · 1 de 2 temas completados')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Volver a mis tutorías' })).not.toBeInTheDocument()
+    // Desde la tutoría se vuelve a la lista sin usar el menú.
+    await user.click(screen.getByRole('button', { name: 'Volver a mis tutorías' }))
+    expect(await screen.findByText('Mostrando 1 de 1 tutoría')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /calidad de software/i })).not.toBeInTheDocument()
   })
 
   it('muestra estado vacío y permite reintentar tras un error', async () => {
