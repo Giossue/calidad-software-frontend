@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { SelectInput } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
@@ -11,6 +10,7 @@ import { AbsenceNotices } from './student-absence-notices'
 import { StudentEmpty } from './student-shared'
 import { ListFooter, RedProgress } from './student-ui'
 import { usePagedList } from './student-hooks'
+import { AttendanceSkeleton } from './student-skeletons'
 
 type RecordFilter = 'all' | 'present' | 'absent'
 
@@ -61,7 +61,7 @@ export function AttendancePanel({ tutoringId, canNotify = false }: Readonly<{ tu
   // Primero el récord del estudiante; los avisos (acción secundaria) quedan al final.
   return <div className="flex flex-col gap-6">
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {resource.loading ? <Skeleton role="status" aria-label="Cargando asistencia" className="h-48 w-full" /> : !resource.error && (!item ? <StudentEmpty title="Aún no tienes asistencia registrada" description="Tu récord aparecerá cuando tu docente registre la primera sesión." /> : <AttendanceView item={item} />)}
+    {resource.loading ? <AttendanceSkeleton /> : !resource.error && (!item ? <StudentEmpty title="Aún no tienes asistencia registrada" description="Tu récord aparecerá cuando tu docente registre la primera sesión." /> : <AttendanceView item={item} />)}
     <AbsenceNotices tutoringId={tutoringId} canNotify={canNotify} />
   </div>
 }

@@ -5,7 +5,6 @@ import { TopicFileList } from '@/components/topic-file-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SelectInput } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { formatDate } from '@/lib/format'
@@ -14,6 +13,7 @@ import { studentApi, type StudentClassSession, type StudentContent, type Student
 import { StudentEmpty } from './student-shared'
 import { ListFooter, RedProgress, SearchField } from './student-ui'
 import { usePagedList } from './student-hooks'
+import { ContentSkeleton } from './student-skeletons'
 
 type TopicFilter = 'all' | 'covered' | 'pending'
 
@@ -175,6 +175,6 @@ export function ContentPanel({ tutoringId }: Readonly<{ tutoringId: number }>) {
 
   return <div className="flex flex-col gap-5">
     <ErrorNotice message={content.error} retry={content.reload} />
-    {content.loading ? <Skeleton role="status" aria-label="Cargando temas" className="h-64 w-full" /> : content.data && <ContentView key={tutoringId} content={content.data} />}
+    {content.loading ? <ContentSkeleton /> : content.data && <ContentView key={tutoringId} content={content.data} />}
   </div>
 }

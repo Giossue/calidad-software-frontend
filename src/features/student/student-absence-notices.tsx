@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { SelectInput } from '@/components/ui/select-field'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -15,6 +16,7 @@ import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { formatDate } from '@/lib/format'
 import { studentApi, type StudentAbsenceDate, type StudentAbsenceNotice } from '@/lib/student-api'
 import { DAY_LABELS } from '@/lib/tutoring-api'
+import { SelectSkeleton } from './student-skeletons'
 
 const STATUS: Record<StudentAbsenceNotice['status'], { label: string; variant: 'success' | 'danger' | 'outline' }> = {
   pendiente: { label: 'Enviado al docente', variant: 'outline' },
@@ -64,13 +66,17 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
   }
 
   const items = notices.data ?? []
+  // Hasta la primera respuesta no se sabe cuántos avisos hay: no se afirma que no existen.
+  const noticesPending = notices.loading && !notices.data
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4" aria-labelledby="absence-notices-title">
+    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm" aria-labelledby="absence-notices-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-0.5">
           <h3 id="absence-notices-title" className="font-semibold">Avisos de inasistencia</h3>
-          <p className="text-sm text-muted-foreground">{items.length === 0 ? 'Aún no has enviado avisos.' : items.length === 1 ? '1 aviso enviado' : `${items.length} avisos enviados`}</p>
+          {noticesPending
+            ? <Skeleton role="status" aria-label="Cargando avisos" className="mt-1 h-4 w-32" />
+            : <p className="text-sm text-muted-foreground">{items.length === 0 ? 'Aún no has enviado avisos.' : items.length === 1 ? '1 aviso enviado' : `${items.length} avisos enviados`}</p>}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           {items.length > 0 && (
@@ -115,7 +121,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
       >
         <FormField id="absence-date" label="Clase" tip="Solo aparecen las próximas clases de tu horario en las que aún no avisaste.">
           {dates.loading && options.length === 0
-            ? <p className="text-sm text-muted-foreground">Cargando tus próximas clases…</p>
+            ? <SelectSkeleton label="Cargando tus próximas clases" />
             : options.length === 0
               ? <p className="text-sm text-muted-foreground">No hay próximas clases para avisar en este período.</p>
               : <SelectInput

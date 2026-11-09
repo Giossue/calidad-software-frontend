@@ -14,7 +14,6 @@ import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -23,6 +22,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { degreeCoordinationApi, type DegreeActivity, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { cn } from '@/lib/utils'
 import { FilterChips, RedProgress, SearchField } from '@/features/student/student-ui'
+import { DegreeTrackingSkeleton } from '@/features/student/student-skeletons'
 
 type StatusFilter = 'all' | 'pending' | 'completed'
 type RoleFilter = 'all' | 'tutor' | 'peer'
@@ -380,7 +380,7 @@ export function StudentDegreeTrackingPage() {
       <ErrorNotice message={resource.error} retry={resource.reload} />
 
       {resource.loading ? (
-        <Skeleton role="status" aria-label="Cargando seguimiento" className="h-64 w-full" />
+        <DegreeTrackingSkeleton />
       ) : approvedTopics.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">

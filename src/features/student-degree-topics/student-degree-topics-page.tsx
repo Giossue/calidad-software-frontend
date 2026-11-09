@@ -10,13 +10,13 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { InitialsAvatar, SectionCard } from '@/features/degree-coordination/degree-shared'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { degreeCoordinationApi, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { studentApi } from '@/lib/student-api'
+import { DegreeTopicsSkeleton } from '@/features/student/student-skeletons'
 
 // El backend también devuelve «descartado» cuando el estudiante reemplaza una propuesta pendiente.
 const STATUS_LABELS: Record<string, string> = {
@@ -113,7 +113,7 @@ export function StudentDegreeTopicsPage() {
 
   return <section className="flex min-w-0 flex-col gap-6" aria-busy={loading}>
     <AdminSectionHeader title="Mis propuestas de titulación" description="Presenta tu tema, consulta el estado de tus propuestas, los docentes asignados y las observaciones de coordinación." actions={<div className="flex shrink-0 flex-col gap-2 sm:flex-row"><RefreshButton disabled={loading} onClick={resource.reload} />{action}</div>} />
-    {error ? <ErrorNotice message={error} retry={resource.reload} /> : loading ? <div role="status" aria-label="Cargando propuestas" className="flex flex-col gap-4"><Skeleton className="h-36 w-full" /><Skeleton className="h-36 w-full" /></div> : topics.length === 0 ? <Alert><AlertDescription>Aún no tienes propuestas de titulación registradas. Usa «Nueva propuesta» para presentar tu tema a coordinación.</AlertDescription></Alert> : topics.map((topic) => <TopicCard key={topic.id} topic={topic} onEdit={topic.status === 'pendiente' ? (item) => setMode({ kind: 'edit', topic: item }) : undefined} />)}
+    {error ? <ErrorNotice message={error} retry={resource.reload} /> : loading ? <DegreeTopicsSkeleton /> : topics.length === 0 ? <Alert><AlertDescription>Aún no tienes propuestas de titulación registradas. Usa «Nueva propuesta» para presentar tu tema a coordinación.</AlertDescription></Alert> : topics.map((topic) => <TopicCard key={topic.id} topic={topic} onEdit={topic.status === 'pendiente' ? (item) => setMode({ kind: 'edit', topic: item }) : undefined} />)}
     <ProposalDialog mode={mode} onClose={() => setMode(null)} onSaved={resource.reload} />
   </section>
 }

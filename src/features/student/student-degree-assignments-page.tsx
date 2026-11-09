@@ -8,6 +8,7 @@ import { InitialsAvatar } from '@/features/degree-coordination/degree-shared'
 import { formatDate } from '@/lib/format'
 import { studentApi, type StudentDegreeAssignments } from '@/lib/student-api'
 import { StudentEmpty, StudentReadPage } from './student-shared'
+import { DegreeAssignmentsSkeleton } from './student-skeletons'
 import { IconTile } from './student-ui'
 
 type Row = { readonly id: number; readonly assignments: StudentDegreeAssignments }
@@ -32,7 +33,7 @@ async function loadAssignments(): Promise<readonly Row[]> {
 }
 
 export function StudentDegreeAssignmentsPage() {
-  return <StudentReadPage title="Tutor y pares académicos" description="Consulta el docente tutor y los pares académicos asignados a tu tema de titulación aprobado." label="asignaciones" loader={loadAssignments}
+  return <StudentReadPage title="Tutor y pares académicos" description="Consulta el docente tutor y los pares académicos asignados a tu tema de titulación aprobado." label="asignaciones" loader={loadAssignments} skeleton={<DegreeAssignmentsSkeleton />}
     empty={<StudentEmpty title="Aún no tienes un tema aprobado" description="El tutor y los pares académicos se asignan cuando la Coordinación de Titulación aprueba tu propuesta." />}>
     {(rows) => rows.map(({ id, assignments }) => <Card key={id}>
       <CardContent className="flex flex-col gap-5 pt-6">

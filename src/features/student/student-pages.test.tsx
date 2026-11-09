@@ -211,6 +211,19 @@ describe('Módulo Estudiante', () => {
     expect(within(list).getByText('Cita médica programada')).toBeInTheDocument()
   })
 
+  it('mientras cargan, muestra esqueletos con la forma del contenido y no afirma que no hay avisos', async () => {
+    vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
+    vi.mocked(studentApi.attendance).mockReturnValue(new Promise(() => {}))
+    vi.mocked(studentApi.absenceNotices).mockReturnValue(new Promise(() => {}))
+    workspace('attendance')
+    const loading = await screen.findByRole('status', { name: 'Cargando asistencia' })
+    // La tabla de carga ya muestra las columnas reales.
+    expect(within(loading).getByRole('columnheader', { name: 'Sesión' })).toBeInTheDocument()
+    expect(within(loading).getByRole('columnheader', { name: 'Asistencia' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Cargando avisos' })).toBeInTheDocument()
+    expect(screen.queryByText('Aún no has enviado avisos.')).not.toBeInTheDocument()
+  })
+
   it('no permite enviar un aviso cuando no quedan clases para avisar', async () => {
     const user = userEvent.setup()
     vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])

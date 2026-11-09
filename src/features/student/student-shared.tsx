@@ -12,8 +12,10 @@ export function StudentEmpty({ title, description }: Readonly<{ title: string; d
 }
 
 /** Página de solo lectura: carga un recurso y muestra esqueleto, error con reintento o estado vacío. */
-export function StudentReadPage<T>({ title, description, label, loader, isEmpty, empty, children }: Readonly<{
+export function StudentReadPage<T>({ title, description, label, loader, isEmpty, empty, children, skeleton }: Readonly<{
   title: string; description: string; label: string; loader: () => Promise<readonly T[]>
+  /** Esqueleto con la forma del contenido; por defecto, dos bloques. */
+  skeleton?: ReactNode
   isEmpty?: (rows: readonly T[]) => boolean; empty: ReactNode; children: (rows: readonly T[]) => ReactNode
 }>) {
   const resource = useDegreeResource(loader)
@@ -22,6 +24,6 @@ export function StudentReadPage<T>({ title, description, label, loader, isEmpty,
   return <section className="flex min-w-0 flex-col gap-6" aria-busy={resource.loading}>
     <AdminSectionHeader title={title} description={description} />
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {resource.loading ? <div role="status" aria-label={`Cargando ${label}`} className="flex flex-col gap-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div> : !resource.error && (blank ? empty : children(rows))}
+    {resource.loading ? <div role="status" aria-label={`Cargando ${label}`} className="flex flex-col gap-4">{skeleton ?? <><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></>}</div> : !resource.error && (blank ? empty : children(rows))}
   </section>
 }
