@@ -20,9 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DataTable } from '@/components/ui/data-table'
-import { FieldLabel } from '@/components/ui/field'
 import { IconAction } from '@/components/ui/icon-action'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -35,6 +33,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { compareNames, formatDate } from '@/lib/format'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { teacherApi, type Enrollment, type TeacherAbsenceNotice, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
+import { classWindow, closedReason, hoursLabel, useNow } from './class-hours'
 import { jointGroup, ownGroup, type ClassGroup } from './joint-groups'
 import { JointNotice } from './joint-notice'
 import { TeacherEmpty } from './teacher-shared'
@@ -62,58 +61,6 @@ export function getDayOfWeekFromDate(dateStr: string): string {
 function todayDate(): string {
   const date = new Date()
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
-// Sugiere una fecha de asistencia acotada al período y que coincida con los días de horario registrados
-function suggestedDate(tutoring: TeacherTutoring, allowedDays: readonly string[] = []): string {
-  const today = todayDate()
-  const rawMin = tutoring.period_start_date || '2000-01-01'
-  const minDate = rawMin <= today ? rawMin : '2000-01-01'
-  const maxDate = today < (tutoring.period_end_date || '2099-12-31') ? today : (tutoring.period_end_date || '2099-12-31')
-
-  if (allowedDays.length === 0) {
-    if (today > maxDate) return maxDate
-    if (today < minDate) return minDate
-    return today
-  }
-
-  // Si hoy es un día permitido y está dentro del rango
-  const todayDay = getDayOfWeekFromDate(today)
-  if (today >= minDate && today <= maxDate && allowedDays.includes(todayDay)) {
-    return today
-  }
-
-  // Buscar hacia atrás desde hoy hasta minDate el día permitido más reciente
-  const [ty, tm, td] = today.split('-').map(Number)
-  const curr = new Date(ty, tm - 1, td, 12, 0, 0)
-  for (let i = 0; i < 30; i++) {
-    const y = curr.getFullYear()
-    const m = String(curr.getMonth() + 1).padStart(2, '0')
-    const d = String(curr.getDate()).padStart(2, '0')
-    const dateStr = `${y}-${m}-${d}`
-    if (dateStr < minDate) break
-    if (dateStr <= maxDate && allowedDays.includes(getDayOfWeekFromDate(dateStr))) {
-      return dateStr
-    }
-    curr.setDate(curr.getDate() - 1)
-  }
-
-  // Si no se encuentra hacia atrás, buscar hacia adelante desde minDate
-  const [sy, sm, sd] = minDate.split('-').map(Number)
-  const startCurr = new Date(sy, sm - 1, sd, 12, 0, 0)
-  for (let i = 0; i < 30; i++) {
-    const y = startCurr.getFullYear()
-    const m = String(startCurr.getMonth() + 1).padStart(2, '0')
-    const d = String(startCurr.getDate()).padStart(2, '0')
-    const dateStr = `${y}-${m}-${d}`
-    if (dateStr > maxDate) break
-    if (allowedDays.includes(getDayOfWeekFromDate(dateStr))) {
-      return dateStr
-    }
-    startCurr.setDate(startCurr.getDate() + 1)
-  }
-
-  return today
 }
 
 // --- Borrador: el avance se guarda solo para no perder nada si el docente retrocede o recarga. ---
@@ -158,17 +105,11 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
     return sessionDate && DATE_PATTERN.test(sessionDate) ? 'register' : 'consult'
   })
 
-  // Fecha seleccionada para registrar asistencia
-  const [targetDate, setTargetDate] = useState<string>(() => {
-    if (sessionDate && DATE_PATTERN.test(sessionDate)) return sessionDate
-    return suggestedDate(tutoring, activeScheduleDays)
-  })
+  // La asistencia solo se toma el día de la clase: la lista que se registra es siempre la de hoy.
+  const targetDate = todayDate()
 
   useEffect(() => {
-    if (sessionDate && DATE_PATTERN.test(sessionDate)) {
-      setTargetDate(sessionDate)
-      setSection('register')
-    }
+    if (sessionDate && DATE_PATTERN.test(sessionDate)) setSection('register')
   }, [sessionDate])
 
   function handleSectionChange(newSection: string) {
@@ -184,18 +125,10 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
   }
 
   function openRegisterForDate(date: string) {
-    setTargetDate(date)
     setSection('register')
     setConsultingSession(null)
     const next = new URLSearchParams(params)
     next.set(SESSION_PARAM, date)
-    setParams(next, { replace: true })
-  }
-
-  function handleDateChange(newDate: string) {
-    setTargetDate(newDate)
-    const next = new URLSearchParams(params)
-    next.set(SESSION_PARAM, newDate)
     setParams(next, { replace: true })
   }
 
@@ -238,8 +171,6 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
             key={`${tutoring.id}:${targetDate}`}
             tutoring={tutoring}
             date={targetDate}
-            allowedDays={activeScheduleDays}
-            onDateChange={handleDateChange}
             onClose={handleCloseRegister}
           />
         </TabsContent>
@@ -253,7 +184,6 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
           ) : (
             <SessionsList
               tutoring={tutoring}
-              allowedDays={activeScheduleDays}
               onOpenConsult={(session) => setConsultingSession(session)}
               onOpenRegister={(date) => openRegisterForDate(date)}
             />
@@ -271,12 +201,10 @@ function attendanceSummary(session: TutoringSession): string {
 
 function SessionsList({
   tutoring,
-  allowedDays,
   onOpenConsult,
   onOpenRegister,
 }: Readonly<{
   tutoring: TeacherTutoring
-  allowedDays: readonly string[]
   onOpenConsult: (session: TutoringSession) => void
   onOpenRegister: (date: string) => void
 }>) {
@@ -289,6 +217,8 @@ function SessionsList({
     `${tutoring.id}:${today}`,
   )
   const taken = todaySession.data
+  const classTime = classWindow(tutoring.schedules, useNow())
+  const closed = closedReason(classTime)
 
   return (
     <div className="flex flex-col gap-5">
@@ -298,11 +228,11 @@ function SessionsList({
             <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
             <div className="flex flex-col">
               <p>La lista de hoy ya se tomó</p>
-              <p className="text-sm text-muted-foreground">{attendanceSummary(taken)}. Puedes modificarla solo durante hoy.</p>
+              <p className="text-sm text-muted-foreground">{attendanceSummary(taken)}. Puedes modificarla solo durante el horario de la clase.</p>
             </div>
           </div>
           {tutoring.can_manage && (
-            <Button variant="secondary" className="shrink-0" onClick={() => onOpenRegister(today)}>
+            <Button variant="secondary" className="shrink-0" disabled={closed !== null} title={closed ?? undefined} onClick={() => onOpenRegister(today)}>
               <PencilIcon data-icon="inline-start" />Modificar lista de hoy
             </Button>
           )}
@@ -310,12 +240,12 @@ function SessionsList({
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Consulta el historial de asistencias tomadas o registra una nueva sesión.
+            {closed ?? `Clase en curso (${classTime.current ? hoursLabel(classTime.current) : ''}): registra la asistencia de hoy.`}
           </p>
           <Button
             className="shrink-0"
-            disabled={!tutoring.can_manage || todaySession.loading}
-            onClick={() => onOpenRegister(suggestedDate(tutoring, allowedDays))}
+            disabled={!tutoring.can_manage || todaySession.loading || closed !== null}
+            onClick={() => onOpenRegister(today)}
           >
             <PlusIcon data-icon="inline-start" />Registrar asistencia
           </Button>
@@ -429,14 +359,10 @@ const CONSULT_COLUMNS: ColumnDef<TutoringSession['attendance'][number]>[] = [
 function SessionFlow({
   tutoring,
   date,
-  allowedDays,
-  onDateChange,
   onClose,
 }: Readonly<{
   tutoring: TeacherTutoring
   date: string
-  allowedDays: readonly string[]
-  onDateChange: (date: string) => void
   onClose: () => void
 }>) {
   const resource = useDegreeResource(async () => {
@@ -469,8 +395,6 @@ function SessionFlow({
           <SessionForm
             tutoring={tutoring}
             date={date}
-            allowedDays={allowedDays}
-            onDateChange={onDateChange}
             onClose={onClose}
             {...resource.data}
           />
@@ -525,8 +449,6 @@ const activeStudents = (students: readonly Enrollment[]) =>
 function SessionForm({
   tutoring,
   date,
-  allowedDays,
-  onDateChange,
   onClose,
   students,
   session,
@@ -535,8 +457,6 @@ function SessionForm({
 }: Readonly<{
   tutoring: TeacherTutoring
   date: string
-  allowedDays: readonly string[]
-  onDateChange: (date: string) => void
   onClose: () => void
   students: readonly Enrollment[]
   session: TutoringSession | null
@@ -554,7 +474,8 @@ function SessionForm({
   const active = useMemo(() => [...own, ...jointGroups.flatMap((item) => item.active)], [own, jointGroups])
 
   const selectedDay = getDayOfWeekFromDate(date)
-  const isDayAllowed = allowedDays.length === 0 || allowedDays.includes(selectedDay)
+  const classTime = classWindow(tutoring.schedules, useNow())
+  const closed = closedReason(classTime)
 
   // El borrador local tiene prioridad sobre lo guardado en el servidor
   const [draft] = useState(() => readDraft(tutoring.id, date))
@@ -576,13 +497,7 @@ function SessionForm({
   const presentCount = active.length - absent.length
   const allPresent = active.length > 0 && absent.length === 0
   const readOnly = !tutoring.can_manage
-  const today = todayDate()
-  const minDate = tutoring.period_start_date && tutoring.period_start_date <= today
-    ? tutoring.period_start_date
-    : undefined
-  const maxDate = today < (tutoring.period_end_date || '2099-12-31')
-    ? today
-    : (tutoring.period_end_date || undefined)
+  const locked = readOnly || closed !== null
 
   function mark(studentId: number, present: boolean) {
     setMarks((current) => ({ ...current, [studentId]: present }))
@@ -594,7 +509,7 @@ function SessionForm({
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!isDayAllowed || active.length === 0 || readOnly || operation.pending) return
+    if (closed || active.length === 0 || readOnly || operation.pending) return
     // Cada grupo guarda su sesión en su propia tutoría.
     const groups = [{ id: tutoring.id, active: own }, ...jointGroups.map((item) => ({ id: item.group.id, active: item.active }))]
       .filter((group) => group.active.length > 0)
@@ -617,14 +532,13 @@ function SessionForm({
     )
   }
 
-  const saveBlockReason = !isDayAllowed
-    ? 'La fecha no coincide con los días de horario de la tutoría.'
-    : active.length === 0
+  const saveBlockReason = closed
+    ?? (active.length === 0
       ? 'No hay estudiantes activos para registrar asistencia.'
-      : null
+      : null)
 
   const tableMeta: AttendanceTableMeta = {
-    marks, notices: noticesByEnrollment, disabled: readOnly || operation.pending, onMark: mark,
+    marks, notices: noticesByEnrollment, disabled: locked || operation.pending, onMark: mark,
   }
 
   return (
@@ -634,20 +548,9 @@ function SessionForm({
       aria-label="Registrar asistencia"
       className="flex flex-col gap-5"
     >
-      {/* Validación de coincidencia de días */}
-      {allowedDays.length > 0 && !isDayAllowed && (
+      {!readOnly && closed && (
         <Alert variant="destructive">
-          <AlertDescription>
-            La fecha seleccionada corresponde a un <strong>{DAY_LABELS[selectedDay] ?? selectedDay}</strong>, pero esta tutoría solo tiene horario los días: <strong>{allowedDays.map((d) => DAY_LABELS[d] ?? d).join(', ')}</strong>. Solo se puede tomar asistencia en las fechas que coinciden con los días registrados.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {allowedDays.length === 0 && (
-        <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200">
-          <AlertDescription>
-            Esta tutoría aún no tiene días de horario configurados. Te recomendamos definir los horarios en la pestaña <strong>Horarios</strong>.
-          </AlertDescription>
+          <AlertDescription>{closed}</AlertDescription>
         </Alert>
       )}
 
@@ -659,9 +562,7 @@ function SessionForm({
       {session && !draft && (
         <Alert>
           <AlertDescription>
-            {date === todayDate()
-              ? 'La lista de hoy ya se tomó. Estás modificándola: al guardar se reemplaza ese registro.'
-              : 'Ya existe una sesión registrada para esta fecha. Lo que guardes la reemplazará.'}
+            La lista de hoy ya se tomó. Estás modificándola: al guardar se reemplaza ese registro.
           </AlertDescription>
         </Alert>
       )}
@@ -680,23 +581,10 @@ function SessionForm({
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="flex items-center gap-2">
-            <FieldLabel htmlFor="teacher-session-date" className="sr-only">Fecha de la sesión</FieldLabel>
-            <Input
-              id="teacher-session-date"
-              type="date"
-              min={minDate}
-              max={maxDate}
-              value={date}
-              onChange={(event) => event.target.value && onDateChange(event.target.value)}
-              required
-              disabled={operation.pending}
-              className="w-auto"
-            />
-            {selectedDay && isDayAllowed && (
-              <span className="text-sm text-muted-foreground">{DAY_LABELS[selectedDay] ?? selectedDay}</span>
-            )}
-          </div>
+          <p className="text-sm">
+            <span className="font-medium">Hoy, {DAY_LABELS[selectedDay] ?? selectedDay} {formatDate(date)}</span>
+            {classTime.current && <span className="text-muted-foreground"> · Clase de {hoursLabel(classTime.current)}</span>}
+          </p>
           <div className="flex items-center gap-3">
             <p className="text-sm text-muted-foreground" aria-live="polite">
               {presentCount} de {active.length} presentes
@@ -705,7 +593,7 @@ function SessionForm({
               type="button"
               variant="secondary"
               size="sm"
-              disabled={readOnly || active.length === 0}
+              disabled={locked || active.length === 0}
               onClick={() => markAll(!allPresent)}
             >
               <CheckCheckIcon data-icon="inline-start" />
@@ -725,7 +613,7 @@ function SessionForm({
               meta={tableMeta}
               data={groupStudents}
               getRowId={(student) => String(student.id)}
-              onRowClick={readOnly || operation.pending ? undefined : (student) => mark(student.id, marks[student.id] !== true)}
+              onRowClick={locked || operation.pending ? undefined : (student) => mark(student.id, marks[student.id] !== true)}
               emptyMessage="No hay estudiantes activos en esta tutoría. Inscríbelos en la pestaña Estudiantes."
             />
           </section>

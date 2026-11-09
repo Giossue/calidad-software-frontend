@@ -41,7 +41,18 @@ function show(component: React.ReactNode, path = '/panel/teacher-tutorings?tutor
 }
 
 const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+const todayName = DAY_NAMES[new Date().getDay()]
+// Clase en curso todo el día de hoy: la asistencia solo se toma durante el horario.
+const inClass: TeacherTutoring = { ...tutoring, schedules: [{ id: 9, tutoring_id: 40, day: todayName, start_time: '00:00', end_time: '23:59', room: 'Aula 1', is_active: true }] }
+
+function duringClass() {
+  vi.mocked(teacherApi.tutorings).mockResolvedValue(paginated([inClass]))
+  vi.mocked(teacherApi.allTutorings).mockResolvedValue([inClass])
+}
+
 function attendance() {
+  duringClass()
   return show(<TeacherTutoringsPage />, `/panel/teacher-tutorings?tutoring=40&tab=attendance&session=${today}`)
 }
 
@@ -366,7 +377,6 @@ describe('Módulo Docente', () => {
 
   it('en una clase conjunta toma asistencia a ambos grupos y la guarda en cada tutoría', async () => {
     const user = userEvent.setup()
-    const todayName = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'][new Date().getDay()]
     const other = { ...student, id: 75, tutoring_id: 41, student_id: 85, name: 'Bruno Vera' }
     vi.mocked(teacherApi.jointTutorings).mockResolvedValue([{ id: 41, name: 'CALIDAD DE SOFTWARE', career_name: 'Tecnologías de la Información', cycle_number: 3, section_name: 'A', days: [todayName], can_manage: true }])
     vi.mocked(teacherApi.allStudents).mockImplementation(async (id: number) => (id === 41 ? [other] : [student]))
@@ -386,7 +396,6 @@ describe('Módulo Docente', () => {
 
   it('en una clase conjunta se puede trabajar solo con el grupo propio', async () => {
     const user = userEvent.setup()
-    const todayName = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'][new Date().getDay()]
     vi.mocked(teacherApi.jointTutorings).mockResolvedValue([{ id: 41, name: 'CALIDAD DE SOFTWARE', career_name: 'TI', cycle_number: 3, section_name: null, days: [todayName], can_manage: true }])
     vi.mocked(teacherApi.allStudents).mockImplementation(async (id: number) => (id === 41 ? [{ ...student, id: 75, tutoring_id: 41, name: 'Bruno Vera' }] : [student]))
     vi.mocked(teacherApi.saveSession).mockResolvedValue({ id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [] })
@@ -476,6 +485,7 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     const saved = { id: 100, tutoring_id: 40, date: '2026-09-29', topics_covered: true, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false }] }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
+    duringClass()
     workspace('attendance')
     expect(await screen.findByText('0 de 1 presentes')).toBeInTheDocument()
     await user.click(screen.getByText('0 de 1 presentes'))
@@ -497,6 +507,7 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     const saved = { id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true }] }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
+    duringClass()
     workspace('attendance')
     expect(await screen.findByText('La lista de hoy ya se tomó')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar asistencia' })).not.toBeInTheDocument()
@@ -506,6 +517,7 @@ describe('Módulo Docente', () => {
   })
 
   it('ofrece registrar la asistencia cuando hoy todavía no se ha tomado lista', async () => {
+    duringClass()
     workspace('attendance')
     const register = await screen.findByRole('button', { name: 'Registrar asistencia' })
     // El botón se habilita cuando termina de comprobarse si hoy ya hay lista.
@@ -513,7 +525,7 @@ describe('Módulo Docente', () => {
     expect(screen.queryByText('La lista de hoy ya se tomó')).not.toBeInTheDocument()
   })
 
-  it('muestra las dos secciones de asistencia, muestra el día en consultar y valida los días registrados en registrar', async () => {
+  it('muestra las dos secciones de asistencia y solo permite tomarla durante el horario de la clase', async () => {
     const user = userEvent.setup()
     const savedMonday = {
       id: 101,
@@ -523,18 +535,21 @@ describe('Módulo Docente', () => {
       topics: [],
       attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true }],
     }
+    // La clase es mañana: hoy no se puede tomar asistencia.
+    const tomorrow = DAY_NAMES[(new Date().getDay() + 1) % 7]
     const tutoringWithSchedule: TeacherTutoring = {
       ...tutoring,
       schedules: [
-        { id: 1, tutoring_id: 40, day: 'lunes', start_time: '08:00', end_time: '10:00', room: 'Aula 1', is_active: true },
+        { id: 1, tutoring_id: 40, day: tomorrow, start_time: '08:00', end_time: '10:00', room: 'Aula 1', is_active: true },
       ],
     }
+    vi.mocked(teacherApi.tutorings).mockResolvedValue(paginated([tutoringWithSchedule]))
     vi.mocked(teacherApi.allTutorings).mockResolvedValue([tutoringWithSchedule])
-    vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([savedMonday]))
+    // Hoy todavía no hay lista; el historial tiene la del lunes.
+    vi.mocked(teacherApi.sessions).mockImplementation(async (_id, params) => paginated(params?.date ? [] : [savedMonday]))
 
     workspace('attendance')
 
-    // Pestañas / secciones visibles
     expect(await screen.findByRole('tab', { name: /Consultar asistencia/i })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Registrar asistencia/i })).toBeInTheDocument()
 
@@ -544,17 +559,16 @@ describe('Módulo Docente', () => {
     expect(within(table).getByText(/28 sept/i)).toBeInTheDocument()
     expect(within(table).getByText('1 de 1 presentes')).toBeInTheDocument()
 
-    // Cambiar a la sección de registrar asistencia
+    // Fuera del horario no se ofrece registrar
+    expect(screen.getByText(/Hoy no hay clase de esta tutoría/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar asistencia' })).toBeDisabled())
+
+    // Ni desde la sección de registro: la lista queda bloqueada
     await user.click(screen.getByRole('tab', { name: /Registrar asistencia/i }))
-    expect(await screen.findByRole('form', { name: 'Registrar asistencia' })).toBeInTheDocument()
-
-    // Cambiar la fecha a un martes (no registrado en el horario)
-    const dateInput = screen.getByLabelText(/Fecha de la sesión/i)
-    fireEvent.change(dateInput, { target: { value: '2026-09-29' } })
-
-    // Valida que no coincide con los días registrados y bloquea guardar
-    expect(await screen.findByText(/La fecha seleccionada corresponde a un/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Guardar asistencia' })).toBeDisabled()
+    const form = await screen.findByRole('form', { name: 'Registrar asistencia' })
+    expect(within(form).getByText(/Hoy no hay clase de esta tutoría/)).toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Guardar asistencia' })).toBeDisabled()
+    expect(within(form).getByRole('checkbox', { name: 'Presente: Ana Pérez' })).toBeDisabled()
   })
 
   it('muestra el contenido por sesión: cada sesión con sus temas y la sesión de cada tema', async () => {
