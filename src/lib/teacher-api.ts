@@ -1,5 +1,6 @@
 import { buildQuery, downloadFile, request, type PaginatedResourceCollection } from '@/lib/api'
 import type { DegreeActivity, DegreeTopic } from '@/lib/degree-coordination-api'
+import type { DiagnosticGradesSummary } from '@/lib/diagnostic-grades'
 import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
 import type { FinalPaoReportSummary } from '@/lib/final-pao-report'
 import type { FollowUpReportSummary } from '@/lib/follow-up-report'
@@ -128,7 +129,7 @@ export interface ReportSummary {
   readonly partial_count: number
   readonly knowledge_groups: Readonly<Record<string, number>>
 }
-export interface TeacherReport extends TutoringReport { readonly summary: ReportSummary | DiagnosticReportSummary | FollowUpReportSummary | FinalPaoReportSummary | null }
+export interface TeacherReport extends TutoringReport { readonly summary: ReportSummary | DiagnosticReportSummary | DiagnosticGradesSummary | FollowUpReportSummary | FinalPaoReportSummary | null }
 export type DiagnosticReportInput = { date: string; observations: string }
 export type FollowUpReportParams = { partial: 1 | 2; from: string; to: string; date: string }
 export type FollowUpReportInput = FollowUpReportParams & { observations: string }
@@ -226,6 +227,9 @@ export const teacherApi = {
   diagnosticReportPreview: async (id: number, date: string) =>
     (await request<Resource<DiagnosticReportSummary>>(`${ROOT}/tutorings/${id}/reports/diagnostic/preview${buildQuery({ date })}`)).data,
   sendDiagnosticReport: (id: number, input: DiagnosticReportInput) => mutate<TeacherReport>(`tutorings/${id}/reports/diagnostic`, 'POST', input),
+  diagnosticGradesPreview: async (id: number) =>
+    (await request<Resource<DiagnosticGradesSummary>>(`${ROOT}/tutorings/${id}/reports/diagnostic-grades/preview`)).data,
+  sendDiagnosticGrades: (id: number) => mutate<TeacherReport>(`tutorings/${id}/reports/diagnostic-grades`, 'POST'),
   followUpReportPreview: async (id: number, params: FollowUpReportParams) =>
     (await request<Resource<FollowUpReportSummary>>(`${ROOT}/tutorings/${id}/reports/follow-up/preview${buildQuery(params)}`)).data,
   sendFollowUpReport: (id: number, input: FollowUpReportInput) => mutate<TeacherReport>(`tutorings/${id}/reports/follow-up`, 'POST', input),

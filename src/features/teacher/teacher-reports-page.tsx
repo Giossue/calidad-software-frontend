@@ -10,6 +10,7 @@ import {
   FileCheck2Icon,
   FileTextIcon,
   SendIcon,
+  SheetIcon,
   TrendingUpIcon,
   UsersIcon,
 } from 'lucide-react'
@@ -40,6 +41,7 @@ import { isStructuredReport } from '@/lib/structured-report'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { teacherApi, type TeacherReport, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
 import { getDayOfWeekFromDate } from './teacher-attendance-page'
+import { DiagnosticGradesDialog } from './teacher-diagnostic-grades-dialog'
 import { DiagnosticReportDialog } from './teacher-diagnostic-report-dialog'
 import { FinalPaoReportDialog } from './teacher-final-pao-report-dialog'
 import { FollowUpReportDialog } from './teacher-follow-up-report-dialog'
@@ -83,6 +85,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   const [form, setForm] = useState(INITIAL)
   const [reading, setReading] = useState<TeacherReport | null>(null)
   const [diagnosticOpen, setDiagnosticOpen] = useState(false)
+  const [gradesOpen, setGradesOpen] = useState(false)
   const [followUpOpen, setFollowUpOpen] = useState(false)
   const [finalOpen, setFinalOpen] = useState(false)
   const readingStructured = Boolean(reading && isStructuredReport(reading.summary))
@@ -119,15 +122,19 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setDiagnosticOpen(true)}>
                 <ClipboardListIcon />
-                Evaluación diagnóstica
+                Reporte de Evaluación Diagnóstica
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setGradesOpen(true)}>
+                <SheetIcon />
+                Calificaciones Diagnósticas
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setFollowUpOpen(true)}>
                 <TrendingUpIcon />
-                Seguimiento
+                Seguimiento de Tutorías
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setFinalOpen(true)}>
                 <FileCheck2Icon />
-                Informe final PAO
+                Informe Final PAO
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -146,6 +153,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
       </div>
 
       <DiagnosticReportDialog tutoring={tutoring} open={diagnosticOpen} onClose={() => setDiagnosticOpen(false)} onSent={list.reload} />
+      <DiagnosticGradesDialog tutoring={tutoring} open={gradesOpen} onClose={() => setGradesOpen(false)} onSent={list.reload} />
       <FollowUpReportDialog tutoring={tutoring} open={followUpOpen} onClose={() => setFollowUpOpen(false)} onSent={list.reload} />
       <FinalPaoReportDialog tutoring={tutoring} open={finalOpen} onClose={() => setFinalOpen(false)} onSent={list.reload} />
 

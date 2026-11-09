@@ -753,7 +753,7 @@ describe('Módulo Docente', () => {
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Evaluación diagnóstica' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Reporte de Evaluación Diagnóstica' }))
 
     const form = screen.getByRole('form', { name: 'Reporte de la evaluación diagnóstica' })
     const parameters = await within(form).findByRole('table', { name: 'Parámetros de la evaluación al estudiante' })
@@ -785,10 +785,43 @@ describe('Módulo Docente', () => {
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Evaluación diagnóstica' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Reporte de Evaluación Diagnóstica' }))
 
     expect(await screen.findByText(/Aún no hay calificaciones diagnósticas registradas/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Enviar a coordinación' })).toBeDisabled()
+  })
+
+  it('ofrece los cuatro formatos oficiales y envía las calificaciones diagnósticas a coordinación', async () => {
+    const user = userEvent.setup()
+    const summary = {
+      format: 'diagnostic_grades' as const, faculty: 'Ciencias Administrativas', career: 'Software', subject: 'Calidad de software',
+      cycle: 2, cycle_name: 'Segundo', academic_period: '2026-2', section: 'A', teacher: 'María López', students_listed: 2, students_evaluated: 1,
+      grades: [
+        { number: 1, identification: '0201234567', name: 'Ana Pérez', grade: 5.75 },
+        { number: 2, identification: '0207654321', name: 'Luis Vera', grade: null },
+      ],
+    }
+    const report = { id: 121, type: 'Calificaciones de la evaluación diagnóstica', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'CALIFICACIONES', summary }
+    vi.mocked(teacherApi.diagnosticGradesPreview).mockResolvedValue(summary)
+    vi.mocked(teacherApi.sendDiagnosticGrades).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
+
+    show(<TeacherReportsStandalonePage />)
+    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+      'Reporte de Evaluación Diagnóstica', 'Calificaciones Diagnósticas', 'Seguimiento de Tutorías', 'Informe Final PAO',
+    ])
+    await user.click(screen.getByRole('menuitem', { name: 'Calificaciones Diagnósticas' }))
+
+    const form = screen.getByRole('form', { name: 'Calificaciones diagnósticas' })
+    const grades = await within(form).findByRole('table', { name: 'Calificaciones de la evaluación diagnóstica' })
+    expect(within(grades).getByText('5,75')).toBeInTheDocument()
+    expect(within(grades).getByText('No asiste')).toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
+
+    expect(teacherApi.sendDiagnosticGrades).toHaveBeenCalledWith(40)
+    await user.click(await screen.findByRole('row', { name: /María López/ }))
+    expect(within(screen.getByRole('article', { name: 'Contenido del informe' })).getByRole('table', { name: 'Calificaciones de la evaluación diagnóstica' })).toHaveTextContent('Luis Vera')
   })
 
   it('prepara el reporte de seguimiento de un parcial con el formato oficial y lo envía a coordinación', async () => {
@@ -814,7 +847,7 @@ describe('Módulo Docente', () => {
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Seguimiento' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Seguimiento de Tutorías' }))
 
     const form = screen.getByRole('form', { name: 'Reporte de seguimiento a las tutorías' })
     const activities = await within(form).findByRole('table', { name: 'Actividades programadas' })
@@ -862,7 +895,7 @@ describe('Módulo Docente', () => {
     show(<TeacherReportsStandalonePage />)
     await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Informe final PAO' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Informe Final PAO' }))
 
     const form = screen.getByRole('form', { name: 'Informe final PAO' })
     const matrix = await within(form).findByRole('table', { name: 'Matriz de operacionalización de tutorías' })

@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 
+import { isDiagnosticGradesReport } from '@/lib/diagnostic-grades'
 import { isDiagnosticReport } from '@/lib/diagnostic-report'
 import { isFinalPaoReport } from '@/lib/final-pao-report'
 import { isFollowUpReport } from '@/lib/follow-up-report'
+import { DiagnosticGradesSheet } from './diagnostic-grades-document'
 import { DiagnosticReportDocument } from './diagnostic-report-document'
 import { FinalPaoReportDocument } from './final-pao-report-document'
 import { FollowUpReportDocument } from './follow-up-report-document'
@@ -11,6 +13,7 @@ import { PrintReport, SheetFrame } from './report-sheet'
 /** Documento del formato oficial que corresponde al resumen guardado, o null si es un informe libre. */
 function documentFor(summary: unknown): ReactNode | null {
   if (isDiagnosticReport(summary)) return <DiagnosticReportDocument summary={summary} />
+  if (isDiagnosticGradesReport(summary)) return <DiagnosticGradesSheet summary={summary} />
   if (isFollowUpReport(summary)) return <FollowUpReportDocument summary={summary} />
   if (isFinalPaoReport(summary)) return <FinalPaoReportDocument summary={summary} />
   return null

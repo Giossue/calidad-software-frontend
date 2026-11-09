@@ -383,7 +383,7 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([{ id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [10], can_manage: false }]))
     render(<TutoringTeachersPage />)
     await screen.findByText('Ana Torres')
-    expect(screen.getByText(/cambios a cargo de administración/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /cambios de .* están a cargo de administración/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Editar Ana Torres' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Desactivar Ana Torres' })).not.toBeInTheDocument()
   })
@@ -974,6 +974,28 @@ describe('Coordinación de tutorías', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cerrar informe' }))
     expect(screen.queryByRole('article', { name: 'Contenido del informe' })).not.toBeInTheDocument()
+  })
+
+  it('en informes muestra el formato oficial que envió el docente', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.allReports).mockResolvedValue(paginated([{
+      id: 3, tutoring_id: 40, subject_name: 'Matemática', career_name: 'Software', cycle_name: 'Segundo', section_name: 'A',
+      type: 'Reporte de la evaluación diagnóstica', author_id: 2, author_name: 'Ana Torres', generated_at: '2026-09-27T12:00:00Z', content: 'REPORTE EN TEXTO',
+      summary: {
+        format: 'diagnostic_evaluation', faculty: 'Ciencias Administrativas', career: 'Software', date: '2026-09-27', teacher: 'Ana Torres',
+        subject: 'Matemática', cycle: 2, cycle_name: 'Segundo', academic_period: '2026-2', section: 'A', students_listed: 1, students_evaluated: 1, observations: null, coordinator: null,
+        groups: [{ key: 'high', label: 'Alto', range_label: '70% - 100%', count: 1, percentage: 100, action_plan: ['Semana de adaptación de Conocimientos'] }],
+        grades: [{ number: 1, identification: '0200000001', name: 'Estudiante Uno', grade: 9, group: 'Alto' }],
+      },
+    }]))
+
+    render(<TutoringReportsPage />)
+    await user.click(await screen.findByRole('button', { name: 'Leer informe' }))
+
+    const reader = screen.getByRole('article', { name: 'Contenido del informe' })
+    expect(within(reader).queryByText('REPORTE EN TEXTO')).not.toBeInTheDocument()
+    expect(within(reader).getAllByText('Estudiante Uno').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Imprimir o guardar PDF' })).toBeInTheDocument()
   })
 
   it('permite al coordinador listar estudiantes y abrir el formulario de registro', async () => {
