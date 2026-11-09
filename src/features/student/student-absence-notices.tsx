@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { MailWarningIcon } from 'lucide-react'
+import { ListIcon, MailWarningIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog } from '@/components/ui/dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
@@ -30,6 +31,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
   const notices = useDegreeResource(() => studentApi.absenceNotices(tutoringId), String(tutoringId))
   const operation = useOperation()
   const [open, setOpen] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
   const [date, setDate] = useState(todayDate)
   const [reason, setReason] = useState('')
 
@@ -55,32 +57,39 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
   const items = notices.data ?? []
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="absence-notices-title">
+    <section className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4" aria-labelledby="absence-notices-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-0.5">
           <h3 id="absence-notices-title" className="font-semibold">Avisos de inasistencia</h3>
-          <p className="text-sm text-muted-foreground">Si no podrás asistir a una clase, avísale a tu docente con el motivo.</p>
+          <p className="text-sm text-muted-foreground">{items.length === 0 ? 'Aún no has enviado avisos.' : items.length === 1 ? '1 aviso enviado' : `${items.length} avisos enviados`}</p>
         </div>
-        {canNotify && (
-          <Button type="button" className="shrink-0" onClick={openDialog}>
-            <MailWarningIcon data-icon="inline-start" />Avisar inasistencia
-          </Button>
-        )}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {items.length > 0 && (
+            <Button type="button" variant="secondary" onClick={() => setListOpen(true)}>
+              <ListIcon data-icon="inline-start" />Ver avisos ({items.length})
+            </Button>
+          )}
+          {canNotify && (
+            <Button type="button" onClick={openDialog}>
+              <MailWarningIcon data-icon="inline-start" />Avisar inasistencia
+            </Button>
+          )}
+        </div>
       </div>
-
       <ErrorNotice message={notices.error} retry={notices.reload} />
-      {items.length > 0 && (
+
+      <Dialog open={listOpen} onClose={() => setListOpen(false)} title="Avisos de inasistencia" description="Tu docente decide la asistencia al tomar lista.">
         <RecordTable
           rows={items}
           loading={notices.loading}
           empty="Aún no has enviado avisos."
           columns={[
             { label: 'Fecha', render: (notice) => <span className="font-medium">{formatDate(notice.date)}</span> },
-            { label: 'Motivo', render: (notice) => <span className="text-muted-foreground">{notice.reason}</span> },
+            { label: 'Motivo', render: (notice) => <span title={notice.reason} className="line-clamp-2 whitespace-normal text-muted-foreground">{notice.reason}</span> },
             { label: 'Estado', render: (notice) => <Badge variant={STATUS[notice.status].variant}>{STATUS[notice.status].label}</Badge> },
           ]}
         />
-      )}
+      </Dialog>
 
       <FormDialog
         open={open}

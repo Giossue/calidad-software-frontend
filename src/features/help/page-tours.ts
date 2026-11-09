@@ -291,10 +291,11 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
   'student-tutorings/attendance': [
     table('Tu récord de asistencia por sesión.'),
+    step({ button: 'Ver avisos' }, 'Tus avisos', 'Consulta los avisos que enviaste y lo que registró tu docente.'),
     step({ button: 'Avisar inasistencia' }, 'Avisar inasistencia', 'Si vas a faltar, avisa a tu docente; lo verá al tomar lista.'),
   ],
   'student-tutorings/grades': [
-    table('Tus calificaciones en la tutoría, a medida que tu docente las registra.'),
+    step('[aria-label="Diagnóstico"]', 'Tus calificaciones', 'Diagnóstico, Parcial 1 y Parcial 2 aparecen a medida que tu docente los registra. Tu grupo de conocimiento sale de la nota diagnóstica.', 'top'),
   ],
   'student-tutorings/schedules': [
     table('Días y horarios de las sesiones de tutoría.'),

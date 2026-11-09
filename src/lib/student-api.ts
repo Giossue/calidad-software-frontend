@@ -13,6 +13,8 @@ export interface StudentSchedule {
   readonly day_of_week: string
   readonly start_time: string
   readonly end_time: string
+  /** Aula o lugar de la sesión, si el coordinador lo registró. */
+  readonly room?: string | null
   readonly is_active: boolean
 }
 export interface StudentTutoring {
