@@ -64,7 +64,7 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
           <TabsContent value="schedules" key={`schedules-${tutoring.id}`}><SchedulesPanel tutoring={tutoring} onReload={resource.reload} /></TabsContent>
           <TabsContent value="students" key={`students-${tutoring.id}`}>
             <Tabs value={tabParam === 'grades' ? 'grades' : 'students'} onValueChange={selectTab} className="flex flex-col gap-4">
-              <TabsList aria-label="Estudiantes o calificaciones" className="w-fit gap-1 rounded-lg border-b-0 bg-muted p-1">
+              <TabsList aria-label="Estudiantes o calificaciones" className="w-fit gap-1 rounded-lg bg-muted p-1 shadow-none">
                 <TabsTrigger value="students" className={SECTION_TRIGGER}><UsersIcon data-icon="inline-start" />Estudiantes</TabsTrigger>
                 <TabsTrigger value="grades" className={SECTION_TRIGGER}><ClipboardCheckIcon data-icon="inline-start" />Calificaciones</TabsTrigger>
               </TabsList>

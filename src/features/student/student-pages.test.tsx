@@ -83,7 +83,12 @@ describe('Módulo Estudiante', () => {
     expect(studentApi.content).toHaveBeenCalledWith(40)
     await user.click(screen.getByRole('button', { name: 'Ver detalle de Pruebas unitarias' }))
     expect(screen.getByText('Taller')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Pendientes (1)' }))
+    const status = screen.getByRole('combobox', { name: 'Filtrar temas' })
+    expect(status).toHaveTextContent('Todos (2)')
+    expect(screen.queryByRole('button', { name: 'Pendientes (1)' })).not.toBeInTheDocument()
+    await user.click(status)
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Todos (2)', 'Completados (1)', 'Pendientes (1)'])
+    await user.click(screen.getByRole('option', { name: 'Pendientes (1)' }))
     expect(screen.queryByText('Pruebas unitarias')).not.toBeInTheDocument()
     expect(screen.getByText('Integración')).toBeInTheDocument()
     await user.type(screen.getByRole('searchbox', { name: 'Buscar temas' }), 'zzz')
@@ -101,6 +106,33 @@ describe('Módulo Estudiante', () => {
     await user.click(screen.getByRole('button', { name: 'Ver detalle de Pruebas unitarias' }))
     await user.click(screen.getByRole('button', { name: 'Descargar Guía.pdf' }))
     expect(studentApi.downloadTopicFile).toHaveBeenCalledWith(40, 1, file)
+  })
+
+  it('filtra el contenido por sesión numerada desde un solo desplegable', async () => {
+    const user = userEvent.setup()
+    const [unit, integration] = content.topics
+    vi.mocked(studentApi.tutorings).mockResolvedValue([tutoring])
+    vi.mocked(studentApi.content).mockResolvedValue({
+      ...content,
+      sessions: [
+        { id: 12, date: '2026-09-17', topics_covered: true, topics: [integration] },
+        { id: 11, date: '2026-09-10', topics_covered: true, topics: [unit] },
+      ],
+    })
+    workspace('content')
+    const picker = await screen.findByRole('combobox', { name: 'Filtrar por clase' })
+    expect(picker).toHaveTextContent('Todas las clases')
+    expect(screen.queryByRole('button', { name: /sept 2026/ })).not.toBeInTheDocument()
+    await user.click(picker)
+    const options = screen.getAllByRole('option').map((option) => option.textContent)
+    expect(options).toEqual(['Todas las clases', 'Sesión 2 · 17 sept 2026 · 1 tema', 'Sesión 1 · 10 sept 2026 · 1 tema'])
+    await user.click(screen.getByRole('option', { name: /Sesión 1/ }))
+    expect(screen.getByText('Pruebas unitarias')).toBeInTheDocument()
+    expect(screen.queryByText('Integración')).not.toBeInTheDocument()
+    expect(screen.getByText(/Mostrando los temas de la/)).toHaveTextContent('Mostrando los temas de la Sesión 1 · 10 sept 2026')
+    await user.click(screen.getByRole('button', { name: 'Ver todas las clases' }))
+    expect(screen.getByText('Integración')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Filtrar por clase' })).toHaveTextContent('Todas las clases')
   })
 
   it('pagina los temas del plan didáctico cuando hay más de cinco', async () => {

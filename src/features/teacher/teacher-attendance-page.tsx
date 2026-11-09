@@ -144,7 +144,7 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
     <div className="flex flex-col gap-6">
       <Tabs value={section} onValueChange={handleSectionChange}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList aria-label="Secciones de asistencia" className="w-fit gap-1 rounded-lg border-b-0 bg-muted p-1">
+          <TabsList aria-label="Secciones de asistencia" className="w-fit gap-1 rounded-lg bg-muted p-1 shadow-none">
             <TabsTrigger value="consult" className={SECTION_TRIGGER}>
               <ClipboardListIcon data-icon="inline-start" />
               Consultar asistencia

@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ChevronDownIcon, CircleDashedIcon, ClockIcon, FileTextIcon, PaperclipIcon, UsersIcon } from 'lucide-react'
+import { CalendarDaysIcon, CheckCircle2Icon, ChevronDownIcon, CircleDashedIcon, ClockIcon, FileTextIcon, PaperclipIcon, UsersIcon } from 'lucide-react'
 
 import { TopicFileList } from '@/components/topic-file-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { SelectInput } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { studentApi, type StudentContent, type StudentTopic } from '@/lib/student-api'
+import { studentApi, type StudentClassSession, type StudentContent, type StudentTopic } from '@/lib/student-api'
 import { StudentEmpty } from './student-shared'
-import { FilterChips, ListFooter, RedProgress, SearchField } from './student-ui'
+import { ListFooter, RedProgress, SearchField } from './student-ui'
 import { usePagedList } from './student-hooks'
 
 type TopicFilter = 'all' | 'covered' | 'pending'
@@ -56,7 +57,8 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
 
 function ContentView({ content }: Readonly<{ content: StudentContent }>) {
   const { progress, topics } = content
-  const sessions = content.sessions ?? []
+  // De la más reciente a la primera; la primera clase de la tutoría es la Sesión 1.
+  const sessions = [...(content.sessions ?? [])].sort((a, b) => b.date.localeCompare(a.date))
   const [selectedDate, setSelectedDate] = useState<string>('all')
   const [filter, setFilter] = useState<TopicFilter>('all')
   const [search, setSearch] = useState('')
@@ -66,6 +68,12 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
   const currentTopics = activeSession
     ? (activeSession.topics.length > 0 ? activeSession.topics : fallbackTopics)
     : topics
+  const sessionLabel = (session: StudentClassSession) => `Sesión ${sessions.length - sessions.indexOf(session)} · ${formatDate(session.date)}`
+  const topicCount = (session: StudentClassSession) => {
+    const count = session.topics.length > 0 ? session.topics.length : fallbackTopics.length
+    return count === 1 ? '1 tema' : `${count} temas`
+  }
+  const chooseSession = (date: string) => { setSelectedDate(date); pager.setPage(1) }
 
   const needle = search.trim().toLowerCase()
   const matches = currentTopics.filter((topic) => !needle || `${topic.name} ${topic.description ?? ''}`.toLowerCase().includes(needle))
@@ -91,75 +99,58 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
       </div>
     </div>
 
-    {sessions.length > 0 && (
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-2.5">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <CalendarDaysIcon className="size-3.5 text-primary" />
-          <span>Fecha de clase:</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedDate === 'all' ? 'primary' : 'secondary'}
-            aria-pressed={selectedDate === 'all'}
-            onClick={() => { setSelectedDate('all'); pager.setPage(1) }}
-          >
-            {selectedDate === 'all' && <CheckIcon data-icon="inline-start" />}
-            Todas las clases
-          </Button>
-          {sessions.map((s) => {
-            const isSelected = selectedDate === s.date
-            return (
-              <Button
-                key={s.id}
-                type="button"
-                size="sm"
-                variant={isSelected ? 'primary' : 'secondary'}
-                aria-pressed={isSelected}
-                onClick={() => { setSelectedDate(s.date); pager.setPage(1) }}
-              >
-                {isSelected && <CheckIcon data-icon="inline-start" />}
-                <span>{formatDate(s.date)}</span>
-                <span
-                  className={cn(
-                    'text-[10px] px-1.5 py-0.2 rounded-full font-medium',
-                    isSelected
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  {(s.topics.length > 0 ? s.topics.length : fallbackTopics.length)} {(s.topics.length > 0 ? s.topics.length : fallbackTopics.length) === 1 ? 'tema' : 'temas'}
-                </span>
-              </Button>
-            )
-          })}
-        </div>
+    {(currentTopics.length > 0 || activeSession) && (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <SearchField
+          id="student-topic-search"
+          label="Buscar temas"
+          placeholder="Buscar temas…"
+          value={search}
+          onChange={(value) => { setSearch(value); pager.setPage(1) }}
+        />
+        {sessions.length > 0 && (
+          <SelectInput
+            id="student-topic-session"
+            ariaLabel="Filtrar por clase"
+            className="w-full sm:w-72 sm:shrink-0"
+            value={selectedDate === 'all' ? '' : selectedDate}
+            onValueChange={(value) => chooseSession(value || 'all')}
+            emptyLabel="Todas las clases"
+            options={sessions.map((s) => ({ value: s.date, label: `${sessionLabel(s)} · ${topicCount(s)}` }))}
+          />
+        )}
+        <SelectInput
+          id="student-topic-status"
+          ariaLabel="Filtrar temas"
+          className="w-full sm:w-52 sm:shrink-0"
+          value={filter}
+          onValueChange={(value) => choose(value as TopicFilter)}
+          options={[
+            { value: 'all', label: `Todos (${matches.length})` },
+            { value: 'covered', label: `Completados (${matches.filter((t) => t.is_covered).length})` },
+            { value: 'pending', label: `Pendientes (${matches.filter((t) => !t.is_covered).length})` },
+          ]}
+        />
       </div>
     )}
 
-    {selectedDate !== 'all' && activeSession && (
+    {activeSession && (
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3.5 py-2 text-xs">
         <div className="flex items-center gap-2">
           <CalendarDaysIcon className="size-4 text-primary shrink-0" />
-          <span>Mostrando temas y actividades tratados en la clase del <strong>{formatDate(activeSession.date)}</strong></span>
+          <span>Mostrando los temas de la <strong>{sessionLabel(activeSession)}</strong></span>
         </div>
-        <Button
-          type="button"
-          variant="tertiary"
-          size="sm"
-          onClick={() => { setSelectedDate('all'); pager.setPage(1) }}
-        >
+        <Button type="button" variant="tertiary" size="sm" onClick={() => chooseSession('all')}>
           Ver todas las clases
         </Button>
       </div>
     )}
 
     {currentTopics.length === 0 ? (
-      selectedDate !== 'all' && activeSession ? (
+      activeSession ? (
         <div className="rounded-lg border border-dashed p-8 text-center bg-card">
           <CalendarDaysIcon className="mx-auto size-8 text-muted-foreground/60 mb-2" />
-          <h4 className="font-semibold text-base">Clase del {formatDate(activeSession.date)}</h4>
+          <h4 className="font-semibold text-base">{sessionLabel(activeSession)}</h4>
           <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
             En esta fecha se tomó lista de asistencia de la tutoría. El docente aún no ha asociado temas específicos a esta sesión.
           </p>
@@ -172,25 +163,6 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
       )
     ) : (
       <>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <SearchField
-            id="student-topic-search"
-            label="Buscar temas"
-            placeholder="Buscar temas…"
-            value={search}
-            onChange={(value) => { setSearch(value); pager.setPage(1) }}
-          />
-          <FilterChips
-            label="Filtrar temas"
-            value={filter}
-            onChange={choose}
-            options={[
-              { value: 'all', label: 'Todos', count: matches.length },
-              { value: 'covered', label: 'Completados', count: matches.filter((t) => t.is_covered).length },
-              { value: 'pending', label: 'Pendientes', count: matches.filter((t) => !t.is_covered).length },
-            ]}
-          />
-        </div>
         {visible.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Ningún tema coincide con tu búsqueda.</p>
         ) : (
