@@ -242,7 +242,7 @@ export function DashboardPage() {
 
   // Los estudiantes sin ciclo esperan a saber si están en titulación para tener el menú completo.
   const menuReady = user?.role !== 'estudiante' || studentStage !== null || studentDegreeEnrolled !== null
-  const { openPageTour, openGeneralTour } = useSystemTours({ section: activeSection, moduleIds, menuReady })
+  const { openPageTour, openGeneralTour, openTeacherGuide } = useSystemTours({ section: activeSection, moduleIds, menuReady })
 
   const trackingTopicId = Number(searchParams.get('topic'))
   const showTrackingSubNav = activeSection === 'teacher-degree-tracking' && Number.isInteger(trackingTopicId) && trackingTopicId > 0
@@ -364,7 +364,7 @@ export function DashboardPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
-            <HelpButton onPageTour={openPageTour} onGeneralTour={openGeneralTour} />
+            <HelpButton onPageTour={openPageTour} onGeneralTour={openGeneralTour} onTeacherGuide={user?.role === 'docente' ? openTeacherGuide : undefined} />
             <ThemeToggle />
             <NotificationBell />
 

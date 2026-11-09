@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { HelpButton } from '@/components/help-button'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/features/auth/auth-context'
 import { startSystemTour } from '@/features/help/system-tour'
@@ -79,6 +80,31 @@ describe('Tutorial del sistema', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Recorrido general del sistema' }))
     expect(tourTitles(1)[0]).toBe('¡Hola, Luis!')
     expect(api.completeTour).not.toHaveBeenCalled()
+  })
+
+  it('el docente abre desde ayuda el tutorial práctico con sus cuatro pasos', async () => {
+    renderDashboard({ ...teacher, completed_tours: ['general', 'teacher-tutorings'] })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Tutorial práctico del docente' }))
+
+    expect(tourTitles(0)).toEqual([
+      'Tutorial práctico del docente',
+      'Paso 1 · Ver tus tutorías asignadas',
+      'Paso 2 · Tomar asistencia',
+      'Paso 3 · Registrar el contenido',
+      'Paso 4 · Calificaciones y horarios',
+      '¡Listo!',
+    ])
+    vi.mocked(startSystemTour).mock.calls[0][1]?.()
+    expect(api.completeTour).toHaveBeenCalledWith('teacher-guide')
+  })
+
+  it('el tutorial práctico solo se ofrece a docentes', async () => {
+    render(<TooltipProvider><HelpButton onPageTour={vi.fn()} onGeneralTour={vi.fn()} /></TooltipProvider>)
+    await userEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
+    await screen.findByRole('menuitem', { name: 'Guía de esta pantalla' })
+    expect(screen.queryByRole('menuitem', { name: 'Tutorial práctico del docente' })).not.toBeInTheDocument()
   })
 
   it('espera a que la cuenta complete su perfil', async () => {

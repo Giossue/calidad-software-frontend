@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { buildPageTourSteps, currentPageTourKey, isPageLoading } from './page-tour-runtime'
 import { PAGE_TOURS } from './page-tours'
 import { startSystemTour } from './system-tour'
+import { buildTeacherGuideSteps, TEACHER_GUIDE } from './teacher-guide'
 import { buildTourSteps } from './tour-steps'
 
 /** Espera a que la pantalla se asiente (datos cargados, vista elegida) antes de abrir una guía. */
@@ -82,6 +83,11 @@ export function useSystemTours({ section, moduleIds, menuReady }: Readonly<{ sec
     if (!run(buildPageTourSteps(key), key)) openGeneralTour()
   }, [run, openGeneralTour])
 
+  /** Tutorial práctico del docente: el trabajo de cada clase en cuatro pasos. */
+  const openTeacherGuide = useCallback(() => {
+    run(buildTeacherGuideSteps(), TEACHER_GUIDE)
+  }, [run])
+
   // Revisa al cambiar de pantalla o de pestaña, y cuando cambia la vista dentro de la pantalla.
   const paramsKey = params.toString()
   useEffect(() => {
@@ -102,5 +108,5 @@ export function useSystemTours({ section, moduleIds, menuReady }: Readonly<{ sec
     tourRef.current?.destroy()
   }, [])
 
-  return { openPageTour, openGeneralTour }
+  return { openPageTour, openGeneralTour, openTeacherGuide }
 }
