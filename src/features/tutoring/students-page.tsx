@@ -691,7 +691,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         steps={[
           {
             title: 'Datos del estudiante',
-            description: 'Su nombre, identificación y contacto.',
             blockReason: dataBlockReason,
             content: (
               <>
@@ -758,7 +757,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           },
           {
             title: 'Ciclo y tutoría',
-            description: 'El ciclo que cursa y, si quieres, una tutoría de ese ciclo.',
             content: (
               <>
                 <SelectField

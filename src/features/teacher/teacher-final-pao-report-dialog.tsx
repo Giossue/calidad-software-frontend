@@ -137,7 +137,6 @@ export function FinalPaoReportDialog({
       steps={[
         {
           title: 'Datos del informe',
-          description: 'Fecha, número y asignaturas que entran en el informe.',
           blockReason: !date ? 'Indica la fecha del informe.' : loading ? 'Calculando el informe…' : null,
           content: <>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -180,7 +179,6 @@ export function FinalPaoReportDialog({
         },
         {
           title: 'Observaciones y revisión',
-          description: 'Completa lo que quieras añadir y revisa el informe antes de enviarlo.',
           content: <>
             {preview && preview.matrix.length > 0 && (
               <FieldSet>

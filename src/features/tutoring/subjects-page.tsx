@@ -398,8 +398,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   )
 
   const createSteps: readonly FormStep[] = [
-    { title: 'Datos de la asignatura', description: 'Nombre, código y modalidad.', blockReason: nameReason, content: dataFields },
-    { title: 'Ciclo y paralelos', description: 'Dónde se dicta en el período vigente.', content: placementFields },
+    { title: 'Datos de la asignatura', blockReason: nameReason, content: dataFields },
+    { title: 'Ciclo y paralelos', content: placementFields },
   ]
 
   const formTitle = mode === 'sequence' ? 'Secuencia en la malla' : editing ? 'Editar asignatura' : 'Registrar asignatura'

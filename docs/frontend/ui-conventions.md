@@ -52,7 +52,9 @@ las reglas de negocio que ya aplica el sistema.
   período o carrera se hace con un desplegable en la fila de filtros. Las pestañas
   son para secciones de un mismo registro, no para filtrar listas.
 - **Modales directos.** Sin tarjetas ni recuadros dentro del modal, sin repetir lo que
-  ya dice el título o la descripción, sin íconos decorativos en los títulos de sección.
+  ya dice el título, la descripción o los propios campos (nada de "Nombre, código y
+  modalidad" sobre esos campos, ni "El nombre es obligatorio" junto al botón), sin
+  íconos decorativos en los títulos de sección.
   Campos en orden de uso; casillas y radios simples en línea.
 - **Sin títulos con ícono.** A diferencia de sílabos, los títulos de pantalla no llevan
   ícono.
@@ -103,13 +105,16 @@ las reglas de negocio que ya aplica el sistema.
 - **Campos obligatorios con asterisco**: `FormField required` / `SelectField required`
   (asterisco rojo y "(obligatorio)" para lectores de pantalla).
 - **Formularios largos por pasos**: `FormDialog steps` divide el formulario en pasos
-  con título y una línea de ayuda, como la convocatoria de sílabos: "Cancelar /
+  con su título, como la convocatoria de sílabos (una línea de ayuda solo si dice algo
+  que los campos no dicen): "Cancelar /
   Siguiente" en el primero, "Atrás / Siguiente" en los intermedios y "Atrás / acción"
   en el último; "Siguiente" se bloquea mostrando qué falta. Úsalo cuando el formulario
   tiene grupos de campos distintos o más de unos cinco campos.
 - La ayuda de un campo va visible bajo el campo (`FormField tip`), no en un tooltip.
 - El error de cada campo va en línea bajo el campo; el error del servidor una sola vez,
-  dentro del panel. El motivo por el que "Guardar" está bloqueado se lee junto al botón.
+  dentro del modal. El motivo por el que "Guardar" o "Siguiente" está bloqueado no se
+  repite en el modal (los obligatorios ya llevan asterisco): se lee en el tooltip del
+  botón bloqueado.
 - Etiquetas de botón con verbo concreto ("Crear tutoría", "Guardar cambios"); nunca
   "Aceptar" u "OK". Placeholders con ejemplo: "Ej. maria.perez@ueb.edu.ec".
 

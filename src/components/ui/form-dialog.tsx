@@ -8,12 +8,14 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { StepProgress } from '@/components/ui/step-progress'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 /** Un paso de un formulario largo: su título, una línea de ayuda, qué falta para seguir y sus campos. */
 export interface FormStep {
   readonly title: string
+  /** Solo si dice algo que los campos no dicen (p. ej. "Déjala en blanco para conservar la actual"). */
   readonly description?: string
-  /** Si hay algo pendiente en este paso, "Siguiente" queda bloqueado y se muestra el motivo. */
+  /** Si hay algo pendiente en este paso, "Siguiente" queda bloqueado (motivo en su tooltip). */
   readonly blockReason?: string | null
   readonly content: ReactNode
 }
@@ -22,7 +24,8 @@ export interface FormStep {
  * Formulario estándar en un modal centrado, con pie fijo (Cancelar + acción).
  * Pide confirmar al cerrar solo si hay cambios (`dirty`) y deja "Guardar" bloqueado cuando:
  *  - no hay cambios (`requireChanges`, activo por defecto), o
- *  - el formulario no es válido (`blockReason`: se muestra junto al botón, no escondido).
+ *  - el formulario no es válido (`blockReason`). Los obligatorios ya llevan asterisco, así
+ *    que el motivo no se repite en el modal: aparece en el tooltip del botón bloqueado.
  * Un error del servidor se muestra una sola vez, en línea, dentro del modal.
  * `headerActions` son acciones de solo icono junto a la X (p. ej. habilitar/desactivar).
  * Con `steps`, el formulario se divide en pasos (como en sílabos): "Cancelar / Siguiente"
@@ -61,7 +64,7 @@ export function FormDialog({
   dirty: boolean
   /** Si es false, "Guardar" no exige cambios (acciones que se confirman sin editar nada). */
   requireChanges?: boolean
-  /** Motivo por el que el formulario no es válido; bloquea "Guardar" y se muestra junto al botón. */
+  /** Motivo por el que el formulario no es válido; bloquea "Guardar" (motivo en su tooltip). */
   blockReason?: string | null
   noChangesReason?: string
   headerActions?: ReactNode
@@ -131,9 +134,6 @@ export function FormDialog({
             <ErrorNotice title={errorModal?.title} message={error} />
           </FieldGroup>
           <div className="sticky -bottom-6 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 border-t bg-card p-4 sm:flex-row sm:items-center sm:justify-end">
-            {(isLastStep ? blockReason : stepReason) && !pending && (
-              <p className="text-sm text-muted-foreground sm:mr-auto">{isLastStep ? blockReason : stepReason}</p>
-            )}
             {stepIndex > 0 && steps ? (
               <Button type="button" variant="secondary" disabled={pending} onClick={() => setStepIndex((index) => index - 1)}>
                 <ArrowLeftIcon data-icon="inline-start" />
@@ -143,19 +143,41 @@ export function FormDialog({
               <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
             )}
             {isLastStep ? (
-              <Button type="submit" disabled={blocked}>
-                {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SubmitIcon data-icon="inline-start" />}
-                {pending ? 'Guardando…' : submitLabel}
-              </Button>
+              <BlockedReason reason={pending ? null : reason}>
+                <Button type="submit" disabled={blocked}>
+                  {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SubmitIcon data-icon="inline-start" />}
+                  {pending ? 'Guardando…' : submitLabel}
+                </Button>
+              </BlockedReason>
             ) : (
-              <Button type="button" disabled={Boolean(stepReason)} onClick={goNext}>
-                Siguiente
-                <ArrowRightIcon data-icon="inline-end" />
-              </Button>
+              <BlockedReason reason={stepReason}>
+                <Button type="button" disabled={Boolean(stepReason)} onClick={goNext}>
+                  Siguiente
+                  <ArrowRightIcon data-icon="inline-end" />
+                </Button>
+              </BlockedReason>
             )}
           </div>
         </fieldset>
       </form>
     </Dialog>
+  )
+}
+
+/**
+ * Explica en un tooltip por qué el botón está bloqueado (los obligatorios ya llevan
+ * asterisco, así que no se repite en el modal). El contenedor es siempre el mismo para
+ * que el botón no se vuelva a montar al bloquearse o desbloquearse.
+ */
+function BlockedReason({ reason, children }: Readonly<{ reason: string | null; children: ReactNode }>) {
+  return (
+    <Tooltip open={reason ? undefined : false}>
+      <TooltipTrigger asChild>
+        <span tabIndex={reason ? 0 : undefined} className="inline-flex rounded-md outline-hidden focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:[&>button]:w-full">
+          {children}
+        </span>
+      </TooltipTrigger>
+      {reason && <TooltipContent>{reason}</TooltipContent>}
+    </Tooltip>
   )
 }

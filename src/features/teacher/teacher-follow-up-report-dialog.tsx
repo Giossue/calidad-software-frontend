@@ -117,7 +117,6 @@ export function FollowUpReportDialog({
       steps={[
         {
           title: 'Período del reporte',
-          description: 'Elige el parcial y las fechas de las tutorías que cubre el reporte.',
           blockReason: validRange ? null : 'Indica un rango de fechas válido.',
           content: <>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -141,7 +140,6 @@ export function FollowUpReportDialog({
         },
         {
           title: 'Revisión y envío',
-          description: 'Añade una observación si hace falta y revisa el documento antes de enviarlo.',
           content: <>
             <FormField id="follow-up-observations" label="Observación" optional counter={{ current: observations.length, max: MAX_OBSERVATIONS }}>
               <Textarea

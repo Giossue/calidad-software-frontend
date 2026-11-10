@@ -148,7 +148,11 @@ describe('Coordinación de titulación', () => {
     expectRequired(within(form).getByLabelText(/^Docente tutor/))
     const nextStep = within(form).getByRole('button', { name: 'Siguiente' })
     expect(nextStep).toBeDisabled()
-    expect(within(form).getByText('Selecciona el docente tutor.')).toBeInTheDocument()
+    // El motivo del bloqueo se lee en el tooltip del botón, no en el modal.
+    const nextButton = within(form).getByRole('button', { name: 'Siguiente' })
+    await user.hover(nextButton.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Selecciona el docente tutor.')
+    await user.unhover(nextButton.parentElement as HTMLElement)
     await chooseTutor(user, 'Ana Torres')
     await user.click(nextStep)
     expect(screen.queryByRole('checkbox', { name: /Ana Torres/ })).not.toBeInTheDocument()

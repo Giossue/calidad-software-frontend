@@ -344,7 +344,9 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     const name = screen.getByLabelText(/^Nombre completo/)
     await user.clear(name)
     expect(nextButton).toBeDisabled()
-    expect(screen.getByText('El nombre es obligatorio.')).toBeInTheDocument()
+    await user.hover(nextButton.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('El nombre es obligatorio.')
+    await user.unhover(nextButton.parentElement as HTMLElement)
 
     // Con un cambio válido llega al último paso con "Guardar cambios" habilitado
     await user.type(name, 'Carlos Docente Prueba')

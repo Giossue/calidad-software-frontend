@@ -53,11 +53,15 @@ describe('FormDialog con pasos', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
-  it('bloquea Siguiente y explica qué falta en el paso', () => {
+  it('bloquea Siguiente y explica qué falta en su tooltip, sin repetirlo en el modal', async () => {
+    const user = userEvent.setup()
     renderSteps('Escribe el nombre de la asignatura.')
     const form = screen.getByRole('form', { name: 'Registrar asignatura' })
-    expect(within(form).getByRole('button', { name: 'Siguiente' })).toBeDisabled()
-    expect(within(form).getByText('Escribe el nombre de la asignatura.')).toBeInTheDocument()
+    const next = within(form).getByRole('button', { name: 'Siguiente' })
+    expect(next).toBeDisabled()
+    expect(within(form).queryByText('Escribe el nombre de la asignatura.')).not.toBeInTheDocument()
+    await user.hover(next.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Escribe el nombre de la asignatura.')
   })
 
   it('marca los campos obligatorios con asterisco', () => {

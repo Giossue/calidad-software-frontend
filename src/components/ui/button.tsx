@@ -78,9 +78,13 @@ function Button({
 
   if (!label || insideTooltip) return button
 
+  // El tooltip va en un contenedor estable: un botón deshabilitado no recibe el cursor, y
+  // así el botón no se vuelve a montar al habilitarse o deshabilitarse.
+  const trigger = <span tabIndex={props.disabled ? 0 : undefined} className="inline-flex rounded-md outline-hidden focus-visible:ring-3 focus-visible:ring-ring/50">{button}</span>
+
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   )

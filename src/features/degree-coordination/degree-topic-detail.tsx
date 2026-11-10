@@ -235,8 +235,8 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
       </Tabs>
     </>}
     <FormDialog open={Boolean(action)} title={action ? ACTION_LABELS[action] : ''} description={action === 'reject' ? 'La propuesta quedará rechazada y el estudiante podrá proponer otro tema.' : topic?.title} pending={operation.pending} error={operation.error} dirty={draftChanged} requireChanges={action === 'peers'} blockReason={blockReason} onClose={() => setAction(null)} onSubmit={submit} submitIcon={action ? ACTION_ICONS[action] : undefined} submitLabel={action === 'peers' ? 'Guardar pares académicos' : action ? ACTION_LABELS[action] : 'Guardar'} steps={action === 'approve' ? [
-      { title: 'Tutor', description: 'Elige el docente que guiará el trabajo de titulación.', blockReason: tutorStepReason, content: tutorField },
-      { title: 'Revisión por pares', description: 'Elige al menos un par académico distinto del tutor.', content: peersFields },
+      { title: 'Tutor', blockReason: tutorStepReason, content: tutorField },
+      { title: 'Revisión por pares', content: peersFields },
     ] : undefined}>
       {action === 'peers' && peersFields}
       {(action === 'reject' || action === 'observe') && <DegreeObservationField value={draft.observation} onChange={(value) => setDraft({ ...draft, observation: value })} rejection={action === 'reject'} error={observationError} />}
