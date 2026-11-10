@@ -260,7 +260,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                 label: 'Estado',
                 value: status,
                 onChange: (value) => setStatus(value as '' | 'active' | 'inactive'),
-                allLabel: 'Todos',
+                allLabel: 'Todos los estados',
                 options: [
                   { value: 'active', label: 'Activos' },
                   { value: 'inactive', label: 'Inactivos' },

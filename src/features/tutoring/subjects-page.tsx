@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { BookOpenIcon, CheckIcon, GraduationCapIcon, LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
+import { CheckIcon, LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -16,9 +16,8 @@ import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
+import { maxCycleNumber } from '@/lib/academic-stage'
 import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
@@ -26,7 +25,7 @@ import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-pick
 import { FilterBar } from './filter-bar'
 import { RowActions } from './row-actions'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { ModuleHeader, RecordTable } from './tutoring-shared'
+import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const ALL_CYCLES = 'all'
@@ -357,26 +356,15 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   return <section className="flex flex-col gap-6">
     <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
     <ModuleHeader title={currentCareerName} createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
-    {cycleLevels.length > 0 && <Tabs value={activeCycle} onValueChange={setCycleSelection} className="w-full">
-      <div className="overflow-x-auto pb-1">
-        <TabsList aria-label="Ciclos de la carrera" className="w-max">
-          {cycleLevels.map((level) => (
-            <TabsTrigger key={level.number} value={String(level.number)} className="gap-2">
-              {isDegreeCycleNumber(level.number, careerMaxCycle) ? <GraduationCapIcon className="size-4" /> : <BookOpenIcon className="size-4" />}
-              <span>{level.number}° ciclo{isDegreeCycleNumber(level.number, careerMaxCycle) ? ' · Titulación' : ''}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
-    </Tabs>}
     <FilterBar
       id="subjects"
+      leading={cycleLevels.length > 0 ? <CycleSelect id="subjects-cycle" levels={cycleLevels} value={activeCycle} onChange={setCycleSelection} degreeCycleNumber={careerMaxCycle} /> : undefined}
       search={list.searchInput}
       onSearch={list.setSearchInput}
       searchPlaceholder="Busca por nombre o código…"
       onClear={clearFilters}
       filters={[
-        { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+        { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
       ]}
     />
     <ErrorNotice message={list.error} retry={list.reload} />

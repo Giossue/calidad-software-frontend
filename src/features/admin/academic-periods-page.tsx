@@ -325,7 +325,7 @@ export function AcademicPeriodsPage() {
           searchLabel="Buscar período"
           searchPlaceholder="Buscar período por nombre…"
           filters={[
-            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
           ]}
           onClear={() => { setSearchInput(''); setStatusFilter('') }}
         />

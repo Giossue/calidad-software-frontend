@@ -115,7 +115,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
             searchPlaceholder="Busca por nombre, cédula o correo…"
             onClear={() => setStatus('')}
             filters={[
-              { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+              { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
             ]}
           />
         </div>

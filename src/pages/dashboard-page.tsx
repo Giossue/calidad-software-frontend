@@ -16,7 +16,6 @@ import {
 
 import logoHorizontal from '@/assets/logo-ueb-horizontal.webp'
 import logoSidebar from '@/assets/logo-ueb-sidebar.png'
-import { PageIconContext } from '@/components/admin/page-icon-context'
 import { HelpButton } from '@/components/help-button'
 import { NotificationBell } from '@/components/notification-bell'
 import { PwaInstallDialog } from '@/components/pwa-install-dialog'
@@ -252,8 +251,6 @@ export function DashboardPage() {
       : []),
   ]
 
-  const activeGroup = navGroups.find((group) => group.items.some((item) => item.id === activeSection))
-  const activeItem = activeGroup?.items.find((item) => item.id === activeSection)
   const moduleIds = navGroups.flatMap((group) => group.items.map((item) => item.id))
 
   // Los estudiantes sin ciclo esperan a saber si están en titulación para tener el menú completo.
@@ -379,7 +376,6 @@ export function DashboardPage() {
           </div>
         </header>
 
-        <PageIconContext.Provider value={activeItem?.icon ?? null}>
         <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 overflow-x-clip p-4 sm:p-6">
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
@@ -431,7 +427,6 @@ export function DashboardPage() {
             </Card>
           )}
         </div>
-        </PageIconContext.Provider>
       </SidebarInset>
 
       <AccessibilityModal open={accessibilityOpen} onClose={() => setAccessibilityOpen(false)} />

@@ -1,20 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   ArrowRightIcon,
-  CalendarClockIcon,
-  CalendarDaysIcon,
-  EyeIcon,
   PlusIcon,
   PowerIcon,
-  UserPlusIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Dialog } from '@/components/ui/dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -22,7 +16,6 @@ import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -97,7 +90,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const operation = useOperation()
   const [subjects, setSubjects] = useState<readonly Subject[]>([])
   const [subjectsRevision, setSubjectsRevision] = useState(0)
-  const [detail, setDetail] = useState<Tutoring | null>(null)
+  // Tutoría abierta: se busca en las filas para mostrar siempre los datos recién cargados.
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   // Create Tutoring per Subject modal state
   const [creatingTutoringSubject, setCreatingTutoringSubject] = useState<Subject | null>(null)
@@ -151,7 +145,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   // Collapsible cycle groups state
 
   // View Parallels and Schedules modals state
-  const [viewingScheduleItem, setViewingScheduleItem] = useState<TutoringRowItem | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -627,7 +620,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
               )}
             </>
           ) : (
-            <span className="text-xs text-amber-600 dark:text-amber-400">Sin docente asignado</span>
+            <span className="text-xs text-warning">Sin docente asignado</span>
           )}
         </div>
       ),
@@ -636,17 +629,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       label: 'Estado',
       render: (item: TutoringRowItem) => <StatusBadge active={item.is_active} activeLabel="Activa" inactiveLabel="Inactiva" />,
     },
-    {
-      // Acciones de dominio (ver horario, supervisar): editar y activar viven en el modal de la fila.
-      label: 'Acciones',
-      render: (item: TutoringRowItem) => (
-        <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
-          <IconAction label={`Ver horario de ${item.subject_name}`} icon={CalendarClockIcon} onClick={() => setViewingScheduleItem(item)} />
-          <IconAction label={`Supervisar ${item.subject_name}`} icon={EyeIcon} disabled={operation.pending || !item.tutoring} onClick={() => setDetail(item.tutoring)} />
-        </div>
-      ),
-    },
   ]
+
+  const detailItem = detailId ? (rows.find((item) => item.id === detailId) ?? null) : null
 
   const creatingStep2 = Boolean(creatingTutoringSubject && creatingTutoringCycle)
   const createBlockReason = creatingStep2
@@ -669,7 +654,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     : validateTutoringForm({ teacherId: editTeacherId, days: editScheduleDays, times: editDayTimes, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })
 
   return <section className="flex flex-col gap-6">
-    {detail ? <TutoringDetail tutoring={detail} onBack={() => setDetail(null)} /> : <>
+    {detailItem?.tutoring ? <TutoringDetail tutoring={detailItem.tutoring} schedules={detailItem.schedules ?? []} onBack={() => setDetailId(null)} onEdit={() => openEditTutoring(detailItem)} /> : <>
       <CareerBreadcrumb root="Tutorías" career={careerName} onBack={onBack} />
       <ModuleHeader
         title={careerName}
@@ -685,8 +670,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         searchPlaceholder="Busca por asignatura…"
         onClear={clearFilters}
         filters={[
-          { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
-          { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+          { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos los ciclos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
+          { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
         ]}
       />
       <ErrorNotice message={list.error} retry={list.reload} />
@@ -696,9 +681,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         loading={list.isFetching || list.isInitialLoading}
         empty="Aún no hay tutorías para esta búsqueda. Usa «Crear tutoría» para registrar una."
         columns={columns}
-        onRowClick={openEditTutoring}
-        rowTitle={(item) => `Editar tutoría de ${item.subject_name}`}
-        isRowSelected={(item) => editingTutoringItem?.id === item.id}
+        onRowClick={(item) => (item.tutoring ? setDetailId(item.id) : openEditTutoring(item))}
+        rowTitle={(item) => `Abrir la tutoría de ${item.subject_name}`}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -749,14 +733,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       )}
       {creatingTutoringSubject && creatingTutoringCycle && (
         <>
-          <SubjectSummary
-            name={creatingTutoringSubject.name}
-            code={creatingTutoringSubject.code}
-            cycle={creatingTutoringCycle.name}
-          />
           <TeacherSection
             prefix="create"
-            title="Asignar docente"
             teachers={createTeachers}
             loading={createTeachersLoading}
             error={createTeachersError}
@@ -779,7 +757,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     <FormDialog
       open={Boolean(editingTutoringItem)}
       title="Editar tutoría"
-      description={editingTutoringItem ? `${editingTutoringItem.subject_name} · ${editingTutoringItem.cycle_name}` : ''}
+      description={editingTutoringItem ? [editingTutoringItem.subject_name, editingTutoringItem.code, editingTutoringItem.cycle_name].filter(Boolean).join(' · ') : ''}
       pending={editSaving}
       error={editError}
       dirty={editDirty}
@@ -811,14 +789,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     >
       {editingTutoringItem && (
         <>
-          <SubjectSummary
-            name={editingTutoringItem.subject_name}
-            code={editingTutoringItem.code}
-            cycle={editingTutoringItem.cycle_name}
-          />
           <TeacherSection
             prefix="edit"
-            title="Docente"
             teachers={editTeachers}
             loading={editTeachersLoading}
             error={editTeachersError}
@@ -839,64 +811,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       )}
     </FormDialog>
 
-    {/* Horarios de la tutoría (solo lectura) */}
-    <Dialog
-      open={Boolean(viewingScheduleItem)}
-      title="Horarios de la asignatura"
-      description={viewingScheduleItem ? `${viewingScheduleItem.subject_name} · ${viewingScheduleItem.cycle_name}` : ''}
-      confirmClose={false}
-      onClose={() => setViewingScheduleItem(null)}
-      maxWidth="max-w-md"
-    >
-      {viewingScheduleItem && (() => {
-        const activeSchedules = viewingScheduleItem.schedules?.filter((s) => s.is_active) ?? []
-
-        return (
-          <div className="flex flex-col gap-4">
-            {activeSchedules.length > 0 ? (
-              <div className="flex flex-col gap-2" role="list" aria-label="Lista de horarios">
-                {activeSchedules.map((s) => (
-                  <Card
-                    key={s.id}
-                    role="listitem"
-                    className="flex items-center justify-between p-3 shadow-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-medium text-sm">
-                        <CalendarClockIcon className="size-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">
-                          {DAY_LABELS[s.day] ?? s.day}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {s.start_time.slice(0, 5)} – {s.end_time.slice(0, 5)}
-                          {s.room && s.room !== 'Por asignar' ? ` · Aula: ${s.room}` : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 rounded-lg bg-muted/30 border border-dashed text-center">
-                <p className="text-sm text-muted-foreground">Esta asignatura no tiene horarios registrados aún.</p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end pt-2 border-t">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setViewingScheduleItem(null)}
-              >
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        )
-      })()}
-    </Dialog>
     <ErrorModal open={Boolean(operation.errorModal)} onClose={operation.clearErrorModal} title={operation.errorModal?.title} description={operation.errorModal?.description} />
   </section>
 }
@@ -939,22 +853,8 @@ function timeOptions(current: string) {
   return all.map((time) => ({ value: time, label: time }))
 }
 
-function SubjectSummary({ name, code, cycle }: Readonly<{ name: string; code: string | null; cycle: string }>) {
-  return (
-    <div className="rounded-lg bg-muted/40 p-3.5 border flex flex-col gap-1.5">
-      <span className="text-xs text-muted-foreground uppercase tracking-wider">Materia seleccionada</span>
-      <div className="flex items-center justify-between">
-        <span className="text-base font-semibold text-foreground">{name}</span>
-        {code && <Badge variant="secondary" className="font-mono text-xs">{code}</Badge>}
-      </div>
-      <span className="text-xs text-muted-foreground">{cycle}</span>
-    </div>
-  )
-}
-
-function TeacherSection({ prefix, title, teachers, loading, error, value, onChange, conflicts, disabled = false }: Readonly<{
+function TeacherSection({ prefix, teachers, loading, error, value, onChange, conflicts, disabled = false }: Readonly<{
   prefix: 'create' | 'edit'
-  title: string
   teachers: readonly AvailableTeacher[]
   loading: boolean
   error: string | null
@@ -964,34 +864,30 @@ function TeacherSection({ prefix, title, teachers, loading, error, value, onChan
   disabled?: boolean
 }>) {
   return (
-    <Card className="flex flex-col gap-3 p-3.5 shadow-none">
-      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-        <UserPlusIcon className="size-4 text-primary" />
-        {title}
-      </h4>
-      {error && <ErrorNotice message={error} />}
-      {loading && <Skeleton role="status" aria-label="Cargando docentes" className="h-4 w-40" />}
+    <div className="flex flex-col gap-3">
+      <ErrorNotice message={error} />
       <SelectField
         id={`${prefix}-tutoring-teacher`}
         label="Docente"
         value={value}
         onValueChange={onChange}
         disabled={loading || disabled}
-        placeholder="Selecciona un docente"
+        placeholder={loading ? 'Cargando docentes…' : 'Selecciona un docente'}
         options={teachers.map((teacher) => ({ value: String(teacher.id), label: teacher.name }))}
       />
+      {loading && <span role="status" aria-label="Cargando docentes" className="sr-only">Cargando docentes</span>}
       {!loading && teachers.length === 0 && (
-        <p className="text-xs text-muted-foreground">No se encontraron docentes activos.</p>
+        <p className="text-sm text-muted-foreground">No se encontraron docentes activos.</p>
       )}
       <ScheduleConflictNotice conflicts={conflicts} />
-    </Card>
+    </div>
   )
 }
 
-const CHIP_BASE = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors select-none'
-const CHIP_ON = 'bg-primary/10 border-primary text-primary dark:bg-primary/20'
-const CHIP_OFF = 'bg-background hover:bg-accent text-foreground border-input'
-
+/**
+ * Horario: se marcan los días y, por cada día marcado, su hora de inicio y de fin en una
+ * sola línea. Sin recuadros anidados.
+ */
 function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Readonly<{
   prefix: 'create' | 'edit'
   days: readonly string[]
@@ -1012,74 +908,63 @@ function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Re
     onChange([...days], { ...times, [day]: { ...(times[day] ?? DEFAULT_TIMES), [key]: value } })
   }
 
+  // Los días marcados se listan en el orden de la semana.
+  const orderedDays = WEEK_DAYS.filter((day) => days.includes(day))
+
   return (
-    <Card className="flex flex-col gap-3 p-3.5 shadow-none">
-      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-        <CalendarClockIcon className="size-4 text-primary" />
-        Horario de tutoría
-      </h4>
-
-      <FormField id={`${prefix}-schedule-days`} label="Selección de días" tip="Puedes seleccionar varios días y configurar horas diferentes según el día.">
-        <div id={`${prefix}-schedule-days`} className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Días de la semana">
-          {WEEK_DAYS.map((day) => {
-            const isChecked = days.includes(day)
+    <FormField id={`${prefix}-schedule-days`} label="Horario" tip="Marca los días de la tutoría y elige la hora de cada uno.">
+      <div id={`${prefix}-schedule-days`} className="flex flex-wrap gap-x-4 gap-y-2" role="group" aria-label="Días de la semana">
+        {WEEK_DAYS.map((day) => (
+          <label key={day} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
+            <input
+              type="checkbox"
+              value={day}
+              checked={days.includes(day)}
+              disabled={disabled}
+              onChange={() => toggleDay(day)}
+              className="size-4 accent-primary"
+            />
+            {DAY_LABELS[day]}
+          </label>
+        ))}
+      </div>
+      {orderedDays.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {orderedDays.map((day) => {
+            const dayLabel = DAY_LABELS[day] ?? day
+            const currentTimes = times[day] ?? DEFAULT_TIMES
             return (
-              <label key={day} className={cn(CHIP_BASE, isChecked ? CHIP_ON : CHIP_OFF, disabled && 'pointer-events-none opacity-60')}>
-                <input
-                  type="checkbox"
-                  value={day}
-                  checked={isChecked}
-                  disabled={disabled}
-                  onChange={() => toggleDay(day)}
-                  className="size-4 rounded border-input text-primary focus:ring-primary/20"
-                />
-                <span>{DAY_LABELS[day]}</span>
-              </label>
-            )
-          })}
-        </div>
-      </FormField>
-
-      <div className="flex flex-col gap-3 pt-1">
-        {days.map((day) => {
-          const dayLabel = DAY_LABELS[day] ?? day
-          const currentTimes = times[day] ?? DEFAULT_TIMES
-          return (
-            <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-muted/20">
-              <div className="sm:w-28 flex items-center gap-2 font-medium text-sm text-foreground shrink-0">
-                <CalendarDaysIcon className="size-4 text-primary" />
-                <span>{dayLabel}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3 flex-1">
+              <div key={day} className="grid grid-cols-[6rem_1fr_auto_1fr] items-center gap-2">
+                <span className="text-sm font-medium">{dayLabel}</span>
                 <SelectField
                   id={`${prefix}-schedule-start-${day}`}
                   label={days.length === 1 ? 'Hora de inicio' : `Hora de inicio (${dayLabel})`}
+                  labelClassName="sr-only"
                   value={currentTimes.start_time}
                   onValueChange={(value) => setTime(day, 'start_time', value)}
-                  placeholder="Selecciona hora"
+                  placeholder="Inicio"
                   disabled={disabled}
                   options={timeOptions(currentTimes.start_time)}
                 />
+                <span className="text-sm text-muted-foreground">a</span>
                 <SelectField
                   id={`${prefix}-schedule-end-${day}`}
                   label={days.length === 1 ? 'Hora de fin' : `Hora de fin (${dayLabel})`}
+                  labelClassName="sr-only"
                   value={currentTimes.end_time}
                   onValueChange={(value) => setTime(day, 'end_time', value)}
-                  placeholder="Selecciona hora"
+                  placeholder="Fin"
                   disabled={disabled}
                   options={timeOptions(currentTimes.end_time)}
                 />
               </div>
-            </div>
-          )
-        })}
-        {days.length === 0 && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
-            Selecciona al menos un día arriba para configurar su horario.
-          </p>
-        )}
-      </div>
-    </Card>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-warning">Marca al menos un día.</p>
+      )}
+    </FormField>
   )
 }
 
@@ -1114,16 +999,16 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
   return (
     <FormField
       id={`${prefix}-tutoring-parallels`}
-      label="Paralelo de la tutoría"
+      label="Paralelo"
       tip="Cada paralelo es una tutoría con su propio docente."
       error={parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null}
     >
       {parallels.length > 0 ? (
-        <div id={`${prefix}-tutoring-parallels`} className="flex flex-wrap gap-2 pt-1" role="radiogroup" aria-label="Paralelo">
+        <div id={`${prefix}-tutoring-parallels`} className="flex flex-wrap gap-x-4 gap-y-2" role="radiogroup" aria-label="Paralelo">
           {parallels.map((parallel) => {
             const isChecked = value.includes(String(parallel.id))
             return (
-              <label key={parallel.id} className={cn(CHIP_BASE, isChecked ? CHIP_ON : CHIP_OFF, disabled && 'pointer-events-none opacity-60')}>
+              <label key={parallel.id} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
                 <input
                   type="radio"
                   name={`${prefix}-tutoring-parallel`}
@@ -1131,7 +1016,7 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
                   checked={isChecked}
                   disabled={disabled}
                   onChange={() => onChange([String(parallel.id)])}
-                  className="size-4 border-input text-primary focus:ring-primary/20"
+                  className="size-4 accent-primary"
                 />
                 <span>Paralelo {parallel.name}</span>
               </label>
@@ -1140,7 +1025,7 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
         </div>
       ) : onCreate ? (
         <div className="flex flex-col gap-2 pt-1">
-          <p className="text-xs text-amber-600 dark:text-amber-400">
+          <p className="text-sm text-warning">
             Esta asignatura aún no tiene paralelos. Crea uno para continuar.
           </p>
           <div className="flex items-start gap-2">
@@ -1164,7 +1049,7 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
           {createError && <p role="alert" className="text-xs text-destructive">{createError}</p>}
         </div>
       ) : (
-        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+        <p className="text-sm text-warning">
           Esta asignatura no tiene paralelos registrados previamente.
         </p>
       )}
@@ -1195,7 +1080,7 @@ function ScheduleConflictNotice({ conflicts }: Readonly<{ conflicts: readonly Sc
   if (conflicts.length === 0) return null
 
   return (
-    <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+    <div role="alert" className="rounded-md border border-notice-border bg-notice p-3 text-sm text-notice-foreground">
       <p className="font-semibold">El docente ya tiene tutoría en ese horario:</p>
       <ul className="mt-1 list-disc pl-4">
         {conflicts.map((conflict) => (

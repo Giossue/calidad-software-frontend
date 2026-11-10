@@ -82,7 +82,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             label: 'Ciclo',
             value: cycleFilter,
             onChange: setCycleFilter,
-            allLabel: 'Todos',
+            allLabel: 'Todos los ciclos',
             options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })),
           },
         ]}

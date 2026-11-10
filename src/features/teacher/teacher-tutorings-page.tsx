@@ -30,7 +30,7 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Mis tutorías" description="Elige una tutoría para gestionar sus estudiantes, calificaciones, asistencia, contenido y horarios." />
     <FilterBar id="teacher-tutorings" search={list.searchInput} onSearch={list.setSearchInput} searchPlaceholder="Busca por asignatura…" onClear={() => setStatus('')} filters={[
-      { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todas', options: [{ value: 'active', label: 'En curso' }, { value: 'inactive', label: 'Solo consulta' }] },
+      { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'En curso' }, { value: 'inactive', label: 'Solo consulta' }] },
     ]} />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} onRowClick={(item) => onOpen(item.id)} rowTitle={(item) => `Abrir ${item.subject_name}`} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No hay tutorías para mostrar" description="Revisa los filtros o consulta con el Coordinador de Carrera tus asignaciones." />} columns={[

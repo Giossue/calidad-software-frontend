@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { FilterXIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -31,15 +31,18 @@ type FilterBarProps = Readonly<{
   disabled?: boolean
   filters: readonly FilterDefinition[]
   onClear: () => void
+  /** Control que va antes del buscador (p. ej. el ciclo, que no es un filtro opcional). */
+  leading?: ReactNode
 }>
 
 // Buscador con los filtros como selects en la misma fila (se acomodan en varias líneas
 // en pantallas angostas). "Limpiar" aparece solo cuando hay algún filtro activo.
-export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel = 'Buscar', disabled = false, filters, onClear }: FilterBarProps) {
+export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel = 'Buscar', disabled = false, filters, onClear, leading }: FilterBarProps) {
   const hasActive = filters.some((filter) => filter.value !== '')
 
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3" data-tour="page-filters">
+      {leading}
       <SearchInput
         id={`${id}-search`}
         icon

@@ -71,6 +71,7 @@ export function SelectField({
   optional,
   error,
   className,
+  labelClassName,
   ...select
 }: Readonly<
   Omit<Parameters<typeof SelectInput>[0], 'invalid'> & {
@@ -79,10 +80,12 @@ export function SelectField({
     tip?: ReactNode
     optional?: boolean
     error?: string | null
+    /** Clases de la etiqueta (p. ej. `sr-only` cuando el contexto ya la nombra). */
+    labelClassName?: string
   }
 >) {
   return (
-    <FormField id={id} label={label} tip={tip} optional={optional} error={error} className={className}>
+    <FormField id={id} label={label} tip={tip} optional={optional} error={error} className={className} labelClassName={labelClassName}>
       <SelectInput id={id} invalid={Boolean(error)} {...select} />
     </FormField>
   )

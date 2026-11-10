@@ -112,7 +112,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
             label: 'Participación',
             value: roleFilter,
             onChange: (val) => setRoleFilter(val as typeof roleFilter),
-            allLabel: 'Todas',
+            allLabel: 'Todas las participaciones',
             options: [
               { value: 'tutor', label: 'Tutor' },
               { value: 'par_academico', label: 'Par académico' },
@@ -538,7 +538,7 @@ function TareasPanel({
             label: 'Estado',
             value: taskStatusFilter,
             onChange: (value) => setTaskStatusFilter(value as StatusFilter),
-            allLabel: 'Todas',
+            allLabel: 'Todos los estados',
             options: [
               { value: 'pending', label: 'Pendientes' },
               { value: 'completed', label: 'Completadas' },

@@ -138,7 +138,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
       <div className="flex-1">
         <FilterBar id="teacher-students" search={list.searchInput} onSearch={list.setSearchInput} searchLabel="Buscar" searchPlaceholder="Busca por nombre, cédula o correo…" onClear={() => setStatus('')} filters={[
-          { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+          { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
         ]} />
       </div>
       <Button className="shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>

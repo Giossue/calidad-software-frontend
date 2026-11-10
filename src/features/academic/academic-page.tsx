@@ -318,8 +318,8 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
           searchLabel="Buscar carrera"
           searchPlaceholder="Buscar carrera por nombre o facultad…"
           filters={[
-            { id: 'faculty', label: 'Facultad', value: facultyFilterId ? String(facultyFilterId) : '', onChange: (value) => setSearchParams(value ? { faculty: value } : {}), allLabel: 'Todas', options: activeFaculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name })) },
-            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todas', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+            { id: 'faculty', label: 'Facultad', value: facultyFilterId ? String(facultyFilterId) : '', onChange: (value) => setSearchParams(value ? { faculty: value } : {}), allLabel: 'Todas las facultades', options: activeFaculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name })) },
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
           ]}
           onClear={() => { setSearchInput(''); setStatusFilter(''); setSearchParams({}) }}
         />
@@ -717,7 +717,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
           searchLabel="Buscar ciclo"
           searchPlaceholder="Buscar ciclo por nombre…"
           filters={[
-            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activos' }, { value: 'inactive', label: 'Inactivos' }] },
           ]}
           onClear={() => { setSearchInput(''); setStatusFilter('') }}
         />

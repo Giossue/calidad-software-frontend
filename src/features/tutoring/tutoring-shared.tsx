@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SearchInput } from '@/components/ui/search-input'
 import { SelectInput } from '@/components/ui/select-field'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Career } from '@/lib/api'
@@ -68,4 +69,29 @@ export function RecordActions({ name, onEdit, onDeactivate, disabled }: Readonly
     { label: 'Editar', icon: PencilIcon, onSelect: () => onEdit?.(), visible: Boolean(onEdit) },
     { label: 'Desactivar', icon: PowerOffIcon, onSelect: () => onDeactivate?.(), tone: 'destructive', visible: Boolean(onDeactivate) },
   ]} />
+}
+
+/**
+ * Elige el ciclo de la carrera con un desplegable (en lugar de una fila de pestañas que no
+ * cabe cuando la carrera tiene muchos ciclos). El último ciclo se marca como titulación.
+ * `extraOptions` agrega opciones al final (p. ej. "Sin ciclo").
+ */
+export function CycleSelect({ id, levels, value, onChange, degreeCycleNumber, extraOptions = [] }: Readonly<{
+  id: string
+  levels: readonly { readonly number: number }[]
+  value: string
+  onChange: (value: string) => void
+  degreeCycleNumber: number | null
+  extraOptions?: readonly { value: string; label: string }[]
+}>) {
+  const options = [
+    ...levels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo${level.number === degreeCycleNumber ? ' · Titulación' : ''}` })),
+    ...extraOptions,
+  ]
+  return (
+    <div role="group" aria-label="Ciclos de la carrera" className="flex shrink-0 items-center gap-2">
+      <Label htmlFor={id} className="text-muted-foreground">Ciclo</Label>
+      <SelectInput id={id} ariaLabel="Ciclo" value={value} onValueChange={onChange} options={options} className="w-52" />
+    </div>
+  )
 }

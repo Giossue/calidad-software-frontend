@@ -691,7 +691,7 @@ export function UsersPage() {
           searchPlaceholder="Buscar usuario por nombre, correo o cédula…"
           filters={[
             { id: 'role', label: 'Rol', value: roleFilter, onChange: setRoleFilter, allLabel: 'Todos los roles', options: ROLE_OPTIONS.map((option) => ({ value: option.value, label: option.label })) },
-            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'pending' | 'inactive'), allLabel: 'Todos', options: [{ value: 'active', label: 'Activos' }, { value: 'pending', label: 'Pendientes de completar datos' }, { value: 'inactive', label: 'Inactivos' }] },
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'pending' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activos' }, { value: 'pending', label: 'Pendientes de completar datos' }, { value: 'inactive', label: 'Inactivos' }] },
             { id: 'career', label: 'Carrera', value: careerFilter, onChange: setCareerFilter, allLabel: 'Todas las carreras', options: filterCareers.map((career) => ({ value: String(career.id), label: career.name })) },
           ]}
           onClear={() => { setSearchInput(''); setRoleFilter(''); setStatusFilter(''); setCareerFilter('') }}

@@ -21,7 +21,7 @@ export function TeacherDegreeAssignmentsPage() {
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Mis asignaciones de titulación" description="Consulta los estudiantes y temas en los que participas como tutor o par académico." />
     <FilterBar id="teacher-degree" search={list.searchInput} onSearch={list.setSearchInput} searchLabel="Buscar tema o estudiante" searchPlaceholder="Título del tema o nombre del estudiante" onClear={() => setRole('')} filters={[
-      { id: 'role', label: 'Participación', value: role, onChange: (value) => setRole(value as typeof role), allLabel: 'Todas', options: [{ value: 'tutor', label: 'Tutor' }, { value: 'par_academico', label: 'Par académico' }] },
+      { id: 'role', label: 'Participación', value: role, onChange: (value) => setRole(value as typeof role), allLabel: 'Todas las participaciones', options: [{ value: 'tutor', label: 'Tutor' }, { value: 'par_academico', label: 'Par académico' }] },
     ]} />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} onRowClick={setReading} rowTitle={(item) => `Ver detalle de ${item.topic.title}`} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No tienes asignaciones de titulación con estos criterios" description="Las asignaciones aparecerán cuando el Coordinador de Titulación te designe como tutor o par académico." />} columns={[

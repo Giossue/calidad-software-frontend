@@ -15,6 +15,7 @@ export function FormField({
   counter,
   error,
   className,
+  labelClassName,
   children,
 }: Readonly<{
   id: string
@@ -25,12 +26,13 @@ export function FormField({
   counter?: { current: number; max: number }
   error?: string | null
   className?: string
+  labelClassName?: string
   children: ReactNode
 }>) {
   return (
     <Field data-invalid={Boolean(error)} className={cn(className)}>
-      <div className="flex items-center justify-between gap-2">
-        <FieldLabel htmlFor={id}>
+      <div className={cn('flex items-center justify-between gap-2', labelClassName?.includes('sr-only') && !counter && 'sr-only')}>
+        <FieldLabel htmlFor={id} className={labelClassName}>
           {label}
           {optional && <span className="text-xs font-normal text-muted-foreground">(Opcional)</span>}
         </FieldLabel>

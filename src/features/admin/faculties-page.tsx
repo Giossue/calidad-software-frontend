@@ -218,7 +218,7 @@ export function FacultiesPage() {
           searchLabel="Buscar facultad"
           searchPlaceholder="Buscar facultad por nombre…"
           filters={[
-            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todas', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
           ]}
           onClear={() => { setSearchInput(''); setStatusFilter('') }}
         />

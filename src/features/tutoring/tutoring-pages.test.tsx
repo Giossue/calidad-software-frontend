@@ -56,10 +56,29 @@ async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLEle
   await user.click(await screen.findByRole('option', { name: option }))
 }
 
+/** Opciones del desplegable de ciclo (lo abre y lo vuelve a cerrar). */
+async function readCycleOptions(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('combobox', { name: 'Ciclo' }))
+  const names = (await screen.findAllByRole('option')).map((option) => option.textContent)
+  await user.keyboard('{Escape}')
+  return names
+}
+
+async function chooseCycle(user: ReturnType<typeof userEvent.setup>, option: string | RegExp) {
+  await choose(user, await screen.findByRole('combobox', { name: 'Ciclo' }), option)
+}
+
 // Con una sola carrera el módulo entra directo a ella.
 async function openSubjects() {
   render(<TutoringSubjectsPage />)
   await screen.findByRole('button', { name: 'Registrar asignatura' })
+}
+
+
+/** Abre la tutoría desde su fila y luego su modal de edición. */
+async function openTutoringEdit(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByTitle('Abrir la tutoría de Matemática'))
+  await user.click(await screen.findByRole('button', { name: 'Editar tutoría' }))
 }
 
 describe('Coordinación de tutorías', () => {
@@ -213,18 +232,18 @@ describe('Coordinación de tutorías', () => {
     expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 2, search: '', career_id: career.id, cycle_number: 2, status: undefined })
   })
 
-  it('organiza las asignaturas en pestañas por ciclo y empieza en el primero', async () => {
+  it('elige el ciclo de las asignaturas en un desplegable y empieza en el primero', async () => {
     const user = userEvent.setup()
     await openSubjects()
     await screen.findByText('Matemática')
-    const tabs = screen.getByRole('tablist', { name: 'Ciclos de la carrera' })
-    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['2° ciclo', '3° ciclo · Titulación'])
-    expect(within(tabs).getByRole('tab', { name: '2° ciclo' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tablist', { name: 'Ciclos de la carrera' })).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
+    expect(await readCycleOptions(user)).toEqual(['2° ciclo', '3° ciclo · Titulación'])
     expect(screen.queryByLabelText('Filtrar por Ciclo')).not.toBeInTheDocument()
     expect(screen.queryByText(/Asignaturas de 2° ciclo/)).not.toBeInTheDocument()
     expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 2, status: undefined })
 
-    await user.click(within(tabs).getByRole('tab', { name: '3° ciclo · Titulación' }))
+    await chooseCycle(user, '3° ciclo · Titulación')
     await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 3, status: undefined }))
     // Dentro de un ciclo la columna «Ciclo» sobra.
     expect(screen.queryByRole('columnheader', { name: 'Ciclo' })).not.toBeInTheDocument()
@@ -516,8 +535,8 @@ describe('Coordinación de tutorías', () => {
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
 
-    // La materia seleccionada muestra solo el ciclo, sin carrera ni período.
-    expect(within(form).getByText('Segundo')).toBeInTheDocument()
+    // La materia y el ciclo elegidos van en la descripción del modal, sin carrera ni período.
+    expect(screen.getByText('Matemática · Segundo')).toBeInTheDocument()
     expect(within(form).queryByText('Software')).not.toBeInTheDocument()
     expect(within(form).queryByText('2026-2')).not.toBeInTheDocument()
 
@@ -548,8 +567,8 @@ describe('Coordinación de tutorías', () => {
     await user.click(screen.getByRole('button', { name: 'Continuar' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
 
-    // La materia ya está seleccionada y visible en el formulario
-    expect(within(form).getByText('Matemática')).toBeInTheDocument()
+    // La materia ya está seleccionada y visible en la descripción del modal
+    expect(screen.getByText(/^Matemática · /)).toBeInTheDocument()
 
     // Asignar docente recuperado de docentes de la carrera específica (solo nombre, sin buscador ni correo)
     await waitFor(() => expect(tutoringApi.availableTeachers).toHaveBeenCalledWith(''))
@@ -651,7 +670,7 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByRole('button', { name: /Ver paralelos de/i })).not.toBeInTheDocument()
   })
 
-  it('abre un modal con los horarios al hacer clic en el icono Ver horario de la columna Acciones sin cuadro de info de materia', async () => {
+  it('al hacer clic en la fila abre la pantalla de la tutoría con su horario en Resumen y sin columna de acciones', async () => {
     const user = userEvent.setup()
     const scheduled = {
       ...tutoring,
@@ -662,36 +681,32 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([scheduled]))
 
     render(<TutoringsPage />)
-
     await screen.findByText('Matemática')
 
-    // Botón Ver Horario en la columna correspondiente
-    const btn = await screen.findByRole('button', { name: 'Ver horario de Matemática' })
-    expect(btn).toBeInTheDocument()
-    expect(btn).not.toHaveTextContent('Ver Horario')
+    // Sin botones sueltos por fila: la fila entera abre la tutoría
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver horario de Matemática' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Supervisar Matemática' })).not.toBeInTheDocument()
+    await user.click(screen.getByTitle('Abrir la tutoría de Matemática'))
 
-    // Al hacer clic, abre el modal de horarios
-    await user.click(btn)
+    expect(await screen.findByRole('button', { name: 'Volver a tutorías' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Resumen' })).toHaveAttribute('aria-selected', 'true')
+    const schedules = screen.getByRole('list', { name: 'Lista de horarios' })
+    expect(within(schedules).getByText('Lunes')).toBeInTheDocument()
+    expect(within(schedules).getByText(/08:00 – 10:00/)).toBeInTheDocument()
+    expect(within(schedules).getByText(/Aula 101/)).toBeInTheDocument()
 
-    const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText('Horarios de la asignatura')).toBeInTheDocument()
-    expect(within(dialog).getByText('Lunes')).toBeInTheDocument()
-    expect(within(dialog).getByText(/08:00 – 10:00/)).toBeInTheDocument()
-    // No debe mostrar el cuadro de información de la asignatura
-    expect(within(dialog).queryByText('Asignatura')).not.toBeInTheDocument()
-
-    // Se puede cerrar el modal
-    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Volver a tutorías' }))
+    expect(await screen.findByTitle('Abrir la tutoría de Matemática')).toBeInTheDocument()
   })
 
-  it('al hacer clic en la fila abre el modal de edición: una tutoría creada no se desactiva ni tiene botón de edición', async () => {
+  it('desde la pantalla de la tutoría se edita en un modal: una tutoría creada no se desactiva', async () => {
     const user = userEvent.setup()
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
     expect(screen.queryByRole('button', { name: 'Más acciones para Matemática' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Editar Matemática/ })).not.toBeInTheDocument()
-    await user.click(screen.getByTitle('Editar tutoría de Matemática'))
+    await openTutoringEdit(user)
     const form = await screen.findByRole('form', { name: 'Editar tutoría' })
     expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: /Desactivar/ })).not.toBeInTheDocument()
@@ -720,12 +735,12 @@ describe('Coordinación de tutorías', () => {
 
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
-    await user.click(screen.getByTitle('Editar tutoría de Matemática'))
+    await openTutoringEdit(user)
 
     const form = await screen.findByRole('form', { name: 'Editar tutoría' })
 
     // Contiene la misma información de la creación: materia, docente, horario y paralelos
-    expect(within(form).getByText('Matemática')).toBeInTheDocument()
+    expect(screen.getByText(/^Matemática · /)).toBeInTheDocument()
     expect(within(form).getByLabelText('Docente')).toHaveTextContent('Ana Torres')
     expect(within(form).getByLabelText('Lunes')).toBeChecked()
     expect(within(form).getByLabelText('Hora de inicio')).toHaveTextContent('08:00')
@@ -743,7 +758,7 @@ describe('Coordinación de tutorías', () => {
     expect(tutoringApi.assignTeacher).not.toHaveBeenCalled()
   })
 
-  it('filtra tutorías por ciclo y estado, y abre el detalle al supervisar', async () => {
+  it('filtra tutorías por ciclo y estado, y abre la tutoría al pulsar su fila', async () => {
     const user = userEvent.setup()
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
@@ -756,20 +771,21 @@ describe('Coordinación de tutorías', () => {
     await user.click(screen.getByRole('button', { name: 'Limpiar' }))
     await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined }))
 
-    await user.click(screen.getByRole('button', { name: 'Supervisar Matemática' }))
+    await user.click(screen.getByTitle('Abrir la tutoría de Matemática'))
     expect(await screen.findByRole('button', { name: 'Volver a tutorías' })).toBeInTheDocument()
-    expect(screen.getByText('Docente responsable')).toBeInTheDocument()
+    expect(screen.getByText('Docente')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Supervisión' }))
     expect(screen.getByText('Supervisión de asistencias')).toBeInTheDocument()
     expect(screen.queryByText('Horarios de la tutoría')).not.toBeInTheDocument()
     expect(screen.queryByText('Informes de tutoría')).not.toBeInTheDocument()
   })
 
-  it('reactiva una tutoría inactiva desde el modal de su fila', async () => {
+  it('reactiva una tutoría inactiva desde el modal de edición', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([{ ...tutoring, is_active: false }]))
     vi.mocked(tutoringApi.activateTutoring).mockResolvedValue(tutoring)
     render(<TutoringsPage />)
-    await user.click(await screen.findByTitle('Editar tutoría de Matemática'))
+    await openTutoringEdit(user)
     const form = await screen.findByRole('form', { name: 'Editar tutoría' })
     expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Activar tutoría' }))
@@ -830,7 +846,7 @@ describe('Coordinación de tutorías', () => {
 
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
-    await user.click(screen.getByTitle('Editar tutoría de Matemática'))
+    await openTutoringEdit(user)
 
     const form = await screen.findByRole('form', { name: 'Editar tutoría' })
     // Agregar Miércoles
@@ -874,6 +890,7 @@ describe('Coordinación de tutorías', () => {
       { id: 1, number: 1, date: '2026-05-04', topics_covered: false, topics: [], present_count: 2, absent_count: 0, attendance: [] },
     ]))
     render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Supervisión' }))
 
     expect(await screen.findByText('Sesión 2')).toBeInTheDocument()
     expect(screen.getByText('Sesión 1')).toBeInTheDocument()
@@ -892,8 +909,10 @@ describe('Coordinación de tutorías', () => {
   })
 
   it('al supervisar una tutoría no muestra la sección de horarios, informes ni el botón de cambiar docente', async () => {
+    const user = userEvent.setup()
     render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
-    expect(screen.getByText('Docente responsable')).toBeInTheDocument()
+    expect(screen.getByText('Docente')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Supervisión' }))
     expect(screen.getByText('Supervisión de asistencias')).toBeInTheDocument()
     expect(screen.queryByText('Horarios de la tutoría')).not.toBeInTheDocument()
     expect(screen.queryByText('Informes de tutoría')).not.toBeInTheDocument()
@@ -1029,10 +1048,9 @@ describe('Coordinación de tutorías', () => {
     render(<TutoringStudentsPage />)
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Software' })).toBeInTheDocument()
-    // Una pestaña por ciclo; el último es titulación. Se abre el primero y la lista se pide por ciclo.
-    expect(await screen.findByRole('tab', { name: '2° ciclo', selected: true })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '6° ciclo · Titulación' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Sin ciclo' })).toBeInTheDocument()
+    // Un desplegable con cada ciclo; el último es titulación. Se abre el primero y la lista se pide por ciclo.
+    expect(await screen.findByRole('combobox', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
+    expect(await readCycleOptions(userEvent.setup())).toEqual(['2° ciclo', '6° ciclo · Titulación', 'Sin ciclo'])
     await waitFor(() => expect(tutoringApi.allStudents).toHaveBeenCalledWith(expect.objectContaining({ career_id: 10, cycle_number: 2, without_cycle: false })))
     expect(await screen.findByText('Carlos Estudiante')).toBeInTheDocument()
     expect(screen.getByText('0201999999')).toBeInTheDocument()
@@ -1082,10 +1100,8 @@ describe('Coordinación de tutorías', () => {
 
     render(<TutoringStudentsPage />)
 
-    expect(await screen.findByRole('tab', { name: '2° ciclo', selected: true })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '6° ciclo' })).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: '6° ciclo · Titulación' })).not.toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '8° ciclo · Titulación' })).toBeInTheDocument()
+    expect(await screen.findByRole('combobox', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
+    expect(await readCycleOptions(userEvent.setup())).toEqual(['2° ciclo', '6° ciclo', '8° ciclo · Titulación', 'Sin ciclo'])
   })
 
   it('exige el ciclo al registrar un estudiante y no ofrece tutorías en el ciclo de titulación', async () => {
@@ -1097,7 +1113,7 @@ describe('Coordinación de tutorías', () => {
 
     render(<TutoringStudentsPage />)
     // En «Sin ciclo» hay que elegir el ciclo.
-    await user.click(await screen.findByRole('tab', { name: 'Sin ciclo' }))
+    await chooseCycle(user, 'Sin ciclo')
     await user.click(await screen.findByRole('button', { name: 'Nuevo estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar Nuevo Estudiante' })
     await user.type(within(form).getByLabelText(/Cédula o pasaporte/i), '0926687856')
@@ -1132,7 +1148,7 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.degreeStudents).mockResolvedValue({ data: [student], meta: { ...paginated([student]).meta, current_period: { id: 50, name: '2026-2' } } })
 
     render(<TutoringStudentsPage />)
-    await user.click(await screen.findByRole('tab', { name: /Titulación/i }))
+    await chooseCycle(user, /Titulación/i)
 
     expect(await screen.findByText('Ciclo 5')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Matricular a Pedro Quinto en titulación' })).toBeDisabled()
@@ -1192,9 +1208,8 @@ describe('Coordinación de tutorías', () => {
 
     render(<TutoringStudentsPage />)
 
-    // Click on "Titulación" tab
-    const degreeTab = await screen.findByRole('tab', { name: /Titulación/i })
-    await user.click(degreeTab)
+    // Elegir el ciclo de titulación
+    await chooseCycle(user, /Titulación/i)
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Matrícula en Titulación' })).toBeInTheDocument()
     expect(screen.getByText('María Estudiante')).toBeInTheDocument()

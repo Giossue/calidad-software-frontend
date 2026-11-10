@@ -1,13 +1,5 @@
-import { useState, type ComponentType } from 'react'
-import {
-  ArrowLeftIcon,
-  BookOpenIcon,
-  CalendarClockIcon,
-  GraduationCapIcon,
-  MapPinIcon,
-  UserIcon,
-  UsersIcon,
-} from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeftIcon, CalendarClockIcon, PencilIcon, UsersIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -18,9 +10,7 @@ import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { getInitials } from '@/lib/format'
-import { tutoringApi, type SupervisionSession, type Tutoring } from '@/lib/tutoring-api'
-import { cn } from '@/lib/utils'
+import { DAY_LABELS, tutoringApi, WEEK_DAYS, type SupervisionSession, type Tutoring, type TutoringSchedule } from '@/lib/tutoring-api'
 import { RecordTable } from './tutoring-shared'
 import { CoordinatorStudentsPanel } from './coordinator-students-panel'
 
@@ -30,25 +20,27 @@ function formatDate(value: string, time = false): string {
   return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', ...(time ? { timeStyle: 'short' as const } : {}) }).format(date)
 }
 
-function InfoChip({ icon: Icon, label }: Readonly<{ icon: ComponentType<{ className?: string }>; label: string }>) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-      <Icon className="size-3.5" />
-      {label}
-    </span>
-  )
-}
-
+/**
+ * Pantalla de una tutoría: se abre al pulsar su fila. Arriba lo esencial y la acción de
+ * editar; debajo, la información separada en pestañas (resumen, supervisión, estudiantes).
+ */
 export function TutoringDetail({
   tutoring,
+  schedules = [],
   onBack,
+  onEdit,
 }: Readonly<{
   tutoring: Tutoring
+  schedules?: readonly TutoringSchedule[]
   onBack: () => void
-  onAssignTeacher?: () => void
+  onEdit?: () => void
 }>) {
+  const context = [tutoring.cycle_name, tutoring.section_name ? `Paralelo ${tutoring.section_name}` : null, tutoring.modality_name, tutoring.period_name]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
-    <div className="flex flex-col gap-8" data-tour-view="detail">
+    <div className="flex flex-col gap-6" data-tour-view="detail">
       <div>
         <Button type="button" variant="tertiary" onClick={onBack}>
           <ArrowLeftIcon data-icon="inline-start" />
@@ -58,48 +50,29 @@ export function TutoringDetail({
 
       <AdminSectionHeader
         title={tutoring.subject_name}
-        description={
-          <div className="flex flex-wrap gap-2">
-            <InfoChip icon={BookOpenIcon} label={tutoring.period_name} />
-            <InfoChip icon={GraduationCapIcon} label={tutoring.cycle_name} />
-            {tutoring.section_name && <InfoChip icon={UsersIcon} label={`Paralelo ${tutoring.section_name}`} />}
-            <InfoChip icon={MapPinIcon} label={tutoring.modality_name} />
+        description={context}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusBadge active={tutoring.is_active} activeLabel="Tutoría activa" inactiveLabel="Tutoría inactiva" />
+            {onEdit && (
+              <Button type="button" variant="secondary" onClick={onEdit}>
+                <PencilIcon data-icon="inline-start" />
+                Editar tutoría
+              </Button>
+            )}
           </div>
         }
-        actions={<StatusBadge active={tutoring.is_active} activeLabel="Tutoría activa" inactiveLabel="Tutoría inactiva" />}
       />
 
-      <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
-          <div className="flex items-center gap-4">
-            <div
-              className={cn(
-                'flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-medium',
-                tutoring.teacher_name ? 'bg-brand-blue text-white' : 'bg-muted text-muted-foreground',
-              )}
-            >
-              {tutoring.teacher_name ? getInitials(tutoring.teacher_name) : <UserIcon className="size-5" />}
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm text-muted-foreground">Docente responsable</span>
-              <span className="text-lg font-semibold">{tutoring.teacher_name || 'Sin docente asignado'}</span>
-              <span className="text-sm text-muted-foreground">
-                {tutoring.teacher_id && !tutoring.teacher_is_active
-                  ? 'El docente asignado se encuentra inactivo.'
-                  : tutoring.teacher_id
-                    ? 'Revisa la planificación y el seguimiento académico de esta tutoría.'
-                    : 'Esta tutoría no tiene docente asignado.'}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="supervision">
+      <Tabs defaultValue="summary">
         <TabsList aria-label="Secciones de la tutoría">
+          <TabsTrigger value="summary">Resumen</TabsTrigger>
           <TabsTrigger value="supervision">Supervisión</TabsTrigger>
           <TabsTrigger value="students">Estudiantes</TabsTrigger>
         </TabsList>
+        <TabsContent value="summary">
+          <SummaryPanel tutoring={tutoring} schedules={schedules} />
+        </TabsContent>
         <TabsContent value="supervision">
           <SupervisionPanel tutoring={tutoring} />
         </TabsContent>
@@ -108,6 +81,49 @@ export function TutoringDetail({
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+const dayOrder = (day: string) => (WEEK_DAYS as readonly string[]).indexOf(day)
+
+/** Docente y horario de la tutoría, en una sola tarjeta. */
+function SummaryPanel({ tutoring, schedules }: Readonly<{ tutoring: Tutoring; schedules: readonly TutoringSchedule[] }>) {
+  const active = schedules
+    .filter((schedule) => schedule.is_active)
+    .sort((a, b) => dayOrder(a.day) - dayOrder(b.day) || a.start_time.localeCompare(b.start_time))
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <dl className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <dt className="text-sm text-muted-foreground">Docente</dt>
+            <dd className="font-medium">{tutoring.teacher_name || 'Sin docente asignado'}</dd>
+            {tutoring.teacher_id && !tutoring.teacher_is_active && (
+              <dd className="text-sm text-destructive">El docente está inactivo: asigna otro desde «Editar tutoría».</dd>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <dt className="text-sm text-muted-foreground">Horario</dt>
+            {active.length > 0 ? (
+              <dd>
+                <ul className="flex flex-col gap-1" aria-label="Lista de horarios">
+                  {active.map((schedule) => (
+                    <li key={schedule.id} className="text-sm">
+                      <span className="font-medium">{DAY_LABELS[schedule.day] ?? schedule.day}</span>{' '}
+                      {schedule.start_time.slice(0, 5)} – {schedule.end_time.slice(0, 5)}
+                      {schedule.room && schedule.room !== 'Por asignar' ? <span className="text-muted-foreground"> · Aula {schedule.room}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            ) : (
+              <dd className="text-sm text-muted-foreground">Sin horario registrado.</dd>
+            )}
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
   )
 }
 

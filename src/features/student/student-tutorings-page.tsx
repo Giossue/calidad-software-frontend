@@ -50,7 +50,7 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
           onSearch={(value) => { setSearch(value); pager.setPage(1) }}
           searchLabel="Buscar tutoría"
           searchPlaceholder="Busca por asignatura, ciclo o docente…"
-          filters={[{ id: 'status', label: 'Estado', value: status, onChange: (value) => { setStatus(value as '' | 'active' | 'inactive'); pager.setPage(1) }, allLabel: 'Todas', options: [{ value: 'active', label: 'En curso' }, { value: 'inactive', label: 'Finalizadas' }] }]}
+          filters={[{ id: 'status', label: 'Estado', value: status, onChange: (value) => { setStatus(value as '' | 'active' | 'inactive'); pager.setPage(1) }, allLabel: 'Todos los estados', options: [{ value: 'active', label: 'En curso' }, { value: 'inactive', label: 'Finalizadas' }] }]}
           onClear={() => { setSearch(''); setStatus(''); pager.setPage(1) }}
         />
         <RecordTable

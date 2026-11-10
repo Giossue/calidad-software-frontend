@@ -7,8 +7,6 @@ import {
   Trash2Icon,
   UserMinusIcon,
   UserPlusIcon,
-  UsersIcon,
-  UserXIcon,
   XCircleIcon,
 } from 'lucide-react'
 
@@ -28,7 +26,6 @@ import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import type { Cycle } from '@/lib/api'
@@ -47,7 +44,7 @@ import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-pick
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 import { RowActions } from './row-actions'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { ModuleHeader, RecordTable } from './tutoring-shared'
+import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
 
 const EMPTY_STUDENT_FORM = {
   identification: '',
@@ -354,6 +351,18 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     )
   }
 
+  // El ciclo encabeza la fila de filtros en las dos vistas (tutorías y titulación).
+  const cycleSelect = (
+    <CycleSelect
+      id="tutoring-students-cycle"
+      levels={cycleLevels}
+      value={activeTab}
+      onChange={setCycleTab}
+      degreeCycleNumber={careerMaxCycle}
+      extraOptions={[{ value: WITHOUT_CYCLE, label: 'Sin ciclo' }]}
+    />
+  )
+
   return (
     <div className="flex flex-col gap-6">
       <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
@@ -361,7 +370,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         title={careerName}
         description={
           tabLevel
-            ? `Estudiantes de ${tabLevel.number}° ciclo${tabLevel.name ? ` (${tabLevel.name})` : ''}${isDegreeTab ? ' · Titulación' : ''}.`
+            ? 'Registra a los estudiantes de la carrera y revisa sus tutorías por ciclo.'
             : 'Estudiantes sin ciclo asignado: asígnales el ciclo que cursan.'
         }
         createLabel="Nuevo estudiante"
@@ -369,34 +378,19 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
       />
 
-      <Tabs value={activeTab} onValueChange={setCycleTab} className="w-full">
-        <div className="overflow-x-auto pb-1">
-          <TabsList aria-label="Ciclos de la carrera" className="w-max">
-            {cycleLevels.map((level) => (
-              <TabsTrigger key={level.number} value={String(level.number)} className="gap-2">
-                {isDegreeCycleNumber(level.number, careerMaxCycle) ? <GraduationCapIcon className="size-4" /> : <UsersIcon className="size-4" />}
-                <span>{level.number}° ciclo{isDegreeCycleNumber(level.number, careerMaxCycle) ? ' · Titulación' : ''}</span>
-              </TabsTrigger>
-            ))}
-            <TabsTrigger value={WITHOUT_CYCLE} className="gap-2">
-              <UserXIcon className="size-4" />
-              <span>Sin ciclo</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-      </Tabs>
 
       {!isDegreeTab && (
       <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <FilterBar
           id="tutoring-students-filter"
+          leading={cycleSelect}
           search={list.searchInput}
           onSearch={list.setSearchInput}
           searchLabel="Buscar estudiante"
           searchPlaceholder="Busca por nombre, cédula o correo…"
           filters={[
-            { id: 'tutoring-status', label: 'Tutorías', value: tutoringStatus, onChange: (value) => setTutoringStatus(value as '' | 'with' | 'without'), allLabel: 'Todos', options: [{ value: 'with', label: 'Con tutorías' }, { value: 'without', label: 'Sin tutorías' }] },
+            { id: 'tutoring-status', label: 'Tutorías', value: tutoringStatus, onChange: (value) => setTutoringStatus(value as '' | 'with' | 'without'), allLabel: 'Con y sin tutorías', options: [{ value: 'with', label: 'Con tutorías' }, { value: 'without', label: 'Sin tutorías' }] },
           ]}
           onClear={() => { list.setSearchInput(''); setTutoringStatus('') }}
         />
@@ -734,6 +728,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           <div className="flex flex-col gap-3">
             <FilterBar
               id="degree-students-filter"
+              leading={cycleSelect}
               search={degreeList.searchInput}
               onSearch={degreeList.setSearchInput}
               searchLabel="Buscar estudiante"
