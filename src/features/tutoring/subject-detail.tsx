@@ -186,7 +186,7 @@ function ParallelsPanel({ subject, cycles, parallels, operation, onChanged }: Re
           : await tutoringApi.assignSubjectCycle(subject.id, chosenParallelId ?? 0)
         resetAdd()
       },
-      'Paralelo asignado.',
+      'Paralelo asignado',
       async () => { if (updated) await onChanged(updated) },
     )
   }
@@ -199,7 +199,7 @@ function ParallelsPanel({ subject, cycles, parallels, operation, onChanged }: Re
           ? await tutoringApi.unassignSubjectParallel(subject.id, targetParallelId)
           : await tutoringApi.unassignSubjectCycle(subject.id, targetCycleId)
       },
-      'Paralelo desasignado.',
+      'Paralelo desasignado',
       async () => { if (updated) await onChanged(updated) },
     )
   }
@@ -207,7 +207,7 @@ function ParallelsPanel({ subject, cycles, parallels, operation, onChanged }: Re
   const canAdd = Boolean(parallelId || newParallelName.trim())
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {assignedParallels.length > 0 ? (
         <ul aria-label="Paralelos asignados" className="flex flex-col divide-y divide-border rounded-md ring-1 ring-surface-ring">
           {assignedParallels.map((item) => (
@@ -232,10 +232,11 @@ function ParallelsPanel({ subject, cycles, parallels, operation, onChanged }: Re
       {subject.is_active && (
         <form onSubmit={addParallel} aria-label="Agregar paralelo a la asignatura" className="flex flex-col gap-3">
           {isAddingNew ? (
-            <FormField id="new-subject-parallel-name" label="Nuevo paralelo">
+            <FormField id="new-subject-parallel-name" label="Nuevo paralelo" error={operation.fieldError('new_parallel_name', 'name')}>
               <div className="flex items-center gap-2">
                 <Input
                   id="new-subject-parallel-name"
+                  aria-invalid={Boolean(operation.fieldError('new_parallel_name', 'name'))}
                   value={newParallelName}
                   onChange={(event) => setNewParallelName(sanitizeLetters(event.target.value, 50))}
                   placeholder="Ej. C"
@@ -255,13 +256,11 @@ function ParallelsPanel({ subject, cycles, parallels, operation, onChanged }: Re
                 label="Agregar un paralelo"
                 value={parallelId}
                 onValueChange={setParallelId}
-                placeholder="Selecciona un paralelo"
-                disabled={operation.pending}
+                placeholder={available.length === 0 ? 'Sin paralelos por asignar' : 'Selecciona un paralelo'}
+                disabled={operation.pending || available.length === 0}
+                error={operation.fieldError('parallel_id', 'cycle_id')}
                 options={available.map((p) => ({ value: String(p.id), label: parallelLabel(p.name) }))}
               />
-              {available.length === 0 && (
-                <p className="text-xs text-muted-foreground">Todos los paralelos ya están asignados. Puedes crear uno nuevo.</p>
-              )}
             </>
           )}
           <div className="flex flex-wrap items-center gap-2">

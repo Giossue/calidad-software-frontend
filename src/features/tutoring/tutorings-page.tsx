@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
-  ArrowRightIcon,
   PlusIcon,
   PowerIcon,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { FormDialog } from '@/components/ui/form-dialog'
+import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
@@ -18,6 +17,8 @@ import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
+import { useDetailParam } from '@/hooks/use-detail-param'
+import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { findScheduleConflicts, type ScheduleConflict } from '@/lib/schedule-conflicts'
 import { DAY_LABELS, tutoringApi, WEEK_DAYS, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule, type TutoringScheduleItem } from '@/lib/tutoring-api'
@@ -27,7 +28,8 @@ import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-pick
 import { FilterBar } from './filter-bar'
 import { RosterImportButton } from './roster-import-dialog'
 import { ModuleHeader, RecordTable } from './tutoring-shared'
-import { describeError, useOperation, useTutoringCatalogs } from './tutoring-hooks'
+import { describeError, errorFieldOf, useOperation, useTutoringCatalogs } from './tutoring-hooks'
+import { ListScreenSkeleton } from './tutoring-skeletons'
 
 const SCHEDULE_TIME_OPTIONS = [
   '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
@@ -67,7 +69,19 @@ export function TutoringsPage() {
     return <TutoringsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Tutorías" rowTitle={(career) => `Ver tutorías de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Tutorías" skeleton={<TutoringsSkeleton />} rowTitle={(career) => `Ver tutorías de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+}
+
+const TUTORING_HEADERS = ['Asignatura', 'Ciclo', 'Paralelo', 'Docente', 'Estado'] as const
+
+/** Esqueleto de Tutorías: el mismo mientras cargan las carreras y la primera página. */
+function TutoringsSkeleton() {
+  return <ListScreenSkeleton label="Cargando tutorías" actions={2} filters={2} headers={TUTORING_HEADERS} />
+}
+
+/** Error del servidor de uno de estos campos (p. ej. `teacher_id`), para mostrarlo bajo el campo. */
+function serverFieldError(error: string | null, field: string | undefined, ...names: readonly string[]): string | null {
+  return error && field && names.some((name) => field === name || field.startsWith(`${name}.`)) ? error : null
 }
 
 function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
@@ -89,8 +103,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const operation = useOperation()
   const [subjects, setSubjects] = useState<readonly Subject[]>([])
   const [subjectsRevision, setSubjectsRevision] = useState(0)
-  // Tutoría abierta: se busca en las filas para mostrar siempre los datos recién cargados.
-  const [detailId, setDetailId] = useState<string | null>(null)
+  // Tutoría abierta en la URL (?tutoria=<id>) para que "Atrás" vuelva a la lista. Se busca en
+  // las filas para mostrar siempre los datos recién cargados.
+  const detail = useDetailParam('tutoria')
+  const [careerTutorings, setCareerTutorings] = useState<readonly Tutoring[] | null>(null)
 
   // Create Tutoring per Subject modal state
   const [creatingTutoringSubject, setCreatingTutoringSubject] = useState<Subject | null>(null)
@@ -107,6 +123,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [createInitialParallelIds, setCreateInitialParallelIds] = useState<string[]>([])
   const [createSaving, setCreateSaving] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [createErrorField, setCreateErrorField] = useState<string | undefined>(undefined)
 
   // Edit Tutoring modal state
   const [editingTutoringItem, setEditingTutoringItem] = useState<TutoringRowItem | null>(null)
@@ -140,6 +157,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   )
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+  const [editErrorField, setEditErrorField] = useState<string | undefined>(undefined)
 
   // Collapsible cycle groups state
 
@@ -176,12 +194,13 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     let cancelled = false
     setCreateTeachersLoading(true)
     setCreateTeachersError(null)
-    tutoringApi.availableTeachers('')
+    // Solo los docentes vinculados a la carrera.
+    tutoringApi.availableTeachers('', undefined, careerId)
       .then((data) => { if (!cancelled) setCreateTeachers(data) })
       .catch((caught: unknown) => { if (!cancelled) setCreateTeachersError(describeError(caught)) })
       .finally(() => { if (!cancelled) setCreateTeachersLoading(false) })
     return () => { cancelled = true }
-  }, [creatingSubjectId])
+  }, [creatingSubjectId, careerId])
 
   /** Crea un paralelo para la asignatura sin salir del formulario y lo deja elegido. */
   async function createParallelForTutoring(name: string) {
@@ -195,7 +214,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     catalogs.reload()
     const created = (updated.parallel_ids ?? []).find((id) => !before.has(id))
     if (created) setCreateParallelIds([String(created)])
-    toast.success(`Paralelo ${name} creado.`)
+    toast.success(`Paralelo ${name} creado`)
   }
 
   function openCreateTutoring(subject: Subject, cycle: Cycle) {
@@ -211,6 +230,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       lunes: { start_time: '08:00', end_time: '10:00' },
     })
     setCreateError(null)
+    setCreateErrorField(undefined)
 
     const cycleIdsForLevel = catalogs.cycles
       .filter((c) => c.career_id === subject.career_id && (c.number === cycle.number || c.name === cycle.name))
@@ -246,6 +266,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
     setCreateSaving(true)
     setCreateError(null)
+    setCreateErrorField(undefined)
 
     try {
       const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
@@ -265,7 +286,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         schedules: createSchedules,
       })
 
-      toast.success('Tutoría creada con éxito con docente y horario asignados.')
+      toast.success('Tutoría creada')
       setCreatingTutoringSubject(null)
       setCreatingTutoringCycle(null)
       setChoosingTutoring(false)
@@ -273,6 +294,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       setSubjectsRevision((prev) => prev + 1)
     } catch (caught) {
       setCreateError(describeError(caught))
+      setCreateErrorField(errorFieldOf(caught))
     } finally {
       setCreateSaving(false)
     }
@@ -283,6 +305,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setEditingTutoringItem(item)
     setEditTeacherId(item.teacher_id ? String(item.teacher_id) : '')
     setEditError(null)
+    setEditErrorField(undefined)
 
     // Initial teacher list with current teacher
     if (item.teacher_id && item.teacher_name) {
@@ -298,7 +321,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
     setEditTeachersLoading(true)
     setEditTeachersError(null)
-    Promise.resolve(tutoringApi.availableTeachers(''))
+    Promise.resolve(tutoringApi.availableTeachers('', undefined, careerId))
       .then((data) => {
         if (!data || !Array.isArray(data)) return
         const map = new Map<number, AvailableTeacher>()
@@ -391,6 +414,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
     setEditSaving(true)
     setEditError(null)
+    setEditErrorField(undefined)
 
     try {
       const targetParallelId = Number(editParallelIds[0])
@@ -408,12 +432,13 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         })),
       })
 
-      toast.success('Tutoría actualizada con éxito.')
+      toast.success('Tutoría actualizada')
       setEditingTutoringItem(null)
       await list.reload()
       setSubjectsRevision((prev) => prev + 1)
     } catch (caught) {
       setEditError(describeError(caught))
+      setEditErrorField(errorFieldOf(caught))
     } finally {
       setEditSaving(false)
     }
@@ -431,16 +456,11 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId).map((cycle) => [cycle.number, cycle])).values(),
   ).sort((a, b) => a.number - b.number)
 
-  const rows: TutoringRowItem[] = list.data
-    .filter((t) => t.subject_is_active !== false)
-    .map((t) => {
+  function toRow(t: Tutoring): TutoringRowItem {
       const subj = subjects.find((item) => item.id === t.subject_id) ?? null
-      const parallelNames = Array.from(new Set([
-        ...catalogs.cycles
-          .filter((c) => c.career_id === careerId && c.number === (catalogs.cycles.find((cycle) => cycle.id === t.cycle_id)?.number) && subj?.cycle_ids.includes(c.id) && c.paralelo_name)
-          .map((c) => c.paralelo_name!),
-        ...(t.section_name ? [t.section_name] : []),
-      ]))
+      // Cada tutoría tiene un solo paralelo: el suyo (o, si no lo trae, el de su ciclo).
+      const ownParallel = t.section_name ?? catalogs.cycles.find((c) => c.id === t.cycle_id)?.paralelo_name ?? null
+      const parallelNames = ownParallel ? [ownParallel] : []
       return {
         id: `tutoring-${t.id}`,
         subject_id: t.subject_id,
@@ -462,7 +482,23 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         tutoring: t,
         subject: subj,
       }
-    })
+  }
+
+  const rows: TutoringRowItem[] = list.data
+    .filter((t) => t.subject_is_active !== false)
+    .map(toRow)
+
+  // Abierta desde la URL y fuera de la página actual: se busca entre las tutorías de la carrera.
+  const listLoading = list.isFetching || list.isInitialLoading
+  const inList = detail.id !== null && list.data.some((t) => t.id === detail.id)
+  useEffect(() => {
+    if (detail.id === null || inList || listLoading) return
+    let cancelled = false
+    tutoringApi.tutorings({ career_id: careerId, per_page: 100 })
+      .then((response) => { if (!cancelled) setCareerTutorings(response.data) })
+      .catch(() => { if (!cancelled) setCareerTutorings([]) })
+    return () => { cancelled = true }
+  }, [detail.id, inList, listLoading, careerId])
 
   const chooserLevel = cycleLevels.find((level) => String(level.number) === chooserCycle)
   const chooserCycleIds = chooserLevel
@@ -473,7 +509,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   function openCreateChooser() {
     setChooserCycle(cycleFilter && cycleLevels.some((level) => String(level.number) === cycleFilter) ? cycleFilter : '')
     setChooserSubjectId('')
+    setCreatingTutoringSubject(null)
+    setCreatingTutoringCycle(null)
     setCreateError(null)
+    setCreateErrorField(undefined)
     setChoosingTutoring(true)
   }
 
@@ -483,12 +522,21 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setCreatingTutoringCycle(null)
     setChoosingTutoring(false)
     setCreateError(null)
+    setCreateErrorField(undefined)
   }
 
-  function continueCreate() {
-    const subject = chooserSubjects.find((item) => String(item.id) === chooserSubjectId)
-    if (!subject || !chooserLevel) return
-    openCreateTutoring(subject, chooserLevel)
+  /** Al elegir la asignatura se prepara la segunda fase (docente, horario y paralelo). */
+  function chooseSubject(subjectId: string) {
+    setChooserSubjectId(subjectId)
+    const subject = chooserSubjects.find((item) => String(item.id) === subjectId)
+    if (subject && chooserLevel) openCreateTutoring(subject, chooserLevel)
+  }
+
+  function chooseCycle(value: string) {
+    setChooserCycle(value)
+    setChooserSubjectId('')
+    setCreatingTutoringSubject(null)
+    setCreatingTutoringCycle(null)
   }
 
   const subjectParallelsForModal = useMemo(() => {
@@ -602,7 +650,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       },
     }] : []),
     {
-      label: 'Paralelo(s)',
+      label: 'Paralelo',
       render: (item: TutoringRowItem) => item.parallels.length > 0
         ? item.parallels.map((name) => name.replace(/^Paralelo\s+/i, '')).join(', ')
         : <span className="text-muted-foreground">—</span>,
@@ -630,12 +678,17 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     },
   ]
 
-  const detailItem = detailId ? (rows.find((item) => item.id === detailId) ?? null) : null
+  const detailTutoring = detail.id === null
+    ? null
+    : list.data.find((t) => t.id === detail.id) ?? careerTutorings?.find((t) => t.id === detail.id) ?? null
+  const detailItem = detailTutoring ? toRow(detailTutoring) : null
+  const tutoringNotFound = detail.id !== null && !detailTutoring && careerTutorings !== null && !listLoading
 
   const creatingStep2 = Boolean(creatingTutoringSubject && creatingTutoringCycle)
+  const chooserBlockReason = !chooserCycle ? 'Selecciona un ciclo.' : !chooserSubjectId ? 'Selecciona una asignatura.' : null
   const createBlockReason = creatingStep2
     ? validateTutoringForm({ teacherId: createTeacherId, days: createScheduleDays, times: createDayTimes, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
-    : !chooserCycle ? 'Selecciona un ciclo.' : !chooserSubjectId ? 'Selecciona una asignatura.' : null
+    : chooserBlockReason
   const createDirty = creatingStep2 && (
     createTeacherId !== ''
     || scheduleSignature(createScheduleDays, createDayTimes) !== scheduleSignature(DEFAULT_DAYS, DEFAULT_TIMES_BY_DAY)
@@ -652,11 +705,84 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     ? 'Activa la tutoría para poder editarla.'
     : validateTutoringForm({ teacherId: editTeacherId, days: editScheduleDays, times: editDayTimes, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })
 
+  const cycleLabel = (cycleId: number, fallback: string) => {
+    const number = catalogs.cycles.find((cycle) => cycle.id === cycleId)?.number
+    return number ? `${number}° ciclo` : fallback
+  }
+  const createFieldError = (...names: readonly string[]) => serverFieldError(createError, createErrorField, ...names)
+  const editFieldError = (...names: readonly string[]) => serverFieldError(editError, editErrorField, ...names)
+
+  const createSteps: readonly FormStep[] = [
+    {
+      title: 'Ciclo y asignatura',
+      blockReason: chooserBlockReason,
+      fields: ['cycle_id', 'subject_id'],
+      content: (
+        <>
+          <SelectField
+            id="create-tutoring-cycle"
+            label="Ciclo"
+            required
+            value={chooserCycle}
+            onValueChange={chooseCycle}
+            placeholder="Selecciona un ciclo"
+            error={createFieldError('cycle_id')}
+            options={cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo` }))}
+          />
+          <SelectField
+            id="create-tutoring-subject"
+            label="Asignatura"
+            required
+            value={chooserSubjectId}
+            onValueChange={chooseSubject}
+            disabled={!chooserCycle}
+            placeholder={chooserCycle ? 'Selecciona una asignatura' : 'Primero elige un ciclo'}
+            error={createFieldError('subject_id')}
+            options={chooserSubjects.map((subj) => ({ value: String(subj.id), label: subj.name }))}
+          />
+          {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en Asignaturas.</p>}
+        </>
+      ),
+    },
+    {
+      title: 'Docente, horario y paralelo',
+      fields: ['teacher_id', 'schedules', 'parallel_ids'],
+      content: creatingTutoringSubject && creatingTutoringCycle ? (
+        <>
+          <TeacherSection
+            prefix="create"
+            teachers={createTeachers}
+            loading={createTeachersLoading}
+            error={createTeachersError}
+            fieldError={createFieldError('teacher_id')}
+            value={createTeacherId}
+            onChange={setCreateTeacherId}
+            conflicts={createConflicts}
+          />
+          <ScheduleSection
+            prefix="create"
+            days={createScheduleDays}
+            times={createDayTimes}
+            error={createFieldError('schedules')}
+            onChange={(days, times) => { setCreateScheduleDays(days); setCreateDayTimes(times) }}
+          />
+          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} onCreate={createParallelForTutoring} serverError={createFieldError('parallel_ids')} />
+        </>
+      ) : null,
+    },
+  ]
+
   return <section className="flex flex-col gap-6">
-    {detailItem?.tutoring ? <TutoringDetail tutoring={detailItem.tutoring} schedules={detailItem.schedules ?? []} onBack={() => setDetailId(null)} onEdit={() => openEditTutoring(detailItem)} /> : <>
+    {detailItem?.tutoring ? <TutoringDetail tutoring={detailItem.tutoring} schedules={detailItem.schedules ?? []} onBack={detail.close} onEdit={() => openEditTutoring(detailItem)} /> : tutoringNotFound ? (
+      <div className="flex flex-col items-start gap-4">
+        <p className="text-sm text-muted-foreground">No encontramos esta tutoría en la carrera.</p>
+        <Button type="button" variant="secondary" onClick={detail.close}>Volver a tutorías</Button>
+      </div>
+    ) : detail.id !== null ? <DetailPageSkeleton label="Cargando tutoría" /> : list.isInitialLoading ? <TutoringsSkeleton /> : <>
       <CareerBreadcrumb root="Tutorías" career={careerName} onBack={onBack} />
       <ModuleHeader
-        title={careerName}
+        title="Tutorías"
+        description={`Asigna docente, horario y paralelo a las tutorías de ${careerName}. Haz clic en una para abrirla.`}
         createLabel="Crear tutoría"
         onCreate={openCreateChooser}
         disabled={operation.pending || catalogs.loading || subjects.length === 0}
@@ -669,7 +795,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         searchPlaceholder="Busca por asignatura…"
         onClear={clearFilters}
         filters={[
-          { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos los ciclos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })) },
+          { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos los ciclos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo` })) },
           { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
         ]}
       />
@@ -680,85 +806,40 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         loading={list.isFetching || list.isInitialLoading}
         empty="Aún no hay tutorías para esta búsqueda. Usa «Crear tutoría» para registrar una."
         columns={columns}
-        onRowClick={(item) => (item.tutoring ? setDetailId(item.id) : openEditTutoring(item))}
+        onRowClick={(item) => (item.tutoring ? detail.open(item.tutoring.id) : openEditTutoring(item))}
         rowTitle={(item) => `Abrir la tutoría de ${item.subject_name}`}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
+        {listLoading ? <span /> : <p className="text-sm text-muted-foreground">
           Mostrando {rows.length} de {list.meta?.total ?? rows.length} {(list.meta?.total ?? rows.length) === 1 ? 'tutoría' : 'tutorías'}
-        </p>
+        </p>}
         <CatalogPagination label="tutorías" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
       </div>
     </>}
 
-    {/* Crear tutoría: primero se elige ciclo y asignatura, luego docente, horario y paralelo */}
+    {/* Crear tutoría por pasos: primero ciclo y asignatura; luego docente, horario y paralelo */}
     <FormDialog
       open={choosingTutoring}
       title="Crear tutoría"
-      description={creatingTutoringSubject && creatingTutoringCycle ? `${creatingTutoringSubject.name} · ${creatingTutoringCycle.name}` : 'Elige el ciclo y la asignatura de la tutoría.'}
+      description={creatingTutoringSubject && creatingTutoringCycle ? `${creatingTutoringSubject.name} · ${creatingTutoringCycle.number}° ciclo` : undefined}
       pending={createSaving}
       error={createError}
       dirty={createDirty}
-      requireChanges={creatingStep2}
+      requireChanges
       blockReason={createBlockReason}
       onClose={closeCreateDialog}
-      onSubmit={creatingStep2 ? (event) => void handleCreateTutoringSubmit(event) : (event) => { event.preventDefault(); continueCreate() }}
-      submitLabel={creatingStep2 ? 'Crear tutoría' : 'Continuar'}
-      submitIcon={creatingStep2 ? PlusIcon : ArrowRightIcon}
+      onSubmit={(event) => void handleCreateTutoringSubmit(event)}
+      submitLabel="Crear tutoría"
       maxWidth="max-w-2xl"
-    >
-      {!creatingStep2 && (
-        <>
-          <SelectField
-            id="create-tutoring-cycle"
-            label="Ciclo"
-            required
-            value={chooserCycle}
-            onValueChange={(value) => { setChooserCycle(value); setChooserSubjectId('') }}
-            placeholder="Selecciona un ciclo"
-            options={cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` }))}
-          />
-          <SelectField
-            id="create-tutoring-subject"
-            label="Asignatura"
-            required
-            value={chooserSubjectId}
-            onValueChange={setChooserSubjectId}
-            disabled={!chooserCycle}
-            placeholder={chooserCycle ? 'Selecciona una asignatura' : 'Primero elige un ciclo'}
-            options={chooserSubjects.map((subj) => ({ value: String(subj.id), label: subj.name }))}
-          />
-          {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en Asignaturas.</p>}
-        </>
-      )}
-      {creatingTutoringSubject && creatingTutoringCycle && (
-        <>
-          <TeacherSection
-            prefix="create"
-            teachers={createTeachers}
-            loading={createTeachersLoading}
-            error={createTeachersError}
-            value={createTeacherId}
-            onChange={setCreateTeacherId}
-            conflicts={createConflicts}
-          />
-          <ScheduleSection
-            prefix="create"
-            days={createScheduleDays}
-            times={createDayTimes}
-            onChange={(days, times) => { setCreateScheduleDays(days); setCreateDayTimes(times) }}
-          />
-          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} onCreate={createParallelForTutoring} />
-        </>
-      )}
-    </FormDialog>
+      steps={createSteps}
+    />
 
     {/* Editar tutoría (y activarla si está inactiva) */}
     <FormDialog
       open={Boolean(editingTutoringItem)}
       title="Editar tutoría"
-      description={editingTutoringItem ? [editingTutoringItem.subject_name, editingTutoringItem.code, editingTutoringItem.cycle_name].filter(Boolean).join(' · ') : ''}
+      description={editingTutoringItem ? [editingTutoringItem.subject_name, editingTutoringItem.code, cycleLabel(editingTutoringItem.cycle_id, editingTutoringItem.cycle_name)].filter(Boolean).join(' · ') : ''}
       pending={editSaving}
       error={editError}
       dirty={editDirty}
@@ -783,6 +864,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         if (!editSaving) {
           setEditingTutoringItem(null)
           setEditError(null)
+          setEditErrorField(undefined)
         }
       }}
       onSubmit={(event) => void handleEditTutoringSubmit(event)}
@@ -795,6 +877,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             teachers={editTeachers}
             loading={editTeachersLoading}
             error={editTeachersError}
+            fieldError={editFieldError('teacher_id')}
             value={editTeacherId}
             onChange={setEditTeacherId}
             conflicts={editConflicts}
@@ -804,10 +887,11 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             prefix="edit"
             days={editScheduleDays}
             times={editDayTimes}
+            error={editFieldError('schedules')}
             onChange={(days, times) => { setEditScheduleDays(days); setEditDayTimes(times) }}
             disabled={editLocked}
           />
-          <ParallelField prefix="edit" parallels={editSubjectParallels} value={editParallelIds} onChange={setEditParallelIds} disabled={editLocked} />
+          <ParallelField prefix="edit" parallels={editSubjectParallels} value={editParallelIds} onChange={setEditParallelIds} disabled={editLocked} serverError={editFieldError('parallel_ids', 'cycle_id')} />
         </>
       )}
     </FormDialog>
@@ -854,11 +938,13 @@ function timeOptions(current: string) {
   return all.map((time) => ({ value: time, label: time }))
 }
 
-function TeacherSection({ prefix, teachers, loading, error, value, onChange, conflicts, disabled = false }: Readonly<{
+function TeacherSection({ prefix, teachers, loading, error, fieldError = null, value, onChange, conflicts, disabled = false }: Readonly<{
   prefix: 'create' | 'edit'
   teachers: readonly AvailableTeacher[]
   loading: boolean
   error: string | null
+  /** Error del servidor sobre el docente (p. ej. un cruce de horario). */
+  fieldError?: string | null
   value: string
   onChange: (value: string) => void
   conflicts: readonly ScheduleConflict[]
@@ -875,6 +961,7 @@ function TeacherSection({ prefix, teachers, loading, error, value, onChange, con
         onValueChange={onChange}
         disabled={loading || disabled}
         placeholder={loading ? 'Cargando docentes…' : 'Selecciona un docente'}
+        error={fieldError}
         options={teachers.map((teacher) => ({ value: String(teacher.id), label: teacher.name }))}
       />
       {loading && <span role="status" aria-label="Cargando docentes" className="sr-only">Cargando docentes</span>}
@@ -890,10 +977,11 @@ function TeacherSection({ prefix, teachers, loading, error, value, onChange, con
  * Horario: se marcan los días y, por cada día marcado, su hora de inicio y de fin en una
  * sola línea. Sin recuadros anidados.
  */
-function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Readonly<{
+function ScheduleSection({ prefix, days, times, onChange, disabled = false, error = null }: Readonly<{
   prefix: 'create' | 'edit'
   days: readonly string[]
   times: DayTimes
+  error?: string | null
   onChange: (days: string[], times: DayTimes) => void
   disabled?: boolean
 }>) {
@@ -914,7 +1002,7 @@ function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Re
   const orderedDays = WEEK_DAYS.filter((day) => days.includes(day))
 
   return (
-    <FormField id={`${prefix}-schedule-days`} label="Horario" required>
+    <FormField id={`${prefix}-schedule-days`} label="Horario" required error={error}>
       <div id={`${prefix}-schedule-days`} className="flex flex-wrap gap-x-4 gap-y-2" role="group" aria-label="Días de la semana">
         {WEEK_DAYS.map((day) => (
           <label key={day} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
@@ -970,7 +1058,8 @@ function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Re
   )
 }
 
-function ParallelField({ prefix, parallels, value, onChange, disabled = false, onCreate }: Readonly<{
+function ParallelField({ prefix, parallels, value, onChange, disabled = false, onCreate, serverError = null }: Readonly<{
+  serverError?: string | null
   prefix: 'create' | 'edit'
   parallels: readonly { id: number; name: string }[]
   value: readonly string[]
@@ -1005,7 +1094,7 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
       // Igual que la validación: al crear siempre; al editar, si la asignatura tiene paralelos.
       required={prefix === 'create' || parallels.length > 0}
      
-      error={parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null}
+      error={serverError ?? (parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null)}
     >
       {parallels.length > 0 ? (
         <div id={`${prefix}-tutoring-parallels`} className="flex flex-wrap gap-x-4 gap-y-2" role="radiogroup" aria-label="Paralelo">

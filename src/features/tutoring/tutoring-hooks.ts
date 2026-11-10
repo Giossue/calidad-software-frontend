@@ -1,14 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { isFormDialogOpen } from '@/components/ui/form-dialog'
-import { type AcademicPeriod, type Career, type Cycle, type Modality, type Section } from '@/lib/api'
+import { ApiError, type AcademicPeriod, type Career, type Cycle, type Modality, type Section } from '@/lib/api'
 import { tutoringApi } from '@/lib/tutoring-api'
 
 export function describeError(error: unknown): string {
   const friendly = getFriendlyError(error)
   return friendly.description
+}
+
+/**
+ * Campo que rechazó el servidor: el que reconoce el mensaje amigable o, si no, la primera
+ * clave de los errores de validación (p. ej. `teacher_id`, `cycle_id`).
+ */
+export function errorFieldOf(caught: unknown, friendlyField?: string): string | undefined {
+  if (friendlyField) return friendlyField
+  return caught instanceof ApiError ? Object.keys(caught.payload.errors ?? {})[0] : undefined
 }
 
 export function useOperation() {
@@ -29,8 +38,9 @@ export function useOperation() {
       await onSuccess?.()
     } catch (caught) {
       const friendly = getFriendlyError(caught)
+      const field = errorFieldOf(caught, friendly.field)
       setError(friendly.description)
-      setErrorModal(friendly)
+      setErrorModal(field ? { ...friendly, field } : friendly)
       if (!isFormDialogOpen()) toast.error(friendly.title, { description: friendly.description })
     } finally {
       busy.current = false
@@ -47,6 +57,8 @@ export function useOperation() {
       setErrorModal(null)
     },
     clearErrorModal: () => setErrorModal(null),
+    /** Error del servidor de uno de estos campos, para mostrarlo bajo el campo (o null). */
+    fieldError: (...fields: readonly string[]) => (errorModal?.field && fields.includes(errorModal.field) ? error : null),
     run,
   }
 }

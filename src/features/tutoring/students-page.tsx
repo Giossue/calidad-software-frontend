@@ -22,6 +22,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
+import { useDetailParam } from '@/hooks/use-detail-param'
 import { cn } from '@/lib/utils'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
@@ -41,6 +44,12 @@ import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-pick
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
+import { ListScreenSkeleton } from './tutoring-skeletons'
+
+/** Esqueleto de Estudiantes: el mismo mientras cargan las carreras y la primera página. */
+function StudentsSkeleton() {
+  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} headers={['#', 'Estudiante', 'Cédula / Teléfono', 'Tutorías', 'Estado']} />
+}
 
 const EMPTY_STUDENT_FORM = {
   identification: '',
@@ -59,7 +68,7 @@ export function TutoringStudentsPage() {
     return <StudentsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Estudiantes" rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Estudiantes" skeleton={<StudentsSkeleton />} rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
 const WITHOUT_CYCLE = 'none'
@@ -75,7 +84,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const tabCycleNumber = activeTab === WITHOUT_CYCLE ? undefined : Number(activeTab)
   // En el último ciclo los estudiantes están en titulación: se gestiona su matrícula en lugar de tutorías.
   const isDegreeTab = isDegreeCycleNumber(tabCycleNumber, careerMaxCycle)
-  const tabLevel = cycleLevels.find((level) => level.number === tabCycleNumber)
 
   const [tutoringStatus, setTutoringStatus] = useState<'' | 'with' | 'without'>('')
   const list = usePaginatedCatalog(
@@ -98,10 +106,16 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const [allTutorings, setAllTutorings] = useState<readonly Tutoring[]>([])
   const [loadingTutorings, setLoadingTutorings] = useState(false)
 
-  // Modal: Asignar Tutorías a Estudiante
-  const [assignStudent, setAssignStudent] = useState<CoordinatorStudent | null>(null)
+  // Estudiante abierto en la URL (?estudiante=<id>) para que "Atrás" vuelva a la lista.
+  const detail = useDetailParam('estudiante')
+  const [openedStudent, setOpenedStudent] = useState<CoordinatorStudent | null>(null)
+  const [openedDegree, setOpenedDegree] = useState<DegreeStudent | null>(null)
+  // Abierto desde la URL y fuera de la página actual: se busca entre los estudiantes de la carrera.
+  const [careerStudents, setCareerStudents] = useState<{ id: number; students: readonly CoordinatorStudent[]; degree: readonly DegreeStudent[] } | null>(null)
   const [availableTutorings, setAvailableTutorings] = useState<readonly Tutoring[]>([])
   const [loadingAvailable, setLoadingAvailable] = useState(false)
+  // Estudiante cuyas tutorías disponibles ya se cargaron.
+  const [availableFor, setAvailableFor] = useState<number | null>(null)
   const [selectedTutoringId, setSelectedTutoringId] = useState('')
   const [tutoringSearch, setTutoringSearch] = useState('')
 
@@ -194,9 +208,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         const response = await tutoringApi.updateStudentCycle(cycleTarget.id, Number(targetCycleId))
         // La pantalla del estudiante abierta refleja su nuevo ciclo.
         const updated = response?.data
-        if (updated) setAssignStudent((current) => (current && current.id === updated.id ? { ...current, ...updated } : current))
+        if (updated && assignStudent && assignStudent.id === updated.id) setOpenedStudent({ ...assignStudent, ...updated })
       },
-      `Ciclo de ${cycleTarget.name} actualizado.`,
+      `Ciclo de ${cycleTarget.name} actualizado`,
       async () => {
         setCycleTarget(null)
         await Promise.all([list.reload(), degreeList.reload()])
@@ -218,7 +232,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
     void operation.run(
       () => tutoringApi.createCoordinatorStudent(input),
-      'Estudiante registrado exitosamente.',
+      'Estudiante registrado',
       async () => {
         setCreateOpen(false)
         await Promise.all([list.reload(), degreeList.reload()])
@@ -227,11 +241,19 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   }
 
   function openAssignModal(student: CoordinatorStudent) {
-    setAssignStudent(student)
+    setOpenedStudent(student)
+    setOpenedDegree(null)
     setSelectedTutoringId('')
     setTutoringSearch('')
     operation.clearError()
-    void loadAvailableForStudent(student.id)
+    detail.open(student.id)
+  }
+
+  function openDegreeStudent(student: DegreeStudent) {
+    setOpenedDegree(student)
+    setOpenedStudent(null)
+    operation.clearError()
+    detail.open(student.student_id)
   }
 
   function handleAssignSubmit(event: FormEvent<HTMLFormElement>) {
@@ -240,14 +262,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
     void operation.run(
       () => tutoringApi.enrollStudentInTutoring(assignStudent.id, Number(selectedTutoringId)),
-      'Estudiante asignado a la tutoría exitosamente.',
+      'Estudiante inscrito en la tutoría',
       async () => {
         setSelectedTutoringId('')
         await loadAvailableForStudent(assignStudent.id, tutoringSearch)
         await list.reload()
         const updatedList = await tutoringApi.allStudents({ search: assignStudent.identification })
         const updated = updatedList.data.find((s) => s.id === assignStudent.id)
-        if (updated) setAssignStudent(updated)
+        if (updated) setOpenedStudent(updated)
       },
     )
   }
@@ -258,14 +280,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
     void operation.run(
       () => tutoringApi.unenrollStudentFromTutoring(student.id, tutoring.enrollment_id),
-      'Tutoría desvinculada del estudiante.',
+      'Tutoría desvinculada del estudiante',
       async () => {
         setUnlinking(null)
         await list.reload()
         if (assignStudent?.id === student.id) {
           const updatedList = await tutoringApi.allStudents({ search: student.identification })
           const updated = updatedList.data.find((s) => s.id === student.id)
-          if (updated) setAssignStudent(updated)
+          if (updated) setOpenedStudent(updated)
           await loadAvailableForStudent(student.id, tutoringSearch)
         }
       },
@@ -333,7 +355,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     if (!enrollTarget) return
     void degreeOperation.run(
       () => tutoringApi.enrollDegreeStudent(enrollTarget.student_id),
-      `Estudiante ${enrollTarget.name} matriculado en titulación exitosamente.`,
+      'Estudiante matriculado en titulación',
       async () => {
         setEnrollTarget(null)
         await degreeList.reload()
@@ -345,13 +367,59 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     if (!unenrollTarget) return
     void degreeOperation.run(
       () => tutoringApi.unenrollDegreeStudent(unenrollTarget.student_id),
-      `Se dio de baja a ${unenrollTarget.name} de titulación.`,
+      'Estudiante dado de baja de titulación',
       async () => {
         setUnenrollTarget(null)
         await degreeList.reload()
       },
     )
   }
+
+  const detailId = detail.id
+  const assignStudent: CoordinatorStudent | null = detailId === null
+    ? null
+    : (openedStudent?.id === detailId ? openedStudent : null)
+      ?? list.data.find((student) => student.id === detailId)
+      ?? (careerStudents?.id === detailId ? careerStudents.students.find((student) => student.id === detailId) : undefined)
+      ?? null
+  const degreeStudent: DegreeStudent | null = detailId === null || openedStudent?.id === detailId
+    ? null
+    : degreeList.data.find((student) => student.student_id === detailId)
+      ?? (openedDegree?.student_id === detailId ? openedDegree : null)
+      ?? (careerStudents?.id === detailId ? careerStudents.degree.find((student) => student.student_id === detailId) : undefined)
+      ?? null
+  // En el ciclo de titulación se gestiona la matrícula; en los demás, sus tutorías.
+  const showDegree = Boolean(degreeStudent) && (!assignStudent || openedDegree?.student_id === detailId)
+  const listsLoading = list.isFetching || list.isInitialLoading || degreeList.isFetching || degreeList.isInitialLoading
+  const foundInPage = Boolean(assignStudent || degreeStudent)
+  const studentNotFound = detailId !== null && !foundInPage && careerStudents?.id === detailId && !listsLoading
+
+  useEffect(() => {
+    if (detailId === null || foundInPage || listsLoading) return
+    let cancelled = false
+    Promise.all([
+      tutoringApi.allStudents({ career_id: careerId }).then((response) => response.data).catch(() => []),
+      Promise.resolve(tutoringApi.degreeStudents({ career_id: careerId })).then((response) => response?.data ?? []).catch(() => []),
+    ]).then(([students, degree]) => { if (!cancelled) setCareerStudents({ id: detailId, students, degree }) })
+    return () => { cancelled = true }
+  }, [detailId, foundInPage, listsLoading, careerId])
+
+  // Tutorías disponibles del estudiante abierto (no aplica en titulación).
+  const tutoringsStudentId = assignStudent && !showDegree ? assignStudent.id : null
+  useEffect(() => {
+    if (tutoringsStudentId === null) return
+    let cancelled = false
+    tutoringApi.availableTutoringsForStudent(tutoringsStudentId, '')
+      .then((response) => response.data ?? [])
+      .catch(() => [] as readonly Tutoring[])
+      .then((data) => {
+        if (cancelled) return
+        setAvailableTutorings(data)
+        setAvailableFor(tutoringsStudentId)
+      })
+    return () => { cancelled = true }
+  }, [tutoringsStudentId])
+  const availableLoading = loadingAvailable || (tutoringsStudentId !== null && availableFor !== tutoringsStudentId)
 
   // El ciclo encabeza la fila de filtros en las dos vistas (tutorías y titulación).
   const cycleSelect = (
@@ -374,12 +442,68 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   return (
     <div className="flex flex-col gap-6">
-      {assignStudent ? (
+      {showDegree && degreeStudent ? (
+        // Pantalla de un estudiante del ciclo de titulación: arriba cambiar ciclo (ícono) y su
+        // matrícula (acción con texto y confirmación); debajo, sus datos.
+        <div className="flex flex-col gap-6" data-tour-view="detail">
+          <div>
+            <Button type="button" variant="tertiary" onClick={detail.close}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Volver a estudiantes
+            </Button>
+          </div>
+          <AdminSectionHeader
+            title={degreeStudent.name}
+            description={degreeCycleText(degreeStudent)}
+            actions={
+              <div className="flex flex-wrap items-center gap-2">
+                {degreeStudent.is_degree_enrolled
+                  ? <Badge variant="success">Matriculado{degreeStudent.enrolled_at ? ` · ${degreeStudent.enrolled_at}` : ''}</Badge>
+                  : <Badge variant="inactive">No matriculado</Badge>}
+                <Button type="button" variant="tertiary" size="icon" aria-label={degreeStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'} onClick={() => openCycleModal({ id: degreeStudent.student_id, name: degreeStudent.name, cycle_id: degreeStudent.cycle_id })}>
+                  <ArrowRightLeftIcon />
+                </Button>
+                {degreeStudent.is_degree_enrolled ? (
+                  <Button type="button" variant="secondary" disabled={degreeOperation.pending} onClick={() => setUnenrollTarget(degreeStudent)}>
+                    <UserMinusIcon data-icon="inline-start" />
+                    Dar de baja de titulación
+                  </Button>
+                ) : degreeStudent.academic_stage === 'titulacion' ? (
+                  <Button type="button" disabled={degreeOperation.pending} onClick={() => setEnrollTarget(degreeStudent)}>
+                    <GraduationCapIcon data-icon="inline-start" />
+                    Matricular en titulación
+                  </Button>
+                ) : (
+                  // Solo se matriculan en titulación los estudiantes del último ciclo de la carrera.
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span tabIndex={0} className="inline-flex rounded-md outline-hidden focus-visible:ring-3 focus-visible:ring-ring/50">
+                        <Button type="button" disabled>
+                          <GraduationCapIcon data-icon="inline-start" />
+                          Matricular en titulación
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Solo se matricula en titulación a estudiantes del último ciclo de la carrera.</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            }
+          />
+          <dl className="grid max-w-2xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+            <StudentDatum label="Cédula o pasaporte" value={degreeStudent.identification} />
+            <StudentDatum label="Correo institucional" value={degreeStudent.email} />
+            <StudentDatum label="Teléfono" value={degreeStudent.phone || 'Sin teléfono'} />
+            <StudentDatum label="Ciclo" value={degreeCycleText(degreeStudent)} />
+            <StudentDatum label="Período de matrícula" value={degreeStudent.period_name ?? 'Sin período vigente'} />
+          </dl>
+        </div>
+      ) : assignStudent ? (
         // Pantalla del estudiante: se abre al pulsar su fila. Arriba el ciclo y la acción de
         // cambiarlo; debajo, sus tutorías y sus datos en pestañas.
         <div className="flex flex-col gap-6" data-tour-view="detail">
           <div>
-            <Button type="button" variant="tertiary" onClick={() => setAssignStudent(null)}>
+            <Button type="button" variant="tertiary" onClick={detail.close}>
               <ArrowLeftIcon data-icon="inline-start" />
               Volver a estudiantes
             </Button>
@@ -409,7 +533,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   Arrastra: {(assignStudent.pending_subjects ?? []).map((subject) => formatSubjectName(subject.name)).join(', ')}. No se le inscribe en las asignaturas que las continúan hasta que las apruebe.
                 </p>
               )}
-              {loadingAvailable ? (
+              {availableLoading ? (
                 <div role="status" aria-label="Cargando tutorías disponibles" className="flex flex-col gap-3 sm:flex-row sm:items-end">
                   <div className="flex flex-col gap-2 sm:max-w-xl sm:flex-1" aria-hidden="true">
                     <Skeleton className="h-4 w-40" />
@@ -472,19 +596,22 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             </TabsContent>
           </Tabs>
         </div>
+      ) : studentNotFound ? (
+        <div className="flex flex-col items-start gap-4">
+          <p className="text-sm text-muted-foreground">No encontramos este estudiante en la carrera.</p>
+          <Button type="button" variant="secondary" onClick={detail.close}>Volver a estudiantes</Button>
+        </div>
+      ) : detailId !== null ? (
+        <DetailPageSkeleton label="Cargando estudiante" tabs={2} />
+      ) : list.isInitialLoading ? (
+        <StudentsSkeleton />
       ) : (
         <>
           <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
           <ModuleHeader
-            title={careerName}
-            description={
-              isDegreeTab
-                ? 'Matricula en titulación a los estudiantes del último ciclo para el período vigente.'
-                : tabLevel
-                  ? 'Registra a los estudiantes y ubícalos en su ciclo. Haz clic en uno para ver sus tutorías.'
-                  : 'Estudiantes sin ciclo asignado: haz clic en uno para asignarle el ciclo que cursa.'
-            }
-            createLabel="Nuevo estudiante"
+            title="Estudiantes"
+            description={`Registra a los estudiantes de ${careerName}, ubícalos en su ciclo y matricula en titulación a los del último. Haz clic en uno para abrirlo.`}
+            createLabel="Registrar estudiante"
             onCreate={openCreateModal}
             extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
           />
@@ -517,7 +644,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     ? 'No hay estudiantes con estos filtros.'
                     : activeTab === WITHOUT_CYCLE
                       ? 'Todos los estudiantes de la carrera tienen un ciclo asignado.'
-                      : 'Aún no hay estudiantes en este ciclo. Regístralos con «Nuevo estudiante».'
+                      : 'Aún no hay estudiantes en este ciclo. Regístralos con «Registrar estudiante».'
                 }
                 columns={[
                   {
@@ -556,9 +683,9 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               />
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
+                {list.isFetching || list.isInitialLoading ? <span /> : <p className="text-sm text-muted-foreground">
                   Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'estudiante' : 'estudiantes'}
-                </p>
+                </p>}
                 <CatalogPagination
                   label="estudiantes"
                   page={list.page}
@@ -572,7 +699,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
           {isDegreeTab && (
             <>
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">Matrícula en Titulación</h2>
               <FilterBar
                 id="degree-students-filter"
                 leading={cycleSelect}
@@ -586,10 +712,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     label: 'Estado de matrícula',
                     value: degreeFilter,
                     onChange: (val) => setDegreeFilter(val as '' | 'enrolled' | 'not_enrolled'),
-                    allLabel: 'Todos los estudiantes',
+                    allLabel: 'Con y sin matrícula',
                     options: [
-                      { label: 'Matriculados en Titulación', value: 'enrolled' },
-                      { label: 'Sin matrícula en Titulación', value: 'not_enrolled' },
+                      { label: 'Matriculados', value: 'enrolled' },
+                      { label: 'Sin matrícula', value: 'not_enrolled' },
                     ],
                   },
                 ]}
@@ -605,6 +731,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 numberFrom={degreeList.meta?.from}
                 rows={degreeList.data}
                 loading={degreeList.isFetching || degreeList.isInitialLoading}
+                onRowClick={openDegreeStudent}
+                rowTitle={(student) => `Abrir a ${student.name}`}
                 empty={
                   degreeList.searchInput || degreeFilter !== ''
                     ? 'No hay estudiantes con estos filtros.'
@@ -633,7 +761,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     label: 'Ciclo',
                     render: (student) => (
                       <span className="text-sm text-muted-foreground">
-                        {student.cycle_number ? `Ciclo ${student.cycle_number}${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}` : 'Sin registrar'}
+                        {student.cycle_number ? `${student.cycle_number}° ciclo${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}` : 'Sin registrar'}
                       </span>
                     ),
                   },
@@ -644,28 +772,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                         ? <Badge variant="success">Matriculado{student.enrolled_at ? ` · ${student.enrolled_at}` : ''}</Badge>
                         : <Badge variant="inactive">No matriculado</Badge>,
                   },
-                  {
-                    label: 'Acciones',
-                    render: (student) => (
-                      // Solo se matriculan en titulación los estudiantes del último ciclo de la carrera.
-                      <RowActionsMenu
-                        name={student.name}
-                        disabled={degreeOperation.pending}
-                        actions={[
-                          { label: 'Matricular en titulación', icon: GraduationCapIcon, onSelect: () => setEnrollTarget(student), visible: !student.is_degree_enrolled, disabled: student.academic_stage !== 'titulacion' },
-                          { label: 'Cambiar ciclo', icon: ArrowRightLeftIcon, onSelect: () => openCycleModal({ id: student.student_id, name: student.name, cycle_id: student.cycle_id }) },
-                          { label: 'Dar de baja de titulación', icon: UserMinusIcon, tone: 'destructive', onSelect: () => setUnenrollTarget(student), visible: student.is_degree_enrolled },
-                        ]}
-                      />
-                    ),
-                  },
                 ]}
               />
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
+                {degreeList.isFetching || degreeList.isInitialLoading ? <span /> : <p className="text-sm text-muted-foreground">
                   Mostrando {degreeList.data.length} de {degreeList.meta?.total ?? degreeList.data.length} {(degreeList.meta?.total ?? degreeList.data.length) === 1 ? 'estudiante' : 'estudiantes'}
-                </p>
+                </p>}
                 <CatalogPagination
                   label="estudiantes de titulación"
                   page={degreeList.page}
@@ -690,7 +803,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         blockReason={createBlockReason}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateSubmit}
-        submitIcon={UserPlusIcon}
         submitLabel="Registrar estudiante"
         steps={[
           {
@@ -699,9 +811,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             fields: ['name', 'identification', 'email', 'phone'],
             content: (
               <>
-                <FormField id="new-student-name" label="Nombres y apellidos" required counter={{ current: form.name.length, max: 150 }}>
+                <FormField id="new-student-name" label="Nombres y apellidos" required counter={{ current: form.name.length, max: 150 }} error={operation.fieldError('name')}>
                   <Input
                     id="new-student-name"
+                    aria-invalid={Boolean(operation.fieldError('name'))}
                     required
                     maxLength={150}
                     value={form.name}
@@ -716,10 +829,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   required
                  
                   counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }}
-                  error={shouldShowIdentificationStatus(form.identification) && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null}
+                  error={operation.fieldError('identification') ?? (shouldShowIdentificationStatus(form.identification) && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null)}
                 >
                   <Input
                     id="new-student-cedula"
+                    aria-invalid={Boolean(operation.fieldError('identification') ?? (shouldShowIdentificationStatus(form.identification) && !isCedulaValid))}
                     required
                     maxLength={10}
                     value={form.identification}
@@ -734,10 +848,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   required
                  
                   counter={{ current: form.email.length, max: 150 }}
-                  error={form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null}
+                  error={operation.fieldError('email') ?? (form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null)}
                 >
                   <Input
                     id="new-student-email"
+                    aria-invalid={Boolean(operation.fieldError('email') ?? (form.email && !isEmailValid))}
                     type="email"
                     required
                     maxLength={150}
@@ -747,9 +862,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   />
                 </FormField>
 
-                <FormField id="new-student-phone" label="Teléfono" optional counter={{ current: form.phone.length, max: 10 }}>
+                <FormField id="new-student-phone" label="Teléfono" optional counter={{ current: form.phone.length, max: 10 }} error={operation.fieldError('phone')}>
                   <Input
                     id="new-student-phone"
+                    aria-invalid={Boolean(operation.fieldError('phone'))}
                     maxLength={10}
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: sanitizeDigits(e.target.value, 10) })}
@@ -769,14 +885,14 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   id="new-student-cycle"
                   label="Ciclo"
                   required
-                  tip="El último ciclo de la carrera es de titulación; los anteriores, de tutorías."
+                  error={operation.fieldError('cycle_id')}
                   value={form.cycle_id}
                   onValueChange={handleCycleChange}
                   disabled={loadingCycles}
                   placeholder="Selecciona un ciclo"
                   options={cycles.filter((cycle) => tabCycleNumber === undefined || cycle.number === tabCycleNumber).map((cycle) => ({
                     value: String(cycle.id),
-                    label: `${cycle.name}${cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}${isLastCycle(cycle) ? ' · Titulación' : ''}`,
+                    label: `${cycle.number}° ciclo${cycle.paralelo_name ? ` · Paralelo ${cycle.paralelo_name}` : ''}${isLastCycle(cycle) ? ' · Titulación' : ''}`,
                   }))}
                 />
 
@@ -784,13 +900,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   id="new-student-tutoring"
                   label="Tutoría"
                   optional
-                  tip={
-                    isDegreeCycle
-                      ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.'
-                      : form.cycle_id
-                        ? undefined
-                        : 'Selecciona primero un ciclo para habilitar las tutorías.'
-                  }
+                  tip={isDegreeCycle ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.' : undefined}
+                  error={operation.fieldError('tutoring_id')}
                   value={form.tutoring_id}
                   onValueChange={(value) => setForm({ ...form, tutoring_id: value })}
                   disabled={!form.cycle_id || isDegreeCycle || loadingTutorings}
@@ -843,12 +954,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           id="student-cycle"
           label="Ciclo que cursa"
           tip="Pasa a ese ciclo y a su paralelo. Sus tutorías actuales se conservan."
+          error={operation.fieldError('cycle_id')}
           value={targetCycleId}
           onValueChange={setTargetCycleId}
           placeholder="Selecciona un ciclo"
           options={[...careerCycles].sort((a, b) => a.number - b.number).map((cycle) => ({
             value: String(cycle.id),
-            label: `${cycle.number}° ${cycle.name}${cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}${isDegreeCycleNumber(cycle.number, careerMaxCycle) ? ' · Titulación' : ''}`,
+            label: `${cycle.number}° ciclo${cycle.paralelo_name ? ` · Paralelo ${cycle.paralelo_name}` : ''}${isDegreeCycleNumber(cycle.number, careerMaxCycle) ? ' · Titulación' : ''}`,
           }))}
         />
       </FormDialog>
@@ -874,6 +986,12 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       />
     </div>
   )
+}
+
+function degreeCycleText(student: DegreeStudent): string {
+  if (!student.cycle_number) return 'Sin ciclo asignado'
+  const section = student.section_name ? `Paralelo ${student.section_name.replace(/^Paralelo\s+/i, '')}` : null
+  return [`${student.cycle_number}° ciclo${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}`, section].filter(Boolean).join(' · ')
 }
 
 function StudentDatum({ label, value }: Readonly<{ label: string; value: string }>) {

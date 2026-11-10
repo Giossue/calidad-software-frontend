@@ -1,3 +1,4 @@
+import { FilterBarSkeleton, PageHeaderSkeleton } from '@/components/ui/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
@@ -79,6 +80,50 @@ export function PersonSkeleton() {
         <Skeleton className="h-4 w-48 max-w-full" />
         <Skeleton className="h-3 w-56 max-w-full" />
       </div>
+    </div>
+  )
+}
+
+/**
+ * Pantalla de lista de un módulo mientras carga: encabezado, filtros y la tabla con sus
+ * columnas reales. La misma pieza se muestra mientras cargan las carreras y mientras carga
+ * la primera página, para que se vea un solo esqueleto continuo.
+ */
+export function ListScreenSkeleton({ label, actions = 1, filters = 1, headers }: Readonly<{ label: string; actions?: number; filters?: number; headers: readonly string[] }>) {
+  return (
+    <div className="flex flex-col gap-6">
+      <span role="status" aria-label={label} className="sr-only">{label}</span>
+      <PageHeaderSkeleton actions={actions} />
+      <FilterBarSkeleton filters={filters} />
+      <HeadedTableSkeleton headers={headers} />
+    </div>
+  )
+}
+
+/** Tarjetas de la malla por ciclo (sin el encabezado de la pantalla). */
+export function CurriculumCardsSkeleton() {
+  return (
+    <div className="flex flex-col gap-5" aria-hidden="true">
+      <Skeleton className="h-9 w-full" />
+      {[5, 4, 3].map((count) => (
+        <div key={count} className="flex flex-col gap-2">
+          <Skeleton className="h-4 w-20" />
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-24" />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Pantalla de la malla mientras carga: encabezado y tarjetas, como la pantalla real. */
+export function CurriculumScreenSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <span role="status" aria-label="Cargando malla curricular" className="sr-only">Cargando malla curricular</span>
+      <PageHeaderSkeleton actions={1} />
+      <CurriculumCardsSkeleton />
     </div>
   )
 }

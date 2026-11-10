@@ -56,12 +56,12 @@ describe('buildPageTourSteps', () => {
   it('explica solo los elementos que están en pantalla, encontrando botones por su texto', () => {
     document.body.innerHTML = `<main data-slot="sidebar-inset">
       <div data-tour="page-header"></div>
-      <button data-tour="page-create">Nuevo estudiante</button>
+      <button data-tour="page-create">Registrar estudiante</button>
       <div data-tour="page-filters"></div>
-      <div data-slot="table-container"><table><tbody data-slot="table-body"><tr><td>Ana</td><td><button>Acciones para Ana</button></td></tr></tbody></table></div>
+      <div data-slot="table-container"><table><tbody data-slot="table-body"><tr><td>Ana</td></tr></tbody></table></div>
     </main>`
 
-    expect(titles('tutoring-students')).toEqual(['Estudiantes de la carrera', 'Nuevo estudiante', 'Buscar y filtrar', 'Listado', 'Acciones de cada fila'])
+    expect(titles('tutoring-students')).toEqual(['Estudiantes de la carrera', 'Registrar estudiante', 'Buscar y filtrar', 'Listado'])
   })
 
   it('omite las acciones de fila si la última celda no tiene botones', () => {

@@ -24,14 +24,12 @@ const TABLE = ['[data-tour="page-table"]', '[data-slot="table-container"]']
 const PAGINATION = '[data-tour="page-pagination"]'
 const REFRESH = 'button[aria-label="Actualizar"]'
 /** Acciones de la primera fila de la tabla. */
-const ROW_ACTIONS: TourTarget = { rowActions: true }
 const CAREER_BACK = '[data-tour="page-career-back"]'
 
 const step = (target: PageTourStep['target'], title: string, description: string, side?: PageTourStep['side']): PageTourStep => ({ target, title, description, side })
 
 const filters = (description: string) => step(FILTERS, 'Buscar y filtrar', description)
 const table = (description: string) => step(TABLE, 'Listado', description, 'top')
-const rowActions = (description: string) => step(ROW_ACTIONS, 'Acciones de cada fila', description, 'left')
 const pagination = step(PAGINATION, 'Páginas', 'Cuando hay muchos registros, avanza o retrocede entre páginas.', 'top')
 const refresh = step(REFRESH, 'Actualizar', 'Vuelve a cargar la información por si alguien más hizo cambios.')
 const bulk = (description: string) => step(BULK, 'Carga masiva', `${description} Descarga la plantilla CSV, complétala y súbela; al terminar te llega una notificación con el resultado.`)
@@ -158,12 +156,11 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   'tutoring-students': [
     careerBack,
     step(HEADER, 'Estudiantes de la carrera', 'Aquí registras a los estudiantes y los ubicas en su ciclo.'),
-    step(CREATE, 'Nuevo estudiante', 'Registra un estudiante con su ciclo y, si quieres, inscríbelo en una tutoría.'),
+    step(CREATE, 'Registrar estudiante', 'Registra un estudiante con su ciclo y, si quieres, inscríbelo en una tutoría.'),
     bulk('Registra muchos estudiantes a la vez. Los importados quedan en «Sin ciclo» hasta que les asignes uno.'),
     step('[aria-label="Ciclos de la carrera"]', 'Ciclo', 'Elige el ciclo cuyos estudiantes quieres ver. «Sin ciclo» reúne a quienes aún no tienen uno asignado.'),
     filters('Busca por nombre, cédula o correo y filtra según sus tutorías.'),
-    table('Cada fila es un estudiante con sus tutorías. Haz clic en él para abrirlo.'),
-    rowActions('En el ciclo de titulación, matricula al estudiante, dale de baja o cámbialo de ciclo.'),
+    table('Cada fila es un estudiante con sus tutorías. Haz clic en él para abrirlo; en el ciclo de titulación, desde ahí lo matriculas, le das de baja o lo cambias de ciclo.'),
     pagination,
   ],
   'tutoring-students/detail': [
@@ -171,6 +168,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Estudiante', 'Su ciclo y su estado.'),
     step([{ button: 'Cambiar ciclo' }, { button: 'Asignar ciclo' }], 'Ciclo del estudiante', 'Asigna o cambia el ciclo que cursa.'),
     step('[aria-label="Secciones del estudiante"]', 'Tutorías y datos', '«Tutorías» muestra en cuáles está inscrito y permite inscribirlo en otra; «Datos», su información de contacto.'),
+    step([{ button: 'Matricular en titulación' }, { button: 'Dar de baja de titulación' }], 'Matrícula en titulación', 'En el ciclo de titulación, matricula al estudiante en el período vigente o dale de baja.'),
   ],
   'tutorings/career-picker': careerPicker('Tutorías'),
   tutorings: [

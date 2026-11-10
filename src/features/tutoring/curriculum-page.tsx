@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { ArrowDownIcon, ArrowUpIcon, FlagIcon, Trash2Icon, XIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { SelectField } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import { ApiError } from '@/lib/api'
@@ -18,6 +17,7 @@ import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-pick
 import { CurriculumUploadButton } from './curriculum-upload-dialog'
 import { ModuleHeader } from './tutoring-shared'
 import { useTutoringCatalogs } from './tutoring-hooks'
+import { CurriculumCardsSkeleton, CurriculumScreenSkeleton } from './tutoring-skeletons'
 
 type Catalogs = ReturnType<typeof useTutoringCatalogs>
 
@@ -30,7 +30,7 @@ export function TutoringCurriculumPage() {
     return <CurriculumView catalogs={catalogs} careerId={selection.career.id} careerName={selection.career.name} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Malla curricular" rowTitle={(career) => `Ver malla de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Malla curricular" skeleton={<CurriculumScreenSkeleton />} rowTitle={(career) => `Ver malla de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
 /** Todas las asignaturas activas de una malla de la carrera (la malla completa cabe en pocas páginas). */
@@ -69,7 +69,7 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
     setDeletePending(true)
     try {
       await tutoringApi.deleteCurriculum(curriculum.id)
-      toast.success(`Malla «${curriculum.name}» eliminada.`)
+      toast.success(`Malla «${curriculum.name}» eliminada`)
       setDeleting(false)
       setChosenCurriculumId(null)
       curricula.reload()
@@ -99,12 +99,15 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
   const nextIds = new Set((selected?.next_subjects ?? []).map((item) => item.id))
   const withSequence = subjects.filter((subject) => (subject.next_subjects ?? []).length > 0).length
 
+  // Primera carga: el mismo esqueleto que mientras cargaban las carreras (encabezado y tarjetas).
+  if (curricula.loading && !curricula.data) return <CurriculumScreenSkeleton />
+
   return (
     <section className="flex flex-col gap-6" data-tour-view="curriculum">
       <CareerBreadcrumb root="Malla curricular" career={careerName} onBack={onBack} />
       <ModuleHeader
-        title={careerName}
-        description="Asignaturas por ciclo y su secuencia. Elige una para ver de cuál viene y en cuál continúa. La secuencia se edita en Asignaturas."
+        title="Malla curricular"
+        description={`Asignaturas por ciclo de la malla de ${careerName} y su secuencia. Elige una para ver de cuál viene y en cuál continúa; la secuencia se edita en Asignaturas.`}
         extraActions={(
           <CurriculumUploadButton
             careerId={careerId}
@@ -155,16 +158,8 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
       />
 
       {curricula.loading || resource.loading ? (
-        <div role="status" aria-label="Cargando malla curricular" className="flex flex-col gap-5">
-          <Skeleton className="h-9 w-full" aria-hidden="true" />
-          {[5, 4, 3].map((count) => (
-            <div key={count} className="flex flex-col gap-2" aria-hidden="true">
-              <Skeleton className="h-4 w-20" />
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                {Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-24" />)}
-              </div>
-            </div>
-          ))}
+        <div role="status" aria-label="Cargando malla curricular">
+          <CurriculumCardsSkeleton />
         </div>
       ) : rows.length === 0 ? (
         <EmptyState className="rounded-md ring-1 ring-surface-ring">Esta carrera aún no tiene asignaturas activas. Regístralas en Asignaturas.</EmptyState>
@@ -217,7 +212,7 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
                           )}
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span className="font-mono text-xs text-muted-foreground">{subject.code ?? 'Sin código'}</span>
+                            <span className="text-xs text-muted-foreground">{subject.code ?? 'Sin código'}</span>
                             {isPrevious && <span className="flex items-center gap-1 text-xs font-medium text-warning"><ArrowUpIcon className="size-4" aria-hidden="true" />Previa</span>}
                             {isNext && <span className="flex items-center gap-1 text-xs font-medium text-success"><ArrowDownIcon className="size-4" aria-hidden="true" />Continúa</span>}
                           </span>

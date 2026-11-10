@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { PlusIcon, PowerOffIcon, RotateCcwIcon, SaveIcon, UserPlusIcon } from 'lucide-react'
+import { PlusIcon, PowerOffIcon, RotateCcwIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
@@ -96,7 +96,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
               ? { identification: form.identification, name: form.name.trim(), email: form.email.trim(), phone: form.phone || null }
               : { student_id: selected?.id ?? 0 },
           ),
-      editing ? 'Datos del estudiante actualizados.' : mode === 'new' ? 'Estudiante creado e inscrito.' : 'Estudiante inscrito.',
+      editing ? 'Datos del estudiante actualizados' : mode === 'new' ? 'Estudiante creado e inscrito' : 'Estudiante inscrito',
       async () => { setOpen(false); await list.reload() },
     )
   }
@@ -151,11 +151,11 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         headerActions={editing ? (
           editing.is_active
             ? <IconAction label="Deshabilitar inscripción" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} />
-            : <IconAction label="Reinscribir estudiante" icon={RotateCcwIcon} disabled={!editing.student_is_active || operation.pending} onClick={() => void operation.run(() => tutoringApi.reenrollStudent(tutoring.id, editing.id), 'Estudiante inscrito nuevamente.', async () => { setOpen(false); await list.reload() })} />
+            : <IconAction label="Reinscribir estudiante" icon={RotateCcwIcon} disabled={!editing.student_is_active || operation.pending} onClick={() => void operation.run(() => tutoringApi.reenrollStudent(tutoring.id, editing.id), 'Estudiante inscrito nuevamente', async () => { setOpen(false); await list.reload() })} />
         ) : undefined}
         onClose={() => setOpen(false)}
         onSubmit={submit}
-        submitIcon={editing ? SaveIcon : UserPlusIcon} submitLabel={editing ? 'Guardar cambios' : mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'}
+        submitLabel={editing ? 'Guardar cambios' : mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'}
       >
         {!editing && (
           <div role="radiogroup" aria-label="Cómo registrar al estudiante" className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -220,7 +220,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
           if (deactivating) {
             void operation.run(
               () => tutoringApi.deactivateStudent(tutoring.id, deactivating.id),
-              'Inscripción deshabilitada.',
+              'Inscripción deshabilitada',
               async () => { setDeactivating(null); setOpen(false); await list.reload() },
             )
           }

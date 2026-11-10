@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -25,8 +25,10 @@ export function useSelectedCareer(careers: readonly Career[]) {
   return { career, canChange: !single, select: (id: number) => setSelectedId(id), clear: () => setSelectedId(null) }
 }
 
-export function CareerPicker({ catalogs, title, description, rowTitle, onSelect }: Readonly<{
+export function CareerPicker({ catalogs, title, description, rowTitle, onSelect, skeleton }: Readonly<{
   catalogs: Catalogs
+  /** Esqueleto de la pantalla a la que se entra: se muestra igual mientras cargan las carreras. */
+  skeleton?: ReactNode
   title: string
   description?: string
   rowTitle: (career: Career) => string
@@ -41,7 +43,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
 
   // Mientras cargan las carreras aún no se sabe si hay que elegir una (con una sola se entra
   // directo): un esqueleto con la forma de la pantalla evita mostrar el buscador de paso.
-  if (catalogs.loading && catalogs.careers.length === 0) return <CareerLoading />
+  if (catalogs.loading && catalogs.careers.length === 0) return skeleton ?? <CareerLoading />
 
   return <section className="flex flex-col gap-6" data-tour-view="career-picker">
     <ModuleHeader title={title} description={description} />

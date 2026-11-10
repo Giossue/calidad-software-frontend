@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { GitBranchIcon, PlusIcon, SaveIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { PlusIcon, SaveIcon } from 'lucide-react'
+import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -26,6 +26,7 @@ import { useDetailParam } from '@/hooks/use-detail-param'
 import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
 import { CheckboxListSkeleton } from './tutoring-skeletons'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
+import { ListScreenSkeleton } from './tutoring-skeletons'
 
 const ALL_CYCLES = 'all'
 const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '', next_subject_ids: [] as string[] }
@@ -41,10 +42,15 @@ export function TutoringSubjectsPage() {
     return <SubjectsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Asignaturas" rowTitle={(career) => `Ver asignaturas de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Asignaturas" skeleton={<SubjectsSkeleton />} rowTitle={(career) => `Ver asignaturas de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
 type TutoringCatalogsState = ReturnType<typeof useTutoringCatalogs>
+
+/** Esqueleto de Asignaturas: el mismo mientras cargan las carreras y la primera página. */
+function SubjectsSkeleton() {
+  return <ListScreenSkeleton label="Cargando asignaturas" actions={2} filters={2} headers={['Código', 'Asignatura', 'Continúa en', 'Paralelo(s)', 'Estado']} />
+}
 
 function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: TutoringCatalogsState; careerId: number; onBack?: () => void }>) {
   const [cycleSelection, setCycleSelection] = useState('')
@@ -197,7 +203,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           ...(periodId ? { period_id: periodId } : {}),
         })
       },
-      editing ? 'Asignatura actualizada.' : 'Asignatura registrada.',
+      editing ? 'Asignatura actualizada' : 'Asignatura registrada',
       async () => {
         setMode(null)
         if (updated) setOpenedSubject(updated)
@@ -280,11 +286,11 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   // Lo que identifica a la asignatura va primero; el ciclo y los paralelos, después.
   const dataFields = (
     <>
-      <FormField id="subject-name" label="Nombre" required counter={{ current: form.name.length, max: 150 }}>
-        <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150).toLocaleUpperCase('es') })} required maxLength={150} placeholder="Ej. ALGORITMOS Y LÓGICA DE PROGRAMACIÓN" />
+      <FormField id="subject-name" label="Nombre" required counter={{ current: form.name.length, max: 150 }} error={operation.fieldError('name')}>
+        <Input id="subject-name" aria-invalid={Boolean(operation.fieldError('name'))} value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150).toLocaleUpperCase('es') })} required maxLength={150} placeholder="Ej. ALGORITMOS Y LÓGICA DE PROGRAMACIÓN" />
       </FormField>
-      <FormField id="subject-code" label="Código" optional counter={form.code.length > 0 ? { current: form.code.length, max: 30 } : undefined}>
-        <Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} maxLength={30} placeholder="Ej. SW-B1-001" />
+      <FormField id="subject-code" label="Código" optional counter={form.code.length > 0 ? { current: form.code.length, max: 30 } : undefined} error={operation.fieldError('code')}>
+        <Input id="subject-code" aria-invalid={Boolean(operation.fieldError('code'))} value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} maxLength={30} placeholder="Ej. SW-B1-001" />
       </FormField>
       <SelectField
         id="subject-modality"
@@ -294,6 +300,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         onValueChange={(value) => setForm({ ...form, modality_id: value })}
         emptyLabel="Sin modalidad"
         placeholder="Selecciona una modalidad"
+        error={operation.fieldError('modality_id')}
         options={catalogs.modalities
           .filter((modality) => modality.is_active || String(modality.id) === form.modality_id)
           .map((modality) => ({ value: String(modality.id), label: `${modality.name}${modality.is_active ? '' : ' (inactiva)'}` }))}
@@ -324,9 +331,10 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         onValueChange={(value) => setForm({ ...form, cycle_id: value })}
         emptyLabel="Sin ciclo"
         placeholder="Selecciona un ciclo"
-        options={uniqueCycleLevels.map((cycle) => ({ value: String(cycle.id), label: cycle.name }))}
+        error={operation.fieldError('cycle_id', 'cycle_ids')}
+        options={uniqueCycleLevels.map((cycle) => ({ value: String(cycle.id), label: `${cycle.number}° ciclo` }))}
       />
-      <FormField id="subject-parallels" label="Paralelo(s)" optional error={sectionError}>
+      <FormField id="subject-parallels" label="Paralelo(s)" optional error={sectionError ?? operation.fieldError('parallel_ids', 'section_ids', 'new_parallel_name')}>
         {isAddingSection ? (
           <div className="flex items-center gap-2">
             <Input
@@ -435,10 +443,12 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       </div>
     ) : detail.id !== null ? (
       <DetailPageSkeleton label="Cargando asignatura" />
+    ) : list.isInitialLoading ? (
+      <SubjectsSkeleton />
     ) : (
       <>
         <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-        <ModuleHeader title={currentCareerName} description="Registra las asignaturas de cada ciclo y sus paralelos. Haz clic en una para abrirla." createLabel="Registrar asignatura" onCreate={() => openForm('create', null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+        <ModuleHeader title="Asignaturas" description={`Registra las asignaturas de cada ciclo de ${currentCareerName} y sus paralelos. Haz clic en una para abrirla.`} createLabel="Registrar asignatura" onCreate={() => openForm('create', null, uniqueCycleLevels.find((level) => String(level.number) === activeCycle)?.id ?? selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
         <FilterBar
           id="subjects"
           leading={cycleLevels.length > 0 ? <CycleSelect id="subjects-cycle" levels={cycleLevels} value={activeCycle} onChange={setCycleSelection} degreeCycleNumber={careerMaxCycle} /> : undefined}
@@ -461,9 +471,9 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           rowTitle={(subject) => `Abrir ${formatSubjectName(subject.name)}`}
         />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === ALL_CYCLES ? '' : ` del ${selectedLevel?.name ?? 'ciclo seleccionado'}`}
-          </p>
+          {list.isFetching || list.isInitialLoading ? <span /> : <p className="text-sm text-muted-foreground">
+            Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === ALL_CYCLES ? '' : ` del ${selectedLevel ? `${selectedLevel.number}° ciclo` : 'ciclo seleccionado'}`}
+          </p>}
           <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
         </div>
       </>
@@ -479,7 +489,6 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       blockReason={nameReason}
       onClose={() => setMode(null)}
       onSubmit={submit}
-      submitIcon={mode === 'create' ? PlusIcon : mode === 'sequence' ? GitBranchIcon : SaveIcon}
       submitLabel={mode === 'create' ? 'Registrar asignatura' : mode === 'sequence' ? 'Guardar secuencia' : 'Guardar cambios'}
       steps={mode === 'create' ? createSteps : undefined}
     >
@@ -507,7 +516,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         let updated: Subject | null = null
         void operation.run(
           async () => { updated = await tutoringApi.deactivateSubject(deactivating.id) },
-          'Asignatura desactivada.',
+          'Asignatura desactivada',
           async () => {
             setDeactivating(null)
             setMode(null)

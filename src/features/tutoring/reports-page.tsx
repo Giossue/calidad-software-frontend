@@ -63,8 +63,8 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
     <section className="flex flex-col gap-6">
       <CareerBreadcrumb root="Informes" career={careerName} onBack={onBack} />
       <ModuleHeader
-        title={careerName}
-        description="Lee los informes que envían los docentes de tus tutorías. Haz clic en uno para abrirlo."
+        title="Informes"
+        description={`Lee los informes que envían los docentes de las tutorías de ${careerName}. Haz clic en uno para abrirlo.`}
       />
 
       <FilterBar
@@ -80,7 +80,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             value: cycleFilter,
             onChange: setCycleFilter,
             allLabel: 'Todos los ciclos',
-            options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ${level.name}` })),
+            options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo` })),
           },
         ]}
       />
@@ -137,9 +137,9 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
+        {list.isFetching || list.isInitialLoading ? <span /> : <p className="text-sm text-muted-foreground">
           Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'informe' : 'informes'}
-        </p>
+        </p>}
         <CatalogPagination
           label="informes"
           page={list.page}

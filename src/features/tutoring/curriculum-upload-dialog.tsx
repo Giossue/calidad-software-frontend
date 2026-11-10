@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, DownloadIcon, PlusIcon, Trash2Icon, UploadIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { CheckIcon, DownloadIcon, PlusIcon, Trash2Icon, UploadIcon } from 'lucide-react'
+import { toast } from '@/lib/toast'
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
@@ -9,6 +9,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ApiError } from '@/lib/api'
 import { tutoringApi, type CurriculumList, type CurriculumSubjectRow } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
@@ -134,6 +135,13 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
 
   const update = (key: number, patch: Partial<Row>) => setRows((list) => list?.map((row) => (row.key === key ? { ...row, ...patch } : row)) ?? null)
   const settingsReady = Boolean(file && name.trim() && period && upToCycle)
+  // Qué falta para revisar la malla, en el orden de los campos (se lee en el tooltip del botón).
+  const reviewBlockReason = !name.trim()
+    ? 'Escribe el nombre de la malla.'
+    : !period ? 'Elige desde qué PAO rige.'
+      : !upToCycle ? 'Elige a qué ciclos se aplica.'
+        : !file ? 'Sube el archivo de la malla.'
+          : null
   const cycle = Number(upToCycle)
 
   return (
@@ -146,7 +154,7 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
         open={open}
         onClose={close}
         title="Subir nueva malla curricular"
-        description={`${careerName}. Ponle nombre, elige desde qué PAO rige y a qué ciclos se aplica, y sube el archivo.`}
+        description={careerName}
         confirmClose={dirty}
         maxWidth="max-w-4xl"
       >
@@ -206,10 +214,12 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-wrap justify-end gap-3">
               <Button type="button" variant="secondary" onClick={close} disabled={pending}>Cancelar</Button>
-              <Button type="submit" disabled={pending || !settingsReady}>
-                {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <UploadIcon data-icon="inline-start" />}
-                {pending ? 'Leyendo…' : 'Revisar malla'}
-              </Button>
+              <BlockedReason reason={pending ? null : reviewBlockReason}>
+                <Button type="submit" disabled={pending || !settingsReady}>
+                  {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <UploadIcon data-icon="inline-start" />}
+                  {pending ? 'Leyendo…' : 'Revisar malla'}
+                </Button>
+              </BlockedReason>
             </div>
           </form>
         ) : (
@@ -260,14 +270,30 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-wrap justify-end gap-3">
               <Button type="button" variant="secondary" onClick={() => setRows(null)} disabled={pending}>Volver</Button>
-              <Button type="button" onClick={() => void create()} disabled={pending || rows.length === 0 || errors.size > 0}>
-                {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <CheckCircle2Icon data-icon="inline-start" />}
-                {pending ? 'Creando…' : `Crear malla con ${rows.length} asignaturas`}
-              </Button>
+              <BlockedReason reason={pending ? null : rows.length === 0 ? 'Agrega al menos una asignatura.' : errors.size > 0 ? 'Corrige las asignaturas marcadas.' : null}>
+                <Button type="button" onClick={() => void create()} disabled={pending || rows.length === 0 || errors.size > 0}>
+                  {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <CheckIcon data-icon="inline-start" />}
+                  {pending ? 'Creando…' : `Crear malla con ${rows.length} asignaturas`}
+                </Button>
+              </BlockedReason>
             </div>
           </div>
         )}
       </Dialog>
     </>
+  )
+}
+
+/** Motivo de un botón bloqueado en su tooltip (mismo patrón que `FormDialog`). */
+function BlockedReason({ reason, children }: Readonly<{ reason: string | null; children: ReactNode }>) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span tabIndex={reason ? 0 : undefined} className="inline-flex rounded-md outline-hidden focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:[&>button]:w-full">
+          {children}
+        </span>
+      </TooltipTrigger>
+      {reason && <TooltipContent>{reason}</TooltipContent>}
+    </Tooltip>
   )
 }

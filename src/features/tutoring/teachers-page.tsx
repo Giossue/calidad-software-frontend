@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, LinkIcon, SaveIcon, UserPlusIcon, XCircleIcon } from 'lucide-react'
+import { CheckCircle2Icon, LinkIcon, XCircleIcon } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -90,7 +90,7 @@ export function TutoringTeachersPage() {
 
   function submitLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    void operation.run(() => tutoringApi.linkTeacherToCareer(linkSelected?.id ?? 0, Number(linkCareerId)), 'Docente vinculado a la carrera.', async () => { setLinkOpen(false); await list.reload() })
+    void operation.run(() => tutoringApi.linkTeacherToCareer(linkSelected?.id ?? 0, Number(linkCareerId)), 'Docente vinculado a la carrera', async () => { setLinkOpen(false); await list.reload() })
   }
 
   function edit(teacher: Teacher | null) {
@@ -118,7 +118,7 @@ export function TutoringTeachersPage() {
         if (editing) updated = await tutoringApi.updateTeacher(editing.id, input)
         else await tutoringApi.createTeacher({ ...input, career_id: careerId })
       },
-      editing ? 'Docente actualizado.' : 'Docente registrado.',
+      editing ? 'Docente actualizado' : 'Docente registrado',
       async () => { setOpen(false); if (updated) setOpenedTeacher(updated); await list.reload() },
     )
   }
@@ -206,9 +206,10 @@ export function TutoringTeachersPage() {
         value={linkCareerId}
         onValueChange={(value) => { setLinkCareerId(value); setLinkSelected(null) }}
         placeholder="Selecciona una carrera"
+        error={operation.fieldError('career_id')}
         options={catalogs.careers.filter((career) => career.status).map((career) => ({ value: String(career.id), label: career.name }))}
       />
-      <FormField id="link-teacher-search" label="Docente" required tip="Solo aparecen docentes activos que todavía no pertenecen a la carrera elegida. Si no existe, regístralo como docente nuevo.">
+      <FormField id="link-teacher-search" label="Docente" required error={operation.fieldError('teacher_id')} tip="Solo aparecen docentes activos que todavía no pertenecen a la carrera elegida. Si no existe, regístralo como docente nuevo.">
         <SearchSelect
           id="link-teacher-search"
           query={linkSearch}
@@ -235,11 +236,10 @@ export function TutoringTeachersPage() {
       blockReason={Object.values(teacherErrors)[0] ?? null}
       onClose={() => setOpen(false)}
       onSubmit={submit}
-      submitIcon={editing ? SaveIcon : UserPlusIcon}
       submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}
     >
-      <FormField id="teacher-name" label="Nombre completo" required counter={{ current: form.name.length, max: 150 }}>
-        <Input id="teacher-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} required maxLength={150} autoComplete="name" placeholder="Nombre y apellido del docente" />
+      <FormField id="teacher-name" label="Nombre completo" required counter={{ current: form.name.length, max: 150 }} error={operation.fieldError('name')}>
+        <Input id="teacher-name" aria-invalid={Boolean(operation.fieldError('name'))} value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} required maxLength={150} autoComplete="name" placeholder="Nombre y apellido del docente" />
       </FormField>
       <FormField
         id="teacher-identification"
@@ -247,10 +247,10 @@ export function TutoringTeachersPage() {
         required={!editing}
         tip={editing ? 'La cédula o pasaporte ya registrado no se puede modificar.' : undefined}
         counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }}
-        error={editing ? null : (form.identification && shouldShowIdentificationStatus(form.identification) ? teacherErrors.identification : null)}
+        error={operation.fieldError('identification') ?? (editing ? null : (form.identification && shouldShowIdentificationStatus(form.identification) ? teacherErrors.identification : null))}
       >
         <div className="relative flex items-center">
-          <Input id="teacher-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required disabled={Boolean(editing)} maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
+          <Input id="teacher-identification" aria-invalid={Boolean(operation.fieldError('identification'))} value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required disabled={Boolean(editing)} maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
           {shouldShowIdentificationStatus(form.identification) && (
             isValidIdentification(form.identification)
               ? <CheckCircle2Icon className="absolute right-3 size-4 text-success" aria-label="Identificación válida" />
@@ -258,22 +258,22 @@ export function TutoringTeachersPage() {
           )}
         </div>
       </FormField>
-      <FormField id="teacher-email" label="Correo institucional" required counter={{ current: form.email.length, max: 150 }} error={form.email ? teacherErrors.email : null}>
-        <Input id="teacher-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value.slice(0, 150) })} required maxLength={150} placeholder="docente@ueb.edu.ec" />
+      <FormField id="teacher-email" label="Correo institucional" required counter={{ current: form.email.length, max: 150 }} error={operation.fieldError('email') ?? (form.email ? teacherErrors.email : null)}>
+        <Input id="teacher-email" aria-invalid={Boolean(operation.fieldError('email') ?? (form.email && teacherErrors.email))} type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value.slice(0, 150) })} required maxLength={150} placeholder="docente@ueb.edu.ec" />
       </FormField>
-      <FormField id="teacher-phone" label="Teléfono" required counter={{ current: form.phone.length, max: 10 }} error={form.phone ? teacherErrors.phone : null}>
-        <Input id="teacher-phone" type="tel" inputMode="numeric" value={form.phone} onChange={(event) => setForm({ ...form, phone: sanitizeDigits(event.target.value, 10) })} required maxLength={10} placeholder="0991234567" />
+      <FormField id="teacher-phone" label="Teléfono" required counter={{ current: form.phone.length, max: 10 }} error={operation.fieldError('phone') ?? (form.phone ? teacherErrors.phone : null)}>
+        <Input id="teacher-phone" aria-invalid={Boolean(operation.fieldError('phone') ?? (form.phone && teacherErrors.phone))} type="tel" inputMode="numeric" value={form.phone} onChange={(event) => setForm({ ...form, phone: sanitizeDigits(event.target.value, 10) })} required maxLength={10} placeholder="0991234567" />
       </FormField>
     </FormDialog>
     <ConfirmModal open={Boolean(unlinking)} title="¿Quitar docente de la carrera?" description={`«${unlinking?.teacher.name ?? ''}» dejará de estar vinculado a «${unlinking?.careerName ?? ''}». Su cuenta y sus otras carreras no cambian. Si tiene tutorías activas en esa carrera, primero debes reasignarlas.`} confirmLabel="Quitar de la carrera" pending={operation.pending} onClose={() => { if (!operation.pending) setUnlinking(null) }} onConfirm={() => {
       if (!unlinking) return
       let updated: Teacher | null = null
-      void operation.run(async () => { updated = await tutoringApi.unlinkTeacherFromCareer(unlinking.teacher.id, unlinking.careerId) }, 'Docente quitado de la carrera.', async () => { setUnlinking(null); if (updated) setOpenedTeacher(updated); await list.reload() })
+      void operation.run(async () => { updated = await tutoringApi.unlinkTeacherFromCareer(unlinking.teacher.id, unlinking.careerId) }, 'Docente quitado de la carrera', async () => { setUnlinking(null); if (updated) setOpenedTeacher(updated); await list.reload() })
     }} />
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar docente?" description={`La cuenta de «${deactivating?.name ?? ''}» perderá el acceso y no podrá recibir nuevas asignaciones de tutorías.`} confirmLabel="Desactivar docente" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => {
       if (!deactivating) return
       let updated: Teacher | null = null
-      void operation.run(async () => { updated = await tutoringApi.deactivateTeacher(deactivating.id) }, 'Docente desactivado.', async () => { setDeactivating(null); setOpen(false); if (updated) setOpenedTeacher(updated); await list.reload() })
+      void operation.run(async () => { updated = await tutoringApi.deactivateTeacher(deactivating.id) }, 'Docente desactivado', async () => { setDeactivating(null); setOpen(false); if (updated) setOpenedTeacher(updated); await list.reload() })
     }} />
   </section>
 }
