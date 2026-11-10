@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { FilterBarSkeleton, TableSkeleton } from '@/components/ui/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -45,6 +46,8 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
     // El tema o la actividad abiertos en Contenido no se arrastran a otra pestaña.
     next.delete('topic')
     next.delete('activity')
+    // Tampoco la sesión consultada en Asistencia.
+    next.delete('consult')
     setParams(next, { replace: true })
   }
 
@@ -70,15 +73,14 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
 }
 
 function TutoringHeader({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
-  return <header className="flex flex-col gap-2">
-    <div className="flex flex-wrap items-center gap-3">
-      <h2 className="text-2xl font-semibold tracking-tight">{tutoring.subject_name}</h2>
+  // Título principal (h1) de la pantalla, como en las demás pantallas de detalle.
+  return <AdminSectionHeader
+    title={tutoring.subject_name}
+    description={<span className="flex flex-wrap items-center gap-2">
+      <span>{[tutoring.career_name, `${tutoring.cycle_name}${tutoring.section_name ? ` · ${tutoring.section_name}` : ''}`, tutoring.modality_name].filter(Boolean).join(' · ')}</span>
       <StatusBadge active={tutoring.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" />
-    </div>
-    <p className="text-sm text-muted-foreground">
-      {[tutoring.career_name, `${tutoring.cycle_name}${tutoring.section_name ? ` · ${tutoring.section_name}` : ''}`, tutoring.modality_name].filter(Boolean).join(' · ')}
-    </p>
-  </header>
+    </span>}
+  />
 }
 
 /** Encabezado de la tutoría, sus pestañas y la forma del panel que se va a abrir. */
@@ -93,7 +95,7 @@ function WorkspaceSkeleton({ tab }: Readonly<{ tab: TabId }>) {
       {tab === 'attendance' || tab === 'schedules'
         ? <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true"><Skeleton className="h-5 w-80 max-w-full" /><Skeleton className="h-9 w-48" /></div>
         : tab === 'grades'
-          ? <div className="flex items-center gap-2" aria-hidden="true"><Skeleton className="h-5 w-12" /><Skeleton className="h-9 w-56" /></div>
+          ? <div className="flex items-center gap-2" aria-hidden="true"><Skeleton className="h-9 w-56" /></div>
           : <FilterBarSkeleton />}
       <TableSkeleton columns={tab === 'grades' ? 6 : 4} />
     </div>

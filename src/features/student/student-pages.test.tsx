@@ -164,7 +164,7 @@ describe('Módulo Estudiante', () => {
     vi.mocked(studentApi.content).mockResolvedValue({ ...content, topics: many })
     workspace('content')
     expect(await screen.findByText('Mostrando 5 de 7 temas')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Siguiente/ }))
+    await user.click(screen.getByRole('button', { name: /Página siguiente|Siguiente/ }))
     expect(screen.getByText('Mostrando 2 de 7 temas')).toBeInTheDocument()
   })
 

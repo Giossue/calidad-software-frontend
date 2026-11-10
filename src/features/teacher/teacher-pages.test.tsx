@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { toast as sonnerToast } from 'sonner'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api'
@@ -32,7 +33,7 @@ function paginated<T>(data: readonly T[], page = 1, last = 1) {
   return { data, meta: { current_page: page, last_page: last, per_page: 15, total: data.length, from: data.length ? 1 : null, to: data.length || null, active_count: data.length, inactive_count: 0 } }
 }
 // Los selects son de shadcn (Radix): se abren y se elige la opción por su texto.
-async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
+async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: RegExp | string) {
   await user.click(trigger)
   await user.click(await screen.findByRole('option', { name: option }))
 }
@@ -41,8 +42,13 @@ async function pickStage(user: ReturnType<typeof userEvent.setup>, stage: RegExp
   await user.click(await screen.findByRole('combobox', { name: 'Etapa' }))
   await user.click(await screen.findByRole('option', { name: stage }))
 }
+// Botón «atrás» del navegador: vuelve a la entrada anterior del historial.
+function BrowserBack() {
+  const navigate = useNavigate()
+  return <button type="button" onClick={() => navigate(-1)}>Atrás del navegador</button>
+}
 function show(component: React.ReactNode, path = '/panel/teacher-tutorings?tutoring=40&tab=students') {
-  return render(<MemoryRouter initialEntries={[path]}>{component}</MemoryRouter>)
+  return render(<MemoryRouter initialEntries={[path]}>{component}<BrowserBack /></MemoryRouter>)
 }
 
 const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
@@ -101,10 +107,16 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.tutorings).mockResolvedValue(paginated([tutoring], 1, 2))
     show(<TeacherTutoringsPage />, '/panel/teacher-tutorings')
     await screen.findByText('Calidad de software')
-    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await user.click(screen.getByRole('button', { name: 'Página siguiente' }))
     await waitFor(() => expect(teacherApi.tutorings).toHaveBeenLastCalledWith({ page: 2, search: '', status: undefined }))
+    // «Limpiar» borra la búsqueda junto con los filtros.
+    await user.type(screen.getByLabelText('Buscar'), 'calidad')
+    await choose(user, screen.getByLabelText('Filtrar por Estado'), 'En curso')
+    await user.click(await screen.findByRole('button', { name: 'Limpiar' }))
+    expect(screen.getByLabelText('Buscar')).toHaveValue('')
+    expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument()
     await user.click(screen.getByText('Calidad de software'))
-    expect(await screen.findByRole('heading', { name: 'Calidad de software' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Calidad de software' })).toBeInTheDocument()
     // Abre en Asistencia; las pestañas van en el orden de trabajo del docente, en un solo nivel.
     const sections = screen.getByRole('tablist', { name: 'Secciones de la tutoría' })
     expect(within(sections).getAllByRole('tab').map((item) => item.textContent)).toEqual(['Asistencia', 'Contenido', 'Horarios', 'Estudiantes', 'Calificaciones'])
@@ -185,7 +197,9 @@ describe('Módulo Docente', () => {
     await choose(user, endSelect, '11:00')
 
     // Guarda
+    const success = vi.spyOn(sonnerToast, 'success')
     await user.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+    await waitFor(() => expect(success.mock.calls.at(-1)?.[0]).toMatch(/^Horarios de tutoría actualizados\.?$/))
 
     expect(teacherApi.syncSchedules).toHaveBeenCalledWith(40, [
       { day: 'martes', start_time: '09:00', end_time: '11:00', room: 'Por asignar' },
@@ -246,6 +260,56 @@ describe('Módulo Docente', () => {
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'luis.mora@ueb.edu.ec')
     await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
     await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', name: 'Luis Mora', email: 'luis.mora@ueb.edu.ec', phone: null }))
+  })
+
+  it('en «Estudiante nuevo» pide primero el nombre, avisa la cédula inválida bajo el campo y devuelve el foco al botón al crear', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.enrollStudent).mockResolvedValue(student)
+    workspace('students')
+    const trigger = await screen.findByRole('button', { name: 'Registrar estudiante' })
+    await user.click(trigger)
+    const form = screen.getByRole('form', { name: 'Registrar estudiante' })
+    await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
+    expect(within(form).getAllByRole('textbox')[0]).toHaveAccessibleName(/^Nombres y apellidos/)
+    const cedula = within(form).getByLabelText(/^Cédula o pasaporte/)
+    await user.type(cedula, '123')
+    await user.tab()
+    expect(within(form).getByText('La cédula o pasaporte no es válido.')).toBeInTheDocument()
+    expect(cedula).toHaveAttribute('aria-invalid', 'true')
+    await user.clear(cedula)
+    await user.type(cedula, '0201234564')
+    await user.type(within(form).getByLabelText(/^Nombres y apellidos/), 'Luis Mora')
+    await user.type(within(form).getByLabelText(/^Correo institucional/), 'luis.mora@ueb.edu.ec')
+    await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
+    await waitFor(() => expect(form).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it('muestra bajo su campo el error del servidor sobre la cédula o el correo', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.enrollStudent).mockRejectedValue(new ApiError(422, { message: 'El correo ya está registrado.', errors: { email: ['El correo ya está registrado.'] } }))
+    workspace('students')
+    await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
+    const form = screen.getByRole('form', { name: 'Registrar estudiante' })
+    await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
+    await user.type(within(form).getByLabelText(/^Nombres y apellidos/), 'Luis Mora')
+    await user.type(within(form).getByLabelText(/^Cédula o pasaporte/), '0201234564')
+    const email = within(form).getByLabelText(/^Correo institucional/)
+    await user.type(email, 'luis.mora@ueb.edu.ec')
+    await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
+    const message = await within(form).findByText('El correo ya está registrado.')
+    expect(message.closest('[data-slot="field"]')).toContainElement(email)
+    expect(within(form).getAllByText('El correo ya está registrado.')).toHaveLength(1)
+    expect(email).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('las notas del estudiante indican la escala en el campo, sin una línea de ayuda por nota', async () => {
+    const user = userEvent.setup()
+    workspace('students')
+    await user.click(await screen.findByText('Ana Pérez'))
+    const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
+    expect(within(form).queryByText(/Hasta 10/)).not.toBeInTheDocument()
+    expect(within(form).getByLabelText('Diagnóstico de Ana Pérez')).toHaveAttribute('placeholder', '0.00 – 10.00')
   })
 
   it('no permite editar datos del estudiante y permite añadir sus calificaciones directamente', async () => {
@@ -396,6 +460,43 @@ describe('Módulo Docente', () => {
     expect(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('8.50')
   })
 
+  it('al cambiar de etapa con notas sin guardar pide confirmar el descarte, y la consulta muestra solo lo guardado', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00' }])
+    const view = workspace('grades')
+    await pickStage(user, /^Parcial 2/)
+    await user.type(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' }), '8')
+    expect(screen.getByText('Sin guardar')).toBeInTheDocument()
+    await pickStage(user, /^Parcial 1/)
+    const confirm = await screen.findByRole('dialog', { name: '¿Descartar las notas de Parcial 2?' })
+    expect(within(confirm).getByText(/pasarás a Parcial 1/)).toBeInTheDocument()
+    await user.click(within(confirm).getByRole('button', { name: 'Seguir editando' }))
+    expect(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' })).toHaveValue('8.00')
+    expect(screen.queryByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).not.toBeInTheDocument()
+
+    // Al volver a la pantalla, el borrador no se muestra como nota guardada ni cuenta en la evolución.
+    view.unmount()
+    workspace('grades')
+    expect(await screen.findByText(/Tienes notas sin guardar de Parcial 2/)).toBeInTheDocument()
+    expect(screen.queryByText('8.00')).not.toBeInTheDocument()
+    expect(screen.getByText('Pendiente P2').closest('[data-slot="badge"]')).not.toBeNull()
+
+    await pickStage(user, /^Parcial 2/)
+    expect(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' })).toHaveValue('8.00')
+    await pickStage(user, /^Parcial 1/)
+    await user.click(within(await screen.findByRole('dialog', { name: '¿Descartar las notas de Parcial 2?' })).getByRole('button', { name: 'Sí, descartar' }))
+    expect(await screen.findByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toHaveValue('')
+    expect(screen.getByText('Falta 1 nota de Parcial 1.')).toBeInTheDocument()
+    expect(JSON.parse(sessionStorage.getItem('grades-draft:40') ?? '{}')[70]?.partial_two).toBeUndefined()
+  })
+
+  it('elige la etapa con un desplegable sin etiqueta visible ni línea de ayuda', async () => {
+    workspace('grades')
+    expect(await screen.findByRole('combobox', { name: 'Etapa' })).toBeInTheDocument()
+    expect(screen.queryByText('Etapa')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Elige una etapa/)).not.toBeInTheDocument()
+  })
+
   it('registra la asistencia en un solo paso, da por ausente a quien no se marca y guarda directamente', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.saveSession).mockResolvedValue({ id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [] })
@@ -540,10 +641,23 @@ describe('Módulo Docente', () => {
     workspace('attendance')
     expect(await screen.findByText('0 de 1 presentes')).toBeInTheDocument()
     await user.click(screen.getByText('0 de 1 presentes'))
-    expect(await screen.findByText('Solo consulta')).toBeInTheDocument()
+    expect((await screen.findByText('Solo consulta')).closest('[data-slot="badge"]')).not.toBeNull()
     expect(screen.getByText('Ausente')).toBeInTheDocument()
+    // La sesión abierta va en la URL: «atrás» del navegador vuelve a la lista de sesiones.
+    await user.click(screen.getByRole('button', { name: 'Atrás del navegador' }))
+    expect(await screen.findByText('0 de 1 presentes')).toBeInTheDocument()
+    expect(screen.queryByText('Solo consulta')).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Continuar|Guardar|Marcar todos/ })).not.toBeInTheDocument()
+  })
+
+  it('abre una sesión pasada desde la URL', async () => {
+    const saved = { id: 100, tutoring_id: 40, number: 3, date: '2026-09-29', topics_covered: true, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true }] }
+    vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=attendance&consult=2026-09-29')
+    expect(await screen.findByRole('heading', { name: /Sesión 3/ })).toBeInTheDocument()
+    expect(teacherApi.sessions).toHaveBeenCalledWith(40, { date: '2026-09-29' })
+    expect(screen.getByText('Presente')).toBeInTheDocument()
   })
 
   it('permite corregir la sesión de hoy con sus marcas guardadas', async () => {
@@ -616,6 +730,9 @@ describe('Módulo Docente', () => {
     // Fuera del horario no se ofrece registrar
     expect(screen.getByText(/Hoy no hay clase de esta tutoría/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar asistencia' })).toBeDisabled())
+    // El motivo del bloqueo se lee en el tooltip del botón.
+    await userEvent.setup().hover(screen.getByRole('button', { name: 'Registrar asistencia' }).parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/Hoy no hay clase de esta tutoría/)
 
     // Ni abriendo la toma de lista por enlace: la lista queda bloqueada
     view.unmount()
@@ -638,7 +755,7 @@ describe('Módulo Docente', () => {
     workspace('content')
 
     // La sesión se elige con un desplegable, no con una fila de botones.
-    const sessionSelect = await screen.findByRole('combobox', { name: 'Sesión' })
+    const sessionSelect = await screen.findByRole('combobox', { name: 'Filtrar por Sesión' })
     expect(sessionSelect).toHaveTextContent('Todas las sesiones')
     expect(screen.getByRole('columnheader', { name: 'Sesión' })).toBeInTheDocument()
     expect(within(screen.getByRole('row', { name: /Despliegue/ })).getByText('Sin sesión')).toBeInTheDocument()
@@ -649,7 +766,7 @@ describe('Módulo Docente', () => {
     expect(options[1]).toMatch(/^Sesión 1 · .*1 tema$/)
     expect(options[2]).toMatch(/^Sesión 2 · /)
     await user.click(screen.getByRole('option', { name: /^Sesión 2/ }))
-    expect(screen.getByRole('combobox', { name: 'Sesión' })).toHaveTextContent(/^Sesión 2/)
+    expect(screen.getByRole('combobox', { name: 'Filtrar por Sesión' })).toHaveTextContent(/^Sesión 2/)
     expect(screen.getByRole('button', { name: 'Asignar temas a esta sesión' })).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /Integración/ })).toBeInTheDocument()
     expect(screen.queryByRole('row', { name: /Pruebas/ })).not.toBeInTheDocument()
@@ -769,7 +886,7 @@ describe('Módulo Docente', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Editar tema' }))
     await user.click(await screen.findByRole('button', { name: 'Deshabilitar tema' }))
-    await user.click(await screen.findByRole('button', { name: 'Deshabilitar contenido' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '¿Deshabilitar tema?' })).getByRole('button', { name: 'Deshabilitar tema' }))
     await waitFor(() => expect(teacherApi.deactivateTopic).toHaveBeenCalledWith(40, 90))
   })
 
@@ -805,6 +922,66 @@ describe('Módulo Docente', () => {
     expect(teacherApi.createMethodology).toHaveBeenCalledWith(40, 90, 91, { description: 'Trabajo colaborativo' })
   })
 
+  it('muestra bajo el nombre el error del servidor y lo quita al cerrar el formulario', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.createTopic).mockRejectedValue(new ApiError(422, { message: 'Ya existe un tema con ese nombre.', errors: { name: ['Ya existe un tema con ese nombre.'] } }))
+    workspace('content')
+    await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
+    const form = screen.getByRole('form', { name: 'Registrar tema' })
+    const name = within(form).getByLabelText(/^Nombre/)
+    await user.type(name, 'Pruebas')
+    await user.click(within(form).getByRole('button', { name: 'Registrar tema' }))
+    const message = await within(form).findByText('Ya existe un tema con ese nombre.')
+    expect(message.closest('[data-slot="field"]')).toContainElement(name)
+    expect(within(form).getAllByText('Ya existe un tema con ese nombre.')).toHaveLength(1)
+    expect(name).toHaveAttribute('aria-invalid', 'true')
+    expect(within(form).queryByText(/podrán descargarlos/)).not.toBeInTheDocument()
+
+    await user.click(within(form).getByRole('button', { name: 'Cancelar' }))
+    await user.click(await screen.findByRole('button', { name: 'Sí, descartar y salir' }))
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'Registrar tema' })).not.toBeInTheDocument())
+    expect(screen.queryByText('Ya existe un tema con ese nombre.')).not.toBeInTheDocument()
+    await user.click(screen.getByText('Pruebas'))
+    await screen.findByRole('heading', { name: 'Actividades de Pruebas' })
+    expect(screen.queryByText('Ya existe un tema con ese nombre.')).not.toBeInTheDocument()
+  })
+
+  it('la sesión es un filtro más: «Limpiar» la quita junto con la búsqueda y el estado', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([{ id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: false, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [] }])
+    workspace('content')
+    await choose(user, await screen.findByRole('combobox', { name: 'Filtrar por Sesión' }), /^Sesión 1/)
+    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
+    expect(screen.getByRole('combobox', { name: 'Filtrar por Sesión' })).toHaveTextContent('Todas las sesiones')
+    expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument()
+  })
+
+  it('nombra cada metodología, la duración por horas y minutos, y confirma con un texto propio de cada contenido', async () => {
+    const user = userEvent.setup()
+    const success = vi.spyOn(sonnerToast, 'success')
+    const method = { id: 92, activity_id: 91, description: 'Trabajo colaborativo', is_active: true }
+    const activity = { id: 91, topic_id: 90, name: 'Diseñar casos', duration: '30 minutos', is_active: true, methodologies: [method] }
+    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([{ ...topic, activities: [activity] }]))
+    vi.mocked(teacherApi.updateActivity).mockResolvedValue(activity)
+    vi.mocked(teacherApi.deactivateMethodology).mockResolvedValue({ ...method, is_active: false })
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
+    await user.click(await screen.findByText('Diseñar casos'))
+    await user.click(await screen.findByRole('button', { name: 'Editar actividad' }))
+    const form = await screen.findByRole('form', { name: 'Editar actividad' })
+    expect(within(form).getByRole('combobox', { name: 'Horas' })).toBeInTheDocument()
+    await choose(user, within(form).getByRole('combobox', { name: 'Minutos' }), '45 min')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(success.mock.calls.at(-1)?.[0]).toMatch(/^Actividad guardada\.?$/))
+
+    const row = await screen.findByTitle('Editar la metodología «Trabajo colaborativo»')
+    await user.click(within(row).getByText('Trabajo colaborativo'))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Editar metodología' })).getByRole('button', { name: 'Deshabilitar metodología' }))
+    const confirm = await screen.findByRole('dialog', { name: '¿Deshabilitar metodología?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Deshabilitar metodología' }))
+    await waitFor(() => expect(teacherApi.deactivateMethodology).toHaveBeenCalledWith(40, 90, 91, 92))
+    await waitFor(() => expect(success.mock.calls.at(-1)?.[0]).toMatch(/^Metodología deshabilitada\.?$/))
+  })
+
   it('abre la pantalla de un tema desde la URL y vuelve a la lista de temas', async () => {
     const user = userEvent.setup()
     show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
@@ -817,7 +994,7 @@ describe('Módulo Docente', () => {
   it('ya no ofrece el informe libre y sigue mostrando como texto los informes libres anteriores', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.reports).mockResolvedValue(paginated([{ id: 110, type: 'Informe de tutorías', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'Estudiantes inscritos: 1', summary: null }]))
-    show(<TeacherReportsStandalonePage />)
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
     await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     expect(await screen.findByRole('button', { name: 'Reportes oficiales' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enviar informe' })).not.toBeInTheDocument()
@@ -828,6 +1005,22 @@ describe('Módulo Docente', () => {
     expect(screen.getByRole('article', { name: 'Contenido del informe' })).toHaveTextContent('Estudiantes inscritos: 1')
     await user.click(screen.getByRole('button', { name: 'Volver a los informes' }))
     expect(await screen.findByRole('row', { name: /María López/ })).toBeInTheDocument()
+  })
+
+  it('la tutoría y el informe abiertos van en la URL: «atrás» del navegador vuelve a cada lista', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.reports).mockResolvedValue(paginated([{ id: 110, type: 'Informe de tutorías', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'Estudiantes inscritos: 1', summary: null }]))
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
+    // La pantalla de la tutoría lleva su título principal, como las demás pantallas de detalle.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Calidad de software' })).toBeInTheDocument()
+    expect(screen.queryByText(/formato institucional/)).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('row', { name: /María López/ }))
+    expect(screen.getByRole('heading', { name: 'Informe de tutorías' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Atrás del navegador' }))
+    expect(await screen.findByRole('row', { name: /María López/ })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Atrás del navegador' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Informes' })).toBeInTheDocument()
   })
 
   it('prepara el reporte de evaluación diagnóstica con el formato oficial y lo envía a coordinación', async () => {
@@ -851,7 +1044,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.diagnosticReportPreview).mockResolvedValue(summary)
     vi.mocked(teacherApi.sendDiagnosticReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
-    show(<TeacherReportsStandalonePage />)
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
     await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Reporte de Evaluación Diagnóstica' }))
@@ -883,7 +1076,7 @@ describe('Módulo Docente', () => {
       coordinator: null, groups: [], grades: [{ number: 1, identification: '0201234567', name: 'Ana Pérez', grade: null, group: null }],
     })
 
-    show(<TeacherReportsStandalonePage />)
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
     await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Reporte de Evaluación Diagnóstica' }))
@@ -906,7 +1099,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.diagnosticGradesPreview).mockResolvedValue(summary)
     vi.mocked(teacherApi.sendDiagnosticGrades).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
-    show(<TeacherReportsStandalonePage />)
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
     await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
@@ -945,7 +1138,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.followUpReportPreview).mockResolvedValue(summary)
     vi.mocked(teacherApi.sendFollowUpReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
-    show(<TeacherReportsStandalonePage />)
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
     await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Seguimiento de Tutorías' }))
@@ -1003,7 +1196,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.finalPaoReportPreview).mockResolvedValue(summary)
     vi.mocked(teacherApi.sendFinalPaoReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
-    show(<TeacherReportsStandalonePage />)
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
     await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Informe Final PAO' }))
@@ -1075,7 +1268,7 @@ describe('Módulo Docente', () => {
       ],
     }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([session]))
-    show(<TeacherReportsStandalonePage />)
+    show(<TeacherReportsStandalonePage />, '/panel/teacher-reports')
     await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
 
     // Cambiar a la pestaña de Revisión de actividades
@@ -1101,8 +1294,12 @@ describe('Módulo Docente', () => {
     expect(screen.getByText('0201112233 · ana.perez@ueb.edu.ec')).toBeInTheDocument()
     expect(screen.queryByText('Carlos Ausente')).not.toBeInTheDocument()
 
-    // Volver a la lista
+    // Volver a la lista, también con «atrás» del navegador
     await user.click(screen.getByRole('button', { name: /Volver a las fechas de tutoría/i }))
+    expect(await screen.findByText('Fechas de tutorías con asistencia registrada')).toBeInTheDocument()
+    await user.click(screen.getByRole('row', { name: /Sábado/ }))
+    expect(await screen.findByText('Diseño de microservicios')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Atrás del navegador' }))
     expect(await screen.findByText('Fechas de tutorías con asistencia registrada')).toBeInTheDocument()
   })
 
@@ -1118,6 +1315,12 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.degreeAssignments).mockResolvedValue(paginated([{ id: 120, role: 'tutor', assigned_at: '2026-09-29', topic: { id: 130, title: 'Calidad en APIs', description: 'Investigación de calidad.', status: 'aprobado' }, student: { id: 80, name: 'Ana Pérez', email: 'ana.perez@ueb.edu.ec' }, period: { id: 50, name: '2026-2' } }]))
     show(<TeacherDegreeAssignmentsPage />)
     await screen.findByText('Calidad en APIs')
+    // Mismos textos que en Seguimiento: «Participación» y «Docente tutor».
+    expect(screen.getByRole('columnheader', { name: 'Participación' })).toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Calidad en APIs/ })).getByText('Docente tutor')).toBeInTheDocument()
+    await user.click(screen.getByLabelText('Filtrar por Participación'))
+    expect(await screen.findByRole('option', { name: 'Docente tutor' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
     await choose(user, screen.getByLabelText('Filtrar por Participación'), 'Par académico')
     await waitFor(() => expect(teacherApi.degreeAssignments).toHaveBeenLastCalledWith({ page: 1, search: '', role: 'par_academico' }))
     await user.click(screen.getByText('Calidad en APIs'))
@@ -1176,6 +1379,11 @@ describe('Módulo Docente', () => {
     expect(await screen.findByText('Desarrollo de Software Seguro')).toBeInTheDocument()
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Participación' })).toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Desarrollo de Software Seguro/ })).getByText('Docente tutor')).toBeInTheDocument()
+    await user.click(screen.getByLabelText('Filtrar por Participación'))
+    expect(await screen.findByRole('option', { name: 'Docente tutor' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
 
     // Al abrir el detalle ya no hay pestañas en pantalla (se navegan desde el sidebar)
     await user.click(screen.getByText('Desarrollo de Software Seguro'))
@@ -1183,13 +1391,29 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.getByText('Desarrollo de Software Seguro')).toBeInTheDocument()
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
-    expect(screen.getByText('Docente Tutor')).toBeInTheDocument()
+    expect(screen.getByText('Docente tutor')).toBeInTheDocument()
+    // El estado de la ficha es un estado: badge con texto legible, no el valor crudo.
+    const status = screen.getByText('En progreso', { selector: '[data-slot="badge"]' })
+    expect(status).toBeInTheDocument()
+    expect(screen.queryByText(/en_progreso/i)).not.toBeInTheDocument()
     // La cédula ya no se muestra en el encabezado del tema
     expect(screen.queryByText(/0201234567/)).not.toBeInTheDocument()
 
     // Volver a la lista
     await user.click(screen.getByRole('button', { name: /Volver a mis temas/i }))
     expect(await screen.findByText('50%')).toBeInTheDocument()
+  })
+
+  it('redondea el avance del tema en la lista y en la ficha', async () => {
+    const user = userEvent.setup()
+    const partial = { ...mockTrackingTopic, tracking: { ...mockTrackingTopic.tracking, progress_percentage: 66.6667 } }
+    vi.mocked(teacherApi.degreeTracking).mockResolvedValue(paginated([partial]))
+    vi.mocked(teacherApi.degreeTrackingTopic).mockResolvedValue(partial)
+    show(<TeacherDegreeTrackingPage />, '/panel/teacher-degree-tracking')
+    expect(await screen.findByText('67%')).toBeInTheDocument()
+    await user.click(screen.getByText('Desarrollo de Software Seguro'))
+    expect(await screen.findByRole('progressbar', { name: 'Progreso general' })).toHaveAttribute('aria-valuenow', '67')
+    expect(screen.queryByText(/66\.6/)).not.toBeInTheDocument()
   })
 
   it('muestra el equipo de titulación de un tema enlazado directamente por URL', async () => {
@@ -1211,6 +1435,10 @@ describe('Módulo Docente', () => {
 
     expect(await screen.findByText(/Redactar introducción y objetivos/)).toBeInTheDocument()
     expect(screen.getByText(/Revisión por par académico/)).toBeInTheDocument()
+    // «(Tú)» es texto simple, no un enlace aparente; los roles con los mismos textos que en Titulación.
+    expect(screen.getByText('(Tú)')).not.toHaveClass('text-primary')
+    expect(screen.getAllByText('Docente tutor').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Par académico').length).toBeGreaterThan(0)
 
     // Para la tarea propia (201) hay un checkbox real para marcarla como completada
     vi.mocked(teacherApi.toggleDegreeTrackingActivity).mockResolvedValue({
@@ -1238,12 +1466,14 @@ describe('Módulo Docente', () => {
       registered_at: '2026-10-03',
     })
 
+    const success = vi.spyOn(sonnerToast, 'success')
     await user.click(screen.getByRole('button', { name: 'Registrar tarea' }))
     await waitFor(() => {
       expect(teacherApi.addDegreeTrackingActivity).toHaveBeenCalledWith(130, {
         descripcion: 'Entregar marco teórico',
       })
     })
+    await waitFor(() => expect(success.mock.calls.at(-1)?.[0]).toMatch(/^Tarea de seguimiento registrada\.?$/))
   })
 
   it('reordena las tareas: pendientes arriba, completadas abajo, al marcar una como completada', async () => {

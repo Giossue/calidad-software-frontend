@@ -105,7 +105,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
         setIsEditing(false)
         await onReload?.()
       },
-      'Horarios de tutoría actualizados con éxito.',
+      'Horarios de tutoría actualizados',
     )
   }
 
@@ -177,7 +177,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
         error={operation.error}
         dirty={snapshotOf(scheduleDays, dayTimes) !== initialSnapshot}
         blockReason={validate()}
-        onClose={() => setIsEditing(false)}
+        onClose={() => { setIsEditing(false); operation.clearError() }}
         onSubmit={handleSubmit}
         submitLabel="Guardar horarios"
         maxWidth="max-w-2xl"

@@ -267,7 +267,7 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.subjects).mockImplementation(async (params) => paginated([{ ...subject, name: params?.page === 2 ? 'Física' : 'Matemática' }], params?.page, 2))
     await openSubjects()
     await screen.findByText('Matemática')
-    const next = screen.getByRole('button', { name: 'Siguiente' })
+    const next = screen.getByRole('button', { name: 'Página siguiente' })
     await waitFor(() => expect(next).toBeEnabled())
     await user.click(next)
     expect(await screen.findByText('Física', {}, { timeout: 10000 })).toBeInTheDocument()

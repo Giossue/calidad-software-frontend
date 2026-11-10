@@ -16,7 +16,8 @@ import { FilterBarSkeleton, TableSkeleton } from '@/components/ui/loading-skelet
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
-import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
+import { formatDegreeDate, roundPercent } from '@/features/degree-coordination/degree-format'
+import { DegreeTrackingStatusBadge } from '@/features/degree-coordination/degree-shared'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { describeError } from '@/features/tutoring/tutoring-hooks'
@@ -26,6 +27,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { type DegreeActivity, type DegreeAssignment, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { teacherApi } from '@/lib/teacher-api'
 import { cn } from '@/lib/utils'
+import { DEGREE_ROLE_LABELS, DEGREE_ROLE_OPTIONS } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
 
 // Las pestañas de un tema se navegan desde el sidebar (sub-apartado de "Seguimiento"),
@@ -56,8 +58,6 @@ function progressTextTone(pct: number): string {
   if (pct < 66) return 'text-warning'
   return 'text-success'
 }
-
-const ROLE_LABELS: Readonly<Record<string, string>> = { tutor: 'Docente Tutor', par_academico: 'Par Académico' }
 
 export function TeacherDegreeTrackingPage() {
   const [params, setParams] = useSearchParams()
@@ -105,10 +105,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
             value: roleFilter,
             onChange: (val) => setRoleFilter(val as typeof roleFilter),
             allLabel: 'Todas las participaciones',
-            options: [
-              { value: 'tutor', label: 'Tutor' },
-              { value: 'par_academico', label: 'Par académico' },
-            ],
+            options: DEGREE_ROLE_OPTIONS,
           },
         ]}
       />
@@ -146,18 +143,16 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
             ),
           },
           {
-            label: 'Mi Participación',
+            label: 'Participación',
             render: (topic) => {
               const myRole = topic.assignments.find((a) => a.teacher?.id === user?.id)?.role
-              return (
-                <span>{myRole === 'tutor' ? 'Docente tutor' : myRole === 'par_academico' ? 'Par académico' : 'Asignado'}</span>
-              )
+              return <span>{(myRole && DEGREE_ROLE_LABELS[myRole]) ?? 'Asignado'}</span>
             },
           },
           {
             label: 'Avance',
             render: (topic) => {
-              const pct = Math.min(Math.max(topic.tracking?.progress_percentage ?? 0, 0), 100)
+              const pct = roundPercent(topic.tracking?.progress_percentage)
               return (
                 <div className="flex items-center gap-2.5 w-36">
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
@@ -260,7 +255,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
       await teacherApi.addDegreeTrackingActivity(topicId, { descripcion: newActivityDesc.trim() })
       setNewActivityDesc('')
       setActivityDialogOpen(false)
-      toast.success('Tarea de seguimiento registrada exitosamente.')
+      toast.success('Tarea de seguimiento registrada')
       resource.reload()
     } catch (err) {
       toast.error(describeError(err))
@@ -272,7 +267,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
   async function handleToggleActivity(activity: DegreeActivity) {
     try {
       await teacherApi.toggleDegreeTrackingActivity(topicId, activity.id, !activity.is_completed)
-      toast.success(activity.is_completed ? 'Tarea marcada como pendiente y guardada.' : 'Tarea marcada como completada y guardada.')
+      toast.success(activity.is_completed ? 'Tarea marcada como pendiente' : 'Tarea marcada como completada')
       resource.reload()
     } catch (err) {
       toast.error(describeError(err))
@@ -297,7 +292,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
 
   const tracking = topic.tracking
   const activities = tracking?.activities ?? []
-  const progress = Math.min(Math.max(tracking?.progress_percentage ?? 0, 0), 100)
+  const progress = roundPercent(tracking?.progress_percentage)
   const tutorAssignment = topic.assignments.find((a) => a.role === 'tutor')
   const peerAssignments = topic.assignments.filter((a) => a.role === 'par_academico')
   const myAssignment = topic.assignments.find((a) => a.teacher?.id === user?.id)
@@ -340,7 +335,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
           </div>
           {myAssignment && (
             <span className="shrink-0 text-sm text-muted-foreground">
-              {ROLE_LABELS[myAssignment.role] ?? 'Docente'}
+              {DEGREE_ROLE_LABELS[myAssignment.role] ?? 'Docente'}
             </span>
           )}
         </div>
@@ -405,7 +400,7 @@ function EstadoFichaPanel({
   const completed = activities.filter((a) => a.is_completed).length
   const facts = [
     { label: 'Ficha abierta', value: tracking?.opened_at ? formatDegreeDate(tracking.opened_at) : 'En progreso' },
-    { label: 'Estado de la ficha', value: <span className="capitalize">{tracking?.status || 'En progreso'}</span> },
+    { label: 'Estado de la ficha', value: <DegreeTrackingStatusBadge status={tracking?.status} /> },
     { label: 'Tareas completadas', value: `${completed} de ${activities.length}` },
     { label: 'Tareas pendientes', value: activities.length - completed },
   ]
@@ -466,9 +461,9 @@ function EquipoTitulacionPanel({
           name={topic.student?.name ?? 'Estudiante'}
           detail={[topic.student?.identification && `Cédula: ${topic.student.identification}`, topic.student?.email].filter(Boolean).join(' · ')}
         />
-        <TeamMember role="Docente Tutor" name={tutorAssignment?.teacher?.name ?? 'Sin tutor asignado'} detail={tutorAssignment?.teacher?.email ?? '—'} />
+        <TeamMember role={DEGREE_ROLE_LABELS.tutor} name={tutorAssignment?.teacher?.name ?? 'Sin tutor asignado'} detail={tutorAssignment?.teacher?.email ?? '—'} />
         {peerAssignments.map((peer, idx) => (
-          <TeamMember key={peer.id} role={`Par Académico ${idx + 1}`} name={peer.teacher?.name ?? 'Docente'} detail={peer.teacher?.email ?? '—'} />
+          <TeamMember key={peer.id} role={`${DEGREE_ROLE_LABELS.par_academico} ${idx + 1}`} name={peer.teacher?.name ?? 'Docente'} detail={peer.teacher?.email ?? '—'} />
         ))}
       </Card>
     </section>
@@ -561,9 +556,9 @@ function TareasPanel({
               return act.teacher ? (
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate">
-                    {act.teacher.name} {isMyTask && <span className="text-primary">(Tú)</span>}
+                    {act.teacher.name} {isMyTask && <span>(Tú)</span>}
                   </span>
-                  <span className="text-xs text-muted-foreground">{isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}</span>
+                  <span className="text-xs text-muted-foreground">{isTutor ? DEGREE_ROLE_LABELS.tutor : isPeer ? DEGREE_ROLE_LABELS.par_academico : 'Docente'}</span>
                 </div>
               ) : (
                 <span className="text-xs text-muted-foreground">Sin docente asignado</span>

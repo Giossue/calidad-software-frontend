@@ -32,8 +32,9 @@ const TABBED: Readonly<Record<string, readonly [param: string, defaultTab: strin
 }
 
 /** Sub-vistas que se abren con un parámetro de la URL dentro de una pestaña, de la más interna a la más externa. */
-const URL_SUB_VIEWS: Readonly<Record<string, readonly string[]>> = {
-  'teacher-tutorings': ['activity', 'topic', 'session'],
+// Parámetro de la URL → sub-vista de la guía (p. ej. `consult` abre el detalle de una sesión).
+const URL_SUB_VIEWS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'teacher-tutorings': { activity: 'activity', topic: 'topic', consult: 'session' },
 }
 
 /** La última sub-vista visible marcada con `data-tour-view`. */
@@ -53,7 +54,9 @@ function visibleView(): string | null {
 export function currentPageTourKey(section: string, params: URLSearchParams): string {
   const tabs = TABBED[section]
   const base = tabs && params.get(tabs[0]) ? `${section}/${params.get('tab') ?? tabs[1]}` : section
-  const subView = (URL_SUB_VIEWS[section] ?? []).find((param) => base !== section && params.get(param))
+  const subViews = URL_SUB_VIEWS[section] ?? {}
+  const subParam = Object.keys(subViews).find((param) => base !== section && params.get(param))
+  const subView = subParam ? subViews[subParam] : undefined
   const view = visibleView()
   const candidates = [subView && `${base}/${subView}`, view && `${base}/${view}`]
   return candidates.find((key): key is string => Boolean(key && PAGE_TOURS[key])) ?? base

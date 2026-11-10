@@ -30,7 +30,7 @@ describe('currentPageTourKey', () => {
   it('usa el tema, la actividad o la sesión abiertos dentro de la pestaña', () => {
     expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4&tab=content&topic=7'))).toBe('teacher-tutorings/content/topic')
     expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4&tab=content&topic=7&activity=9'))).toBe('teacher-tutorings/content/activity')
-    expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4&session=2026-05-04'))).toBe('teacher-tutorings/attendance/session')
+    expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4&consult=2026-05-04'))).toBe('teacher-tutorings/attendance/session')
     // En la ficha de titulación, «topic» abre la ficha: no es una sub-vista.
     expect(currentPageTourKey('teacher-degree-tracking', new URLSearchParams('topic=3&tab=tareas'))).toBe('teacher-degree-tracking/tareas')
   })

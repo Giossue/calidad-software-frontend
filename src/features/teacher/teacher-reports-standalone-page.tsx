@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ArrowLeftIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Button } from '@/components/ui/button'
+import { TableSkeleton } from '@/components/ui/loading-skeletons'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
@@ -15,7 +16,12 @@ const groupLabel = (tutoring: TeacherTutoring) => `${tutoring.cycle_name}${tutor
 
 export function TeacherReportsStandalonePage() {
   const resource = useDegreeResource(() => teacherApi.allTutorings())
-  const [selected, setSelected] = useState<TeacherTutoring | null>(null)
+  // La tutoría abierta va en la URL: «atrás» del navegador vuelve a la lista de tutorías.
+  const [params, setParams] = useSearchParams()
+  const selectedId = Number(params.get('tutoring')) || null
+  const selected = selectedId ? resource.data?.find((item) => item.id === selectedId) ?? null : null
+
+  if (selectedId && resource.loading) return <TableSkeleton columns={3} />
 
   if (selected) {
     return (
@@ -25,14 +31,13 @@ export function TeacherReportsStandalonePage() {
             type="button"
             variant="tertiary"
             size="sm"
-            onClick={() => setSelected(null)}
+            onClick={() => setParams({})}
             className="-ml-2 w-fit"
           >
             <ArrowLeftIcon data-icon="inline-start" />
             Elegir otra tutoría
           </Button>
-          <h2 className="text-2xl font-semibold tracking-tight">{selected.subject_name}</h2>
-          <p className="text-sm text-muted-foreground">{selected.career_name} · {groupLabel(selected)}</p>
+          <AdminSectionHeader title={selected.subject_name} description={`${selected.career_name} · ${groupLabel(selected)}`} />
         </div>
         <ReportsPanel tutoring={selected} />
       </section>
@@ -50,7 +55,7 @@ export function TeacherReportsStandalonePage() {
       <RecordTable
         rows={resource.data ?? []}
         loading={resource.loading}
-        onRowClick={setSelected}
+        onRowClick={(tutoring) => setParams({ tutoring: String(tutoring.id) })}
         rowTitle={(tutoring) => `Ver informes de ${tutoring.subject_name}`}
         empty={
           <TeacherEmpty

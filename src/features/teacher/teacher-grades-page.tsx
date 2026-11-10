@@ -3,11 +3,11 @@ import { MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-re
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/data-table'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { SelectInput } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TableSkeleton } from '@/components/ui/loading-skeletons'
@@ -140,9 +140,7 @@ function groupFor(value: string, settings: GradeSettings): string | null {
 function GradesSkeleton() {
   return <div role="status" aria-label="Cargando calificaciones" className="flex flex-col gap-5">
     <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-      <Skeleton className="h-5 w-12" />
       <Skeleton className="h-9 w-56" />
-      <Skeleton className="h-5 w-72 max-w-full" />
     </div>
     <TableSkeleton columns={GRADE_FIELDS.length + 3} />
   </div>
@@ -162,7 +160,7 @@ export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   </div>
 }
 
-type GradesTableMeta = { grid: Grid; stage: GradeType | null; settings: GradeSettings; disabled: boolean; onChange: (studentId: number, type: GradeType, value: string) => void }
+type GradesTableMeta = { grid: Grid; saved: Grid; stage: GradeType | null; settings: GradeSettings; disabled: boolean; onChange: (studentId: number, type: GradeType, value: string) => void }
 
 // Columnas estables: el estado llega por `meta` para que las casillas no se remonten (y pierdan el foco) al escribir.
 const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
@@ -173,9 +171,9 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
     header: ({ table }) => <div className={`text-center ${(table.options.meta as GradesTableMeta).stage === type ? 'text-foreground' : ''}`}>{label}</div>,
     cell: ({ row, table }) => {
       const meta = table.options.meta as GradesTableMeta
+      // Solo la etapa elegida se edita; las otras muestran lo guardado (nunca un borrador).
+      if (meta.stage !== type) return <div className="text-center tabular-nums text-muted-foreground">{meta.saved[row.original.id]?.[type] || '—'}</div>
       const value = meta.grid[row.original.id]?.[type] ?? ''
-      // Solo la etapa elegida se edita; las otras se muestran como referencia.
-      if (meta.stage !== type) return <div className="text-center tabular-nums text-muted-foreground">{value || '—'}</div>
       return <div className="flex flex-col items-center gap-1">
         <Input
           className="h-9 w-24 text-center tabular-nums"
@@ -203,20 +201,23 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
     header: () => <div className="text-center">Evolución (Diag → P2)</div>,
     cell: ({ row, table }) => {
       const meta = table.options.meta as GradesTableMeta
-      const diagStr = meta.grid[row.original.id]?.diagnostic ?? ''
-      const p2Str = meta.grid[row.original.id]?.partial_two ?? ''
-      const p1Str = meta.grid[row.original.id]?.partial ?? ''
+      // Se calcula con las notas guardadas: lo escrito y no guardado no cuenta como evolución.
+      const diagStr = meta.saved[row.original.id]?.diagnostic ?? ''
+      const p2Str = meta.saved[row.original.id]?.partial_two ?? ''
+      const p1Str = meta.saved[row.original.id]?.partial ?? ''
       const evo = computeEvolution(diagStr, p2Str, p1Str)
 
       const icon = evo.status === 'up' ? <TrendingUpIcon aria-hidden="true" /> : evo.status === 'down' ? <TrendingDownIcon aria-hidden="true" /> : evo.status === 'same' ? <MinusIcon aria-hidden="true" /> : null
       const tone = evo.status === 'up' ? 'text-success' : evo.status === 'down' ? 'text-destructive' : 'text-muted-foreground'
       // El detalle del cálculo se lee en un tooltip; la celda muestra solo la diferencia.
-      // Es un valor, no un estado: va como texto con su color, sin badge.
+      // La diferencia es un valor (texto con su color); «Pendiente P2» es un estado (badge).
       return (
         <div className="flex justify-center">
           <Tooltip>
             <TooltipTrigger asChild>
-              {evo.status === 'pending' || evo.status === 'no_diag'
+              {evo.status === 'pending'
+                ? <span tabIndex={0} className="inline-flex"><Badge variant="warning">{evo.label}</Badge></span>
+                : evo.status === 'no_diag'
                 ? <span tabIndex={0} className="text-xs text-muted-foreground">{evo.label}</span>
                 : <span tabIndex={0} className={`inline-flex items-center gap-1 text-sm tabular-nums [&>svg]:size-4 ${tone}`}>{icon}<span>{evo.label}</span></span>}
             </TooltipTrigger>
@@ -262,7 +263,8 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
   })
   // Sin etapa elegida la tabla es solo de consulta; se elige una etapa únicamente para cargar o corregir notas.
   const [stage, setStage] = useState<GradeType | null>(null)
-  const [confirmCancel, setConfirmCancel] = useState(false)
+  // Etapa a la que se quiere pasar (o 'all' para volver a la consulta) mientras se confirma descartar lo no guardado.
+  const [confirmTarget, setConfirmTarget] = useState<GradeType | 'all' | null>(null)
   const readOnly = !tutoring.can_manage
 
   function setValue(studentId: number, type: GradeType, value: string) {
@@ -281,14 +283,14 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
   const changed = stage ? active.some((student) => valueOf(student.id, stage) !== (saved[student.id]?.[stage] ?? '')) : false
   const label = stage ? stageLabel(stage) : ''
 
-  // Cancelar descarta lo escrito (y no guardado) de la etapa y vuelve a modo consulta.
-  function leaveStage() {
+  // Salir de una etapa descarta lo escrito (y no guardado) en ella y pasa a otra etapa o a la consulta.
+  function leaveStage(next: GradeType | null = null) {
     if (stage) {
       setGrid((current) => Object.fromEntries(Object.entries(current).map(([id, values]) => [id, { ...values, [stage]: saved[Number(id)]?.[stage] ?? '' }])))
       clearDraft(tutoring.id, stage)
     }
-    setConfirmCancel(false)
-    setStage(null)
+    setConfirmTarget(null)
+    setStage(next)
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -310,19 +312,20 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
     value: type,
     label: `${name} · ${active.every((student) => saved[student.id]?.[type]) ? 'Completo' : 'Pendiente'}`,
   }))
-  // Volver a «Todas las etapas» con notas sin guardar pide confirmación; cambiar de etapa conserva el borrador.
+  // Salir de la etapa con notas sin guardar (a otra etapa o a «Todas las etapas») pide confirmar el descarte.
   function chooseStage(value: string) {
-    if (value === '') {
-      if (stage) { if (changed) setConfirmCancel(true); else leaveStage() }
-      return
-    }
-    setStage(value as GradeType)
+    const next = value === '' ? null : value as GradeType
+    if (next === stage) return
+    if (stage && changed) setConfirmTarget(next ?? 'all')
+    else leaveStage(next)
   }
+  // Notas escritas y no guardadas de otra visita (borrador): se avisan, nunca se muestran como guardadas.
+  const draftStages = stage ? [] : GRADE_FIELDS.filter(({ type }) => active.some((student) => valueOf(student.id, type) !== (saved[student.id]?.[type] ?? '')))
 
-  const tableMeta: GradesTableMeta = { grid, stage, settings, disabled: readOnly || operation.pending, onChange: setValue }
+  const tableMeta: GradesTableMeta = { grid, saved, stage, settings, disabled: readOnly || operation.pending, onChange: setValue }
   const saveBlocked = readOnly || !complete || hasInvalid || !changed
   const missing = total - filled
-  const hint = readOnly ? '' : hasInvalid ? 'Hay notas incompletas o fuera de la escala.' : missing > 0 ? `Faltan ${missing} ${missing === 1 ? 'nota' : 'notas'} de ${label}.` : !changed ? 'No hay cambios por guardar.' : 'Todo listo para guardar.'
+  const hint = readOnly ? '' : hasInvalid ? 'Hay notas incompletas o fuera de la escala.' : missing > 0 ? `${missing === 1 ? 'Falta 1 nota' : `Faltan ${missing} notas`} de ${label}.` : !changed ? 'No hay cambios por guardar.' : 'Todo listo para guardar.'
 
   if (active.length === 0) return <TeacherEmpty title="No hay estudiantes para evaluar" description="Inscribe estudiantes en la pestaña Estudiantes para cargar sus calificaciones." />
 
@@ -330,9 +333,9 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
   <form onSubmit={submit} aria-label="Calificaciones" className="flex flex-col gap-4">
     {readOnly && <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>}
     {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2">
-      <Label htmlFor={`grades-stage-${tutoring.id}`} className="text-muted-foreground">Etapa</Label>
       <SelectInput
         id={`grades-stage-${tutoring.id}`}
+        ariaLabel="Etapa"
         value={stage ?? ''}
         onValueChange={chooseStage}
         emptyLabel="Todas las etapas"
@@ -340,8 +343,8 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
         disabled={operation.pending}
         className="w-56"
       />
-      {!stage && <span className="text-sm text-muted-foreground">Elige una etapa para ingresar sus notas.</span>}
     </div>}
+    {draftStages.length > 0 && <Alert><AlertDescription>Tienes notas sin guardar de {draftStages.map((item) => item.label).join(', ')}. Elige la etapa para revisarlas y guardarlas; mientras tanto se muestran las notas guardadas.</AlertDescription></Alert>}
     <JointNotice groups={joint.map((item) => item.group)} include={includeJoint} onIncludeChange={setIncludeJoint} action="calificar" />
     {groups.map(({ group, active: groupStudents }) => (
       <section key={group.id} aria-label={groups.length > 1 ? `Grupo ${group.label}` : undefined} className="flex flex-col gap-2">
@@ -352,11 +355,11 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
     <ErrorNotice message={operation.error} />
     {stage && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background py-3">
       <div className="flex flex-col">
-        <p className="text-sm" aria-live="polite">{filled} de {total} notas de {label} ingresadas</p>
+        <p className="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">{filled} de {total} notas de {label} ingresadas{changed && <Badge variant="warning">Sin guardar</Badge>}</p>
         <p className="text-xs text-muted-foreground"><span>{hint}</span> <span>Escala de 0 a {settings.maximum}, hasta dos decimales (ej. 9.42).</span></p>
       </div>
       <div className="flex items-center gap-2">
-        <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => (changed ? setConfirmCancel(true) : leaveStage())}>Cancelar</Button>
+        <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => (changed ? setConfirmTarget('all') : leaveStage())}>Cancelar</Button>
         <Tooltip>
           <TooltipTrigger asChild>
             <span tabIndex={saveBlocked ? 0 : -1}>
@@ -368,6 +371,6 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
       </div>
     </div>}
   </form>
-    <ConfirmModal open={confirmCancel} title={`¿Descartar las notas de ${label}?`} description="Lo que escribiste y no guardaste se perderá y volverás al modo consulta." confirmLabel="Sí, descartar" cancelLabel="Seguir editando" variant="destructive" onClose={() => setConfirmCancel(false)} onConfirm={leaveStage} />
+    <ConfirmModal open={confirmTarget !== null} title={`¿Descartar las notas de ${label}?`} description={`Lo que escribiste y no guardaste se perderá y ${confirmTarget && confirmTarget !== 'all' ? `pasarás a ${stageLabel(confirmTarget)}` : 'volverás al modo consulta'}.`} confirmLabel="Sí, descartar" cancelLabel="Seguir editando" variant="destructive" onClose={() => setConfirmTarget(null)} onConfirm={() => leaveStage(confirmTarget && confirmTarget !== 'all' ? confirmTarget : null)} />
   </>
 }

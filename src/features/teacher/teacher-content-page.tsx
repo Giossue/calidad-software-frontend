@@ -11,7 +11,6 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -26,6 +25,7 @@ import { formatDate } from '@/lib/format'
 import { TOPIC_FILE_ACCEPT, TOPIC_FILES_PER_TOPIC, topicFileError, type TopicFile } from '@/lib/topic-files'
 import { teacherApi, type Activity, type Methodology, type TeacherTutoring, type TutoringSession, type TutoringTopic } from '@/lib/teacher-api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
+import { serverFieldError } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
 
 type Kind = 'topic' | 'activity' | 'methodology'
@@ -34,6 +34,11 @@ type Editing = { kind: Kind; record: ContentRecord | null }
 /** Recurso en el formulario: ya subido (`stored`) o por subir al guardar (`upload`). */
 type FormFile = { key: string | number; name: string; size: number; stored?: TopicFile; upload?: File }
 const LABELS = { topic: 'tema', activity: 'actividad', methodology: 'metodología' }
+// Toasts propios de cada contenido (nada de un genérico «Contenido guardado»).
+const SAVED = { topic: 'Tema guardado', activity: 'Actividad guardada', methodology: 'Metodología guardada' }
+const SUBJECTS = { topic: 'El tema', activity: 'La actividad', methodology: 'La metodología' }
+const DISABLED = { topic: 'Tema deshabilitado', activity: 'Actividad deshabilitada', methodology: 'Metodología deshabilitada' }
+const shorten = (text: string, max = 60) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text)
 const EMPTY = { name: '', description: '', duration: '' }
 const HOUR_OPTIONS = [0, 1, 2, 3, 4].map((hours) => ({ value: String(hours), label: hours === 1 ? '1 hora' : `${hours} horas` }))
 const MINUTE_OPTIONS = [0, 10, 15, 20, 25, 30, 40, 45, 50].map((minutes) => ({ value: String(minutes), label: `${minutes} min` }))
@@ -165,7 +170,12 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       if (!activity) throw new Error('Selecciona una actividad.')
       return id ? teacherApi.updateMethodology(tutoring.id, topic.id, activity.id, id, { description: form.description.trim() }) : teacherApi.createMethodology(tutoring.id, topic.id, activity.id, { description: form.description.trim() })
     }
-    void operation.run(command, 'Contenido guardado.', async () => { setEditing(null); await list.reload(); await sessionsRes.reload() })
+    void operation.run(command, SAVED[editing.kind], async () => { setEditing(null); await list.reload(); await sessionsRes.reload() })
+  }
+  // Al cerrar un formulario, su error del servidor se va con él (no queda en la pestaña).
+  function closeEditor() {
+    setEditing(null)
+    operation.clearError()
   }
   async function saveTopic(id: number | undefined) {
     const saved = id ? await teacherApi.updateTopic(tutoring.id, id, { name: form.name.trim(), description: '' }) : await teacherApi.createTopic(tutoring.id, { name: form.name.trim(), description: '' })
@@ -216,7 +226,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       if (!activity) throw new Error('Selecciona una actividad.')
       return teacherApi.deactivateMethodology(tutoring.id, topic.id, activity.id, record.id)
     }
-    void operation.run(command, 'Contenido deshabilitado.', async () => { setDeactivating(null); setEditing(null); await list.reload(); await sessionsRes.reload() })
+    void operation.run(command, DISABLED[deactivating.kind], async () => { setDeactivating(null); setEditing(null); await list.reload(); await sessionsRes.reload() })
   }
   function toggleTopicCoverage(topicItem: TutoringTopic) {
     if (!canManage || !topicItem.is_active || operation.pending) return
@@ -245,7 +255,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     if (!canManage || !record.is_active || operation.pending) return
     openForm(nextKind, record)
   }
-  const rowTitle = (record: ContentRecord) => canManage && record.is_active ? 'Editar' : ''
+  const methodologyTitle = (record: Methodology) => canManage && record.is_active ? `Editar la metodología «${shorten(record.description)}»` : ''
   const openTitle = (record: TutoringTopic | Activity) => `Abrir ${record.name}`
   const title = activity ? `Metodologías de ${activity.name}` : topic ? `Actividades de ${topic.name}` : 'Temas de la tutoría'
   const contentBlockReason = editing?.kind === 'methodology'
@@ -288,21 +298,17 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             search={list.searchInput}
             onSearch={list.setSearchInput}
             searchPlaceholder="Busca por tema…"
-            onClear={() => setStatus('')}
-            leading={sessions.length > 0 ? (
-              <div className="flex shrink-0 items-center gap-2">
-                <Label htmlFor="teacher-content-session" className="sr-only">Sesión</Label>
-                <SelectInput
-                  id="teacher-content-session"
-                  value={selectedSessionDate === 'all' ? '' : selectedSessionDate}
-                  onValueChange={(value) => setSelectedSessionDate(value || 'all')}
-                  emptyLabel="Todas las sesiones"
-                  options={sessionOptions}
-                  className="w-72"
-                />
-              </div>
-            ) : undefined}
+            onClear={() => { setStatus(''); setSelectedSessionDate('all') }}
             filters={[
+              // La sesión es opcional («Todas las sesiones»): es un filtro más y «Limpiar» la quita.
+              ...(sessions.length > 0 ? [{
+                id: 'session',
+                label: 'Sesión',
+                value: selectedSessionDate === 'all' ? '' : selectedSessionDate,
+                onChange: (value: string) => setSelectedSessionDate(value || 'all'),
+                allLabel: 'Todas las sesiones',
+                options: sessionOptions,
+              }] : []),
               {
                 id: 'status',
                 label: 'Estado',
@@ -346,7 +352,6 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     )}
 
     <ErrorNotice message={list.error} retry={list.reload} />
-    {!editing && <ErrorNotice message={operation.error} />}
 
     {activity ? (
       <RecordTable
@@ -354,7 +359,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         loading={list.isFetching}
         empty={<TeacherEmpty title="Esta actividad aún no tiene metodologías" />}
         onRowClick={(item) => editRecord(item, 'methodology')}
-        rowTitle={rowTitle}
+        rowTitle={methodologyTitle}
         columns={[
           { label: 'Metodología', render: (item) => <p className="whitespace-pre-wrap break-words">{item.description}</p> },
           { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
@@ -447,17 +452,19 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       description={activity?.name ?? topic?.name ?? tutoring.subject_name}
       pending={operation.pending}
       error={operation.error}
+      errorModal={operation.errorModal}
       dirty={JSON.stringify(form) !== JSON.stringify(initial) || pendingFiles.length > 0 || removedFileIds.length > 0}
       blockReason={contentBlockReason}
-      onClose={() => setEditing(null)}
+      onClose={closeEditor}
       onSubmit={submit}
       submitLabel={editing?.record ? 'Guardar cambios' : `Registrar ${editing ? LABELS[editing.kind] : ''}`}
       headerActions={editing?.record ? <IconAction label={`Deshabilitar ${LABELS[editing.kind]}`} icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} /> : undefined}
     >
       {editing?.kind !== 'methodology' && (
-        <FormField id="teacher-content-name" label="Nombre" required counter={{ current: form.name.length, max: 150 }}>
+        <FormField id="teacher-content-name" label="Nombre" required counter={{ current: form.name.length, max: 150 }} error={serverFieldError(operation, 'name')}>
           <Input
             id="teacher-content-name"
+            aria-invalid={Boolean(serverFieldError(operation, 'name'))}
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
             maxLength={150}
@@ -467,7 +474,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         </FormField>
       )}
       {editing?.kind === 'topic' && (
-        <FormField id="teacher-topic-files" label="Recursos" optional tip="Los estudiantes inscritos podrán descargarlos desde el contenido de la tutoría." error={fileError}>
+        <FormField id="teacher-topic-files" label="Recursos" optional error={fileError}>
           <div className="flex flex-col gap-2">
             <TopicFileList
               files={formFiles}
@@ -486,13 +493,14 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         </FormField>
       )}
       {editing?.kind === 'activity' && (
-        <FormField id="activity-timer-hours" label="Duración de la actividad">
+        <FormField id="activity-timer-hours" label="Duración de la actividad" error={serverFieldError(operation, 'duration')}>
           <div className="flex flex-col gap-2.5">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">Horas</span>
                 <SelectInput
                   id="activity-timer-hours"
+                  ariaLabel="Horas"
                   value={String(timerHours)}
                   onValueChange={(value) => updateTimer(Number(value), timerMinutes)}
                   options={HOUR_OPTIONS}
@@ -502,6 +510,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                 <span className="text-xs text-muted-foreground">Minutos</span>
                 <SelectInput
                   id="activity-timer-minutes"
+                  ariaLabel="Minutos"
                   value={String(timerMinutes)}
                   onValueChange={(value) => updateTimer(timerHours, Number(value))}
                   options={MINUTE_OPTIONS}
@@ -512,9 +521,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         </FormField>
       )}
       {editing?.kind === 'methodology' && (
-        <FormField id="teacher-content-description" label="Descripción" required counter={{ current: form.description.length, max: 255 }}>
+        <FormField id="teacher-content-description" label="Descripción" required counter={{ current: form.description.length, max: 255 }} error={serverFieldError(operation, 'description')}>
           <Textarea
             id="teacher-content-description"
+            aria-invalid={Boolean(serverFieldError(operation, 'description'))}
             value={form.description}
             onChange={(event) => setForm({ ...form, description: event.target.value })}
             maxLength={255}
@@ -530,8 +540,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       description="Marca los temas que trataste en esta sesión. Se marcarán como completados."
       pending={operation.pending}
       error={operation.error}
+      errorModal={operation.errorModal}
       dirty={assignDirty}
-      onClose={() => setAssigningSession(null)}
+      onClose={() => { setAssigningSession(null); operation.clearError() }}
       onSubmit={saveAssignedTopics}
       submitLabel="Guardar temas de la sesión"
     >
@@ -559,7 +570,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         )}
       </div>
     </FormDialog>
-    <ConfirmModal open={Boolean(deactivating)} title={`¿Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}?`} description="El contenido dejará de estar disponible para nuevas sesiones. Su historial se conservará." pending={operation.pending} confirmLabel="Deshabilitar contenido" onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={deactivate} />
+    <ConfirmModal open={Boolean(deactivating)} title={`¿Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}?`} description={`${deactivating ? SUBJECTS[deactivating.kind] : 'El contenido'} dejará de estar disponible para nuevas sesiones. Su historial se conservará.`} pending={operation.pending} confirmLabel={`Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}`} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={deactivate} />
   </div>
 }
 

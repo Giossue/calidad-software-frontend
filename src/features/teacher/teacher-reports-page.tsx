@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   ArrowLeftIcon,
   ChevronDownIcon,
@@ -34,12 +35,30 @@ import { FollowUpReportDialog } from './teacher-follow-up-report-dialog'
 import { TeacherEmpty } from './teacher-shared'
 
 
+// Pestaña, informe abierto y fecha revisada van en la URL: «atrás» del navegador vuelve a cada lista.
+const TAB_PARAM = 'tab'
+const REPORT_PARAM = 'report'
+const REVIEW_PARAM = 'review'
+
+function useSubView() {
+  const [params, setParams] = useSearchParams()
+  function update(changes: Readonly<Record<string, string | null>>, replace = false) {
+    const next = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value); else next.delete(key)
+    }
+    setParams(next, { replace })
+  }
+  return { params, update }
+}
+
 export function ReportsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
-  const [tab, setTab] = useState<'reports' | 'activities'>('reports')
+  const { params, update } = useSubView()
+  const tab = params.get(TAB_PARAM) === 'activities' ? 'activities' : 'reports'
 
   return (
     <div className="flex flex-col gap-5">
-      <Tabs value={tab} onValueChange={(val) => setTab(val as 'reports' | 'activities')}>
+      <Tabs value={tab} onValueChange={(val) => update({ [TAB_PARAM]: val === 'activities' ? 'activities' : null, [REPORT_PARAM]: null, [REVIEW_PARAM]: null }, true)}>
         <TabsList aria-label="Secciones de informes">
           <TabsTrigger value="reports">Informes enviados</TabsTrigger>
           <TabsTrigger value="activities">Revisión de actividades</TabsTrigger>
@@ -59,7 +78,10 @@ export function ReportsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
 
 function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const list = usePaginatedCatalog((page) => teacherApi.reports(tutoring.id, { page }), String(tutoring.id))
-  const [reading, setReading] = useState<TeacherReport | null>(null)
+  const { params, update } = useSubView()
+  const readingId = Number(params.get(REPORT_PARAM)) || null
+  const reading = readingId ? list.data.find((report) => report.id === readingId) ?? null : null
+  const setReading = (report: TeacherReport | null) => update({ [REPORT_PARAM]: report ? String(report.id) : null })
   const [diagnosticOpen, setDiagnosticOpen] = useState(false)
   const [gradesOpen, setGradesOpen] = useState(false)
   const [followUpOpen, setFollowUpOpen] = useState(false)
@@ -97,8 +119,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Los reportes oficiales siguen el formato institucional.</p>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="ml-auto flex shrink-0 flex-wrap gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -170,8 +191,11 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
 }
 
 function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
-  const [selectedSession, setSelectedSession] = useState<TutoringSession | null>(null)
   const list = usePaginatedCatalog((page) => teacherApi.sessions(tutoring.id, { page }), `sessions-review:${tutoring.id}`)
+  const { params, update } = useSubView()
+  const reviewDate = params.get(REVIEW_PARAM)
+  const selectedSession = reviewDate ? list.data.find((session) => session.date === reviewDate) ?? null : null
+  const setSelectedSession = (session: TutoringSession | null) => update({ [REVIEW_PARAM]: session ? session.date : null })
 
   if (selectedSession) {
     const sessionDay = getDayOfWeekFromDate(selectedSession.date)
