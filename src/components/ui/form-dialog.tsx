@@ -180,15 +180,18 @@ export function FormDialog({
               <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
             )}
             {isLastStep ? (
-              <BlockedReason reason={pending ? null : reason}>
+              <BlockedReason key="submit" reason={pending ? null : reason}>
                 <Button type="submit" disabled={blocked}>
                   {pending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <SubmitIcon data-icon="inline-start" />}
                   {pending ? 'Guardando…' : submitLabel}
                 </Button>
               </BlockedReason>
             ) : (
-              <BlockedReason reason={stepReason}>
-                <Button type="button" disabled={Boolean(stepReason)} onClick={goNext}>
+              // Clave distinta a la del botón de enviar: si React reutilizara el mismo nodo, el
+              // botón pasaría a ser de envío durante el mismo clic y el formulario se enviaría
+              // sin mostrar el paso siguiente.
+              <BlockedReason key="next" reason={stepReason}>
+                <Button type="button" disabled={Boolean(stepReason)} onClick={(event) => { event.preventDefault(); goNext() }}>
                   Siguiente
                   <ArrowRightIcon data-icon="inline-end" />
                 </Button>

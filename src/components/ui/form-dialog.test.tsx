@@ -41,6 +41,8 @@ describe('FormDialog con pasos', () => {
     expect(within(form).queryByRole('button', { name: 'Registrar asignatura' })).not.toBeInTheDocument()
 
     await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
+    // «Siguiente» solo avanza: no envía el formulario aunque en su lugar aparezca el botón de enviar.
+    expect(onSubmit).not.toHaveBeenCalled()
     expect(within(form).getByLabelText(/^Ciclo/)).toBeInTheDocument()
     expect(within(form).queryByLabelText(/^Nombre/)).not.toBeInTheDocument()
 
