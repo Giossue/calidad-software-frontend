@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { UsersPage } from '@/features/admin/users-page'
-import { api, type Career, type Faculty, type User } from '@/lib/api'
+import { api, ApiError, type Career, type Faculty, type User } from '@/lib/api'
 
 // Los selects son de shadcn (Radix): se abren y se elige la opción por su texto.
 async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLElement, option: string) {
@@ -433,5 +433,27 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
       )
     })
   }, 15000)
-})
 
+  it('muestra el error del servidor en línea dentro del formulario, sin otro modal encima', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'createUser').mockRejectedValue(new ApiError(422, {
+      message: 'The email has already been taken.',
+      errors: { email: ['The email has already been taken.'] },
+    }))
+
+    render(<UsersPage />)
+    await screen.findByText('Carlos Docente')
+    await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
+    const dialog = await screen.findByRole('dialog')
+
+    await user.type(within(dialog).getByLabelText('Cédula o pasaporte'), '1710034065')
+    await user.type(within(dialog).getByLabelText('Nombre completo'), 'Docente Nuevo')
+    await user.type(within(dialog).getByLabelText('Correo electrónico institucional'), 'carlos@ueb.edu.ec')
+    await user.type(within(dialog).getByLabelText('Teléfono'), '0987654321')
+    await choose(user, within(dialog).getByLabelText('Rol en el sistema'), 'Docente')
+    await user.click(within(dialog).getByRole('button', { name: 'Registrar Usuario' }))
+
+    expect(await within(dialog).findByText('Correo ya registrado')).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+})

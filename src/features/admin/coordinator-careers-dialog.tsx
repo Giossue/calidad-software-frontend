@@ -2,11 +2,10 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { FormDialog } from '@/components/ui/form-dialog'
-import { InfoTip } from '@/components/ui/info-tip'
 import { Spinner } from '@/components/ui/spinner'
 import { ApiError, type Career, type User } from '@/lib/api'
 import { coordinatorCareersApi } from '@/lib/coordinator-careers-api'
@@ -84,33 +83,26 @@ export function CoordinatorCareersDialog({ user, onClose, onSaved }: Readonly<{
       title="Asignar carreras"
       description={`Selecciona las carreras que puede coordinar ${user.name}.`}
       pending={pending}
-      error={null}
+      error={saveError}
+      errorModal={saveError ? { title: 'No se pudieron guardar las carreras', description: saveError } : null}
       dirty={dirty}
       submitDisabled={loading || Boolean(loadError)}
       submitLabel="Guardar carreras"
     >
         {loading && <p role="status" className="flex items-center gap-2"><Spinner aria-hidden="true" /> Cargando carreras…</p>}
-        {loadError && (
-          <Alert variant="destructive">
-            <AlertTitle>No se pudieron cargar las carreras</AlertTitle>
-            <AlertDescription>
-              <p>{loadError}</p>
-              <Button type="button" variant="secondary" onClick={() => {
-                setLoading(true)
-                setLoadError(null)
-                setLoadVersion((value) => value + 1)
-              }}>
-                Reintentar
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+        <ErrorNotice
+          title="No se pudieron cargar las carreras"
+          message={loadError}
+          retry={() => {
+            setLoading(true)
+            setLoadError(null)
+            setLoadVersion((value) => value + 1)
+          }}
+        />
         {!loading && !loadError && (
           <FieldSet disabled={pending}>
-            <div className="mb-3 flex items-center gap-1.5">
-              <FieldLegend className="mb-0 font-semibold">Carreras disponibles</FieldLegend>
-              <InfoTip>Puedes seleccionar varias carreras. Si desmarcas todas, el coordinador perderá el acceso a la gestión de tutorías.</InfoTip>
-            </div>
+            <FieldLegend className="mb-1">Carreras disponibles</FieldLegend>
+            <FieldDescription className="mb-3">Puedes marcar varias. Si desmarcas todas, el coordinador perderá el acceso a la gestión de tutorías.</FieldDescription>
             {careers.length === 0 && (
               <Alert>
                 <AlertTitle>No hay carreras activas</AlertTitle>
@@ -145,12 +137,6 @@ export function CoordinatorCareersDialog({ user, onClose, onSaved }: Readonly<{
               <FieldDescription>Las asignaciones a carreras no disponibles se conservan hasta que las desmarques.</FieldDescription>
             )}
           </FieldSet>
-        )}
-        {saveError && (
-          <Alert variant="destructive">
-            <AlertTitle>No se pudieron guardar las carreras</AlertTitle>
-            <AlertDescription>{saveError}</AlertDescription>
-          </Alert>
         )}
     </FormDialog>
   )

@@ -65,8 +65,9 @@ describe('Edición de carreras', () => {
     await user.type(within(dialog).getByLabelText('Nombre de la carrera'), 'Software')
     await user.click(within(dialog).getByRole('button', { name: 'Registrar Carrera' }))
 
-    const alertDialog = await screen.findByRole('alertdialog')
-    expect(within(alertDialog).getByText('Carrera ya registrada')).toBeInTheDocument()
+    // El error se muestra una sola vez, en línea dentro del modal (sin otro modal encima).
+    expect(await within(dialog).findByText('Carrera ya registrada')).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })
 
@@ -80,7 +81,9 @@ describe('Gestión de ciclos', () => {
     vi.spyOn(api, 'listSections').mockResolvedValue({ data: [], meta })
 
     render(<MemoryRouter><AcademicPage /></MemoryRouter>)
-    await user.click(await screen.findByRole('button', { name: 'Ver ciclos de Software' }))
+    // La única acción extra de la fila (ver ciclos) vive en su menú "⋯".
+    await user.click(await screen.findByRole('button', { name: 'Acciones para Software' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Ver ciclos' }))
 
     await user.click(await screen.findByRole('button', { name: 'Nuevo ciclo' }))
     const dialog = await screen.findByRole('dialog')

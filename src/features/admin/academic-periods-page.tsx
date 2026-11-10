@@ -1,34 +1,26 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react'
-import {
-  PlusIcon,
-  PowerIcon,
-  ShieldAlertIcon,
-} from 'lucide-react'
+import { PlusIcon, PowerIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
-import { FieldDescription } from '@/components/ui/field'
+import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SelectInput } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import { FilterBar } from '@/features/tutoring/filter-bar'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 
 const PAO_NUMBERS = ['I', 'II', 'III'] as const
 type PaoNumber = (typeof PAO_NUMBERS)[number]
@@ -154,20 +146,17 @@ export function AcademicPeriodsPage() {
     [form.paoNumber, form.year],
   )
   const [formErrors, setFormErrors] = useState<AcademicPeriodFormErrors>({})
-  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
+  // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
+  const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [periodToActivate, setPeriodToActivate] = useState<AcademicPeriod | null>(null)
 
-  async function handleRefresh() {
-    const ok = await reload()
-    if (ok) toast.success('Períodos actualizados', { description: 'El listado se actualizó correctamente.' })
-  }
-
   function updateField(field: keyof AcademicPeriodForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }))
+    setFormError(null)
     setFormErrors((current) => {
       if (!current[field]) return current
       const next = { ...current }
@@ -181,6 +170,7 @@ export function AcademicPeriodsPage() {
     setForm(INITIAL_FORM)
     setInitialForm(INITIAL_FORM)
     setFormErrors({})
+    setFormError(null)
     setIsModalOpen(true)
   }
 
@@ -196,6 +186,7 @@ export function AcademicPeriodsPage() {
     setForm(initial)
     setInitialForm(initial)
     setFormErrors({})
+    setFormError(null)
     setIsModalOpen(true)
   }
 
@@ -204,6 +195,7 @@ export function AcademicPeriodsPage() {
     setEditingPeriod(null)
     setForm(INITIAL_FORM)
     setFormErrors({})
+    setFormError(null)
   }
 
   async function submitPeriod(event: FormEvent<HTMLFormElement>) {
@@ -214,8 +206,7 @@ export function AcademicPeriodsPage() {
     setFormErrors(errors)
     if (Object.keys(errors).length > 0) {
       const firstErrorMessage = Object.values(errors).find(Boolean)
-      setErrorModal({
-        open: true,
+      setFormError({
         title: errors.startDate || errors.endDate ? 'Fecha no válida' : (errors.paoNumber || errors.year) ? 'Nombre de período no válido' : 'Revisa los campos requeridos',
         description: firstErrorMessage || 'Hay datos incompletos o fechas incorrectas en el período académico. Por favor, revísalos antes de continuar.',
       })
@@ -223,6 +214,7 @@ export function AcademicPeriodsPage() {
     }
 
     setPending('period')
+    setFormError(null)
     try {
       const input: AcademicPeriodInput = {
         name: composedName,
@@ -242,11 +234,7 @@ export function AcademicPeriodsPage() {
       await reload()
     } catch (error: unknown) {
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
-        title: friendly.title,
-        description: friendly.description,
-      })
+      setFormError(friendly)
       if (friendly.field === 'name' || friendly.field === 'nombre') {
         setFormErrors((prev) => ({ ...prev, paoNumber: friendly.description }))
       }
@@ -269,11 +257,7 @@ export function AcademicPeriodsPage() {
     } catch (error: unknown) {
       setPeriodToActivate(null)
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
-        title: friendly.title,
-        description: friendly.description,
-      })
+      setFormError(friendly)
     } finally {
       setPending(null)
     }
@@ -290,17 +274,19 @@ export function AcademicPeriodsPage() {
   // "Guardar" se bloquea con el primer error de validación; sin cambios lo bloquea FormDialog.
   const submitBlockReason = Object.values(validatePeriodForm(form, isCreating))[0] ?? null
   const activationState = editingPeriod && !editingPeriod.is_active ? getActivationState(editingPeriod) : null
+  const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
 
   return (
-    <section className="flex flex-col gap-8" aria-labelledby="academic-periods-title">
+    <section className="flex flex-col gap-6" aria-labelledby="academic-periods-title">
       <AdminSectionHeader
-        title="Períodos Académicos"
+        title="Períodos académicos"
         titleId="academic-periods-title"
+        description="Define el calendario académico. El período vigente es el que usan tutorías y titulación."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
+            <RefreshButton onClick={() => void reload()} loading={isFetching} />
             <BulkImportButton type="academic-periods" title="Carga masiva de períodos académicos" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateModal} className="w-full sm:w-auto">
+            <Button onClick={openCreateModal} className="w-full sm:w-auto" data-tour="page-create">
               <PlusIcon data-icon="inline-start" />
               Nuevo período
             </Button>
@@ -308,15 +294,8 @@ export function AcademicPeriodsPage() {
         }
       />
 
-      {pageError && (
-        <Alert variant="destructive">
-          <ShieldAlertIcon />
-          <AlertTitle>No se pudieron cargar los períodos</AlertTitle>
-          <AlertDescription>{pageError}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorNotice title="No se pudieron cargar los períodos" message={pageError} retry={reload} />
 
-      {/* Contenedor Principal: Filtro + Tabla */}
       <div className="flex flex-col gap-4">
         <FilterBar
           id="academic-periods"
@@ -330,111 +309,38 @@ export function AcademicPeriodsPage() {
           onClear={() => { setSearchInput(''); setStatusFilter('') }}
         />
 
-        {/* Tabla de Períodos */}
-        <Card
-          className={cn(
-            'overflow-hidden transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none',
-            isFetching && !isInitialLoading && 'opacity-60',
-          )}
-        >
-          <Table stacked cardTitle>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre del Período</TableHead>
-                <TableHead>Fecha Inicio</TableHead>
-                <TableHead>Fecha Finalización</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isInitialLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i} className="hover:bg-transparent">
-                    <TableCell><Skeleton className="h-5 w-36" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                  </TableRow>
-                ))
-              ) : periods.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-12 text-center text-muted-foreground whitespace-normal">
-                    <div className="flex flex-col items-center gap-2">
-                      <span>
-                        {searchInput
-                          ? 'No se encontraron períodos con el término buscado.'
-                          : 'Todavía no hay períodos registrados.'}
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                periods.map((period) => {
-                  const selected = editingPeriod?.id === period.id
+        <RecordTable
+          rows={periods}
+          loading={isInitialLoading}
+          onRowClick={openEditModal}
+          isRowSelected={(period) => editingPeriod?.id === period.id}
+          empty={hasFilters ? 'No hay períodos con estos filtros.' : 'Aún no hay períodos registrados.'}
+          columns={[
+            { label: 'Período', render: (period) => <span className="font-medium">{period.name}</span> },
+            { label: 'Inicio', render: (period) => <span className="text-muted-foreground">{formatDate(period.start_date)}</span> },
+            { label: 'Fin', render: (period) => <span className="text-muted-foreground">{formatDate(period.end_date)}</span> },
+            { label: 'Estado', render: (period) => <StatusBadge active={period.is_active} /> },
+          ]}
+        />
 
-                  return (
-                    <TableRow
-                      key={period.id}
-                      tabIndex={0}
-                      aria-selected={selected}
-                      onClick={() => openEditModal(period)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          openEditModal(period)
-                        }
-                      }}
-                      className={cn('cursor-pointer', selected && 'bg-muted/60')}
-                    >
-                      {/* Nombre */}
-                      <TableCell className="font-medium text-foreground whitespace-normal">
-                        <span>{period.name}</span>
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground">{formatDate(period.start_date)}</TableCell>
-
-                      <TableCell className="text-muted-foreground">{formatDate(period.end_date)}</TableCell>
-
-                      <TableCell>
-                        <StatusBadge active={period.is_active} />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-
-        {/* Paginación */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             Mostrando {periods.length} de {meta?.total ?? periods.length} {(meta?.total ?? periods.length) === 1 ? 'período' : 'períodos'}
           </p>
-          <CatalogPagination
-            label="períodos"
-            page={page}
-            lastPage={meta?.last_page ?? 1}
-            disabled={isFetching}
-            onChange={setPage}
-          />
+          <CatalogPagination label="períodos" page={page} lastPage={meta?.last_page ?? 1} disabled={isFetching} onChange={setPage} />
         </div>
       </div>
 
-      {/* Modal para Crear / Editar Período */}
       <FormDialog
         open={isModalOpen}
         onClose={closeModal}
         onSubmit={submitPeriod}
         title={editingPeriod ? 'Editar Período Académico' : 'Registrar Período Académico'}
-        description={
-          editingPeriod
-            ? 'Modifica las fechas o el nombre del período seleccionado.'
-            : 'Ingresa el nombre y el rango de fechas para el nuevo período académico.'
-        }
+        description={editingPeriod ? undefined : 'Elige el número de PAO, el año y las fechas del período.'}
         maxWidth="max-w-lg"
         pending={pending === 'period'}
-        error={null}
+        error={formError?.description ?? null}
+        errorModal={formError}
         dirty={isFormDirty}
         blockReason={submitBlockReason}
         submitLabel={editingPeriod ? 'Guardar Cambios' : 'Registrar Período'}
@@ -467,56 +373,43 @@ export function AcademicPeriodsPage() {
           ) : undefined
         }
       >
-        {/* Nombre del período: PAO + número + año */}
-        <div className="rounded-lg border border-border bg-muted/30 p-4">
-          <FormField
-            id="period-pao-number"
-            label="Nombre del período académico"
-            error={formErrors.paoNumber ?? formErrors.year}
-          >
-            <div className="flex items-center gap-2">
-              {/* Prefijo fijo: PAO */}
-              <Input value="PAO" readOnly tabIndex={-1} aria-label="Prefijo del período" className="w-16 shrink-0 text-center font-medium select-none" />
-
-              {/* Selector de número romano */}
-              <SelectInput
-                id="period-pao-number"
-                name="paoNumber"
-                value={form.paoNumber}
-                onValueChange={(value) => updateField('paoNumber', value)}
-                options={PAO_NUMBERS.map((n) => ({ value: n, label: n }))}
-                placeholder="Nº"
-                disabled={formDisabled}
-                invalid={Boolean(formErrors.paoNumber)}
-                className="flex-1"
-              />
-
-              {/* Campo de año */}
-              <Input
-                id="period-year"
-                name="year"
-                inputMode="numeric"
-                value={form.year}
-                onChange={(e) => updateField('year', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="Año"
-                aria-label="Año del período"
-                aria-invalid={Boolean(formErrors.year)}
-                maxLength={4}
-                autoComplete="off"
-                disabled={formDisabled}
-                required
-                className="flex-1"
-              />
-            </div>
-          </FormField>
-
-          {/* Preview del nombre generado */}
-          {composedName && (
-            <FieldDescription className="mt-2">
-              El período se registrará como: <strong>{composedName}</strong>
-            </FieldDescription>
-          )}
-        </div>
+        {/* Nombre del período: PAO + número romano + año */}
+        <FormField
+          id="period-pao-number"
+          label="Nombre del período académico"
+          tip={composedName ? <>Se registrará como <strong>{composedName}</strong>.</> : undefined}
+          error={formErrors.paoNumber ?? formErrors.year}
+        >
+          <div className="flex items-center gap-2">
+            <Input value="PAO" readOnly tabIndex={-1} aria-label="Prefijo del período" className="w-16 shrink-0 text-center font-medium select-none" />
+            <SelectInput
+              id="period-pao-number"
+              name="paoNumber"
+              value={form.paoNumber}
+              onValueChange={(value) => updateField('paoNumber', value)}
+              options={PAO_NUMBERS.map((n) => ({ value: n, label: n }))}
+              placeholder="Nº"
+              disabled={formDisabled}
+              invalid={Boolean(formErrors.paoNumber)}
+              className="flex-1"
+            />
+            <Input
+              id="period-year"
+              name="year"
+              inputMode="numeric"
+              value={form.year}
+              onChange={(e) => updateField('year', e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="Año"
+              aria-label="Año del período"
+              aria-invalid={Boolean(formErrors.year)}
+              maxLength={4}
+              autoComplete="off"
+              disabled={formDisabled}
+              required
+              className="flex-1"
+            />
+          </div>
+        </FormField>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <FormField id="academic-period-start-date" label="Fecha de inicio" error={formErrors.startDate}>
@@ -549,25 +442,18 @@ export function AcademicPeriodsPage() {
         </div>
       </FormDialog>
 
-      {/* ConfirmModal para Habilitar Período; la desactivación es automática por fecha */}
+      {/* Habilitar un período; la desactivación es automática por fecha */}
       <ConfirmModal
         open={Boolean(periodToActivate)}
         onClose={() => setPeriodToActivate(null)}
         onConfirm={() => void handleConfirmActivate()}
         title="¿Habilitar período académico?"
-        description={`¿Deseas habilitar el período "${periodToActivate?.name}"? Será el único período vigente hasta su fecha de finalización (${periodToActivate ? formatDate(periodToActivate.end_date) : ''}). Cualquier otro período que estuviera activo se cerrará automáticamente.`}
+        description={`"${periodToActivate?.name}" será el único período vigente hasta su fecha de finalización (${periodToActivate ? formatDate(periodToActivate.end_date) : ''}). Cualquier otro período que estuviera activo se cerrará automáticamente.`}
         confirmLabel="Habilitar período"
+        confirmIcon={PowerIcon}
         cancelLabel="Cancelar"
         variant="default"
         pending={pending === 'activate-period'}
-      />
-
-      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
-      <ErrorModal
-        open={Boolean(errorModal?.open)}
-        onClose={() => setErrorModal(null)}
-        title={errorModal?.title}
-        description={errorModal?.description}
       />
     </section>
   )

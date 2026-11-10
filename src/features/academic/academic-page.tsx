@@ -1,37 +1,28 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import {
-  ArrowLeftIcon,
-  Layers3Icon,
-  PlusIcon,
-  PowerIcon,
-  PowerOffIcon,
-  ShieldAlertIcon,
-} from 'lucide-react'
+import { ArrowLeftIcon, Layers3Icon, PlusIcon, PowerIcon, PowerOffIcon } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
+import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
+import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Cycle, type Faculty, type Modality } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
-import { cn } from '@/lib/utils'
 import { FilterBar } from '@/features/tutoring/filter-bar'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 
 
 type CareerFormErrors = { facultyId?: string; name?: string }
@@ -107,7 +98,8 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     void refreshModalities()
   }, [])
 
-  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
+  // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
+  const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [careerErrors, setCareerErrors] = useState<CareerFormErrors>({})
   const [pending, setPending] = useState<CareerPendingAction>(null)
 
@@ -126,11 +118,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false)
   const [careerToToggle, setCareerToToggle] = useState<CareerToggleTarget | null>(null)
 
-  async function handleRefresh() {
-    const ok = await reload()
-    if (ok) toast.success('Carreras actualizadas', { description: 'El listado se actualizó correctamente.' })
-  }
-
   function openCreateCareerModal() {
     setEditingCareer(null)
     setCareerFacultyId('')
@@ -142,6 +129,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setInitialCareerName('')
     setInitialCareerModalityId('')
     setCareerErrors({})
+    setFormError(null)
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
     setIsCareerModalOpen(true)
@@ -158,6 +146,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setInitialCareerName(career.name)
     setInitialCareerModalityId(career.modality_id ? String(career.modality_id) : '')
     setCareerErrors({})
+    setFormError(null)
     void api.listActiveFaculties().then(setActiveFaculties)
     void refreshModalities()
     setIsCareerModalOpen(true)
@@ -170,6 +159,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     setCareerName('')
     setCareerModalityId('')
     setCareerErrors({})
+    setFormError(null)
   }
 
 
@@ -181,8 +171,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     const errors = validateCareerForm(careerFacultyId, careerName)
     setCareerErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setErrorModal({
-        open: true,
+      setFormError({
         title: 'Revisa los campos requeridos',
         description: 'Verifica la facultad y el nombre de la carrera antes de guardar.',
       })
@@ -194,8 +183,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       (c) => (!editingCareer || c.id !== editingCareer.id) && c.name.trim().toLowerCase() === normalizedName,
     )
     if (duplicateLocally) {
-      setErrorModal({
-        open: true,
+      setFormError({
         title: 'Carrera ya registrada',
         description:
           'Ya existe una carrera con este nombre en el sistema. El nombre de la carrera es único institucionalmente y no puede repetirse en ninguna facultad.',
@@ -208,6 +196,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     }
 
     setPending('career')
+    setFormError(null)
     try {
       const input = {
         faculty_id: Number(careerFacultyId),
@@ -227,8 +216,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       await reload()
     } catch (error: unknown) {
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
+      setFormError({
         title: friendly.title,
         description: friendly.description,
       })
@@ -258,8 +246,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
     } catch (error: unknown) {
       setCareerToToggle(null)
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
+      setFormError({
         title: friendly.title,
         description: friendly.description,
       })
@@ -284,16 +271,21 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
       .filter((count) => !editingCareer || count >= editingCareer.cycle_levels)
       .map((count) => ({ value: String(count), label: `${count} ${count === 1 ? 'ciclo' : 'ciclos'}` })),
   ]
+  const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
+  const emptyMessage = hasFilters
+    ? 'No hay carreras con estos filtros.'
+    : facultyFilterId !== undefined ? 'Esta facultad aún no tiene carreras registradas.' : 'Aún no hay carreras registradas.'
 
   return (
-    <section className="flex flex-col gap-8">
+    <section className="flex flex-col gap-6">
       <AdminSectionHeader
-        title="Oferta de Carreras"
+        title="Carreras"
+        description="Registra las carreras de cada facultad y administra sus ciclos."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
+            <RefreshButton onClick={() => void reload()} loading={isFetching} />
             <BulkImportButton type="careers" title="Carga masiva de carreras" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateCareerModal} className="w-full sm:w-auto">
+            <Button onClick={openCreateCareerModal} className="w-full sm:w-auto" data-tour="page-create">
               <PlusIcon data-icon="inline-start" />
               Nueva carrera
             </Button>
@@ -301,15 +293,8 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         }
       />
 
-      {pageError && (
-        <Alert variant="destructive">
-          <ShieldAlertIcon />
-          <AlertTitle>No se pudo cargar el catálogo</AlertTitle>
-          <AlertDescription>{pageError}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorNotice title="No se pudo cargar el catálogo" message={pageError} retry={reload} />
 
-      {/* Tabla de Carreras */}
       <div className="flex flex-col gap-4">
         <FilterBar
           id="careers"
@@ -324,93 +309,40 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
           onClear={() => { setSearchInput(''); setStatusFilter(''); setSearchParams({}) }}
         />
 
-        <Card
-          className={cn(
-            'overflow-hidden transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none',
-            isFetching && !isInitialLoading && 'opacity-60',
-          )}
-        >
-          <Table stacked cardTitle>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Carrera Universitaria</TableHead>
-                <TableHead>Facultad Perteneciente</TableHead>
-                <TableHead>Modalidad</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead><span className="sr-only">Acciones</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isInitialLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i} className="hover:bg-transparent">
-                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-36" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="ml-auto size-8 rounded-lg" /></TableCell>
-                  </TableRow>
-                ))
-              ) : careers.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-12 text-center text-muted-foreground whitespace-normal">
-                    <div className="flex flex-col items-center gap-2">
-                      <span>
-                        {searchInput ? 'No se encontraron carreras con el término buscado.' : facultyFilterId !== undefined ? 'Esta facultad todavía no tiene carreras registradas.' : 'Todavía no hay carreras registradas.'}
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                careers.map((career) => {
-                  const selected = editingCareer?.id === career.id
-
-                  return (
-                    <TableRow
-                      key={career.id}
-                      tabIndex={0}
-                      aria-selected={selected}
-                      onClick={() => startCareerEdit(career)}
-                      onKeyDown={(event) => {
-                        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
-                          event.preventDefault()
-                          startCareerEdit(career)
-                        }
-                      }}
-                      className={cn('cursor-pointer', selected && 'bg-muted/60')}
-                    >
-                      <TableCell className="font-medium text-foreground whitespace-normal">
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col">
-                            <span>{career.name}</span>
-                            <span className="text-xs font-normal text-muted-foreground">
-                              {career.cycles_count === 0
-                                ? 'Sin ciclos'
-                                : `${career.active_cycles_count} de ${career.cycles_count} ciclo${career.cycles_count === 1 ? '' : 's'} activo${career.active_cycles_count === 1 ? '' : 's'}`}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground whitespace-normal">
-                        {career.faculty_name ?? `Facultad #${career.faculty_id}`}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground whitespace-normal">
-                        {career.modality_name ?? 'Sin modalidad'}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" />
-                      </TableCell>
-                      {/* Acción de dominio: ver los ciclos de la carrera */}
-                      <TableCell onClick={(event) => event.stopPropagation()}>
-                        <IconAction label={`Ver ciclos de ${career.name}`} icon={Layers3Icon} onClick={() => onSelectCareer(career)} />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+        <RecordTable
+          rows={careers}
+          loading={isInitialLoading}
+          onRowClick={startCareerEdit}
+          isRowSelected={(career) => editingCareer?.id === career.id}
+          empty={emptyMessage}
+          columns={[
+            {
+              label: 'Carrera',
+              render: (career) => (
+                <div className="flex flex-col">
+                  <span className="font-medium">{career.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {career.cycles_count === 0
+                      ? 'Sin ciclos'
+                      : `${career.active_cycles_count} de ${career.cycles_count} ciclo${career.cycles_count === 1 ? '' : 's'} activo${career.active_cycles_count === 1 ? '' : 's'}`}
+                  </span>
+                </div>
+              ),
+            },
+            { label: 'Facultad', render: (career) => <span className="text-muted-foreground">{career.faculty_name ?? `Facultad #${career.faculty_id}`}</span> },
+            { label: 'Modalidad', render: (career) => <span className="text-muted-foreground">{career.modality_name ?? 'Sin modalidad'}</span> },
+            { label: 'Estado', render: (career) => <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },
+            {
+              label: 'Acciones',
+              render: (career) => (
+                <RowActionsMenu
+                  name={career.name}
+                  actions={[{ label: 'Ver ciclos', icon: Layers3Icon, onSelect: () => onSelectCareer(career) }]}
+                />
+              ),
+            },
+          ]}
+        />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
@@ -420,16 +352,16 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         </div>
       </div>
 
-      {/* Modal para Registrar / Editar Carrera */}
       <FormDialog
         open={isCareerModalOpen}
         onClose={closeCareerModal}
         onSubmit={submitCareer}
         title={editingCareer ? 'Editar Carrera' : 'Registrar Carrera'}
-        description={editingCareer ? 'Modifica los datos de la carrera seleccionada.' : 'Asigna la nueva carrera a una facultad activa.'}
+        description={editingCareer ? undefined : 'Asigna la nueva carrera a una facultad activa.'}
         maxWidth="max-w-md"
         pending={formPending}
-        error={null}
+        error={formError?.description ?? null}
+        errorModal={formError}
         dirty={isCareerFormDirty}
         blockReason={careerBlockReason}
         submitLabel={editingCareer ? 'Guardar Cambios' : 'Registrar Carrera'}
@@ -463,17 +395,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
           error={careerErrors.facultyId}
         />
 
-        <SelectField
-          id="career-modality"
-          label="Modalidad"
-          value={careerModalityId}
-          onValueChange={setCareerModalityId}
-          options={modalityOptions}
-          emptyLabel="Seleccionar"
-          placeholder="Seleccionar"
-          disabled={formPending}
-        />
-
         <FormField id="career-name" label="Nombre de la carrera" counter={{ current: careerName.length, max: 150 }} error={careerErrors.name}>
           <Input
             id="career-name"
@@ -490,6 +411,17 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         </FormField>
 
         <SelectField
+          id="career-modality"
+          label="Modalidad"
+          value={careerModalityId}
+          onValueChange={setCareerModalityId}
+          options={modalityOptions}
+          emptyLabel="Seleccionar"
+          placeholder="Seleccionar"
+          disabled={formPending}
+        />
+
+        <SelectField
           id="career-cycles-count"
           label={editingCareer ? 'Cantidad de ciclos' : 'Ciclos a crear'}
           tip={editingCareer
@@ -502,7 +434,6 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         />
       </FormDialog>
 
-      {/* ConfirmModal para Habilitar / Desactivar Carrera */}
       <ConfirmModal
         open={Boolean(careerToToggle)}
         onClose={() => setCareerToToggle(null)}
@@ -510,21 +441,14 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
         title={careerToToggle?.action === 'activate' ? '¿Habilitar carrera?' : '¿Desactivar carrera?'}
         description={
           careerToToggle?.action === 'activate'
-            ? `¿Deseas habilitar la carrera "${careerToToggle?.career.name}"? Volverá a estar disponible en el sistema.`
-            : `¿Estás seguro de desactivar la carrera "${careerToToggle?.career.name}"?`
+            ? `"${careerToToggle?.career.name}" volverá a estar disponible en el sistema.`
+            : `"${careerToToggle?.career.name}" quedará inactiva en el sistema. Puedes volver a habilitarla después.`
         }
         confirmLabel={careerToToggle?.action === 'activate' ? 'Habilitar carrera' : 'Desactivar carrera'}
+        confirmIcon={careerToToggle?.action === 'activate' ? PowerIcon : PowerOffIcon}
         cancelLabel="Cancelar"
         variant={careerToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-career'}
-      />
-
-      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
-      <ErrorModal
-        open={Boolean(errorModal?.open)}
-        onClose={() => setErrorModal(null)}
-        title={errorModal?.title}
-        description={errorModal?.description}
       />
     </section>
   )
@@ -552,7 +476,8 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     reload,
   } = usePaginatedCatalog(fetchCycles, statusFilter)
 
-  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
+  // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
+  const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [cycleErrors, setCycleErrors] = useState<CycleFormErrors>({})
   const [pending, setPending] = useState<CyclePendingAction>(null)
 
@@ -564,11 +489,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const [isCycleModalOpen, setIsCycleModalOpen] = useState(false)
   const [cycleToToggle, setCycleToToggle] = useState<CycleToggleTarget | null>(null)
 
-  async function handleRefresh() {
-    const ok = await reload()
-    if (ok) toast.success('Ciclos actualizados', { description: 'El listado se actualizó correctamente.' })
-  }
-
   function openCreateCycleModal() {
     setEditingCycle(null)
     setCycleName('')
@@ -576,6 +496,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setCycleNumber(String(nextNumber))
     setInitialCycleName('')
     setCycleErrors({})
+    setFormError(null)
     setIsCycleModalOpen(true)
   }
 
@@ -585,6 +506,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setCycleNumber(String(cycle.number))
     setInitialCycleName(cycle.name)
     setCycleErrors({})
+    setFormError(null)
     setIsCycleModalOpen(true)
   }
 
@@ -594,6 +516,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     setCycleName('')
     setCycleNumber('')
     setCycleErrors({})
+    setFormError(null)
   }
 
   async function submitCycle(event: FormEvent<HTMLFormElement>) {
@@ -603,8 +526,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     const errors = validateCycleForm(cycleName)
     setCycleErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setErrorModal({
-        open: true,
+      setFormError({
         title: 'Revisa los campos requeridos',
         description: 'Ingresa el nombre del ciclo antes de continuar.',
       })
@@ -612,6 +534,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     }
 
     setPending('cycle')
+    setFormError(null)
     try {
       const calculatedNumber = editingCycle
         ? editingCycle.number
@@ -633,8 +556,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
       await reload()
     } catch (error: unknown) {
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
+      setFormError({
         title: friendly.title,
         description: friendly.description,
       })
@@ -664,8 +586,7 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
     } catch (error: unknown) {
       setCycleToToggle(null)
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
+      setFormError({
         title: friendly.title,
         description: friendly.description,
       })
@@ -677,22 +598,25 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
   const formPending = pending === 'cycle'
   const isCycleFormDirty = cycleName !== initialCycleName
   const cycleBlockReason = Object.values(validateCycleForm(cycleName))[0] ?? null
+  const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
 
   return (
-    <section className="flex flex-col gap-8" data-tour-view="cycles">
-      <Button type="button" variant="tertiary" size="sm" onClick={onBack} className="-ml-3 w-fit">
-        <ArrowLeftIcon />
-        Volver a Carreras
-      </Button>
+    <section className="flex flex-col gap-6" data-tour-view="cycles">
+      <div>
+        <Button type="button" variant="tertiary" onClick={onBack}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Volver a Carreras
+        </Button>
+      </div>
 
       <AdminSectionHeader
         title={`Ciclos de ${career.name}`}
-        description="Define la estructura de ciclos y niveles dentro de esta carrera."
+        description="Define los ciclos o niveles de la carrera."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-            <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
+            <RefreshButton onClick={() => void reload()} loading={isFetching} />
             <BulkImportButton type="cycles" title="Carga masiva de ciclos" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateCycleModal} className="w-full sm:w-auto">
+            <Button onClick={openCreateCycleModal} className="w-full sm:w-auto" data-tour="page-create">
               <PlusIcon data-icon="inline-start" />
               Nuevo ciclo
             </Button>
@@ -700,15 +624,8 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         }
       />
 
-      {pageError && (
-        <Alert variant="destructive">
-          <ShieldAlertIcon />
-          <AlertTitle>No se pudo cargar el catálogo</AlertTitle>
-          <AlertDescription>{pageError}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorNotice title="No se pudo cargar el catálogo" message={pageError} retry={reload} />
 
-      {/* Tabla de Ciclos */}
       <div className="flex flex-col gap-4">
         <FilterBar
           id="cycles"
@@ -722,69 +639,17 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
           onClear={() => { setSearchInput(''); setStatusFilter('') }}
         />
 
-        <Card
-          className={cn(
-            'overflow-hidden transition-opacity max-md:overflow-visible max-md:border-0 max-md:bg-transparent max-md:shadow-none',
-            isFetching && !isInitialLoading && 'opacity-60',
-          )}
-        >
-          <Table stacked cardTitle>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ciclo Académico</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead><span className="sr-only">Acciones</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isInitialLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i} className="hover:bg-transparent">
-                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                  </TableRow>
-                ))
-              ) : cycles.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={2} className="py-12 text-center text-muted-foreground whitespace-normal">
-                    <div className="flex flex-col items-center gap-2">
-                      <span>
-                        {searchInput ? 'No se encontraron ciclos con el término buscado.' : 'Todavía no hay ciclos registrados para esta carrera.'}
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                cycles.map((cycle) => {
-                  const selected = editingCycle?.id === cycle.id
-
-                  return (
-                    <TableRow
-                      key={cycle.id}
-                      tabIndex={0}
-                      aria-selected={selected}
-                      onClick={() => startCycleEdit(cycle)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          startCycleEdit(cycle)
-                        }
-                      }}
-                      className={cn('cursor-pointer', selected && 'bg-muted/60')}
-                    >
-                      <TableCell className="font-medium text-foreground whitespace-normal">
-                        <span>{cycle.name}</span>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge active={cycle.status} />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+        <RecordTable
+          rows={cycles}
+          loading={isInitialLoading}
+          onRowClick={startCycleEdit}
+          isRowSelected={(cycle) => editingCycle?.id === cycle.id}
+          empty={hasFilters ? 'No hay ciclos con estos filtros.' : 'Aún no hay ciclos registrados para esta carrera.'}
+          columns={[
+            { label: 'Ciclo', render: (cycle) => <span className="font-medium">{cycle.name}</span> },
+            { label: 'Estado', render: (cycle) => <StatusBadge active={cycle.status} /> },
+          ]}
+        />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
@@ -794,16 +659,16 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         </div>
       </div>
 
-      {/* Modal para Registrar / Editar Ciclo */}
       <FormDialog
         open={isCycleModalOpen}
         onClose={closeCycleModal}
         onSubmit={submitCycle}
         title={editingCycle ? 'Editar Ciclo Académico' : 'Registrar Ciclo Académico'}
-        description={editingCycle ? 'Actualiza los datos del ciclo académico.' : `Se asignará a la carrera "${career.name}".`}
+        description={editingCycle ? career.name : `Se agregará a la carrera "${career.name}".`}
         maxWidth="max-w-md"
         pending={formPending}
-        error={null}
+        error={formError?.description ?? null}
+        errorModal={formError}
         dirty={isCycleFormDirty}
         blockReason={cycleBlockReason}
         submitLabel={editingCycle ? 'Guardar Cambios' : 'Registrar Ciclo'}
@@ -823,10 +688,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
           ) : undefined
         }
       >
-        <FormField id="cycle-career" label="Carrera Profesional">
-          <Input id="cycle-career" value={career.name} readOnly disabled />
-        </FormField>
-
         <FormField id="cycle-name" label="Nombre del ciclo" counter={{ current: cycleName.length, max: 100 }} error={cycleErrors.name}>
           <Input
             id="cycle-name"
@@ -843,7 +704,6 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         </FormField>
       </FormDialog>
 
-      {/* ConfirmModal para Habilitar / Desactivar Ciclo */}
       <ConfirmModal
         open={Boolean(cycleToToggle)}
         onClose={() => setCycleToToggle(null)}
@@ -851,21 +711,14 @@ function CareerCyclesSection({ career, onBack }: Readonly<{ career: Career; onBa
         title={cycleToToggle?.action === 'activate' ? '¿Habilitar ciclo?' : '¿Desactivar ciclo?'}
         description={
           cycleToToggle?.action === 'activate'
-            ? `¿Deseas habilitar el ciclo "${cycleToToggle?.cycle.name}"? Volverá a estar disponible en el sistema.`
-            : `¿Estás seguro de desactivar el ciclo "${cycleToToggle?.cycle.name}"?`
+            ? `"${cycleToToggle?.cycle.name}" volverá a estar disponible en el sistema.`
+            : `"${cycleToToggle?.cycle.name}" quedará inactivo en el sistema. Puedes volver a habilitarlo después.`
         }
         confirmLabel={cycleToToggle?.action === 'activate' ? 'Habilitar ciclo' : 'Desactivar ciclo'}
+        confirmIcon={cycleToToggle?.action === 'activate' ? PowerIcon : PowerOffIcon}
         cancelLabel="Cancelar"
         variant={cycleToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-cycle'}
-      />
-
-      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
-      <ErrorModal
-        open={Boolean(errorModal?.open)}
-        onClose={() => setErrorModal(null)}
-        title={errorModal?.title}
-        description={errorModal?.description}
       />
     </section>
   )

@@ -1,26 +1,16 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import {
-  CheckCircle2Icon,
-  Edit2Icon,
-  MailIcon,
-  PlusIcon,
-  ShieldAlertIcon,
-  UserCheckIcon,
-  UserXIcon,
-  XCircleIcon,
-} from 'lucide-react'
+import { CheckCircle2Icon, PlusIcon, UserCheckIcon, UserXIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Badge } from '@/components/ui/badge'
-import { ErrorModal, getFriendlyError } from '@/components/ui/error-modal'
+import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
+import { ErrorNotice } from '@/components/ui/error-notice'
 import { FieldDescription } from '@/components/ui/field'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -30,15 +20,13 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { PasswordStrength } from '@/components/ui/password-strength'
 import { getPasswordRequirementHint, PASSWORD_MIN_LENGTH } from '@/lib/password-rules'
 import { SelectField } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 import { FilterBar } from '@/features/tutoring/filter-bar'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 
 type UserForm = {
   identification: string
@@ -112,11 +100,10 @@ function UserStatusBadge({ user }: Readonly<{ user: User }>) {
     const sent = user.must_change_password
     return (
       <Badge
-        variant="outline"
+        variant="warning"
         title={sent
           ? 'Se envió el correo de acceso; el usuario aún no ingresa a completar sus datos.'
           : 'El usuario debe registrar su cédula y completar sus datos al ingresar.'}
-        className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
       >
         {sent ? 'Correo enviado' : 'Datos pendientes'}
       </Badge>
@@ -176,7 +163,6 @@ function validateUserForm(form: UserForm, editing: boolean, identificationLocked
 }
 
 export function UsersPage() {
-  const isMobile = useIsMobile()
   const [roleFilter, setRoleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'pending' | 'inactive'>('')
   const [careerFilter, setCareerFilter] = useState('')
@@ -207,7 +193,8 @@ export function UsersPage() {
   const [userForm, setUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [initialUserForm, setInitialUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [userErrors, setUserErrors] = useState<UserFormErrors>({})
-  const [errorModal, setErrorModal] = useState<{ open: boolean; title: string; description: string } | null>(null)
+  // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
+  const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
 
   // Catálogos institucionales
@@ -245,9 +232,9 @@ export function UsersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userToToggle, setUserToToggle] = useState<ToggleTarget | null>(null)
 
+  // Actualizar no cambia nada: sin toast de éxito.
   async function handleRefresh() {
-    const [ok] = await Promise.all([reload(), loadCatalogs()])
-    if (ok) toast.success('Usuarios actualizados', { description: 'El listado se actualizó correctamente.' })
+    await Promise.all([reload(), loadCatalogs()])
   }
 
   function updateUserField(field: keyof UserForm, value: string) {
@@ -286,6 +273,7 @@ export function UsersPage() {
     setUserForm(INITIAL_USER_FORM)
     setInitialUserForm(INITIAL_USER_FORM)
     setUserErrors({})
+    setFormError(null)
     setIsModalOpen(true)
     void loadCatalogs()
   }
@@ -314,6 +302,7 @@ export function UsersPage() {
     setUserForm(initial)
     setInitialUserForm(initial)
     setUserErrors({})
+    setFormError(null)
     setIsModalOpen(true)
     void loadCatalogs()
   }
@@ -323,6 +312,7 @@ export function UsersPage() {
     setEditingUser(null)
     setUserForm(INITIAL_USER_FORM)
     setUserErrors({})
+    setFormError(null)
   }
 
   async function submitUser(event: FormEvent<HTMLFormElement>) {
@@ -332,8 +322,7 @@ export function UsersPage() {
     const errors = validateUserForm(userForm, editingUser !== null, identificationLocked)
     setUserErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setErrorModal({
-        open: true,
+      setFormError({
         title: 'Revisa los campos requeridos',
         description: 'Hay datos incompletos o con formato incorrecto en el formulario. Por favor, revísalos antes de continuar.',
       })
@@ -341,6 +330,7 @@ export function UsersPage() {
     }
 
     setPending('user')
+    setFormError(null)
     try {
       // Si se está editando y el usuario deja el teléfono vacío, se mantiene el anterior (o queda vacío si no tenía)
       const resolvedPhone = editingUser
@@ -386,11 +376,7 @@ export function UsersPage() {
       await reload()
     } catch (error: unknown) {
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
-        title: friendly.title,
-        description: friendly.description,
-      })
+      setFormError(friendly)
       if (friendly.field && friendly.field in userForm) {
         setUserErrors((prev) => ({ ...prev, [friendly.field!]: friendly.description }))
       }
@@ -418,11 +404,7 @@ export function UsersPage() {
     } catch (error: unknown) {
       setUserToToggle(null)
       const friendly = getFriendlyError(error)
-      setErrorModal({
-        open: true,
-        title: friendly.title,
-        description: friendly.description,
-      })
+      setFormError(friendly)
     } finally {
       setPending(null)
     }
@@ -447,19 +429,6 @@ export function UsersPage() {
 
   const userFormFields = (
     <>
-      {/* Aviso Informativo para Creación de Usuario */}
-      {!editingUser && (
-        <div className="flex items-start gap-3.5 rounded-lg border border-border bg-muted/50 p-4 text-xs text-foreground">
-          <MailIcon className="mt-0.5 size-5 shrink-0 text-foreground" />
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-semibold">Envío de Contraseña Provisional</span>
-            <span>
-              No necesitas ingresar una contraseña. Al hacer clic en <strong>Registrar Usuario</strong>, el sistema generará automáticamente una contraseña provisional segura y se la enviará al correo registrado.
-            </span>
-          </div>
-        </div>
-      )}
-
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField
           id="user-identification"
@@ -483,7 +452,7 @@ export function UsersPage() {
             />
             {shouldShowIdentificationStatus(userForm.identification) && (
               isValidIdentification(userForm.identification) ? (
-                <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
+                <CheckCircle2Icon className="absolute right-3 size-4 text-success" aria-label="Identificación válida" />
               ) : (
                 <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
               )
@@ -558,7 +527,7 @@ export function UsersPage() {
 
       {/* Selector de Facultad y Carrera para roles académicos específicos (Estudiante, Coordinadores) */}
       {userForm.role && userForm.role !== 'administrador' && userForm.role !== 'docente' && (
-        <div className="grid gap-5 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           <SelectField
             id="user-faculty"
             name="facultyId"
@@ -633,7 +602,7 @@ export function UsersPage() {
                 className={cn(
                   'text-xs',
                   userForm.password === userForm.password_confirmation
-                    ? 'text-emerald-600 dark:text-emerald-400'
+                    ? 'text-success'
                     : 'text-destructive',
                 )}
               >
@@ -648,10 +617,13 @@ export function UsersPage() {
     </>
   )
 
+  const hasFilters = searchInput.trim() !== '' || roleFilter !== '' || statusFilter !== '' || careerFilter !== ''
+
   return (
-    <section className="flex flex-col gap-8">
+    <section className="flex flex-col gap-6">
       <AdminSectionHeader
-        title="Gestión de Usuarios"
+        title="Usuarios"
+        description="Registra las cuentas del sistema y asigna a cada persona su rol y carrera."
         actions={
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             <RefreshButton onClick={() => void handleRefresh()} loading={isFetching} />
@@ -662,10 +634,7 @@ export function UsersPage() {
               onFinished={reload}
               className="flex-1 sm:flex-none"
             />
-            <Button
-              onClick={openCreateModal}
-              className="w-full sm:w-auto"
-            >
+            <Button onClick={openCreateModal} className="w-full sm:w-auto" data-tour="page-create">
               <PlusIcon data-icon="inline-start" />
               Nuevo usuario
             </Button>
@@ -673,15 +642,8 @@ export function UsersPage() {
         }
       />
 
-      {pageError && (
-        <Alert variant="destructive">
-          <ShieldAlertIcon />
-          <AlertTitle>No se pudieron cargar los usuarios</AlertTitle>
-          <AlertDescription>{pageError}</AlertDescription>
-        </Alert>
-      )}
+      <ErrorNotice title="No se pudieron cargar los usuarios" message={pageError} retry={reload} />
 
-      {/* Contenedor Principal: Filtros + Tabla */}
       <div className="flex flex-col gap-4">
         <FilterBar
           id="users"
@@ -697,183 +659,32 @@ export function UsersPage() {
           onClear={() => { setSearchInput(''); setRoleFilter(''); setStatusFilter(''); setCareerFilter('') }}
         />
 
-        {/* Lista de Usuarios (móvil): una tarjeta por usuario */}
-        {isMobile ? (
-        <ul className={cn('flex flex-col gap-3 transition-opacity', isFetching && !isInitialLoading && 'opacity-60')} aria-busy={isFetching}>
-          {isInitialLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <li key={i}><Skeleton className="h-40" /></li>
-            ))
-          ) : users.length === 0 ? (
-            <li className="flex flex-col items-center gap-2 rounded-lg border border-border bg-card py-12 text-center text-muted-foreground">
-              <span>
-                {searchInput || (roleFilter !== '' || statusFilter !== '' || careerFilter !== '')
-                  ? 'No se encontraron usuarios coincidentes.'
-                  : 'Todavía no hay usuarios registrados.'}
-              </span>
-            </li>
-          ) : (
-            users.map((user) => {
-              return (
-                <li key={user.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-2xs">
-                  <div className="flex items-start gap-3">
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="font-medium leading-snug text-foreground [overflow-wrap:anywhere]">{user.name}</span>
-                      <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{user.email}</span>
-                    </div>
-                    <span className="shrink-0 text-xs text-foreground">
-                      {getRoleLabel(user.role)}
-                    </span>
-                  </div>
-
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                    <div className="flex flex-col">
-                      <dt className="text-xs text-muted-foreground">Cédula / Pasaporte</dt>
-                      <dd className="text-foreground">{user.identification ?? '—'}</dd>
-                    </div>
-                    <div className="flex flex-col">
-                      <dt className="text-xs text-muted-foreground">Teléfono</dt>
-                      <dd className="text-foreground">{user.phone || 'Sin teléfono'}</dd>
-                    </div>
-                    {user.career_name && (
-                      <div className="col-span-2 flex flex-col">
-                        <dt className="text-xs text-muted-foreground">Carrera</dt>
-                        <dd className="text-foreground [overflow-wrap:anywhere]">
-                          {user.career_name}{user.faculty_name ? ` · ${user.faculty_name}` : ''}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-
-                  <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                    <UserStatusBadge user={user} />
-                    <IconAction label={`Editar a ${user.name}`} icon={Edit2Icon} onClick={() => openEditModal(user)} />
-                  </div>
-                </li>
-              )
-            })
-          )}
-        </ul>
-        ) : (
-        <Card
-          className={cn(
-            'overflow-hidden transition-opacity',
-            isFetching && !isInitialLoading && 'opacity-60',
-          )}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Usuario</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Carrera</TableHead>
-                <TableHead>Cédula</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isInitialLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i} className="hover:bg-transparent">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="size-10 rounded-full" />
-                        <div className="flex flex-col gap-1.5">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-44" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-                                      </TableRow>
-                ))
-              ) : users.length === 0 ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="py-12 text-center text-muted-foreground whitespace-normal">
-                    <div className="flex flex-col items-center gap-2">
-                      <span>
-                        {searchInput || (roleFilter !== '' || statusFilter !== '' || careerFilter !== '')
-                          ? 'No se encontraron usuarios coincidentes.'
-                          : 'Todavía no hay usuarios registrados.'}
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => {
-
-                  return (
-                    <TableRow
-                      key={user.id}
-                      tabIndex={0}
-                      aria-selected={editingUser?.id === user.id}
-                      onClick={() => openEditModal(user)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          openEditModal(user)
-                        }
-                      }}
-                      className={cn('cursor-pointer', editingUser?.id === user.id && 'bg-muted/60')}
-                    >
-                      <TableCell className="whitespace-normal">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-foreground">
-                            {user.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {user.email}
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <span className="text-xs text-foreground">
-                          {getRoleLabel(user.role)}
-                        </span>
-                      </TableCell>
-
-                      <TableCell className="whitespace-normal">
-                        {user.career_name ? (
-                          <span
-                            className="block max-w-[220px] text-xs text-muted-foreground"
-                            title={`${user.career_name}${user.faculty_name ? ` · ${user.faculty_name}` : ''}`}
-                          >
-                            {user.career_name}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        <span className="text-xs text-foreground">
-                          {user.identification ?? '—'}
-                        </span>
-                      </TableCell>
-
-                      <TableCell>
-                        <span className={cn('text-xs', user.phone ? 'text-foreground' : 'text-muted-foreground')}>
-                          {user.phone ?? 'Sin teléfono'}
-                        </span>
-                      </TableCell>
-
-                      <TableCell>
-                        <UserStatusBadge user={user} />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-        )}
+        <RecordTable
+          rows={users}
+          loading={isInitialLoading}
+          onRowClick={openEditModal}
+          isRowSelected={(user) => editingUser?.id === user.id}
+          empty={hasFilters ? 'No hay usuarios con estos filtros.' : 'Aún no hay usuarios registrados.'}
+          columns={[
+            {
+              label: 'Usuario',
+              render: (user) => (
+                <div className="flex min-w-0 flex-col">
+                  <span className="font-medium [overflow-wrap:anywhere]">{user.name}</span>
+                  <span className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{user.email}</span>
+                </div>
+              ),
+            },
+            { label: 'Rol', render: (user) => getRoleLabel(user.role) },
+            {
+              label: 'Carrera',
+              render: (user) => <span className="text-muted-foreground">{user.career_name ?? '—'}</span>,
+            },
+            { label: 'Cédula', render: (user) => user.identification ?? '—' },
+            { label: 'Teléfono', render: (user) => <span className={cn(!user.phone && 'text-muted-foreground')}>{user.phone || 'Sin teléfono'}</span> },
+            { label: 'Estado', render: (user) => <UserStatusBadge user={user} /> },
+          ]}
+        />
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
@@ -883,7 +694,6 @@ export function UsersPage() {
         </div>
       </div>
 
-      {/* Modal para Crear / Editar Usuario */}
       <FormDialog
         open={isModalOpen}
         onClose={closeModal}
@@ -896,7 +706,8 @@ export function UsersPage() {
         }
         maxWidth="max-w-2xl"
         pending={pending === 'user'}
-        error={null}
+        error={formError?.description ?? null}
+        errorModal={formError}
         dirty={isUserFormDirty}
         blockReason={submitBlockReason}
         submitLabel={editingUser ? 'Guardar Cambios' : 'Registrar Usuario'}
@@ -919,7 +730,6 @@ export function UsersPage() {
         {userFormFields}
       </FormDialog>
 
-      {/* ConfirmModal para Habilitar / Desactivar Usuario */}
       <ConfirmModal
         open={Boolean(userToToggle)}
         onClose={() => setUserToToggle(null)}
@@ -927,22 +737,16 @@ export function UsersPage() {
         title={userToToggle?.action === 'activate' ? '¿Habilitar cuenta de usuario?' : '¿Desactivar cuenta de usuario?'}
         description={
           userToToggle?.action === 'activate'
-            ? `¿Deseas habilitar la cuenta de "${userToToggle?.user.name}"? Podrá volver a acceder al sistema.`
-            : `¿Estás seguro de desactivar a "${userToToggle?.user.name}"? Esta persona no podrá acceder al sistema hasta que su cuenta sea reactivada.`
+            ? `${userToToggle?.user.name} podrá volver a acceder al sistema.`
+            : `${userToToggle?.user.name} no podrá acceder al sistema hasta que su cuenta sea reactivada.`
         }
         confirmLabel={userToToggle?.action === 'activate' ? 'Habilitar cuenta' : 'Desactivar cuenta'}
+        confirmIcon={userToToggle?.action === 'activate' ? UserCheckIcon : UserXIcon}
         cancelLabel="Cancelar"
         variant={userToToggle?.action === 'activate' ? 'default' : 'destructive'}
         pending={pending === 'toggle-user'}
       />
 
-      {/* ErrorModal para Notificar Errores de Validación o Datos Duplicados */}
-      <ErrorModal
-        open={Boolean(errorModal?.open)}
-        onClose={() => setErrorModal(null)}
-        title={errorModal?.title}
-        description={errorModal?.description}
-      />
     </section>
   )
 }
