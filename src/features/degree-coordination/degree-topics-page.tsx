@@ -69,7 +69,7 @@ export function DegreeTopicsPage() {
     {!noPeriod && <ErrorNotice message={table.error} retry={table.retry} />}
     {!noPeriod && <RecordTable rows={table.rows} loading={table.loading} empty={hasActiveFilters ? 'No hay propuestas con estos filtros.' : 'Aún no hay propuestas en el período vigente.'} onRowClick={(topic) => detail.open(topic.id)} rowTitle={(topic) => `Revisar ${topic.title}`} columns={[
       { label: '#', render: (topic) => <span className="text-muted-foreground">#{topic.id}</span> },
-      { label: 'Propuesta', render: (topic) => <span className="font-medium">{topic.title}</span> },
+      { label: 'Propuesta', render: (topic) => topic.title },
       { label: 'Estudiante', render: (topic) => <div className="flex flex-col gap-1"><span>{topic.student?.name ?? 'Sin estudiante'}</span><span className="text-xs text-muted-foreground">{topic.student?.identification} · {topic.section ? `Paralelo ${topic.section.name}` : 'Sin paralelo'}</span></div> },
       { label: 'Presentada', render: (topic) => formatDegreeDate(topic.proposed_at) },
       { label: 'Estado', render: (topic) => <DegreeStatusBadge status={topic.status} /> },

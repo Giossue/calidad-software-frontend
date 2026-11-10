@@ -118,7 +118,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
         submitLabel="Enviar aviso"
         submitIcon={MailWarningIcon}
       >
-        <FormField id="absence-date" label="Clase" tip="Solo aparecen las próximas clases de tu horario en las que aún no avisaste.">
+        <FormField id="absence-date" label="Clase" required tip="Solo aparecen las próximas clases de tu horario en las que aún no avisaste.">
           {dates.loading && options.length === 0
             ? <SelectSkeleton label="Cargando tus próximas clases" />
             : options.length === 0
@@ -132,7 +132,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
                 options={options.map((item) => ({ value: item.date, label: classLabel(item) }))}
               />}
         </FormField>
-        <FormField id="absence-reason" label="Motivo" tip="Mínimo 5 caracteres." counter={{ current: reason.length, max: 500 }}>
+        <FormField id="absence-reason" label="Motivo" required tip="Mínimo 5 caracteres." counter={{ current: reason.length, max: 500 }}>
           <Textarea id="absence-reason" value={reason} onChange={(event) => setReason(event.target.value.slice(0, 500))} maxLength={500} rows={3} required placeholder="Ej. Cita médica programada" />
         </FormField>
       </FormDialog>

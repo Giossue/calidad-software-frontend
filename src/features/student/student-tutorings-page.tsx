@@ -60,7 +60,7 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
           rowTitle={(item) => `Abrir ${item.subject?.name ?? ''}`}
           empty="No hay tutorías que coincidan con tu búsqueda."
           columns={[
-            { label: 'Asignatura', render: (item) => <div className="flex flex-col gap-0.5"><span className="font-medium text-foreground">{formatSubjectName(item.subject?.name ?? '')}</span>{item.subject?.modality && <span className="text-xs text-muted-foreground">{item.subject.modality.name}</span>}</div> },
+            { label: 'Asignatura', render: (item) => <div className="flex flex-col gap-0.5"><span className="text-foreground">{formatSubjectName(item.subject?.name ?? '')}</span>{item.subject?.modality && <span className="text-xs text-muted-foreground">{item.subject.modality.name}</span>}</div> },
             { label: 'Ciclo', render: (item) => <span>{item.subject?.cycle?.name ?? 'Sin ciclo'}{item.subject?.section ? ` · ${item.subject.section.name}` : ''}</span> },
             { label: 'Docente', render: (item) => item.subject?.teacher?.name ?? <span className="text-muted-foreground">Sin docente</span> },
             { label: 'Estado', render: (item) => <StatusBadge active={isActive(item)} activeLabel="En curso" inactiveLabel="Finalizada" /> },

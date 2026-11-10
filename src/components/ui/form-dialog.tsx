@@ -67,7 +67,7 @@ export function FormDialog({
   headerActions?: ReactNode
   onClose: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
-  children: ReactNode
+  children?: ReactNode
   submitLabel?: string
   submitDisabled?: boolean
   submitIcon?: LucideIcon

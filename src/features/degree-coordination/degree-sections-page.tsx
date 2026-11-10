@@ -37,7 +37,7 @@ export function DegreeSectionsPage() {
       { label: 'Estado', render: (section) => <StatusBadge active={section.is_active} /> },
     ]} />}
     <FormDialog open={open} title="Registrar paralelo" description={resource.data?.period.name} pending={operation.pending} error={operation.error} dirty={Boolean(name)} blockReason={blockReason} onClose={() => setOpen(false)} onSubmit={submit} submitIcon={PlusIcon} submitLabel="Registrar paralelo">
-      <FormField id="degree-section-name" label="Nombre del paralelo" counter={{ current: name.length, max: 50 }} tip="Si el paralelo ya existe, se vinculará al período vigente.">
+      <FormField id="degree-section-name" label="Nombre del paralelo" required counter={{ current: name.length, max: 50 }} tip="Si el paralelo ya existe, se vinculará al período vigente.">
         <Input id="degree-section-name" value={name} onChange={(event) => setName(sanitizeLetters(event.target.value, 50))} required maxLength={50} placeholder="Ej. A" />
       </FormField>
     </FormDialog>

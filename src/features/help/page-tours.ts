@@ -174,8 +174,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   'degree-students': [
     step(HEADER, 'Matrícula en titulación', 'Aquí matriculas a los estudiantes en titulación para el período vigente.'),
     filters('Busca por nombre, cédula o correo y filtra por estado de matrícula.'),
-    table('Cada fila es un estudiante con su estado de matrícula.'),
-    rowActions('Matricula al estudiante en titulación o dale de baja. Al matricularlo se le habilita el módulo de titulación.'),
+    table('Cada fila es un estudiante con su estado de matrícula. Haz clic en él para matricularlo en titulación o darle de baja; al matricularlo se le habilita el módulo de titulación.'),
     pagination,
   ],
   'degree-topics': [

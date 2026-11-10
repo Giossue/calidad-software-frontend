@@ -59,7 +59,7 @@ export function DegreeReportsPage() {
             label: 'Tema',
             render: (report) => (
               <div className="flex flex-col gap-1 max-w-sm">
-                <span className="font-medium text-foreground">{report.topic_title}</span>
+                <span className="text-foreground">{report.topic_title}</span>
                 <span className="text-xs text-muted-foreground">{report.period_name || 'Período vigente'}</span>
               </div>
             ),

@@ -68,7 +68,7 @@ export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: Retur
 }
 
 export function DegreeObservationField({ value, onChange, rejection = false, error }: Readonly<{ value: string; onChange: (value: string) => void; rejection?: boolean; error?: string | null }>) {
-  return <FormField id="degree-observation" label={rejection ? 'Motivo de rechazo' : 'Observación'} optional={rejection} counter={{ current: value.length, max: 1000 }} error={error} tip="El estudiante verá este mensaje en su propuesta.">
+  return <FormField id="degree-observation" label={rejection ? 'Motivo de rechazo' : 'Observación'} optional={rejection} required={!rejection} counter={{ current: value.length, max: 1000 }} error={error} tip="El estudiante verá este mensaje en su propuesta.">
     <Textarea id="degree-observation" value={value} onChange={(event) => onChange(event.target.value)} maxLength={1000} minLength={rejection ? undefined : 3} required={!rejection} rows={5} aria-invalid={Boolean(error)} />
   </FormField>
 }

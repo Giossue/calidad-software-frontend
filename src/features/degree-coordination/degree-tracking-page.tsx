@@ -54,7 +54,7 @@ export function DegreeTrackingPage() {
             label: 'Tema de titulación',
             render: (topic) => (
               <div className="flex max-w-md flex-col gap-1">
-                <span className="font-medium text-foreground">{topic.title}</span>
+                <span className="text-foreground">{topic.title}</span>
                 <span className="line-clamp-2 text-xs text-muted-foreground">{topic.description || 'Sin descripción'}</span>
               </div>
             ),

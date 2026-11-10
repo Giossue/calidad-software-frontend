@@ -4,7 +4,6 @@ import { GraduationCapIcon, UserMinusIcon } from 'lucide-react'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -103,12 +102,19 @@ export function DegreeStudentsPage() {
         rows={degreeList.data}
         loading={degreeList.isFetching || degreeList.isInitialLoading}
         empty={hasFilters ? 'No hay estudiantes con estos filtros.' : 'Aún no hay estudiantes para el período vigente.'}
+        // Sin columna de acciones: la fila abre la confirmación que corresponde a su estado.
+        onRowClick={(student) => {
+          if (operation.pending) return
+          if (student.is_degree_enrolled) setUnenrollTarget(student)
+          else setEnrollTarget(student)
+        }}
+        rowTitle={(student) => student.is_degree_enrolled ? `Dar de baja a ${student.name}` : `Matricular a ${student.name}`}
         columns={[
           {
             label: 'Estudiante',
             render: (student) => (
               <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-foreground">{student.name}</span>
+                <span className="text-foreground">{student.name}</span>
                 <span className="text-xs text-muted-foreground">{student.email}</span>
               </div>
             ),
@@ -139,19 +145,6 @@ export function DegreeStudentsPage() {
             label: 'Fecha de matrícula',
             render: (student) => (
               <span className="text-sm text-muted-foreground">{student.enrolled_at || '—'}</span>
-            ),
-          },
-          {
-            // Una sola acción por fila, escrita: matricular o dar de baja según su estado.
-            label: 'Matrícula',
-            render: (student) => student.is_degree_enrolled ? (
-              <Button type="button" size="sm" variant="tertiary" tone="destructive" aria-label={`Dar de baja a ${student.name}`} onClick={() => setUnenrollTarget(student)} disabled={operation.pending}>
-                <UserMinusIcon data-icon="inline-start" />Dar de baja
-              </Button>
-            ) : (
-              <Button type="button" size="sm" variant="secondary" aria-label={`Matricular a ${student.name}`} onClick={() => setEnrollTarget(student)} disabled={operation.pending}>
-                <GraduationCapIcon data-icon="inline-start" />Matricular
-              </Button>
             ),
           },
         ]}

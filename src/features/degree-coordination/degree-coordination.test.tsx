@@ -144,12 +144,19 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(approveButton).toBeEnabled())
     await user.click(approveButton)
     const form = screen.getByRole('form', { name: 'Aprobar propuesta' })
-    const submit = within(form).getByRole('button', { name: 'Aprobar propuesta' })
-    expect(submit).toBeDisabled()
+    // Formulario por pasos: primero el tutor (obligatorio), luego los pares.
+    expectRequired(within(form).getByLabelText(/^Docente tutor/))
+    const nextStep = within(form).getByRole('button', { name: 'Siguiente' })
+    expect(nextStep).toBeDisabled()
+    expect(within(form).getByText('Selecciona el docente tutor.')).toBeInTheDocument()
     await chooseTutor(user, 'Ana Torres')
+    await user.click(nextStep)
     expect(screen.queryByRole('checkbox', { name: /Ana Torres/ })).not.toBeInTheDocument()
     await user.click(await screen.findByRole('checkbox', { name: /Luis Pérez/ }))
+    await user.click(within(form).getByRole('button', { name: 'Atrás' }))
     await chooseTutor(user, 'Luis Pérez')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
+    const submit = within(form).getByRole('button', { name: 'Aprobar propuesta' })
     expect(submit).toBeDisabled()
     expect(screen.queryByRole('checkbox', { name: /Luis Pérez/ })).not.toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: /María Rojas/ }))
@@ -171,16 +178,17 @@ describe('Coordinación de titulación', () => {
     await user.click(approveButton)
 
     // Al escribir se consulta al servidor sin pulsar ningún botón.
-    await user.type(screen.getByLabelText('Docente tutor'), 'salud')
+    await user.type(screen.getByLabelText(/^Docente tutor/), 'salud')
     await waitFor(() => expect(degreeCoordinationApi.teachers).toHaveBeenCalledWith('salud'))
     const option = await screen.findByRole('option', { name: /María Rojas/ })
     expect(option).toHaveTextContent('Enfermería · Ciencias de la Salud')
     await user.click(option)
-    expect(screen.getByLabelText('Docente tutor')).toHaveValue('María Rojas')
+    expect(screen.getByLabelText(/^Docente tutor/)).toHaveValue('María Rojas')
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
 
     // El par elegido sigue visible aunque la búsqueda cambie.
     await user.click(await screen.findByRole('checkbox', { name: /Ana Torres/ }))
-    await user.type(screen.getByLabelText('Pares académicos'), 'zzz')
+    await user.type(screen.getByLabelText(/^Pares académicos/), 'zzz')
     await waitFor(() => expect(degreeCoordinationApi.teachers).toHaveBeenCalledWith('zzz'))
     expect(screen.getByRole('checkbox', { name: /Ana Torres/ })).toBeChecked()
     expect(screen.queryByRole('checkbox', { name: /Luis Pérez/ })).not.toBeInTheDocument()
@@ -206,7 +214,8 @@ describe('Coordinación de titulación', () => {
     vi.mocked(degreeCoordinationApi.observe).mockImplementationOnce(() => new Promise((_resolve, rejectPromise) => { reject = rejectPromise }))
     render(<DegreeTopicDetail topicId={30} onBack={vi.fn()} />)
     await user.click(await screen.findByRole('button', { name: 'Registrar observación' }))
-    await user.type(screen.getByLabelText('Observación'), 'Revisar las referencias bibliográficas.')
+    expectRequired(screen.getByLabelText(/^Observación/))
+    await user.type(screen.getByLabelText(/^Observación/), 'Revisar las referencias bibliográficas.')
     const form = screen.getByRole('form', { name: 'Registrar observación' })
     fireEvent.submit(form)
     fireEvent.submit(form)
@@ -214,7 +223,7 @@ describe('Coordinación de titulación', () => {
     expect(within(form).getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     await act(async () => reject(new ApiError(422, { message: 'No se pudo guardar.', errors: { observation: ['La observación no pudo registrarse.'] } })))
     expect(await screen.findByText('La observación no pudo registrarse.')).toBeInTheDocument()
-    expect(screen.getByLabelText('Observación')).toHaveValue('Revisar las referencias bibliográficas.')
+    expect(screen.getByLabelText(/^Observación/)).toHaveValue('Revisar las referencias bibliográficas.')
     expect(within(form).getByRole('button', { name: 'Registrar observación' })).toBeEnabled()
   })
 
@@ -245,7 +254,7 @@ describe('Coordinación de titulación', () => {
     const registerButton = screen.getByRole('button', { name: 'Registrar paralelo' })
     await waitFor(() => expect(registerButton).toBeEnabled())
     await user.click(registerButton)
-    await user.type(screen.getByLabelText('Nombre del paralelo'), ' B ')
+    await user.type(screen.getByLabelText(/^Nombre del paralelo/), ' B ')
     await user.click(within(screen.getByRole('form', { name: 'Registrar paralelo' })).getByRole('button', { name: 'Registrar paralelo' }))
     await waitFor(() => expect(degreeCoordinationApi.registerSection).toHaveBeenCalledWith('B'))
     expect(await screen.findByText('B')).toBeInTheDocument()
@@ -259,7 +268,8 @@ describe('Coordinación de titulación', () => {
     await user.click(registerButton)
     const submit = within(screen.getByRole('form', { name: 'Registrar paralelo' })).getByRole('button', { name: 'Registrar paralelo' })
     expect(submit).toBeDisabled()
-    await user.type(screen.getByLabelText('Nombre del paralelo'), 'C')
+    expectRequired(screen.getByLabelText(/^Nombre del paralelo/))
+    await user.type(screen.getByLabelText(/^Nombre del paralelo/), 'C')
     expect(submit).toBeEnabled()
   })
 
@@ -273,7 +283,8 @@ describe('Coordinación de titulación', () => {
     const form = screen.getByRole('form', { name: 'Registrar actividad de avance' })
     const submit = within(form).getByRole('button', { name: 'Registrar actividad' })
     expect(submit).toBeDisabled()
-    await user.type(within(form).getByLabelText('Descripción de la actividad / entregable'), 'Capítulo 1')
+    expectRequired(within(form).getByLabelText(/^Descripción de la actividad/))
+    await user.type(within(form).getByLabelText(/^Descripción de la actividad/), 'Capítulo 1')
     expect(submit).toBeEnabled()
     await user.click(submit)
     await waitFor(() => expect(degreeCoordinationApi.addActivity).toHaveBeenCalledWith(30, { descripcion: 'Capítulo 1' }))
@@ -347,7 +358,7 @@ describe('Coordinación de titulación', () => {
     const registerButton = screen.getByRole('button', { name: 'Registrar paralelo' })
     await waitFor(() => expect(registerButton).toBeEnabled())
     await user.click(registerButton)
-    const name = screen.getByLabelText('Nombre del paralelo')
+    const name = screen.getByLabelText(/^Nombre del paralelo/)
     await user.type(name, 'B2!')
     expect(name).toHaveValue('B')
   })
@@ -395,10 +406,11 @@ describe('Coordinación de titulación', () => {
     expect(screen.getAllByRole('columnheader')[0]).toHaveTextContent('#')
     expect(screen.getByText('No matriculado')).toBeInTheDocument()
 
-    // Una sola acción por fila, escrita (no un ícono suelto).
-    expect(screen.queryByRole('button', { name: 'Dar de baja a Estudiante Titulación' })).not.toBeInTheDocument()
-    const enrollBtn = screen.getByRole('button', { name: 'Matricular a Estudiante Titulación' })
-    await user.click(enrollBtn)
+    // Sin columna de acciones: la fila abre la confirmación según el estado del estudiante.
+    expect(screen.queryByRole('columnheader', { name: 'Matrícula' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Matricular a|Dar de baja a/ })).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Dar de baja a Estudiante Titulación')).not.toBeInTheDocument()
+    await user.click(screen.getByTitle('Matricular a Estudiante Titulación'))
 
     expect(screen.getByRole('heading', { level: 2, name: /¿Matricular a Estudiante Titulación en Titulación\?/i })).toBeInTheDocument()
     const confirmBtn = screen.getByRole('button', { name: 'Confirmar matrícula' })
@@ -408,12 +420,17 @@ describe('Coordinación de titulación', () => {
   })
 })
 
+// Un campo obligatorio lleva asterisco y "(obligatorio)" en su etiqueta.
+function expectRequired(field: HTMLElement) {
+  expect((field as HTMLInputElement).labels?.[0]).toHaveTextContent('(obligatorio)')
+}
+
 function routed(ui: ReactElement, path = '/panel/degree') {
   return render(<MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>)
 }
 
 async function chooseTutor(user: ReturnType<typeof userEvent.setup>, name: string) {
-  const input = screen.getByLabelText('Docente tutor')
+  const input = screen.getByLabelText(/^Docente tutor/)
   await user.clear(input)
   await user.click(input)
   await user.click(await screen.findByRole('option', { name: new RegExp(name) }))

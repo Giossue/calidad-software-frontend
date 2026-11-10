@@ -146,7 +146,7 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
             },
             {
               label: 'Actividad',
-              render: (activity) => <span className={activity.is_completed ? 'text-muted-foreground line-through' : 'font-medium'}>{activity.description}</span>,
+              render: (activity) => <span className={activity.is_completed ? 'text-muted-foreground line-through' : undefined}>{activity.description}</span>,
             },
             { label: 'Registrada', render: (activity) => <span className="text-sm text-muted-foreground">{activity.registered_at ? formatDegreeDate(activity.registered_at) : 'Reciente'}</span> },
             { label: 'Docente', render: (activity) => <span className="text-sm text-muted-foreground">{activity.teacher?.name ?? 'Coordinación'}</span> },
@@ -167,7 +167,7 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
         submitLabel="Registrar actividad"
         submitIcon={SaveIcon}
       >
-        <FormField id="new-activity-desc" label="Descripción de la actividad / entregable" counter={{ current: activityText.length, max: 1000 }}>
+        <FormField id="new-activity-desc" label="Descripción de la actividad / entregable" required counter={{ current: activityText.length, max: 1000 }}>
           <Textarea id="new-activity-desc" maxLength={1000} rows={3} placeholder="Ej. Entrega del capítulo 1: marco metodológico" value={activityText} onChange={(event) => setActivityText(event.target.value)} />
         </FormField>
       </FormDialog>
@@ -185,7 +185,7 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
         submitLabel="Generar informe"
         submitIcon={FileTextIcon}
       >
-        <FormField id="report-obs" label="Observaciones y conclusiones finales" counter={{ current: reportText.length, max: 2000 }}>
+        <FormField id="report-obs" label="Observaciones y conclusiones finales" required counter={{ current: reportText.length, max: 2000 }}>
           <Textarea id="report-obs" maxLength={2000} rows={4} placeholder="Ej. Cumple los objetivos; se recomienda revisar la bibliografía" value={reportText} onChange={(event) => setReportText(event.target.value)} />
         </FormField>
       </FormDialog>
