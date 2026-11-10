@@ -122,7 +122,8 @@ export function FormDialog({
             {children}
             {step && (
               <FieldSet key={step.title}>
-                <FieldLegend>{step.title}</FieldLegend>
+                {/* Con varios pasos el título ya se lee en la barra de pasos: aquí solo para lectores de pantalla. */}
+                <FieldLegend className={steps && steps.length > 1 ? 'sr-only' : undefined}>{step.title}</FieldLegend>
                 {step.description && <FieldDescription>{step.description}</FieldDescription>}
                 <FieldGroup>{step.content}</FieldGroup>
               </FieldSet>
