@@ -33,6 +33,7 @@ import { DiagnosticReportDialog } from './teacher-diagnostic-report-dialog'
 import { FinalPaoReportDialog } from './teacher-final-pao-report-dialog'
 import { FollowUpReportDialog } from './teacher-follow-up-report-dialog'
 import { TeacherEmpty } from './teacher-shared'
+import { ActivitiesReviewSkeleton, ReportsListSkeleton } from './teacher-skeletons'
 
 
 // Pestaña, informe abierto y fecha revisada van en la URL: «atrás» del navegador vuelve a cada lista.
@@ -86,6 +87,8 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   const [gradesOpen, setGradesOpen] = useState(false)
   const [followUpOpen, setFollowUpOpen] = useState(false)
   const [finalOpen, setFinalOpen] = useState(false)
+
+  if (list.isInitialLoading) return <ReportsListSkeleton />
 
   // Un informe enviado es un documento completo: se lee en su propia pantalla, no en un modal.
   if (reading) {
@@ -163,7 +166,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
 
       <RecordTable
         rows={list.data}
-        loading={list.isInitialLoading || list.isFetching}
+        loading={list.isFetching}
         empty={
           <TeacherEmpty
             title="Aún no hay informes enviados"
@@ -196,6 +199,8 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
   const reviewDate = params.get(REVIEW_PARAM)
   const selectedSession = reviewDate ? list.data.find((session) => session.date === reviewDate) ?? null : null
   const setSelectedSession = (session: TutoringSession | null) => update({ [REVIEW_PARAM]: session ? session.date : null })
+
+  if (list.isInitialLoading) return <ActivitiesReviewSkeleton />
 
   if (selectedSession) {
     const sessionDay = getDayOfWeekFromDate(selectedSession.date)
@@ -293,7 +298,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
 
       <RecordTable
         rows={list.data}
-        loading={list.isInitialLoading || list.isFetching}
+        loading={list.isFetching}
         onRowClick={setSelectedSession}
         rowTitle={(session) => `Revisar actividades del ${formatDate(session.date)}`}
         empty={

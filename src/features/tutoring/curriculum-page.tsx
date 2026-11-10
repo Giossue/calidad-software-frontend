@@ -99,8 +99,13 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
   const nextIds = new Set((selected?.next_subjects ?? []).map((item) => item.id))
   const withSequence = subjects.filter((subject) => (subject.next_subjects ?? []).length > 0).length
 
-  // Primera carga: el mismo esqueleto que mientras cargaban las carreras (encabezado y tarjetas).
-  if (curricula.loading && !curricula.data) return <CurriculumScreenSkeleton />
+  // Primera carga (versiones y asignaturas de la malla): el mismo esqueleto que mientras
+  // cargaban las carreras (encabezado y tarjetas). Al recargar después se mantiene la pantalla
+  // y solo las tarjetas muestran su esqueleto.
+  const [loadedOnce, setLoadedOnce] = useState(false)
+  const loading = curricula.loading || resource.loading
+  if (!loadedOnce && !loading) setLoadedOnce(true)
+  if (!loadedOnce && loading) return <CurriculumScreenSkeleton />
 
   return (
     <section className="flex flex-col gap-6" data-tour-view="curriculum">
@@ -157,7 +162,7 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
         pending={deletePending}
       />
 
-      {curricula.loading || resource.loading ? (
+      {loading ? (
         <div role="status" aria-label="Cargando malla curricular">
           <CurriculumCardsSkeleton />
         </div>

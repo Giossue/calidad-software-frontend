@@ -7,6 +7,7 @@ import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { ListScreenSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { studentApi, type StudentTutoring } from '@/lib/student-api'
 import { formatSubjectName } from '@/lib/sanitize'
 import { StudentEmpty } from './student-shared'
@@ -38,10 +39,13 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
   const pager = usePagedList(rows, 10)
   const hasTutorings = (resource.data ?? []).some((item) => item.subject)
 
-  return <section className="flex min-w-0 flex-col gap-6" aria-busy={resource.loading}>
+  // Mientras llegan las tutorías, toda la pantalla (encabezado, filtros y tabla) es un solo esqueleto.
+  if (resource.loading) return <ListScreenSkeleton label="Cargando tutorías" actions={0} headers={['Asignatura', 'Ciclo', 'Docente', 'Estado']} />
+
+  return <section className="flex min-w-0 flex-col gap-6">
     <AdminSectionHeader title="Mis tutorías" description="Elige una tutoría para ver su contenido, tu asistencia, tus calificaciones y sus horarios." />
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {!resource.error && (!resource.loading && !hasTutorings
+    {!resource.error && (!hasTutorings
       ? <StudentEmpty title="Aún no estás inscrito en ninguna tutoría" description="Tu docente te inscribirá en la tutoría de tu paralelo y aparecerá aquí." />
       : <>
         <FilterBar
@@ -55,7 +59,7 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
         />
         <RecordTable
           rows={pager.rows}
-          loading={resource.loading}
+          loading={false}
           onRowClick={(item) => item.subject && onOpen(item.subject.id)}
           rowTitle={(item) => `Abrir ${item.subject?.name ?? ''}`}
           empty={term ? 'No hay tutorías que coincidan con tu búsqueda.' : 'No hay tutorías con estos filtros.'}

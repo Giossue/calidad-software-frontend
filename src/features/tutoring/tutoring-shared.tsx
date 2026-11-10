@@ -19,8 +19,8 @@ import type { TutoringCatalogs } from './tutoring-hooks'
 
 export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs }>) {
   if (catalogs.error) return <ErrorNotice message={catalogs.error} retry={catalogs.reload} />
-  // La pantalla de abajo ya muestra su propio esqueleto: aquí solo se anuncia la carga.
-  if (catalogs.loading) return <span role="status" aria-label="Cargando carreras y catálogos" className="sr-only">Cargando carreras y catálogos</span>
+  // La pantalla ya muestra su propio esqueleto y su aviso «Cargando…»: aquí no se repite.
+  if (catalogs.loading) return null
   if (catalogs.careers.length === 0) return <Alert><AlertDescription>No tienes carreras disponibles para coordinar. Solicita al administrador que asigne una carrera activa a tu cuenta.</AlertDescription></Alert>
   return null
 }

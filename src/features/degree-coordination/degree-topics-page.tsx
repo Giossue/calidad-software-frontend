@@ -8,7 +8,7 @@ import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeTopicStatus } from '@/lib/degree-coordination-api'
 import { DEGREE_STATUS_LABELS, formatDegreeDate } from './degree-format'
 import { useDegreePeriod, useDegreeResource, useDegreeSearch, useDetailParam } from './degree-hooks'
-import { DegreePeriodNotice, DegreeStatusBadge } from './degree-shared'
+import { DegreeListSkeleton, DegreePeriodNotice, DegreeStatusBadge } from './degree-shared'
 import { DegreeTopicDetail } from './degree-topic-detail'
 
 export function DegreeTopicsPage() {
@@ -48,7 +48,12 @@ export function DegreeTopicsPage() {
     setSectionId('')
   }
 
+  // Primera carga: encabezado (con «Actualizar»), buscador, dos desplegables y la tabla como un solo esqueleto.
+  if (!period.settled || !overview.settled) return <DegreeListSkeleton label="Cargando propuestas" headers={['#', 'Propuesta', 'Estudiante', 'Presentada', 'Estado']} iconActions={1} filters={2} />
+
   const noPeriod = period.status === 404
+  // Al recargar, los paralelos del desplegable siguen siendo los ya cargados.
+  const sections = (period.data ?? (period.loading ? period.previous : null))?.sections ?? []
 
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Propuestas de titulación" description="Revisa los temas que proponen los estudiantes y resuélvelos." actions={<RefreshButton disabled={table.loading || period.loading} onClick={reloadAll} />} />
@@ -63,7 +68,7 @@ export function DegreeTopicsPage() {
       onClear={clearFilters}
       filters={[
         { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as DegreeTopicStatus | ''), allLabel: 'Todos los estados', options: Object.entries(DEGREE_STATUS_LABELS).map(([value, label]) => ({ value, label })) },
-        { id: 'section', label: 'Paralelo', value: sectionId, onChange: setSectionId, allLabel: 'Todos los paralelos', options: (period.data?.sections ?? []).map((section) => ({ value: String(section.id), label: `${section.name}${section.is_active ? '' : ' (inactivo)'}` })) },
+        { id: 'section', label: 'Paralelo', value: sectionId, onChange: setSectionId, allLabel: 'Todos los paralelos', options: sections.map((section) => ({ value: String(section.id), label: `${section.name}${section.is_active ? '' : ' (inactivo)'}` })) },
       ]}
     />
     {!noPeriod && <ErrorNotice message={table.error} retry={table.retry} />}

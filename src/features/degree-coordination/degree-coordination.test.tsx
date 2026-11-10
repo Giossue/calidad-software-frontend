@@ -12,6 +12,7 @@ import { DegreeReportsPage } from './degree-reports-page'
 import { DegreeSectionsPage } from './degree-sections-page'
 import { DegreeTrackingPage } from './degree-tracking-page'
 import { DegreeStudentsPage } from './degree-students-page'
+import { DegreeTeachersPage } from './degree-teachers-page'
 import { DegreeTopicDetail } from './degree-topic-detail'
 import { DegreeTopicsPage } from './degree-topics-page'
 
@@ -292,7 +293,7 @@ describe('Coordinación de titulación', () => {
     vi.mocked(degreeCoordinationApi.sections).mockResolvedValueOnce(sections).mockResolvedValue([...sections, { id: 21, name: 'B', is_active: true }])
     vi.mocked(degreeCoordinationApi.registerSection).mockResolvedValue({ id: 21, name: 'B', status: true, academic_period: period })
     render(<DegreeSectionsPage />)
-    const registerButton = screen.getByRole('button', { name: 'Registrar paralelo' })
+    const registerButton = await screen.findByRole('button', { name: 'Registrar paralelo' })
     await waitFor(() => expect(registerButton).toBeEnabled())
     await user.click(registerButton)
     await user.type(screen.getByLabelText(/^Nombre del paralelo/), ' B ')
@@ -304,7 +305,7 @@ describe('Coordinación de titulación', () => {
   it('mantiene bloqueado el registro de paralelo hasta completar el nombre', async () => {
     const user = userEvent.setup()
     render(<DegreeSectionsPage />)
-    const registerButton = screen.getByRole('button', { name: 'Registrar paralelo' })
+    const registerButton = await screen.findByRole('button', { name: 'Registrar paralelo' })
     await waitFor(() => expect(registerButton).toBeEnabled())
     await user.click(registerButton)
     const submit = within(screen.getByRole('form', { name: 'Registrar paralelo' })).getByRole('button', { name: 'Registrar paralelo' })
@@ -396,13 +397,20 @@ describe('Coordinación de titulación', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Propuestas de titulación' })).toBeInTheDocument()
   })
 
-  it('mientras carga la propuesta muestra la forma de su ficha (encabezado, pestañas y datos)', async () => {
-    vi.mocked(degreeCoordinationApi.topic).mockReturnValue(new Promise(() => {}))
+  it('mientras carga la propuesta muestra la forma de su ficha (volver, encabezado, acciones, pestañas y datos)', async () => {
+    const pending = deferred<DegreeTopic>()
+    vi.mocked(degreeCoordinationApi.topic).mockReturnValue(pending.promise)
     routed(<DegreeTopicsPage />, '/panel/degree-topics?topic=30')
     const loading = await screen.findByRole('status', { name: 'Cargando propuesta' })
+    expectSingleLoading()
     expect(loading.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(10)
-    expect(screen.getByRole('button', { name: 'Volver a propuestas' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Volver a propuestas' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar observación' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    await act(async () => pending.resolve(topic))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Plataforma de seguimiento' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Volver a propuestas' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('abre un informe desde la fila y explica la lista vacía según la búsqueda', async () => {
@@ -425,7 +433,7 @@ describe('Coordinación de titulación', () => {
     const user = userEvent.setup()
     vi.mocked(degreeCoordinationApi.sections).mockResolvedValue(sections)
     render(<DegreeSectionsPage />)
-    const registerButton = screen.getByRole('button', { name: 'Registrar paralelo' })
+    const registerButton = await screen.findByRole('button', { name: 'Registrar paralelo' })
     await waitFor(() => expect(registerButton).toBeEnabled())
     await user.click(registerButton)
     const name = screen.getByLabelText(/^Nombre del paralelo/)
@@ -489,6 +497,124 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(degreeCoordinationApi.enrollDegreeStudent).toHaveBeenCalledWith(50))
   })
 })
+
+describe('Carga completa de las pantallas de titulación', () => {
+  const reportMeta = { current_page: 1, last_page: 2, total: 16, per_page: 15, from: 1, to: 15, active_count: 0, inactive_count: 0 }
+  const report = { id: 80, topic_id: 30, topic_title: 'Plataforma de seguimiento', student_name: 'Carlos Salas', student_identification: '0201111111', coordinator_name: 'Coordinadora', generated_at: '2026-10-01', final_observations: 'Cumple.', progress_percentage: 100, period_name: '2026-2' }
+
+  it('matrícula: todo el encabezado, el filtro y la tabla cargan como un solo esqueleto', async () => {
+    const pending = deferred<Awaited<ReturnType<typeof degreeCoordinationApi.degreeStudents>>>()
+    vi.mocked(degreeCoordinationApi.degreeStudents).mockReturnValue(pending.promise)
+    render(<DegreeStudentsPage />)
+    expectSingleLoading('Cargando estudiantes de titulación')
+    expect(screen.queryByRole('heading', { level: 1, name: 'Matrícula en titulación' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar estudiante')).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: /Paginación/ })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['#', 'Estudiante', 'Cédula', 'Teléfono', 'Ciclo', 'Estado', 'Fecha de matrícula'])
+    await act(async () => pending.resolve({ data: [], meta: { ...reportMeta, last_page: 1, total: 0, current_period: period } }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Matrícula en titulación' })).toBeInTheDocument()
+    expect(screen.getByText(/período 2026-2/)).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('paralelos: no muestra botones reales junto a una tabla que carga', async () => {
+    const pending = deferred<typeof period>()
+    vi.mocked(degreeCoordinationApi.currentPeriod).mockReturnValue(pending.promise)
+    render(<DegreeSectionsPage />)
+    expectSingleLoading('Cargando paralelos')
+    expect(screen.queryByRole('heading', { level: 1, name: 'Período y paralelos' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar paralelo' })).not.toBeInTheDocument()
+    await act(async () => pending.resolve(period))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Período y paralelos' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar paralelo' })).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('docentes: el buscador y el encabezado esperan a la primera carga', async () => {
+    const pending = deferred<readonly DegreeTeacher[]>()
+    vi.mocked(degreeCoordinationApi.teachers).mockReturnValue(pending.promise)
+    render(<DegreeTeachersPage />)
+    expectSingleLoading('Cargando docentes')
+    expect(screen.queryByRole('heading', { level: 1, name: 'Docentes de titulación' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar docente')).not.toBeInTheDocument()
+    await act(async () => pending.resolve(teachers))
+    expect(await screen.findByText('Ana Torres')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Docentes de titulación' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('propuestas: sin botón de actualizar ni filtros reales mientras carga; al filtrar solo cargan las filas', async () => {
+    const user = userEvent.setup()
+    const pending = deferred<Awaited<ReturnType<typeof degreeCoordinationApi.topics>>>()
+    vi.mocked(degreeCoordinationApi.topics).mockReturnValueOnce(pending.promise).mockReturnValue(new Promise(() => {}))
+    routed(<DegreeTopicsPage />)
+    expectSingleLoading('Cargando propuestas')
+    expect(screen.queryByRole('heading', { level: 1, name: 'Propuestas de titulación' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar propuesta')).not.toBeInTheDocument()
+    await act(async () => pending.resolve({ data: [topic], meta: { academic_period: period, filter_section_id: null } }))
+    expect(await screen.findByText('Plataforma de seguimiento')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('Buscar propuesta'), 'Carlos')
+    await waitFor(() => expect(degreeCoordinationApi.topics).toHaveBeenCalledTimes(2))
+    expectSingleLoading()
+    expect(screen.getByRole('heading', { level: 1, name: 'Propuestas de titulación' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Buscar propuesta')).toHaveValue('Carlos')
+  })
+
+  it('seguimiento: la lista y la ficha cargan con su forma completa', async () => {
+    const list = deferred<Awaited<ReturnType<typeof degreeCoordinationApi.topics>>>()
+    vi.mocked(degreeCoordinationApi.topics).mockReturnValue(list.promise)
+    routed(<DegreeTrackingPage />)
+    expectSingleLoading('Cargando seguimiento')
+    expect(screen.queryByRole('heading', { level: 1, name: 'Seguimiento de titulación' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar tema o estudiante')).not.toBeInTheDocument()
+    await act(async () => list.resolve({ data: [approved], meta: { academic_period: period, filter_section_id: null } }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Seguimiento de titulación' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    cleanup()
+
+    const detail = deferred<DegreeTopic>()
+    vi.mocked(degreeCoordinationApi.topic).mockReturnValue(detail.promise)
+    routed(<DegreeTrackingPage />, '/panel/degree-tracking?topic=30')
+    expectSingleLoading('Cargando ficha de seguimiento')
+    expect(screen.queryByRole('button', { name: 'Volver a seguimiento' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nueva actividad' })).not.toBeInTheDocument()
+    await act(async () => detail.resolve(approved))
+    expect(await screen.findByRole('button', { name: 'Nueva actividad' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Volver a seguimiento' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('reportes: esqueleto completo al entrar; al cambiar de página se conserva la pantalla', async () => {
+    const user = userEvent.setup()
+    const first = deferred<Awaited<ReturnType<typeof degreeCoordinationApi.reports>>>()
+    vi.mocked(degreeCoordinationApi.reports).mockReturnValueOnce(first.promise).mockReturnValue(new Promise(() => {}))
+    render(<DegreeReportsPage />)
+    expectSingleLoading('Cargando reportes')
+    expect(screen.queryByRole('heading', { level: 1, name: 'Reportes de titulación' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Paginación de reportes' })).not.toBeInTheDocument()
+    await act(async () => first.resolve({ data: [report], meta: reportMeta }))
+    expect(await screen.findByTitle('Ver informe de Carlos Salas')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Página siguiente' }))
+    expectSingleLoading()
+    expect(screen.getByRole('heading', { level: 1, name: 'Reportes de titulación' })).toBeInTheDocument()
+    expect(screen.getByText('Página 2 de 2')).toBeInTheDocument()
+  })
+})
+
+/** Un solo anuncio de carga en la pantalla, cuyo nombre empieza por "Cargando". */
+function expectSingleLoading(name?: string) {
+  const statuses = screen.getAllByRole('status')
+  expect(statuses).toHaveLength(1)
+  expect(statuses[0]).toHaveAccessibleName(name ?? /^Cargando/)
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => undefined
+  const promise = new Promise<T>((done) => { resolve = done })
+  return { promise, resolve }
+}
 
 // Un campo obligatorio lleva asterisco y "(obligatorio)" en su etiqueta.
 function expectRequired(field: HTMLElement) {

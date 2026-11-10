@@ -1583,3 +1583,83 @@ describe('Coordinación de tutorías', () => {
     expect(email.closest('[data-slot="field"]')).toHaveTextContent('El correo ya está registrado.')
   })
 })
+
+// S10: en la primera carga se ve un solo esqueleto con la forma de toda la pantalla (sin el
+// encabezado ni los botones reales) y un único aviso «Cargando…»; después, el contenido real.
+describe('Carga completa de las pantallas de coordinación de carrera', () => {
+  function deferred<T>() {
+    let resolve: (value: T) => void = () => undefined
+    const promise = new Promise<T>((done) => { resolve = done })
+    return { promise, resolve }
+  }
+
+  function onlyLoadingStatus(name: string) {
+    const statuses = screen.queryAllByRole('status').filter((status) => (status.getAttribute('aria-label') ?? status.textContent ?? '').startsWith('Cargando'))
+    expect(statuses).toHaveLength(1)
+    expect(statuses[0]).toHaveAccessibleName(name)
+    return statuses[0]
+  }
+
+  it('Docentes: mientras cargan carreras y docentes no muestra el encabezado ni los botones reales', async () => {
+    const careers = deferred<typeof career[]>()
+    const teachers = deferred<ReturnType<typeof paginated<never>>>()
+    vi.mocked(tutoringApi.careers).mockReturnValue(careers.promise)
+    vi.mocked(tutoringApi.teachers).mockReturnValue(teachers.promise)
+    renderTeachers()
+    const status = onlyLoadingStatus('Cargando docentes')
+    expect(status.parentElement?.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(5)
+    expect(screen.queryByRole('heading', { name: 'Docentes' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar docente nuevo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Vincular docente existente' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado'])
+    await act(async () => careers.resolve([career]))
+    onlyLoadingStatus('Cargando docentes')
+    expect(screen.queryByRole('button', { name: 'Registrar docente nuevo' })).not.toBeInTheDocument()
+    await act(async () => teachers.resolve(paginated([])))
+    expect(await screen.findByRole('button', { name: 'Registrar docente nuevo' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Docentes' })).toBeInTheDocument()
+    expect(screen.queryAllByRole('status').filter((item) => item.getAttribute('aria-label')?.startsWith('Cargando'))).toHaveLength(0)
+  })
+
+  it('Informes: mientras carga la primera página muestra la forma de la pantalla, no su título real', async () => {
+    const reports = deferred<ReturnType<typeof paginated<never>>>()
+    vi.mocked(tutoringApi.allReports).mockReturnValue(reports.promise)
+    render(<TutoringReportsPage />)
+    await waitFor(() => onlyLoadingStatus('Cargando informes'))
+    await waitFor(() => expect(tutoringApi.allReports).toHaveBeenCalled())
+    onlyLoadingStatus('Cargando informes')
+    expect(screen.queryByRole('heading', { name: 'Informes' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Asignatura / Tutoría', 'Tipo de informe', 'Docente', 'Fecha'])
+    await act(async () => reports.resolve(paginated([])))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Informes' })).toBeInTheDocument()
+  })
+
+  it('Malla: mientras cargan las asignaturas de la malla no muestra el encabezado ni «Subir nueva malla»', async () => {
+    const subjects = deferred<ReturnType<typeof paginated<Subject>>>()
+    vi.mocked(tutoringApi.subjects).mockReturnValue(subjects.promise)
+    render(<TutoringCurriculumPage />)
+    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenCalled())
+    onlyLoadingStatus('Cargando malla curricular')
+    expect(screen.queryByRole('heading', { name: 'Malla curricular' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Subir nueva malla curricular' })).not.toBeInTheDocument()
+    await act(async () => subjects.resolve(paginated([subject])))
+    expect(await screen.findByRole('button', { name: 'Subir nueva malla curricular' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Malla curricular' })).toBeInTheDocument()
+  })
+
+  it('Estudiantes de la tutoría: mientras carga la pestaña no muestra el buscador ni «Registrar estudiante»', async () => {
+    const user = userEvent.setup()
+    const students = deferred<ReturnType<typeof paginated<never>>>()
+    vi.mocked(tutoringApi.students).mockReturnValue(students.promise)
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    onlyLoadingStatus('Cargando estudiantes')
+    expect(screen.queryByRole('button', { name: 'Registrar estudiante' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Estudiante', 'Contacto', 'Inscripción'])
+    await act(async () => students.resolve(paginated([])))
+    expect(await screen.findByRole('button', { name: 'Registrar estudiante' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Buscar')).toBeInTheDocument()
+  })
+})

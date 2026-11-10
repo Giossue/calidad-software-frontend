@@ -66,3 +66,23 @@ describe('Períodos académicos', () => {
     expect(await within(dialog).findByText('Ingresa un año válido de 4 dígitos.')).toBeInTheDocument()
   })
 })
+
+describe('Carga de la pantalla de períodos', () => {
+  it('muestra un solo esqueleto de la pantalla completa mientras llega la primera página', async () => {
+    let resolve: (value: Awaited<ReturnType<typeof api.listAcademicPeriods>>) => void = () => {}
+    vi.mocked(api.listAcademicPeriods).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<AcademicPeriodsPage />)
+
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('status', { name: 'Cargando períodos académicos' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Períodos académicos' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nuevo período' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Período' })).toBeInTheDocument()
+
+    resolve({ data: [period], meta })
+    expect(await screen.findByRole('heading', { name: 'Períodos académicos' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nuevo período' })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /PAO I 2026/ })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /^Cargando/ })).not.toBeInTheDocument()
+  })
+})

@@ -10,11 +10,14 @@ import { formatDate } from '@/lib/format'
 import { teacherApi, type TeacherDegreeAssignment } from '@/lib/teacher-api'
 import { DEGREE_ROLE_LABELS as ROLE_LABELS, DEGREE_ROLE_OPTIONS } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
+import { DegreeAssignmentsScreenSkeleton } from './teacher-skeletons'
 
 export function TeacherDegreeAssignmentsPage() {
   const [role, setRole] = useState<'' | 'tutor' | 'par_academico'>('')
   const [reading, setReading] = useState<TeacherDegreeAssignment | null>(null)
   const list = usePaginatedCatalog((page, search) => teacherApi.degreeAssignments({ page, search, role: role || undefined }), role)
+
+  if (list.isInitialLoading) return <DegreeAssignmentsScreenSkeleton />
 
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Mis asignaciones de titulación" description="Consulta los estudiantes y temas en los que participas como tutor o par académico." />
@@ -22,7 +25,7 @@ export function TeacherDegreeAssignmentsPage() {
       { id: 'role', label: 'Participación', value: role, onChange: (value) => setRole(value as typeof role), allLabel: 'Todas las participaciones', options: DEGREE_ROLE_OPTIONS },
     ]} />
     <ErrorNotice message={list.error} retry={list.reload} />
-    <RecordTable rows={list.data} onRowClick={setReading} rowTitle={(item) => `Ver detalle de ${item.topic.title}`} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No tienes asignaciones de titulación con estos criterios" description="Las asignaciones aparecerán cuando el Coordinador de Titulación te designe como tutor o par académico." />} columns={[
+    <RecordTable rows={list.data} onRowClick={setReading} rowTitle={(item) => `Ver detalle de ${item.topic.title}`} loading={list.isFetching} empty={<TeacherEmpty title="No tienes asignaciones de titulación con estos criterios" description="Las asignaciones aparecerán cuando el Coordinador de Titulación te designe como tutor o par académico." />} columns={[
       { label: 'Tema', render: (item) => <div className="flex flex-col gap-1"><span>{item.topic.title}</span><span className="text-xs text-muted-foreground">{item.period.name}</span></div> },
       { label: 'Estudiante', render: (item) => <div className="flex flex-col gap-1"><span>{item.student.name}</span><span className="text-xs text-muted-foreground break-all">{item.student.email}</span></div> },
       { label: 'Participación', render: (item) => ROLE_LABELS[item.role] }, { label: 'Asignación', render: (item) => item.assigned_at ? formatDate(item.assigned_at) : 'Sin fecha' },

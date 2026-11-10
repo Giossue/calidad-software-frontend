@@ -8,7 +8,7 @@ import { SelectInput } from '@/components/ui/select-field'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DEGREE_STATUS_LABELS, formatDegreeDate, roundPercent } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { DegreeTrackingStatusBadge } from '@/features/degree-coordination/degree-shared'
+import { DegreeHeaderSkeleton, DegreeTrackingStatusBadge } from '@/features/degree-coordination/degree-shared'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeActivity, type DegreeTopic } from '@/lib/degree-coordination-api'
@@ -200,6 +200,15 @@ export function StudentDegreeTrackingPage() {
 
   const currentTopic =
     approvedTopics.find((t) => t.id === selectedTopicId) ?? approvedTopics[0]
+
+  // Primera carga: encabezado, pestañas y la ficha como un solo esqueleto con un solo aviso.
+  if (!resource.settled) return (
+    <section className="flex flex-col gap-6">
+      <span role="status" aria-label="Cargando seguimiento" className="sr-only">Cargando seguimiento</span>
+      <DegreeHeaderSkeleton />
+      <div aria-hidden="true"><DegreeTrackingSkeleton /></div>
+    </section>
+  )
 
   return (
     <section className="flex flex-col gap-6">

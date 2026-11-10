@@ -22,7 +22,10 @@ import { useDetailParam } from '@/hooks/use-detail-param'
 import { TeacherDetail } from './teacher-detail'
 import { ModuleHeader, RecordTable, ScopeNotice } from './tutoring-shared'
 import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
+import { ListScreenSkeleton } from './tutoring-skeletons'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
+
+const TEACHER_HEADERS = ['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado'] as const
 
 const EMPTY_FORM = { career_id: '', identification: '', name: '', email: '', phone: '' }
 
@@ -171,6 +174,9 @@ export function TutoringTeachersPage() {
           <Button type="button" variant="secondary" onClick={detail.close}>Volver a docentes</Button>
         </div>
       ) : <DetailPageSkeleton label="Cargando docente" />
+    ) : list.isInitialLoading || (catalogs.loading && catalogs.careers.length === 0) ? (
+      // Primera carga (docentes o carreras): la forma de toda la pantalla, sin botones reales.
+      <ListScreenSkeleton label="Cargando docentes" actions={3} filters={catalogs.careers.length > 1 ? 2 : 1} headers={TEACHER_HEADERS} />
     ) : <>
     <ModuleHeader title="Docentes" description="Registra a los docentes de tus carreras o vincula a uno que ya tiene cuenta. Haz clic en uno para abrirlo." createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="secondary" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <ScopeNotice catalogs={catalogs} />

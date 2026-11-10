@@ -4,10 +4,16 @@ import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
 import { useDegreeResource, useDegreeSearch } from './degree-hooks'
+import { DegreeListSkeleton } from './degree-shared'
+
+const HEADERS = ['Docente', 'Contacto', 'Carrera / Facultad', 'Asignaciones como tutor', 'Asignaciones como par'] as const
 
 export function DegreeTeachersPage() {
   const search = useDegreeSearch()
   const resource = useDegreeResource(() => degreeCoordinationApi.teachers(search.search), search.search)
+
+  // Primera carga: toda la pantalla como esqueleto; al buscar solo cargan las filas.
+  if (!resource.settled) return <DegreeListSkeleton label="Cargando docentes" headers={HEADERS} />
 
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Docentes de titulación" />

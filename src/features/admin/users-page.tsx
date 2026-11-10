@@ -3,6 +3,7 @@ import { CheckCircle2Icon, PlusIcon, UserCheckIcon, UserXIcon, XCircleIcon } fro
 import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
+import { AdminListSkeleton } from '@/components/admin/admin-skeletons'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
@@ -656,6 +657,11 @@ export function UsersPage() {
   ]
 
   const hasFilters = searchInput.trim() !== '' || roleFilter !== '' || statusFilter !== '' || careerFilter !== ''
+
+  // Primera carga: toda la pantalla en esqueleto; después, solo las filas al filtrar o paginar.
+  if (isInitialLoading) {
+    return <AdminListSkeleton label="Cargando usuarios" filters={3} headers={['Usuario', 'Rol', 'Carrera', 'Cédula', 'Teléfono', 'Estado']} />
+  }
 
   return (
     <section className="flex flex-col gap-6">

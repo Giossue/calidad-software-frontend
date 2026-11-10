@@ -3,7 +3,6 @@ import { ArrowLeftIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Button } from '@/components/ui/button'
-import { TableSkeleton } from '@/components/ui/loading-skeletons'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
@@ -11,6 +10,7 @@ import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
 import { ReportsPanel } from './teacher-reports-page'
 import { TeacherEmpty } from './teacher-shared'
+import { ReportsTutoringSkeleton, ReportsTutoringsScreenSkeleton } from './teacher-skeletons'
 
 const groupLabel = (tutoring: TeacherTutoring) => `${tutoring.cycle_name}${tutoring.section_name ? ` · ${tutoring.section_name}` : ''}`
 
@@ -21,7 +21,8 @@ export function TeacherReportsStandalonePage() {
   const selectedId = Number(params.get('tutoring')) || null
   const selected = selectedId ? resource.data?.find((item) => item.id === selectedId) ?? null : null
 
-  if (selectedId && resource.loading) return <TableSkeleton columns={3} />
+  // Primera carga: la pantalla que se va a abrir (informes de la tutoría o la lista) es un solo esqueleto.
+  if (resource.loading) return selectedId ? <ReportsTutoringSkeleton /> : <ReportsTutoringsScreenSkeleton />
 
   if (selected) {
     return (
@@ -54,7 +55,7 @@ export function TeacherReportsStandalonePage() {
       <ErrorNotice message={resource.error} retry={resource.reload} />
       <RecordTable
         rows={resource.data ?? []}
-        loading={resource.loading}
+        loading={false}
         onRowClick={(tutoring) => setParams({ tutoring: String(tutoring.id) })}
         rowTitle={(tutoring) => `Ver informes de ${tutoring.subject_name}`}
         empty={

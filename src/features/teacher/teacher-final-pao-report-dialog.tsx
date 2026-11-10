@@ -14,6 +14,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import type { FinalPaoReportSummary } from '@/lib/final-pao-report'
 import { todayIsoDate } from '@/lib/format'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
+import { PrintButtonSkeleton } from './teacher-skeletons'
 
 const MAX_TEXT = 5000
 const MAX_OBSERVATION = 1000
@@ -203,6 +204,7 @@ export function FinalPaoReportDialog({
               </FormField>
             </div>
             {loading && <LoadingNotice />}
+            {loading && <PrintButtonSkeleton />}
             {summary && (
               <SheetFrame>
                 <FinalPaoReportDocument summary={summary} />

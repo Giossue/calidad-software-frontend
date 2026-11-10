@@ -13,6 +13,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import type { DiagnosticReportSummary } from '@/lib/diagnostic-report'
 import { todayIsoDate } from '@/lib/format'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
+import { PrintButtonSkeleton } from './teacher-skeletons'
 
 const MAX_OBSERVATIONS = 5000
 
@@ -124,6 +125,7 @@ export function DiagnosticReportDialog({
       {loading && (
         <SheetSkeleton label="Cargando el reporte con las calificaciones registradas" />
       )}
+      {loading && <PrintButtonSkeleton />}
       {preview && !hasGrades && (
         <Alert>
           <AlertDescription>

@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { DataTable } from '@/components/ui/data-table'
 import { IconAction } from '@/components/ui/icon-action'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TableSkeleton } from '@/components/ui/loading-skeletons'
+import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -26,6 +26,7 @@ import { classWindow, closedReason, hoursLabel, useNow } from './class-hours'
 import { jointGroup, ownGroup, type ClassGroup } from './joint-groups'
 import { JointNotice } from './joint-notice'
 import { TeacherEmpty } from './teacher-shared'
+import { SessionConsultSkeleton, SessionsTabSkeleton } from './teacher-skeletons'
 
 const SESSION_PARAM = 'session'
 /** Sesión pasada abierta para consulta (su fecha): va en la URL para que «atrás» vuelva a la lista. */
@@ -141,7 +142,7 @@ function SessionConsultView({ tutoring, date, picked, onClose }: Readonly<{ tuto
     async () => picked ?? (await teacherApi.sessions(tutoring.id, { date })).data[0] ?? null,
     `consult:${tutoring.id}:${date}:${picked ? picked.id : 'url'}`,
   )
-  if (resource.loading) return <div role="status" aria-label="Cargando sesión" className="flex flex-col gap-4"><Skeleton className="h-8 w-72 max-w-full" aria-hidden="true" /><TableSkeleton columns={3} /></div>
+  if (resource.loading) return <SessionConsultSkeleton />
   if (resource.error) return <ErrorNotice message={resource.error} retry={resource.reload} />
   if (!resource.data) {
     return (
@@ -186,6 +187,9 @@ function SessionsList({
   const classTime = classWindow(tutoring.schedules, useNow())
   const closed = closedReason(classTime)
 
+  // Primera carga: el aviso de hoy, su botón y la tabla de sesiones son un solo esqueleto.
+  if (list.isInitialLoading || todaySession.loading) return <SessionsTabSkeleton />
+
   return (
     <div className="flex flex-col gap-5">
       {taken ? (
@@ -226,7 +230,7 @@ function SessionsList({
 
       <RecordTable
         rows={list.data}
-        loading={list.isInitialLoading || list.isFetching}
+        loading={list.isFetching}
         onRowClick={(session) => onOpenConsult(session)}
         rowTitle={(session) => `Abrir la ${session.number ? `sesión ${session.number}` : 'sesión'} del ${formatDate(session.date)}`}
         empty={
@@ -330,7 +334,7 @@ function SessionFormSkeleton() {
           <Skeleton className="h-8 w-32" />
         </div>
       </div>
-      <TableSkeleton columns={3} />
+      <HeadedTableSkeleton headers={['#', 'Estudiante', 'Asistió']} />
       <div className="flex justify-end" aria-hidden="true"><Skeleton className="h-9 w-44" /></div>
     </div>
   )

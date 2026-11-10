@@ -62,6 +62,6 @@ export function AttendancePanel({ tutoringId, canNotify = false }: Readonly<{ tu
   return <div className="flex flex-col gap-6">
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {resource.loading ? <AttendanceSkeleton /> : !resource.error && (!item ? <StudentEmpty title="Aún no tienes asistencia registrada" description="Tu récord aparecerá cuando tu docente registre la primera sesión." /> : <AttendanceView item={item} />)}
-    <AbsenceNotices tutoringId={tutoringId} canNotify={canNotify} />
+    <AbsenceNotices tutoringId={tutoringId} canNotify={canNotify} announce={!resource.loading} />
   </div>
 }

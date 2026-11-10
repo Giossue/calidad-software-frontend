@@ -12,7 +12,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
 import { sanitizeLetters } from '@/lib/sanitize'
-import { DegreePeriodCard } from './degree-shared'
+import { DegreeListSkeleton, DegreePeriodCard } from './degree-shared'
 import { useDegreePeriod } from './degree-hooks'
 
 export function DegreeSectionsPage() {
@@ -29,10 +29,14 @@ export function DegreeSectionsPage() {
     void operation.run(() => degreeCoordinationApi.registerSection(name.trim()), 'Paralelo registrado en el período vigente.', () => { setOpen(false); resource.reload() })
   }
 
+  // Primera carga: encabezado con sus dos botones, período y tabla como un solo esqueleto.
+  if (!resource.settled) return <DegreeListSkeleton label="Cargando paralelos" headers={['Paralelo', 'Estado']} actions={2} periodCard search={false} />
+  const sectionRows = resource.data?.sections ?? (resource.loading ? resource.previous?.sections : undefined)
+
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Período y paralelos" actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3"><BulkImportButton type="sections" title="Carga masiva de paralelos" description="Los paralelos se registran en el período académico vigente." onFinished={resource.reload} className="flex-1 sm:flex-none" /><Button type="button" disabled={resource.loading || !resource.data || operation.pending} onClick={() => { setName(''); operation.clearError(); setOpen(true) }} className="w-full sm:w-auto"><PlusIcon data-icon="inline-start" />Registrar paralelo</Button></div>} />
     <DegreePeriodCard resource={resource} />
-    {(resource.loading || resource.data) && <RecordTable rows={resource.data?.sections ?? []} loading={resource.loading} empty="Todavía no hay paralelos registrados en este período." columns={[
+    {sectionRows && <RecordTable rows={sectionRows} loading={resource.loading} empty="Todavía no hay paralelos registrados en este período." columns={[
       { label: 'Paralelo', render: (section) => section.name },
       { label: 'Estado', render: (section) => <StatusBadge active={section.is_active} /> },
     ]} />}

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -44,5 +44,20 @@ describe('Consulta de titulación del estudiante', () => {
     expect(await screen.findByText(/Aún no tienes propuestas de titulación registradas/)).toBeInTheDocument()
     expect(screen.queryByRole('alert')).toHaveTextContent('Aún no tienes')
     await waitFor(() => expect(degreeCoordinationApi.studentTopics).toHaveBeenCalledTimes(2))
+  })
+
+  it('en la primera carga muestra toda la pantalla como esqueleto y un solo aviso de carga', async () => {
+    let resolve: (value: DegreeTopic[]) => void = () => undefined
+    vi.mocked(degreeCoordinationApi.studentTopics).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<StudentDegreeTopicsPage />)
+    const statuses = screen.getAllByRole('status')
+    expect(statuses).toHaveLength(1)
+    expect(statuses[0]).toHaveAccessibleName(/^Cargando/)
+    expect(screen.queryByRole('heading', { level: 1, name: 'Mis propuestas de titulación' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).not.toBeInTheDocument()
+    await act(async () => resolve([topic]))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mis propuestas de titulación' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Actualizar' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

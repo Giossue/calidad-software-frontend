@@ -16,6 +16,7 @@ import {
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { DegreeListSkeleton } from './degree-shared'
 
 export function DegreeStudentsPage() {
   const [degreeFilter, setDegreeFilter] = useState<'' | 'enrolled' | 'not_enrolled'>('')
@@ -60,6 +61,10 @@ export function DegreeStudentsPage() {
 
   const noPeriod = !currentPeriodName && !degreeList.isInitialLoading && !degreeList.error
   const hasFilters = Boolean(degreeList.searchInput || degreeFilter)
+
+  // Primera carga: la descripción nombra el período, así que encabezado, filtro, tabla y
+  // paginación esperan juntos como un solo esqueleto. Al filtrar o paginar solo cargan las filas.
+  if (degreeList.isInitialLoading) return <DegreeListSkeleton label="Cargando estudiantes de titulación" headers={['#', 'Estudiante', 'Cédula', 'Teléfono', 'Ciclo', 'Estado', 'Fecha de matrícula']} filters={1} pagination />
 
   return (
     <section className="flex flex-col gap-6">

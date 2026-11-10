@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -136,5 +136,19 @@ describe('StudentDegreeTrackingPage con pestañas', () => {
     await user.click(picker)
     await user.click(screen.getByRole('option', { name: 'Repositorio institucional' }))
     expect(screen.getByText('20%')).toBeInTheDocument()
+  })
+
+  it('en la primera carga muestra toda la pantalla como esqueleto y un solo aviso de carga', async () => {
+    let resolve: (value: DegreeTopic[]) => void = () => undefined
+    vi.mocked(degreeCoordinationApi.studentTopics).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<StudentDegreeTrackingPage />)
+    const statuses = screen.getAllByRole('status')
+    expect(statuses).toHaveLength(1)
+    expect(statuses[0]).toHaveAccessibleName(/^Cargando/)
+    expect(screen.queryByRole('heading', { level: 1, name: 'Seguimiento de titulación' })).not.toBeInTheDocument()
+    await act(async () => resolve([mockApprovedTopic]))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Seguimiento de titulación' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Estado de la Ficha/i })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

@@ -79,6 +79,14 @@ function SchedulesShape() {
   </div>
 }
 
+/**
+ * Avisos de inasistencia mientras se cuentan. Si ya hay otro aviso de carga en pantalla
+ * (`announce={false}`), es solo forma: nunca dos `role="status"` a la vez.
+ */
+export function NoticesSkeleton({ announce = true }: Readonly<{ announce?: boolean }>) {
+  return announce ? <div role="status" aria-label="Cargando avisos"><NoticesShape /></div> : <NoticesShape />
+}
+
 export function ContentSkeleton() {
   return <div role="status" aria-label="Cargando temas"><ContentShape /></div>
 }

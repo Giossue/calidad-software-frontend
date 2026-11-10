@@ -2,8 +2,6 @@ import { useSearchParams } from 'react-router-dom'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { FilterBarSkeleton, TableSkeleton } from '@/components/ui/loading-skeletons'
-import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -14,7 +12,8 @@ import { ContentPanel } from './teacher-content-page'
 import { GradesPanel } from './teacher-grades-page'
 import { SchedulesPanel } from './teacher-schedules-page'
 import { StudentsPanel } from './teacher-students-page'
-import { TabsSkeleton } from '@/features/tutoring/tutoring-skeletons'
+import { WorkspaceSkeleton } from './teacher-skeletons'
+import { useKeptData } from './use-kept-data'
 
 const TABS = [
   { id: 'attendance', label: 'Asistencia' },
@@ -37,7 +36,9 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
   const resource = useDegreeResource(() => teacherApi.allTutorings())
   const requestedTab = params.get('tab')
   const tab: TabId = isTabId(requestedTab) ? requestedTab : 'attendance'
-  const tutoring = resource.data?.find((item) => item.id === tutoringId)
+  // Al recargar (por ejemplo, tras guardar los horarios) la tutoría sigue visible.
+  const tutorings = useKeptData(resource.data)
+  const tutoring = tutorings?.find((item) => item.id === tutoringId)
 
   function selectTab(value: string) {
     const next = new URLSearchParams(params)
@@ -53,7 +54,7 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
 
   return <section className="flex flex-col gap-6">
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {resource.loading ? <WorkspaceSkeleton tab={tab} />
+    {resource.loading && !tutorings ? <WorkspaceSkeleton tab={tab} tabs={TABS.length} />
       : resource.error ? null
       : !tutoring ? <Alert><AlertDescription>Esta tutoría ya no está asignada a tu cuenta. Vuelve a tus tutorías y elige otra.</AlertDescription></Alert>
       : <>
@@ -81,23 +82,4 @@ function TutoringHeader({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
       <StatusBadge active={tutoring.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" />
     </span>}
   />
-}
-
-/** Encabezado de la tutoría, sus pestañas y la forma del panel que se va a abrir. */
-function WorkspaceSkeleton({ tab }: Readonly<{ tab: TabId }>) {
-  return <div role="status" aria-label="Cargando tutoría" className="flex flex-col gap-6">
-    <div className="flex flex-col gap-2" aria-hidden="true">
-      <div className="flex items-center gap-3"><Skeleton className="h-8 w-72 max-w-full" /><Skeleton className="h-5 w-20 rounded-full" /></div>
-      <Skeleton className="h-5 w-96 max-w-full" />
-    </div>
-    <div className="flex flex-col gap-4">
-      <TabsSkeleton tabs={TABS.length} />
-      {tab === 'attendance' || tab === 'schedules'
-        ? <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true"><Skeleton className="h-5 w-80 max-w-full" /><Skeleton className="h-9 w-48" /></div>
-        : tab === 'grades'
-          ? <div className="flex items-center gap-2" aria-hidden="true"><Skeleton className="h-9 w-56" /></div>
-          : <FilterBarSkeleton />}
-      <TableSkeleton columns={tab === 'grades' ? 6 : 4} />
-    </div>
-  </div>
 }

@@ -430,13 +430,13 @@ describe('Módulo Docente', () => {
   it('muestra el grupo de conocimiento en la lista de estudiantes y la evolución diagnóstica en calificaciones', async () => {
     vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, knowledge_group: 'Alto' }]))
     workspace('students')
-    expect(await screen.findByText('Grupo de Conocimiento')).toBeInTheDocument()
     expect(await screen.findByText('Alto')).toBeInTheDocument()
+    expect(screen.getByText('Grupo de Conocimiento')).toBeInTheDocument()
 
     vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00', second_partial_grade: '9.50' }])
     workspace('grades')
-    expect(await screen.findByText('Evolución (Diag → P2)')).toBeInTheDocument()
     expect(await screen.findByText('+2.50')).toBeInTheDocument()
+    expect(screen.getByText('Evolución (Diag → P2)')).toBeInTheDocument()
     // La evolución es un valor, no un estado: va como texto, sin badge.
     expect(screen.getByText('+2.50').closest('.rounded-full')).toBeNull()
   })
@@ -741,7 +741,7 @@ describe('Módulo Docente', () => {
     const view = workspace('attendance')
 
     // Un solo nivel de pestañas: las sesiones y, arriba, la acción de registrar.
-    await screen.findByRole('table')
+    await screen.findByText('1 de 1 presentes')
     expect(screen.queryByRole('tab', { name: /Consultar asistencia|Registrar asistencia/i })).not.toBeInTheDocument()
 
     // En consultar asistencia: muestra el día (Lunes), la fecha y el resumen
@@ -1527,6 +1527,65 @@ describe('Módulo Docente', () => {
 
     await waitFor(() => {
       expect(rowIndexOf('Revisión por par académico')).toBeLessThan(rowIndexOf('Redactar introducción y objetivos'))
+    })
+  })
+
+  describe('carga completa de cada pantalla (S10)', () => {
+    // Mientras llega la primera respuesta no se ve el encabezado real ni sus botones o filtros:
+    // toda la pantalla es un esqueleto con un solo aviso «Cargando…».
+    function expectOneLoading(name: string) {
+      const statuses = screen.getAllByRole('status')
+      expect(statuses).toHaveLength(1)
+      expect(statuses[0]).toHaveAccessibleName(name)
+      expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    }
+
+    it.each([
+      { page: 'Mis tutorías', render: () => show(<TeacherTutoringsPage />, '/panel/teacher-tutorings'), api: 'tutorings' as const, value: paginated([tutoring]), loading: 'Cargando tutorías', column: 'Período y ciclo' },
+      { page: 'Mis asignaciones de titulación', render: () => show(<TeacherDegreeAssignmentsPage />, '/panel/teacher-degree-assignments'), api: 'degreeAssignments' as const, value: paginated([]), loading: 'Cargando asignaciones', column: 'Participación' },
+      { page: 'Seguimiento de Titulación', render: () => show(<TeacherDegreeTrackingPage />, '/panel/teacher-degree-tracking'), api: 'degreeTracking' as const, value: paginated([]), loading: 'Cargando temas', column: 'Avance' },
+      { page: 'Informes', render: () => show(<TeacherReportsStandalonePage />, '/panel/teacher-reports'), api: 'allTutorings' as const, value: [tutoring], loading: 'Cargando tutorías', column: 'Ciclo y paralelo' },
+    ])('$page: muestra la pantalla entera como esqueleto hasta que llegan los datos', async ({ page, render: open, api, value, loading, column }) => {
+      let resolve: (data: unknown) => void = () => undefined
+      vi.mocked(teacherApi[api]).mockReturnValue(new Promise((done) => { resolve = done as (data: unknown) => void }) as never)
+      open()
+      await screen.findByRole('status', { name: loading })
+      expectOneLoading(loading)
+      expect(screen.getByRole('columnheader', { name: column })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: page })).not.toBeInTheDocument()
+      await act(async () => resolve(value))
+      expect(await screen.findByRole('heading', { name: page })).toBeInTheDocument()
+      expect(screen.queryByRole('status', { name: loading })).not.toBeInTheDocument()
+    })
+
+    it.each([
+      { tab: 'students', api: 'students' as const, value: paginated([student]), loading: 'Cargando estudiantes', action: 'Registrar estudiante' },
+      { tab: 'attendance', api: 'sessions' as const, value: paginated([]), loading: 'Cargando sesiones', action: 'Registrar asistencia' },
+      { tab: 'content', api: 'topics' as const, value: paginated([topic]), loading: 'Cargando temas', action: 'Registrar tema' },
+    ])('pestaña $tab: el cuerpo completo es un esqueleto mientras carga', async ({ tab, api, value, loading, action }) => {
+      let resolve: (data: unknown) => void = () => undefined
+      vi.mocked(teacherApi[api]).mockReturnValue(new Promise((done) => { resolve = done as (data: unknown) => void }) as never)
+      workspace(tab)
+      await screen.findByRole('status', { name: loading })
+      expectOneLoading(loading)
+      expect(screen.getByRole('heading', { level: 1, name: 'Calidad de software' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument()
+      await act(async () => resolve(value))
+      expect(await screen.findByRole('button', { name: action })).toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('al cambiar de página conserva la pantalla y solo carga las filas', async () => {
+      const user = userEvent.setup()
+      vi.mocked(teacherApi.tutorings).mockResolvedValueOnce(paginated([tutoring], 1, 2)).mockReturnValue(new Promise(() => {}))
+      show(<TeacherTutoringsPage />, '/panel/teacher-tutorings')
+      await screen.findByText('Calidad de software')
+      await user.click(screen.getByRole('button', { name: 'Página siguiente' }))
+      expect(await screen.findByRole('status', { name: 'Cargando' })).toBeInTheDocument()
+      expect(screen.getAllByRole('status')).toHaveLength(1)
+      expect(screen.getByRole('heading', { name: 'Mis tutorías' })).toBeInTheDocument()
+      expect(screen.getByRole('searchbox')).toBeInTheDocument()
     })
   })
 })

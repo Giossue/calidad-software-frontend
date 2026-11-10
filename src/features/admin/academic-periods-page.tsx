@@ -3,6 +3,7 @@ import { PlusIcon, PowerIcon } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
+import { AdminListSkeleton } from '@/components/admin/admin-skeletons'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
@@ -278,6 +279,11 @@ export function AcademicPeriodsPage() {
   const fieldError = (field: keyof AcademicPeriodForm) => visibleFieldError(field, formErrors, liveErrors, touched)
   const activationState = editingPeriod && !editingPeriod.is_active ? getActivationState(editingPeriod) : null
   const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
+
+  // Primera carga: toda la pantalla en esqueleto; después, solo las filas al filtrar o paginar.
+  if (isInitialLoading) {
+    return <AdminListSkeleton label="Cargando períodos académicos" headers={['Período', 'Inicio', 'Fin', 'Estado']} />
+  }
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="academic-periods-title">

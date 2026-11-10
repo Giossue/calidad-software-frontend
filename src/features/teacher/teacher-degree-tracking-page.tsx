@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
-import { FilterBarSkeleton, TableSkeleton } from '@/components/ui/loading-skeletons'
+import { FilterBarSkeleton } from '@/components/ui/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
@@ -23,12 +23,15 @@ import { FilterBar } from '@/features/tutoring/filter-bar'
 import { describeError } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { type DegreeActivity, type DegreeAssignment, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { teacherApi } from '@/lib/teacher-api'
 import { cn } from '@/lib/utils'
 import { DEGREE_ROLE_LABELS, DEGREE_ROLE_OPTIONS } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
+import { DegreeTrackingScreenSkeleton } from './teacher-skeletons'
+import { useKeptData } from './use-kept-data'
 
 // Las pestañas de un tema se navegan desde el sidebar (sub-apartado de "Seguimiento"),
 // no con un Tabs dentro de la pantalla: dashboard-page.tsx reutiliza esta lista.
@@ -84,6 +87,8 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
     roleFilter,
   )
 
+  if (list.isInitialLoading) return <DegreeTrackingScreenSkeleton />
+
   return (
     <section className="flex flex-col gap-6">
       <AdminSectionHeader
@@ -114,7 +119,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
 
       <RecordTable
         rows={list.data}
-        loading={list.isInitialLoading || list.isFetching}
+        loading={list.isFetching}
         onRowClick={(topic) => onOpen(topic.id)}
         rowTitle={(topic) => `Abrir seguimiento de ${topic.title}`}
         empty={
@@ -226,7 +231,7 @@ function TrackingDetailSkeleton({ tab }: Readonly<{ tab: TeacherTrackingTab }>) 
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap items-start justify-between gap-3">{panelHeading}<Skeleton className="h-9 w-36" aria-hidden="true" /></div>
           <FilterBarSkeleton />
-          <TableSkeleton columns={4} />
+          <HeadedTableSkeleton headers={['Actividad / Tarea', 'Docente Asignador', 'Estado']} />
         </div>
       )}
     </div>
@@ -240,7 +245,8 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
   const tab: TeacherTrackingTab = isTrackingTab(requestedTab) ? requestedTab : 'estado-ficha'
 
   const resource = useDegreeResource(() => teacherApi.degreeTrackingTopic(topicId), `teacher-tracking-topic:${topicId}`)
-  const topic = resource.data
+  // Al recargar tras registrar o marcar una tarea se conserva la ficha visible (sin esqueleto).
+  const topic = useKeptData(resource.data)
 
   const [activityDialogOpen, setActivityDialogOpen] = useState(false)
   const [newActivityDesc, setNewActivityDesc] = useState('')
@@ -274,7 +280,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
     }
   }
 
-  if (resource.loading) {
+  if (resource.loading && !topic) {
     return <TrackingDetailSkeleton tab={tab} />
   }
 

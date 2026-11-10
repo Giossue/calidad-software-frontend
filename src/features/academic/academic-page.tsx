@@ -5,6 +5,7 @@ import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { AdminActionsSkeleton, AdminCatalogSkeleton, AdminDetailHeaderSkeleton, AdminListSkeleton } from '@/components/admin/admin-skeletons'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { RefreshButton } from '@/components/ui/refresh-button'
@@ -15,7 +16,7 @@ import { FormDialog, isFormDialogOpen } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
-import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -25,6 +26,7 @@ import { api, type Career, type Cycle, type Faculty, type Modality } from '@/lib
 import { asSentence, sanitizeOfficialName, useTouchedFields, visibleFieldError } from '@/features/admin/form-helpers'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { TabsSkeleton } from '@/features/tutoring/tutoring-skeletons'
 
 
 type CareerFormErrors = { facultyId?: string; name?: string }
@@ -136,7 +138,36 @@ export function AcademicPage() {
       </section>
     )
   }
-  return <DetailPageSkeleton label="Cargando carrera" tabs={2} />
+  return <CareerDetailSkeleton />
+}
+
+const CYCLE_HEADERS = ['Ciclo', 'Estado'] as const
+
+/** Contenido de la pestaña «Ciclos» mientras carga: descripción, acciones, filtros y tabla. */
+function CyclesBodySkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true">
+        <Skeleton className="h-4 w-64 max-w-full" />
+        <AdminActionsSkeleton />
+      </div>
+      <AdminCatalogSkeleton headers={CYCLE_HEADERS} />
+    </div>
+  )
+}
+
+/** Pantalla de la carrera mientras se busca: volver, encabezado, pestañas y la pestaña de ciclos. */
+function CareerDetailSkeleton() {
+  return (
+    <section className="flex flex-col gap-6">
+      <span role="status" aria-label="Cargando carrera" className="sr-only">Cargando carrera</span>
+      <AdminDetailHeaderSkeleton />
+      <div className="flex flex-col gap-2">
+        <TabsSkeleton tabs={2} />
+        <CyclesBodySkeleton />
+      </div>
+    </section>
+  )
 }
 
 function cyclesSummary(career: Career): string {
@@ -369,6 +400,11 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
   const emptyMessage = hasFilters
     ? 'No hay carreras con estos filtros.'
     : facultyFilterId !== undefined ? 'Esta facultad aún no tiene carreras registradas.' : 'Aún no hay carreras registradas.'
+
+  // Primera carga: toda la pantalla en esqueleto; después, solo las filas al filtrar o paginar.
+  if (isInitialLoading) {
+    return <AdminListSkeleton label="Cargando carreras" filters={2} headers={['Carrera', 'Facultad', 'Modalidad', 'Estado']} />
+  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -738,6 +774,16 @@ function CareerCyclesSection({ career, onCyclesChanged }: Readonly<{ career: Car
   const liveCycleErrors = validateCycleForm(cycleName)
   const cycleBlockReason = Object.values(liveCycleErrors)[0] ?? null
   const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
+
+  // Primera carga de la pestaña: su contenido en esqueleto; después, solo las filas.
+  if (isInitialLoading) {
+    return (
+      <>
+        <span role="status" aria-label="Cargando ciclos" className="sr-only">Cargando ciclos</span>
+        <CyclesBodySkeleton />
+      </>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">

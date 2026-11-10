@@ -5,7 +5,7 @@ import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
 import { roundPercent } from './degree-format'
 import { useDegreePeriod, useDegreeResource, useDegreeSearch, useDetailParam } from './degree-hooks'
-import { DegreePeriodNotice } from './degree-shared'
+import { DegreeListSkeleton, DegreePeriodNotice } from './degree-shared'
 import { DegreeTrackingDetail } from './degree-tracking-detail'
 
 export function DegreeTrackingPage() {
@@ -19,9 +19,11 @@ export function DegreeTrackingPage() {
     `approved-topics-${search.search}`,
   )
   const rows = topicsResource.data?.data ?? []
-  const periodName = period.data?.period.name
+  const periodName = (period.data ?? period.previous)?.period.name
 
   if (detail.id !== null) return <DegreeTrackingDetail topicId={detail.id} onBack={detail.close} onChanged={topicsResource.reload} />
+  // Primera carga: la descripción depende del período, así que todo espera como un solo esqueleto.
+  if (!period.settled || !topicsResource.settled) return <DegreeListSkeleton label="Cargando seguimiento" headers={['Tema de titulación', 'Estudiante', 'Tutor', 'Avance']} />
 
   return (
     <section className="flex flex-col gap-6">

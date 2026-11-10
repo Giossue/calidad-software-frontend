@@ -9,6 +9,7 @@ import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeReport } from '@/lib/degree-coordination-api'
 import { formatDegreeDate, roundPercent } from './degree-format'
 import { useDegreeResource, useDegreeSearch } from './degree-hooks'
+import { DegreeListSkeleton } from './degree-shared'
 
 export function DegreeReportsPage() {
   const search = useDegreeSearch()
@@ -21,7 +22,11 @@ export function DegreeReportsPage() {
   )
 
   const reports = resource.data?.data ?? []
-  const meta = resource.data?.meta
+  // Al cambiar de página o buscar, la paginación conserva el total ya conocido.
+  const meta = (resource.data ?? resource.previous)?.meta
+
+  // Primera carga: encabezado, buscador, tabla y paginación como un solo esqueleto.
+  if (!resource.settled) return <DegreeListSkeleton label="Cargando reportes" headers={['Tema', 'Estudiante', 'Fecha de emisión', 'Avance registrado', 'Coordinador']} pagination />
 
   return (
     <section className="flex flex-col gap-6">

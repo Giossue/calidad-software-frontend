@@ -5,6 +5,7 @@ import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
+import { AdminDetailHeaderSkeleton, AdminListSkeleton } from '@/components/admin/admin-skeletons'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { RefreshButton } from '@/components/ui/refresh-button'
@@ -14,7 +15,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog, isFormDialogOpen } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDetailParam } from '@/hooks/use-detail-param'
@@ -22,6 +23,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Faculty } from '@/lib/api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { asSentence, sanitizeOfficialName, useTouchedFields } from './form-helpers'
 
 type ToggleTarget = { faculty: Faculty; action: 'activate' | 'deactivate' }
@@ -112,7 +114,29 @@ export function FacultiesPage() {
       </section>
     )
   }
-  return <DetailPageSkeleton label="Cargando facultad" tabs={0} />
+  return <FacultyDetailSkeleton />
+}
+
+const FACULTY_CAREER_HEADERS = ['Carrera', 'Modalidad', 'Ciclos', 'Estado'] as const
+
+/**
+ * Pantalla de la facultad mientras carga (la facultad o la primera página de sus carreras):
+ * volver, encabezado con estado y acciones, y la sección de carreras con su tabla.
+ */
+function FacultyDetailSkeleton() {
+  return (
+    <section className="flex flex-col gap-6">
+      <span role="status" aria-label="Cargando facultad" className="sr-only">Cargando facultad</span>
+      <AdminDetailHeaderSkeleton />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true">
+          <Skeleton className="h-7 w-28" />
+          <Skeleton className="h-9 w-48" />
+        </div>
+        <HeadedTableSkeleton headers={FACULTY_CAREER_HEADERS} rows={3} />
+      </div>
+    </section>
+  )
 }
 
 /** Modal para registrar una facultad o cambiar su nombre. Quien lo abre le cambia la `key` en cada apertura. */
@@ -220,6 +244,11 @@ function FacultiesList({ onSelectFaculty }: Readonly<{ onSelectFaculty: (faculty
   const [formKey, setFormKey] = useState(0)
   const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
 
+  // Primera carga: toda la pantalla en esqueleto; después, solo las filas al filtrar o paginar.
+  if (isInitialLoading) {
+    return <AdminListSkeleton label="Cargando facultades" headers={['Facultad', 'Carreras', 'Estado']} />
+  }
+
   return (
     <section className="flex flex-col gap-6">
       <AdminSectionHeader
@@ -318,6 +347,10 @@ function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
       setPending(false)
     }
   }
+
+  // Hasta que llega la primera página de carreras, la pantalla sigue en esqueleto (sin un
+  // encabezado real junto a una tabla que aún carga).
+  if (careers.isInitialLoading) return <FacultyDetailSkeleton />
 
   return (
     <section className="flex flex-col gap-6" data-tour-view="detail">

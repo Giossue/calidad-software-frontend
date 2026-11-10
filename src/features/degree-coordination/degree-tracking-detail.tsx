@@ -13,11 +13,11 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
-import { HeadedTableSkeleton, HeaderSkeleton } from '@/features/tutoring/tutoring-skeletons'
+import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { degreeCoordinationApi, type DegreeActivity } from '@/lib/degree-coordination-api'
 import { formatDegreeDate, roundPercent } from './degree-format'
 import { useDegreeResource } from './degree-hooks'
-import { DegreeTrackingStatusBadge } from './degree-shared'
+import { BackButtonSkeleton, DegreeHeaderSkeleton, DegreeTrackingStatusBadge } from './degree-shared'
 
 type DialogKind = 'activity' | 'report'
 
@@ -34,7 +34,8 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
   const [reportText, setReportText] = useState('')
   const [togglingId, setTogglingId] = useState<number | null>(null)
 
-  const topic = resource.data
+  // Al recargar (tras marcar una actividad) se sigue viendo la misma ficha; solo la primera vez carga todo.
+  const topic = resource.data ?? (resource.loading && resource.previous?.id === topicId ? resource.previous : null)
   const tracking = topic?.tracking
   const activities = tracking?.activities ?? []
   const completed = activities.filter((activity) => activity.is_completed).length
@@ -91,6 +92,9 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
     tutor ? `Tutor: ${tutor.name}` : 'Tutor por asignar',
   ].join(' · ') : undefined
 
+  // Primera carga: volver, encabezado, acciones, avance y actividades como un solo esqueleto.
+  if (!resource.settled) return <section className="flex flex-col gap-6" data-tour-view="detail"><TrackingDetailSkeleton back /></section>
+
   return (
     <section className="flex flex-col gap-6" data-tour-view="detail">
       <div>
@@ -99,7 +103,7 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
           Volver a seguimiento
         </Button>
       </div>
-      {resource.loading && <TrackingDetailSkeleton />}
+      {resource.loading && !topic && <TrackingDetailSkeleton />}
       <ErrorNotice message={resource.error} retry={resource.reload} />
       {topic && <>
         {/* Las acciones llevan texto: van en su propia fila para que el título conserve su ancho. */}
@@ -196,10 +200,11 @@ function SummaryItem({ label, value }: Readonly<{ label: string; value: string }
   return <div className="flex flex-col gap-0.5 text-sm"><span className="text-muted-foreground">{label}</span><span className="font-medium">{value}</span></div>
 }
 
-/** Encabezado, la fila con sus dos acciones, la tarjeta de avance y la tabla de actividades. */
-function TrackingDetailSkeleton() {
+/** Volver (opcional), encabezado, la fila con sus dos acciones, la tarjeta de avance y la tabla de actividades. */
+function TrackingDetailSkeleton({ back = false }: Readonly<{ back?: boolean }>) {
   return <div role="status" aria-label="Cargando ficha de seguimiento" className="flex flex-col gap-6">
-    <HeaderSkeleton />
+    {back && <BackButtonSkeleton />}
+    <DegreeHeaderSkeleton />
     <div className="flex flex-wrap gap-2" aria-hidden="true"><Skeleton className="h-9 w-40" /><Skeleton className="h-9 w-40" /></div>
     <Card><CardContent className="grid gap-6 pt-6 sm:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]" aria-hidden="true">
       <div className="flex flex-col gap-2">

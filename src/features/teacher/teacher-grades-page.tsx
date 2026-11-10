@@ -9,8 +9,6 @@ import { DataTable } from '@/components/ui/data-table'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Input } from '@/components/ui/input'
 import { SelectInput } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableSkeleton } from '@/components/ui/loading-skeletons'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -22,6 +20,7 @@ import { teacherApi, type Enrollment, type GradeSettings, type GradeType, type T
 import { jointGroup, ownGroup, type ClassGroup } from './joint-groups'
 import { JointNotice } from './joint-notice'
 import { TeacherEmpty } from './teacher-shared'
+import { GradesTabSkeleton } from './teacher-skeletons'
 
 const GRADE_FIELDS = [
   { type: 'diagnostic', label: 'Diagnóstico' },
@@ -137,15 +136,6 @@ function groupFor(value: string, settings: GradeSettings): string | null {
 // --- Panel ---
 
 /** La etapa a calificar y la tabla de notas (#, estudiante, tres notas y evolución). */
-function GradesSkeleton() {
-  return <div role="status" aria-label="Cargando calificaciones" className="flex flex-col gap-5">
-    <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-      <Skeleton className="h-9 w-56" />
-    </div>
-    <TableSkeleton columns={GRADE_FIELDS.length + 3} />
-  </div>
-}
-
 export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const resource = useDegreeResource(async () => {
     const [students, settings, joints] = await Promise.all([teacherApi.allStudents(tutoring.id), teacherApi.gradeSettings(), teacherApi.jointTutorings(tutoring.id)])
@@ -156,7 +146,7 @@ export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
 
   return <div className="flex flex-col gap-5">
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {resource.loading ? <GradesSkeleton /> : resource.data && <GradesForm tutoring={tutoring} {...resource.data} onSaved={resource.reload} />}
+    {resource.loading ? <GradesTabSkeleton /> : resource.data && <GradesForm tutoring={tutoring} {...resource.data} onSaved={resource.reload} />}
   </div>
 }
 

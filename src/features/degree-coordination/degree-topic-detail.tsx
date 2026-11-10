@@ -13,13 +13,13 @@ import { FormField } from '@/components/ui/form-field'
 import { SearchInput } from '@/components/ui/search-input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { HeaderSkeleton, TabsSkeleton } from '@/features/tutoring/tutoring-skeletons'
+import { CheckboxListSkeleton, TabsSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { degreeCoordinationApi, type DegreeAssignment, type DegreeTeacher } from '@/lib/degree-coordination-api'
 import { formatDegreeDate } from './degree-format'
 import { useDegreeResource, useDegreeSearch } from './degree-hooks'
-import { DegreeObservationField, DegreeStatusBadge, InitialsAvatar } from './degree-shared'
+import { BackButtonSkeleton, DegreeHeaderSkeleton, DegreeObservationField, DegreeStatusBadge, InitialsAvatar } from './degree-shared'
 
 type ReviewAction = 'approve' | 'reject' | 'observe' | 'peers'
 const ACTION_ICONS: Record<ReviewAction, LucideIcon> = { approve: CheckIcon, reject: XIcon, observe: MessageSquareIcon, peers: SaveIcon }
@@ -70,7 +70,8 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
     `peers:${action}:${peerSearch.search}`,
   )
   const [picked, setPicked] = useState<Readonly<Record<number, PickedTeacher>>>({})
-  const topic = resource.data
+  // Al recargar tras una acción se sigue viendo la misma propuesta; solo la primera vez carga todo.
+  const topic = resource.data ?? (resource.loading && resource.previous?.id === topicId ? resource.previous : null)
   const activeTeachers = (teachers.data ?? []).filter((teacher) => teacher.is_active)
   const assignments = topic?.assignments.filter((assignment) => assignment.is_active !== false) ?? []
   const tutor = assignments.find((assignment) => assignment.role === 'tutor')?.teacher
@@ -179,6 +180,7 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
       </FormField>
       <ErrorNotice message={peerResults.error} retry={peerResults.reload} />
       <FieldGroup className="max-h-64 gap-4 overflow-y-auto">
+        {peerOptions.length === 0 && peerResults.loading && <div role="status" aria-label="Cargando docentes"><CheckboxListSkeleton rows={4} /></div>}
         {peerOptions.length === 0 && !peerResults.loading && <p className="text-sm text-muted-foreground">No se encontraron docentes con esa búsqueda.</p>}
         {peerOptions.map((teacher) => <Field key={teacher.id} orientation="horizontal"><Checkbox id={`degree-peer-${teacher.id}`} checked={draft.peerIds.includes(teacher.id)} onCheckedChange={(checked) => {
           if (checked === true) setPicked((current) => ({ ...current, [teacher.id]: teacher }))
@@ -192,9 +194,12 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
 
   const context = topic ? [`Propuesta #${topic.id}`, topic.student?.name ?? 'Sin estudiante', topic.section ? `Paralelo ${topic.section.name}` : 'Sin paralelo', `Presentada el ${formatDegreeDate(topic.proposed_at)}`].join(' · ') : undefined
 
+  // Primera carga: volver, encabezado, acciones, pestañas y datos como un solo esqueleto.
+  if (!resource.settled || !teachers.settled) return <section className="flex flex-col gap-6" data-tour-view="detail"><TopicDetailSkeleton back /></section>
+
   return <section className="flex flex-col gap-6" data-tour-view="detail">
     <div><Button type="button" variant="tertiary" onClick={onBack} disabled={operation.pending}><ArrowLeftIcon data-icon="inline-start" />Volver a propuestas</Button></div>
-    {resource.loading && <TopicDetailSkeleton />}
+    {resource.loading && !topic && <TopicDetailSkeleton />}
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {topic && <>
       {/* Las acciones del flujo llevan texto: van en su propia fila para que el título conserve su ancho. */}
@@ -268,10 +273,11 @@ function ActionsRowSkeleton({ count }: Readonly<{ count: number }>) {
   return <div className="flex flex-wrap gap-2" aria-hidden="true">{Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-9 w-40" />)}</div>
 }
 
-/** Encabezado con estado, fila de acciones, pestañas y la tarjeta de la propuesta (descripción y datos). */
-function TopicDetailSkeleton() {
+/** Volver (opcional), encabezado con estado, fila de acciones, pestañas y la tarjeta de la propuesta. */
+function TopicDetailSkeleton({ back = false }: Readonly<{ back?: boolean }>) {
   return <div role="status" aria-label="Cargando propuesta" className="flex flex-col gap-6">
-    <HeaderSkeleton badge />
+    {back && <BackButtonSkeleton />}
+    <DegreeHeaderSkeleton badge />
     <ActionsRowSkeleton count={3} />
     <TabsSkeleton tabs={3} />
     <Card><CardContent className="flex flex-col gap-6 pt-6" aria-hidden="true">

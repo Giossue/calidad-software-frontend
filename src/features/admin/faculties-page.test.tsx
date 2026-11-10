@@ -158,3 +158,40 @@ describe('Facultades', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/panel/careers?carrera=10')
   })
 })
+
+describe('Carga de las pantallas de facultades', () => {
+  it('muestra un solo esqueleto de la lista completa mientras llega la primera página', async () => {
+    let resolve: (value: Awaited<ReturnType<typeof api.listFaculties>>) => void = () => {}
+    vi.mocked(api.listFaculties).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<MemoryRouter><FacultiesPage /></MemoryRouter>)
+
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('status', { name: 'Cargando facultades' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Facultades' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nueva facultad' })).not.toBeInTheDocument()
+
+    resolve({ data: [faculty], meta })
+    expect(await screen.findByRole('heading', { name: 'Facultades' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nueva facultad' })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /^Cargando/ })).not.toBeInTheDocument()
+  })
+
+  it('la facultad sigue en esqueleto (sin encabezado real) hasta que llegan sus carreras', async () => {
+    let resolve: (value: Awaited<ReturnType<typeof api.listCareers>>) => void = () => {}
+    vi.mocked(api.listCareers).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<MemoryRouter initialEntries={['/panel/faculties?facultad=3']}><FacultiesPage /></MemoryRouter>)
+
+    await waitFor(() => expect(api.listCareers).toHaveBeenCalled())
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('status', { name: 'Cargando facultad' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Facultad de Ingeniería' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Administrar carreras' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Editar facultad' })).not.toBeInTheDocument()
+
+    resolve({ data: [career], meta })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Facultad de Ingeniería' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Administrar carreras' })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /Software/ })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /^Cargando/ })).not.toBeInTheDocument()
+  })
+})

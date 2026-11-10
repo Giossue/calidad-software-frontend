@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -242,8 +242,10 @@ describe('Módulo Estudiante', () => {
     // La tabla de carga ya muestra las columnas reales.
     expect(within(loading).getByRole('columnheader', { name: 'Sesión' })).toBeInTheDocument()
     expect(within(loading).getByRole('columnheader', { name: 'Asistencia' })).toBeInTheDocument()
-    expect(screen.getByRole('status', { name: 'Cargando avisos' })).toBeInTheDocument()
+    // Un solo aviso de carga: los avisos de inasistencia esperan dentro del mismo esqueleto.
+    expect(screen.getAllByRole('status')).toHaveLength(1)
     expect(screen.queryByText('Aún no has enviado avisos.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Avisar inasistencia' })).not.toBeInTheDocument()
   })
 
   it('no permite enviar un aviso cuando no quedan clases para avisar', async () => {
@@ -361,5 +363,32 @@ describe('Módulo Estudiante', () => {
     show(<StudentDegreeTopicsPage />)
     expect(await screen.findByText('Seguimiento académico')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Nueva propuesta|Proponer alternativa/ })).not.toBeInTheDocument()
+  })
+
+  it('mientras carga la lista de tutorías, toda la pantalla es un esqueleto con un solo aviso', async () => {
+    let resolve: (value: StudentTutoring[]) => void = () => undefined
+    vi.mocked(studentApi.tutorings).mockReturnValue(new Promise((done) => { resolve = done }))
+    show(<StudentTutoringsPage />)
+    await screen.findByRole('status', { name: 'Cargando tutorías' })
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('columnheader', { name: 'Docente' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Mis tutorías' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    await act(async () => resolve([tutoring]))
+    expect(await screen.findByRole('heading', { name: 'Mis tutorías' })).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Buscar tutoría' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('mientras cargan el tutor y los pares, el encabezado también es esqueleto', async () => {
+    let resolve: (value: DegreeTopic[]) => void = () => undefined
+    vi.mocked(degreeCoordinationApi.studentTopics).mockReturnValue(new Promise((done) => { resolve = done }))
+    show(<StudentDegreeAssignmentsPage />)
+    await screen.findByRole('status', { name: 'Cargando asignaciones' })
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.queryByRole('heading', { name: 'Tutor y pares académicos' })).not.toBeInTheDocument()
+    await act(async () => resolve([]))
+    expect(await screen.findByRole('heading', { name: 'Tutor y pares académicos' })).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

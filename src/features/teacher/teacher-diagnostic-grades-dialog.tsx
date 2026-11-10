@@ -9,6 +9,7 @@ import { PrintReport, SheetFrame, SheetSkeleton } from '@/features/reports/repor
 import { describeError, useOperation } from '@/features/tutoring/tutoring-hooks'
 import type { DiagnosticGradesSummary } from '@/lib/diagnostic-grades'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
+import { PrintButtonSkeleton } from './teacher-skeletons'
 
 /** Muestra, imprime y envía a coordinación las "Calificaciones Evaluación Diagnóstica". */
 export function DiagnosticGradesDialog({
@@ -88,6 +89,7 @@ export function DiagnosticGradesDialog({
       {loading && (
         <SheetSkeleton label="Cargando las calificaciones diagnósticas registradas" />
       )}
+      {loading && <PrintButtonSkeleton />}
       {preview && !hasGrades && (
         <Alert>
           <AlertDescription>

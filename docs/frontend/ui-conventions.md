@@ -144,6 +144,11 @@ las reglas de negocio que ya aplica el sistema.
 - **Carga:** esqueletos con brillo con la forma del contenido
   (`src/components/ui/loading-skeletons.tsx`); nunca una pantalla en blanco ni un
   ícono girando a pantalla completa, y nunca dos esqueletos para lo mismo.
+  En la primera carga, toda la pantalla es un solo esqueleto con su forma real:
+  título, descripción, botones, filtros, pestañas y la tabla con sus encabezados
+  (lo mismo en pestañas y modales que cargan datos). Hay un único `role="status"`
+  «Cargando …». Al filtrar, paginar o refrescar, la pantalla se mantiene y solo
+  las filas muestran esqueleto.
 - **Fallo al cargar:** `ErrorNotice` con "Reintentar".
 
 ## Texto

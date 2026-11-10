@@ -27,6 +27,7 @@ import { teacherApi, type Activity, type Methodology, type TeacherTutoring, type
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { serverFieldError } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
+import { ContentTabSkeleton } from './teacher-skeletons'
 
 type Kind = 'topic' | 'activity' | 'methodology'
 type ContentRecord = TutoringTopic | Activity | Methodology
@@ -77,6 +78,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.topics(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
   const sessionsRes = useDegreeResource(() => teacherApi.allSessions(tutoring.id), `teacher-sessions-${tutoring.id}`)
+  // Solo la primera carga de sesiones (que define el filtro «Sesión») espera en el esqueleto; las recargas no.
+  const [sessionsSeen, setSessionsSeen] = useState(false)
+  if (!sessionsSeen && !sessionsRes.loading) setSessionsSeen(true)
   // Cada vez que se toma asistencia nace una sesión; se listan de la primera a la última.
   const sessions = [...(sessionsRes.data ?? [])].sort((a, b) => a.date.localeCompare(b.date))
   const sessionLabel = (session: TutoringSession) => `Sesión ${session.number ?? sessions.indexOf(session) + 1}`
@@ -286,6 +290,8 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
 
   // Al abrir un tema (o una actividad) desde la URL, mientras llega la lista se muestra su forma, no la de la lista de temas.
   if (topicId !== null && !topic && list.isInitialLoading) return <ContentLevelSkeleton activity={activityId !== null} />
+  // Primera carga de la lista de temas: filtros, botón y tabla son un solo esqueleto.
+  if (topicId === null && (list.isInitialLoading || !sessionsSeen)) return <ContentTabSkeleton />
 
   return <div className="flex flex-col gap-5">
     {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(null)}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(topic.id)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
@@ -387,7 +393,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               ? list.data
               : list.data.filter((item) => activeSession?.topics.some((st) => st.id === item.id))
           }
-          loading={list.isFetching || list.isInitialLoading}
+          loading={list.isFetching}
           onRowClick={(item) => { if (!operation.pending) openLevel(item.id) }}
           rowTitle={openTitle}
           empty={

@@ -12,6 +12,7 @@ import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-pick
 import { FilterBar } from './filter-bar'
 import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { useTutoringCatalogs } from './tutoring-hooks'
+import { ListScreenSkeleton } from './tutoring-skeletons'
 
 function formatDate(value: string, time = false): string {
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value)
@@ -30,7 +31,12 @@ export function TutoringReportsPage() {
     return <ReportsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Informes" rowTitle={(career) => `Ver informes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  return <CareerPicker catalogs={catalogs} title="Informes" skeleton={<ReportsSkeleton />} rowTitle={(career) => `Ver informes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+}
+
+/** Esqueleto de Informes: el mismo mientras cargan las carreras y la primera página. */
+function ReportsSkeleton() {
+  return <ListScreenSkeleton label="Cargando informes" actions={0} filters={1} headers={['Asignatura / Tutoría', 'Tipo de informe', 'Docente', 'Fecha']} />
 }
 
 function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
@@ -58,6 +64,8 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
     list.setSearchInput('')
     setCycleFilter('')
   }
+
+  if (list.isInitialLoading) return <ReportsSkeleton />
 
   return (
     <section className="flex flex-col gap-6">

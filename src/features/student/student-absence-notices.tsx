@@ -8,7 +8,6 @@ import { Dialog } from '@/components/ui/dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { SelectInput } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -16,7 +15,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { formatDate } from '@/lib/format'
 import { studentApi, type StudentAbsenceDate, type StudentAbsenceNotice } from '@/lib/student-api'
 import { DAY_LABELS } from '@/lib/tutoring-api'
-import { SelectSkeleton } from './student-skeletons'
+import { NoticesSkeleton, SelectSkeleton } from './student-skeletons'
 
 const STATUS: Record<StudentAbsenceNotice['status'], { label: string; variant: 'success' | 'danger' | 'outline' }> = {
   pendiente: { label: 'Enviado al docente', variant: 'outline' },
@@ -32,7 +31,9 @@ function classLabel(item: StudentAbsenceDate): string {
 }
 
 /** Avisos al docente de que el estudiante no podrá asistir a una clase. */
-export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId: number; canNotify: boolean }>) {
+export function AbsenceNotices({ tutoringId, canNotify, announce = true }: Readonly<{ tutoringId: number; canNotify: boolean
+  /** Falso cuando otra parte de la pestaña ya anuncia la carga (un solo «Cargando…»). */
+  announce?: boolean }>) {
   const notices = useDegreeResource(() => studentApi.absenceNotices(tutoringId), String(tutoringId))
   const operation = useOperation()
   const [open, setOpen] = useState(false)
@@ -73,14 +74,15 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
   // Hasta la primera respuesta no se sabe cuántos avisos hay: no se afirma que no existen.
   const noticesPending = notices.loading && !notices.data
 
+  // Hasta saber cuántos avisos hay, la tarjeta entera (título, conteo y botones) es esqueleto.
+  if (noticesPending) return <NoticesSkeleton announce={announce} />
+
   return (
     <Card role="region" className="flex flex-col gap-3 p-4" aria-labelledby="absence-notices-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-0.5">
           <h3 id="absence-notices-title" className="font-semibold">Avisos de inasistencia</h3>
-          {noticesPending
-            ? <Skeleton role="status" aria-label="Cargando avisos" className="mt-1 h-4 w-32" />
-            : <p className="text-sm text-muted-foreground">{items.length === 0 ? 'Aún no has enviado avisos.' : items.length === 1 ? '1 aviso enviado' : `${items.length} avisos enviados`}</p>}
+          <p className="text-sm text-muted-foreground">{items.length === 0 ? 'Aún no has enviado avisos.' : items.length === 1 ? '1 aviso enviado' : `${items.length} avisos enviados`}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           {items.length > 0 && (

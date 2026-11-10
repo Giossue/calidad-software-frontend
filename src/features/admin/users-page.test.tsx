@@ -585,3 +585,25 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await waitFor(() => expect(info).toHaveBeenCalledWith('Cuenta desactivada', expect.objectContaining({ description: 'Se desactivó la cuenta de Carlos Docente' })))
   })
 })
+
+describe('Carga de la pantalla de usuarios', () => {
+  it('muestra un solo esqueleto de la pantalla completa mientras llega la primera página', async () => {
+    let resolve: (value: Awaited<ReturnType<typeof api.listUsers>>) => void = () => {}
+    vi.mocked(api.listUsers).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<UsersPage />)
+
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('status', { name: 'Cargando usuarios' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Usuarios' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nuevo usuario' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar usuario')).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Usuario' })).toBeInTheDocument()
+
+    resolve({ data: mockUsers, meta: { current_page: 1, last_page: 1, per_page: 15, total: 2, from: 1, to: 2, active_count: 2, inactive_count: 0, admin_count: 1, career_coordinator_count: 0, degree_coordinator_count: 0, teacher_count: 1, student_count: 0 } })
+    expect(await screen.findByRole('heading', { name: 'Usuarios' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nuevo usuario' })).toBeInTheDocument()
+    expect(screen.getByText('Carlos Docente')).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /^Cargando/ })).not.toBeInTheDocument()
+  })
+})

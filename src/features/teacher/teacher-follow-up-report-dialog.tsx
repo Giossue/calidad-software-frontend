@@ -14,6 +14,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import type { FollowUpReportSummary } from '@/lib/follow-up-report'
 import { todayIsoDate } from '@/lib/format'
 import { teacherApi, type FollowUpReportParams, type TeacherTutoring } from '@/lib/teacher-api'
+import { PrintButtonSkeleton } from './teacher-skeletons'
 
 const MAX_OBSERVATIONS = 5000
 const PARTIAL_OPTIONS = [{ value: '1', label: 'Primer parcial' }, { value: '2', label: 'Segundo parcial' }]
@@ -153,6 +154,7 @@ export function FollowUpReportDialog({
             {loading && (
               <SheetSkeleton label="Cargando el reporte con las tutorías registradas" />
             )}
+            {loading && <PrintButtonSkeleton />}
             {validRange && preview && !hasSessions && (
               <Alert>
                 <AlertDescription>No hay tutorías registradas entre las fechas indicadas. Ajusta el rango o registra la asistencia antes de enviar el reporte.</AlertDescription>

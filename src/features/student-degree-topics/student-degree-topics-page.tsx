@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { degreeTopicStatusLabel } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
+import { DegreeHeaderSkeleton } from '@/features/degree-coordination/degree-shared'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { degreeCoordinationApi, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { studentApi } from '@/lib/student-api'
@@ -132,6 +133,15 @@ export function StudentDegreeTopicsPage() {
   const action = !canPropose ? null : pending
     ? <Button type="button" onClick={() => setMode({ kind: 'replace' })}><ReplaceIcon data-icon="inline-start" />Proponer alternativa</Button>
     : <Button type="button" onClick={() => setMode({ kind: 'create' })}><PlusIcon data-icon="inline-start" />Nueva propuesta</Button>
+
+  // Primera carga: encabezado (con «Actualizar» y el botón de propuesta) y la tarjeta como un
+  // solo esqueleto. Al actualizar, el encabezado se queda y solo la tarjeta vuelve a cargar.
+  if (!resource.settled) return <section className="flex min-w-0 flex-col gap-6" aria-busy="true">
+    <span role="status" aria-label="Cargando propuestas" className="sr-only">Cargando propuestas</span>
+    <DegreeHeaderSkeleton iconActions={1} actions={1} />
+    {/* La tarjeta trae su propio aviso; aquí lo anuncia el de arriba para que haya uno solo. */}
+    <div aria-hidden="true"><DegreeTopicsSkeleton /></div>
+  </section>
 
   return <section className="flex min-w-0 flex-col gap-6" aria-busy={loading}>
     <AdminSectionHeader title="Mis propuestas de titulación" description="Presenta tu tema, consulta el estado de tus propuestas, los docentes asignados y las observaciones de coordinación." actions={<div className="flex shrink-0 flex-col gap-2 sm:flex-row"><RefreshButton disabled={loading} onClick={resource.reload} />{action}</div>} />

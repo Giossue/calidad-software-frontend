@@ -243,3 +243,39 @@ describe('URL y datos al día de la carrera', () => {
     await waitFor(() => expect(within(form).getByLabelText('Cantidad de ciclos')).toHaveTextContent('5 ciclos'))
   })
 })
+
+describe('Carga de las pantallas de carreras', () => {
+  it('muestra un solo esqueleto de la lista completa mientras llega la primera página', async () => {
+    let resolve: (value: Awaited<ReturnType<typeof api.listCareers>>) => void = () => {}
+    vi.mocked(api.listCareers).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.getByRole('status', { name: 'Cargando carreras' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Carreras' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nueva carrera' })).not.toBeInTheDocument()
+
+    resolve({ data: [career], meta })
+    expect(await screen.findByRole('heading', { name: 'Carreras' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Nueva carrera' })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /^Cargando/ })).not.toBeInTheDocument()
+  })
+
+  it('la pestaña de ciclos muestra su contenido en esqueleto (sin botones reales) mientras cargan', async () => {
+    const user = userEvent.setup()
+    let resolve: (value: Awaited<ReturnType<typeof api.listCycles>>) => void = () => {}
+    vi.mocked(api.listCycles).mockReturnValue(new Promise((done) => { resolve = done }))
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    await user.click(await screen.findByRole('row', { name: /Software/ }))
+
+    expect(await screen.findByRole('status', { name: 'Cargando ciclos' })).toBeInTheDocument()
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Nuevo ciclo' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Buscar ciclo')).not.toBeInTheDocument()
+
+    resolve({ data: [{ id: 1, career_id: 10, name: 'Primer Ciclo', number: 1, status: true, paralelo_id: null, paralelo_name: null }], meta })
+    expect(await screen.findByRole('button', { name: 'Nuevo ciclo' })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /Primer Ciclo/ })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: /^Cargando/ })).not.toBeInTheDocument()
+  })
+})

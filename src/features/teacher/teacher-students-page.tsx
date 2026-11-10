@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { serverFieldError } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
+import { StudentsTabSkeleton } from './teacher-skeletons'
 
 const EMPTY_FORM = { identification: '', name: '', email: '', phone: '' }
 const EMPTY_GRADES = { diagnostic: '', partial: '', partial_two: '' }
@@ -177,6 +178,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const gradePlaceholder = `0.00 – ${settings.maximum.toFixed(2)}`
   const gradesBlockReason = isGradesValid ? null : `Las calificaciones deben estar entre ${settings.minimum} y ${settings.maximum}.`
 
+  // Primera carga: filtros, botón y tabla son un solo esqueleto; al filtrar o paginar solo cargan las filas.
+  if (list.isInitialLoading) return <StudentsTabSkeleton />
+
   return <div className="flex flex-col gap-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
       <div className="flex-1">
@@ -190,7 +194,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
     <RecordTable
       rows={gradeRows}
       numberFrom={list.meta?.from}
-      loading={list.isFetching || list.isInitialLoading}
+      loading={list.isFetching}
       onRowClick={({ student }) => openStudent(student)}
       rowTitle={({ student }) => (canGrade(student) ? `Añadir notas de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
       empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />}

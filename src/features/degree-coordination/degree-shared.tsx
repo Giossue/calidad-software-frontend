@@ -11,6 +11,8 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { ErrorNotice } from '@/components/ui/error-notice'
+import { FilterBarSkeleton } from '@/components/ui/loading-skeletons'
+import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import type { DegreeTopicStatus } from '@/lib/degree-coordination-api'
 import { DEGREE_STATUS_LABELS, formatDegreeDate, isTrackingFinished, trackingStatusLabel } from './degree-format'
 import type { useDegreePeriod } from './degree-hooks'
@@ -58,14 +60,12 @@ export function DegreePeriodNotice({ resource }: Readonly<{ resource: ReturnType
 }
 
 export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: ReturnType<typeof useDegreePeriod>; extra?: ReactNode }>) {
-  if (resource.loading) return <Card role="status" aria-label="Cargando período académico"><CardContent className="flex flex-col gap-2 pt-6" aria-hidden="true">
-    <Skeleton className="h-4 w-44" />
-    <Skeleton className="h-5 w-32" />
-    <Skeleton className="h-4 w-56" />
-  </CardContent></Card>
+  // Al recargar (p. ej. tras registrar un paralelo) se sigue viendo el período ya cargado.
+  const data = resource.data ?? (resource.loading ? resource.previous : null)
+  if (resource.loading && !data) return <Card role="status" aria-label="Cargando período académico"><PeriodCardSkeletonBody /></Card>
   if (resource.status === 404 || resource.error) return <DegreePeriodNotice resource={resource} />
-  if (!resource.data) return null
-  const { period } = resource.data
+  if (!data) return null
+  const { period } = data
   return <Card><CardContent className="flex flex-wrap items-center justify-between gap-6 pt-6">
     <div className="flex flex-col">
       <CardDescription>Período académico vigente</CardDescription>
@@ -74,6 +74,71 @@ export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: Retur
     </div>
     {extra && <><Separator orientation="vertical" className="hidden h-12 sm:block" />{extra}</>}
   </CardContent></Card>
+}
+
+function PeriodCardSkeletonBody() {
+  return <CardContent className="flex flex-col gap-2 pt-6" aria-hidden="true">
+    <Skeleton className="h-4 w-44" />
+    <Skeleton className="h-5 w-32" />
+    <Skeleton className="h-4 w-56" />
+  </CardContent>
+}
+
+/**
+ * Encabezado de una pantalla mientras carga: título y descripción; a la derecha, los botones
+ * de solo ícono (cuadrados) y los botones con texto, en el mismo orden que los reales.
+ */
+export function DegreeHeaderSkeleton({ iconActions = 0, actions = 0, badge = false }: Readonly<{ iconActions?: number; actions?: number; badge?: boolean }>) {
+  return <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true">
+    <div className="flex min-w-0 flex-col gap-2">
+      <Skeleton className="h-8 w-72 max-w-full" />
+      <Skeleton className="h-5 w-96 max-w-full" />
+    </div>
+    {(badge || iconActions > 0 || actions > 0) && <div className="flex flex-wrap items-center gap-2">
+      {badge && <Skeleton className="h-6 w-24 rounded-full" />}
+      {Array.from({ length: iconActions }, (_, index) => <Skeleton key={`icon-${index}`} className="size-9" />)}
+      {Array.from({ length: actions }, (_, index) => <Skeleton key={index} className="h-9 w-40" />)}
+    </div>}
+  </div>
+}
+
+/** El botón «Volver a …» de una ficha. */
+export function BackButtonSkeleton() {
+  return <Skeleton className="h-9 w-44" aria-hidden="true" />
+}
+
+/** Paginación «Anterior · Página 1 de 1 · Siguiente». */
+export function PaginationSkeleton() {
+  return <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-3" aria-hidden="true">
+    <Skeleton className="h-8 w-24" />
+    <Skeleton className="h-4 w-24" />
+    <Skeleton className="h-8 w-24" />
+  </div>
+}
+
+/**
+ * Pantalla de lista de titulación en su primera carga: encabezado (con sus botones), tarjeta
+ * del período, buscador y desplegables, la tabla con sus columnas reales y la paginación.
+ * Un solo `role="status"` con `label` (empieza por "Cargando"), que espera la guía de ayuda.
+ */
+export function DegreeListSkeleton({ label, headers, iconActions = 0, actions = 0, search = true, filters = 0, periodCard = false, pagination = false }: Readonly<{
+  label: string
+  headers: readonly string[]
+  iconActions?: number
+  actions?: number
+  search?: boolean
+  filters?: number
+  periodCard?: boolean
+  pagination?: boolean
+}>) {
+  return <section className="flex flex-col gap-6">
+    <span role="status" aria-label={label} className="sr-only">{label}</span>
+    <DegreeHeaderSkeleton iconActions={iconActions} actions={actions} />
+    {periodCard && <Card aria-hidden="true"><PeriodCardSkeletonBody /></Card>}
+    {search && <FilterBarSkeleton filters={filters} />}
+    <HeadedTableSkeleton headers={headers} />
+    {pagination && <PaginationSkeleton />}
+  </section>
 }
 
 export function DegreeObservationField({ value, onChange, rejection = false, error }: Readonly<{ value: string; onChange: (value: string) => void; rejection?: boolean; error?: string | null }>) {

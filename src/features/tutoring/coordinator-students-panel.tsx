@@ -19,6 +19,9 @@ import { identificationMaxLength, isValidIdentification, sanitizeIdentification 
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { tutoringApi, type CoordinatorAvailableStudent, type CoordinatorEnrollment, type Tutoring } from '@/lib/tutoring-api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
+import { FilterBarSkeleton } from '@/components/ui/loading-skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
+import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 
 const EMPTY_FORM = { identification: '', name: '', email: '', phone: '' }
 type Mode = 'existing' | 'new'
@@ -98,6 +101,20 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
           ),
       editing ? 'Datos del estudiante actualizados' : mode === 'new' ? 'Estudiante creado e inscrito' : 'Estudiante inscrito',
       async () => { setOpen(false); await list.reload() },
+    )
+  }
+
+  // Primera carga de la pestaña: buscador, botón y tabla como esqueleto, sin controles reales.
+  if (list.isInitialLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <span role="status" aria-label="Cargando estudiantes" className="sr-only">Cargando estudiantes</span>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start" aria-hidden="true">
+          <div className="flex-1"><FilterBarSkeleton filters={1} /></div>
+          <Skeleton className="h-9 w-44 shrink-0" />
+        </div>
+        <HeadedTableSkeleton headers={['#', 'Estudiante', 'Contacto', 'Inscripción']} />
+      </div>
     )
   }
 
