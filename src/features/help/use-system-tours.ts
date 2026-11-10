@@ -55,11 +55,28 @@ export function useSystemTours({ section, moduleIds, menuReady }: Readonly<{ sec
     return true
   }, [markDone])
 
+  // Una guía automática nunca le quita el control al usuario: no se abre sobre un modal o un
+  // menú abierto, ni si el usuario ya empezó a usar la pantalla (clic o tecla) mientras
+  // esperaba; en ese caso queda disponible desde «Ayuda».
+  const interactedAtRef = useRef(0)
+  useEffect(() => {
+    const mark = () => { interactedAtRef.current = Date.now() }
+    window.addEventListener('pointerdown', mark, true)
+    window.addEventListener('keydown', mark, true)
+    return () => {
+      window.removeEventListener('pointerdown', mark, true)
+      window.removeEventListener('keydown', mark, true)
+    }
+  }, [])
+
   const scheduleCheck = useCallback(function schedule() {
     window.clearTimeout(timerRef.current)
+    const scheduledAt = Date.now()
     timerRef.current = window.setTimeout(() => {
       const { section: current, params: currentParams, moduleIds: modules, name, autoEnabled: enabled } = latest.current
       if (!enabled || tourRef.current?.isActive()) return
+      if (document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')) return
+      if (interactedAtRef.current > scheduledAt) return
       if (!completedRef.current.has(GENERAL_TOUR)) {
         run(buildTourSteps(modules, name), GENERAL_TOUR, schedule)
         return

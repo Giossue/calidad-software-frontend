@@ -67,6 +67,14 @@ describe('Tutorial del sistema', () => {
     expect(api.completeTour).toHaveBeenLastCalledWith('teacher-tutorings')
   })
 
+  it('no abre la guía de la pantalla si el usuario ya empezó a usarla', async () => {
+    renderDashboard({ ...teacher, completed_tours: ['general'] })
+    // Un clic antes de que pase la espera: la guía no aparece sola (queda en «Ayuda»).
+    await userEvent.click(screen.getByText('Mis tutorías', { selector: '[data-tour="page-header"]' }))
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    expect(startSystemTour).not.toHaveBeenCalled()
+  })
+
   it('no repite guías ya vistas, pero se abren desde el botón de ayuda', async () => {
     renderDashboard({ ...teacher, completed_tours: ['general', 'teacher-tutorings'] })
     await new Promise((resolve) => setTimeout(resolve, 1200))
