@@ -33,11 +33,32 @@ allá, se copian aquí.
 - **Sin decoración.** Nada de degradados (salvo el desvanecido de scroll de las tablas),
   brillos, desenfoques ni emoji.
 
+## Quitar carga al usuario (criterios de diseño)
+
+Cada pantalla se piensa para que la tarea habitual tome el menor esfuerzo, sin cambiar
+las reglas de negocio que ya aplica el sistema.
+
+- **La fila abre el registro.** Si un registro tiene más de una cosa que ver o hacer
+  (horario, supervisión, estudiantes…), la fila completa abre su pantalla con la
+  información separada en pestañas y las acciones arriba (p. ej. "Editar"). No se
+  ponen dos o más íconos sueltos en una columna "Acciones".
+- **Si la fila solo se edita**, la fila abre el modal de edición. Una única acción
+  extra que no es editar puede ir en `RowActionsMenu`.
+- **Desplegable antes que fila de pestañas para elegir un valor.** Elegir ciclo,
+  período o carrera se hace con un desplegable en la fila de filtros. Las pestañas
+  son para secciones de un mismo registro, no para filtrar listas.
+- **Modales directos.** Sin tarjetas ni recuadros dentro del modal, sin repetir lo que
+  ya dice el título o la descripción, sin íconos decorativos en los títulos de sección.
+  Campos en orden de uso; casillas y radios simples en línea.
+- **Sin títulos con ícono.** A diferencia de sílabos, los títulos de pantalla no llevan
+  ícono.
+- **Texto útil.** La descripción dice qué se hace en la pantalla, no repite el filtro
+  elegido. Avisos con tokens `notice`/`warning`, nunca colores crudos.
+
 ## Estructura de una pantalla
 
-1. `AdminSectionHeader` (o `ModuleHeader`): ícono de la sección en un recuadro
-   (`size-11 rounded-md bg-accent`), título `h1`, una descripción práctica de una línea
-   y las acciones a la derecha.
+1. `AdminSectionHeader` (o `ModuleHeader`): título `h1`, una descripción práctica de
+   una línea y las acciones a la derecha.
    La acción principal lleva icono; las secundarias son `variant="secondary"`.
 2. Filtros: búsqueda primero, luego filtros, y un botón terciario "Quitar filtros"
    que solo aparece con filtros activos. Un filtro nunca dice solo "Todos": su opción
@@ -50,8 +71,10 @@ allá, se copian aquí.
   divisiones verticales entre columnas y filas alternas; en móvil las tablas `stacked`
   pasan a tarjetas.
 - Paginación siempre visible bajo la tabla: "1–15 de 42" a la izquierda y páginas a la derecha.
-- **Acciones de fila: siempre `RowActionsMenu`** (un botón "⋯" con cada acción escrita;
-  las destructivas al final). No pongas columnas de iconos sueltos.
+- **Acciones de fila:** la fila abre el registro (ver criterios arriba). Si aun así hace
+  falta más de una acción, `RowActionsMenu` (un botón "⋯" con cada acción escrita; las
+  destructivas al final). No pongas columnas de íconos sueltos.
+- Las filas resaltan al pasar el cursor; las que abren algo llevan `cursor-pointer`.
 - Fila vacía: `EmptyState` con una frase concreta que cambia con los filtros
   ("No hay asignaturas con estos filtros." vs. "Aún no hay asignaturas registradas.").
 - Estado (activo/inactivo, aprobado…): `Badge`/`StatusBadge` con variantes semánticas,
