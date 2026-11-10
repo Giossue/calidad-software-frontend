@@ -938,7 +938,7 @@ describe('Módulo Docente', () => {
 
     const form = screen.getByRole('form', { name: 'Reporte de seguimiento a las tutorías' })
     // Paso 1: el período del reporte (todo obligatorio); el documento se revisa en el paso 2.
-    expect(within(form).getByRole('navigation', { name: 'Pasos de Reporte de seguimiento a las tutorías' })).toBeInTheDocument()
+    expect(within(form).queryByRole('navigation', { name: /Pasos de/ })).not.toBeInTheDocument()
     for (const field of ['Parcial', 'Tutorías desde', 'Tutorías hasta', 'Fecha de presentación']) {
       expect(within(within(form).getByText(field).closest('label') as HTMLElement).getByText('(obligatorio)')).toBeInTheDocument()
     }

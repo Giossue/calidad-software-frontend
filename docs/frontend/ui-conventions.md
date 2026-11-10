@@ -110,7 +110,7 @@ las reglas de negocio que ya aplica el sistema.
 - **Campos obligatorios con asterisco**: `FormField required` / `SelectField required`
   (asterisco rojo y "(obligatorio)" para lectores de pantalla).
 - **Formularios largos por pasos**: `FormDialog steps` divide el formulario en pasos
-  con su título, como la convocatoria de sílabos (una línea de ayuda solo si dice algo
+  con su título y sin barra de pasos, como la convocatoria de sílabos (una línea de ayuda solo si dice algo
   que los campos no dicen): "Cancelar /
   Siguiente" en el primero, "Atrás / Siguiente" en los intermedios y "Atrás / acción"
   en el último; "Siguiente" se bloquea mostrando qué falta. Úsalo cuando el formulario

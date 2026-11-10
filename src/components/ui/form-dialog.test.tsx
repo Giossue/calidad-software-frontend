@@ -34,7 +34,8 @@ describe('FormDialog con pasos', () => {
     const onSubmit = renderSteps(null)
     const form = screen.getByRole('form', { name: 'Registrar asignatura' })
 
-    expect(within(screen.getByRole('navigation', { name: 'Pasos de Registrar asignatura' })).getByText('Datos')).toBeInTheDocument()
+    // Sin barra de pasos: cada paso muestra solo su título.
+    expect(screen.queryByRole('navigation', { name: /Pasos de/ })).not.toBeInTheDocument()
     expect(within(form).getByRole('group', { name: 'Datos' })).toBeInTheDocument()
     expect(within(form).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
     expect(within(form).queryByRole('button', { name: 'Registrar asignatura' })).not.toBeInTheDocument()

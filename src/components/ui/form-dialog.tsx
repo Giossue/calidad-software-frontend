@@ -7,7 +7,6 @@ import { type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
-import { StepProgress } from '@/components/ui/step-progress'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 /** Un paso de un formulario largo: su título, una línea de ayuda, qué falta para seguir y sus campos. */
@@ -28,7 +27,7 @@ export interface FormStep {
  *    que el motivo no se repite en el modal: aparece en el tooltip del botón bloqueado.
  * Un error del servidor se muestra una sola vez, en línea, dentro del modal.
  * `headerActions` son acciones de solo icono junto a la X (p. ej. habilitar/desactivar).
- * Con `steps`, el formulario se divide en pasos (como en sílabos): "Cancelar / Siguiente"
+ * Con `steps`, el formulario se divide en pasos (como en sílabos, sin barra de pasos): "Cancelar / Siguiente"
  * en el primero, "Atrás / Siguiente" en los intermedios y "Atrás / acción" en el último.
  */
 export function FormDialog({
@@ -119,14 +118,11 @@ export function FormDialog({
       <form onSubmit={handleSubmit} aria-label={title} className="flex flex-1 flex-col">
         <fieldset disabled={pending} className="flex flex-1 flex-col">
           <FieldGroup className="flex-1 pb-4">
-            {steps && steps.length > 1 && (
-              <StepProgress label={`Pasos de ${title}`} steps={steps.map((item) => item.title)} current={stepIndex} />
-            )}
             {children}
             {step && (
               <FieldSet key={step.title}>
-                {/* Con varios pasos el título ya se lee en la barra de pasos: aquí solo para lectores de pantalla. */}
-                <FieldLegend className={steps && steps.length > 1 ? 'sr-only' : undefined}>{step.title}</FieldLegend>
+                {/* Como en la convocatoria de sílabos: el título del paso, sin barra de pasos. */}
+                <FieldLegend>{step.title}</FieldLegend>
                 {step.description && <FieldDescription>{step.description}</FieldDescription>}
                 <FieldGroup>{step.content}</FieldGroup>
               </FieldSet>
