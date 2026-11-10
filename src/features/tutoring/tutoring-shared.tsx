@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { FieldGroup } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
-import { IconAction } from '@/components/ui/icon-action'
+import { EmptyState } from '@/components/ui/empty-state'
+import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SearchInput } from '@/components/ui/search-input'
 import { SelectInput } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -50,9 +51,9 @@ export function RecordTable<T extends { readonly id: number | string }>({ rows, 
     { label: '#', render: (row: T) => <span className="text-sm tabular-nums text-muted-foreground">{(numberFrom ?? 1) + rows.indexOf(row)}</span> },
     ...baseColumns,
   ]
-  return <Card className="overflow-hidden shadow-none max-md:overflow-visible max-md:border-0 max-md:bg-transparent" aria-busy={loading} data-tour="page-table">
+  return <Card className="overflow-hidden max-md:overflow-visible max-md:bg-transparent max-md:shadow-none max-md:ring-0" aria-busy={loading} data-tour="page-table">
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody {...(numbered ? { 'data-numbered': '', style: { counterReset: `row-number ${(numberFrom ?? 1) - 1}` } } : {})}>
-      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow><TableCell colSpan={columns.length} className="py-8 whitespace-normal text-muted-foreground">{empty}</TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {
+      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow className="hover:bg-transparent"><TableCell colSpan={columns.length} className="whitespace-normal p-0"><EmptyState>{empty}</EmptyState></TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {
         // `span` agrupa filas: 0 omite la celda (la cubre la de arriba) y n > 1 la extiende n filas.
         const span = column.span?.(row) ?? 1
         return span === 0 ? null : <TableCell key={column.label} rowSpan={span > 1 ? span : undefined} className={cn('whitespace-normal', span > 1 && 'align-top')} data-row-number={numbered && index === 0 ? '' : undefined}>{column.render(row)}</TableCell>
@@ -61,6 +62,10 @@ export function RecordTable<T extends { readonly id: number | string }>({ rows, 
   </Card>
 }
 
-export function RecordActions({ name, onEdit, onDeactivate, disabled, children }: Readonly<{ name: string; onEdit?: () => void; onDeactivate?: () => void; disabled: boolean; children?: ReactNode }>) {
-  return <div className="flex flex-wrap items-center gap-1">{children}{onEdit && <IconAction label={`Editar ${name}`} icon={PencilIcon} disabled={disabled} onClick={onEdit} />}{onDeactivate && <IconAction label={`Desactivar ${name}`} icon={PowerOffIcon} tone="destructive" disabled={disabled} onClick={onDeactivate} />}</div>
+/** Acciones habituales de un registro (editar, desactivar) en el menú "⋯" de la fila. */
+export function RecordActions({ name, onEdit, onDeactivate, disabled }: Readonly<{ name: string; onEdit?: () => void; onDeactivate?: () => void; disabled: boolean }>) {
+  return <RowActionsMenu name={name} disabled={disabled} actions={[
+    { label: 'Editar', icon: PencilIcon, onSelect: () => onEdit?.(), visible: Boolean(onEdit) },
+    { label: 'Desactivar', icon: PowerOffIcon, onSelect: () => onDeactivate?.(), tone: 'destructive', visible: Boolean(onDeactivate) },
+  ]} />
 }
