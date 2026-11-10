@@ -1,31 +1,17 @@
-import type { ComponentType } from 'react'
-import { BookOpenIcon, CheckIcon } from 'lucide-react'
-
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
+import { getInitials } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-type IconType = ComponentType<{ className?: string; 'data-icon'?: string }>
-
-/** Ícono de tutoría: cuadro con tinte suave del color primario. */
-export function IconTile({ icon: Icon = BookOpenIcon, className }: Readonly<{ icon?: IconType; className?: string }>) {
-  return <span aria-hidden="true" className={cn('flex size-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary', className)}><Icon className="size-5" /></span>
+/** Iniciales de una persona en un círculo neutro (sin tinte de color). */
+export function Initials({ name, className }: Readonly<{ name: string; className?: string }>) {
+  return <span aria-hidden="true" className={cn('flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-foreground', className)}>{getInitials(name)}</span>
 }
 
 export function RedProgress({ value, label, className }: Readonly<{ value: number; label: string; className?: string }>) {
   const width = Math.max(0, Math.min(100, value))
   return <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} className={cn('h-2.5 w-full overflow-hidden rounded-full bg-muted', className)}>
     <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${width}%` }} />
-  </div>
-}
-
-export function FilterChips<T extends string>({ label, value, onChange, options }: Readonly<{ label: string; value: T; onChange: (value: T) => void; options: readonly { value: T; label: string; count: number; icon?: IconType }[] }>) {
-  return <div role="group" aria-label={label} className="flex flex-wrap gap-2">
-    {options.map((option) => {
-      const active = value === option.value
-      return <Button key={option.value} type="button" size="sm" variant={active ? 'primary' : 'secondary'} aria-pressed={active} onClick={() => onChange(option.value)}>{option.icon ? <option.icon data-icon="inline-start" /> : active && <CheckIcon data-icon="inline-start" />}{option.label} ({option.count})</Button>
-    })}
   </div>
 }
 

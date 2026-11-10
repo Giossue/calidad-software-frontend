@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -79,9 +79,9 @@ describe('StudentDegreeTrackingPage con pestañas', () => {
 
     // 2. Switch to Equipo de Titulación
     await user.click(screen.getByRole('tab', { name: /Equipo de Titulación/i }))
-    expect(await screen.findByText('Docente Tutor')).toBeInTheDocument()
+    expect(await screen.findByText('Docente tutor')).toBeInTheDocument()
     expect(screen.getByText('Ing. Docente Tutor')).toBeInTheDocument()
-    expect(screen.getByText('Pares Académicos')).toBeInTheDocument()
+    expect(screen.getByText('Pares académicos')).toBeInTheDocument()
     expect(screen.getByText('Dra. Par Académico')).toBeInTheDocument()
 
     // 3. Switch to Tareas
@@ -91,5 +91,40 @@ describe('StudentDegreeTrackingPage con pestañas', () => {
     expect(screen.getByText('Correcciones metodológicas')).toBeInTheDocument()
     expect(screen.getByText('Completada')).toBeInTheDocument()
     expect(screen.getByText('Pendiente')).toBeInTheDocument()
+  })
+
+  it('filtra las tareas con desplegables de estado y docente, sin filas de botones', async () => {
+    const user = userEvent.setup()
+    vi.mocked(degreeCoordinationApi.studentTopics).mockResolvedValue([mockApprovedTopic])
+    render(<StudentDegreeTrackingPage />)
+
+    await user.click(await screen.findByRole('tab', { name: /Tareas \(2\)/i }))
+    expect(screen.queryByRole('group', { name: 'Filtrar por estado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Pendientes/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Filtrar por estado' }))
+    await user.click(screen.getByRole('option', { name: 'Pendientes' }))
+    expect(screen.queryByText('Revisión del capítulo 1')).not.toBeInTheDocument()
+    expect(screen.getByText('Correcciones metodológicas')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
+    await user.click(screen.getByRole('combobox', { name: 'Filtrar por docente' }))
+    await user.click(screen.getByRole('option', { name: 'Tutor' }))
+    expect(screen.getByText('Revisión del capítulo 1')).toBeInTheDocument()
+    expect(screen.queryByText('Correcciones metodológicas')).not.toBeInTheDocument()
+  })
+
+  it('elige entre varios temas aprobados con un desplegable', async () => {
+    const user = userEvent.setup()
+    const second: DegreeTopic = { ...mockApprovedTopic, id: 2, title: 'Repositorio institucional', tracking: { ...mockApprovedTopic.tracking!, id: 2, degree_topic_id: 2, progress_percentage: 20 } }
+    vi.mocked(degreeCoordinationApi.studentTopics).mockResolvedValue([mockApprovedTopic, second])
+    render(<StudentDegreeTrackingPage />)
+
+    const picker = await screen.findByRole('combobox', { name: 'Tema de titulación' })
+    expect(screen.queryByRole('button', { name: 'Repositorio institucional' })).not.toBeInTheDocument()
+    expect(within(picker).getByText('Sistema de Gestión de Calidad')).toBeInTheDocument()
+    await user.click(picker)
+    await user.click(screen.getByRole('option', { name: 'Repositorio institucional' }))
+    expect(screen.getByText('20%')).toBeInTheDocument()
   })
 })

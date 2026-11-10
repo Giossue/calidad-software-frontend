@@ -3,6 +3,7 @@ import { ListIcon, MailWarningIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -12,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { formatDate } from '@/lib/format'
 import { studentApi, type StudentAbsenceDate, type StudentAbsenceNotice } from '@/lib/student-api'
 import { DAY_LABELS } from '@/lib/tutoring-api'
@@ -70,7 +70,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
   const noticesPending = notices.loading && !notices.data
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm" aria-labelledby="absence-notices-title">
+    <Card role="region" className="flex flex-col gap-3 p-4" aria-labelledby="absence-notices-title">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-0.5">
           <h3 id="absence-notices-title" className="font-semibold">Avisos de inasistencia</h3>
@@ -94,16 +94,15 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
       <ErrorNotice message={notices.error} retry={notices.reload} />
 
       <Dialog open={listOpen} onClose={() => setListOpen(false)} title="Avisos de inasistencia" description="Tu docente decide la asistencia al tomar lista.">
-        <RecordTable
-          rows={items}
-          loading={notices.loading}
-          empty="Aún no has enviado avisos."
-          columns={[
-            { label: 'Fecha', render: (notice) => <span className="font-medium">{formatDate(notice.date)}</span> },
-            { label: 'Motivo', render: (notice) => <span title={notice.reason} className="line-clamp-2 whitespace-normal text-muted-foreground">{notice.reason}</span> },
-            { label: 'Estado', render: (notice) => <Badge variant={STATUS[notice.status].variant}>{STATUS[notice.status].label}</Badge> },
-          ]}
-        />
+        <ul className="flex flex-col divide-y text-sm">
+          {items.map((notice) => <li key={notice.id} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium">{formatDate(notice.date)}</span>
+              <Badge variant={STATUS[notice.status].variant}>{STATUS[notice.status].label}</Badge>
+            </div>
+            <p className="whitespace-pre-wrap break-words text-muted-foreground">{notice.reason}</p>
+          </li>)}
+        </ul>
       </Dialog>
 
       <FormDialog
@@ -137,6 +136,6 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
           <Textarea id="absence-reason" value={reason} onChange={(event) => setReason(event.target.value.slice(0, 500))} maxLength={500} rows={3} required placeholder="Ej. Cita médica programada" />
         </FormField>
       </FormDialog>
-    </section>
+    </Card>
   )
 }

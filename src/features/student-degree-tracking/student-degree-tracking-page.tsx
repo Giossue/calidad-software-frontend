@@ -1,103 +1,55 @@
 import { useMemo, useState } from 'react'
-import {
-  CheckCircle2Icon,
-  CheckIcon,
-  ClockIcon,
-  ListTodoIcon,
-  SparklesIcon,
-  TrendingUpIcon,
-  UserCheckIcon,
-  UsersIcon,
-} from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ErrorNotice } from '@/components/ui/error-notice'
+import { SelectInput } from '@/components/ui/select-field'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { InitialsAvatar, SectionCard } from '@/features/degree-coordination/degree-shared'
-import { ErrorNotice } from '@/components/ui/error-notice'
+import { FilterBar } from '@/features/tutoring/filter-bar'
+import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeActivity, type DegreeTopic } from '@/lib/degree-coordination-api'
-import { cn } from '@/lib/utils'
-import { FilterChips, RedProgress, SearchField } from '@/features/student/student-ui'
+import { StudentEmpty } from '@/features/student/student-shared'
+import { Initials, RedProgress } from '@/features/student/student-ui'
 import { DegreeTrackingSkeleton } from '@/features/student/student-skeletons'
 
-type StatusFilter = 'all' | 'pending' | 'completed'
-type RoleFilter = 'all' | 'tutor' | 'peer'
+type StatusFilter = '' | 'pending' | 'completed'
+type RoleFilter = '' | 'tutor' | 'peer'
 type TrackingTab = 'estado-ficha' | 'equipo-titulacion' | 'tareas'
 
-function TaskCard({ activity }: Readonly<{ activity: DegreeActivity }>) {
-  const teacherRole = activity.teacher && 'role' in activity.teacher
-    ? (activity.teacher as { role?: string }).role
-    : undefined
-  const isTutor = teacherRole === 'tutor'
-  const isPeer = teacherRole === 'par_academico'
+function teacherRole(activity: DegreeActivity): string | undefined {
+  return activity.teacher && 'role' in activity.teacher ? (activity.teacher as { role?: string }).role : undefined
+}
 
-  return (
-    <li
-      className={cn(
-        'rounded-lg border bg-card p-4 transition-all hover:border-primary/40 flex flex-col gap-3',
-        activity.is_completed ? 'border-border/60 bg-card/60' : 'border-border shadow-2xs'
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {activity.is_completed ? (
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2Icon className="size-4" />
-            </span>
-          ) : (
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-              <ClockIcon className="size-4" />
-            </span>
-          )}
-          <Badge
-            variant={activity.is_completed ? 'success' : 'secondary'}
-            className="gap-1.5 px-2.5 py-0.5 text-xs"
-          >
-            {activity.is_completed ? 'Completada' : 'Pendiente'}
-          </Badge>
-        </div>
+function roleLabel(role: string | undefined): string {
+  return role === 'tutor' ? 'Docente tutor' : role === 'par_academico' ? 'Par académico' : 'Docente'
+}
 
-        {activity.registered_at && (
-          <span className="text-xs text-muted-foreground">
-            Asignada el {formatDegreeDate(activity.registered_at)}
-          </span>
-        )}
-      </div>
+/** Dato de la ficha: etiqueta pequeña, valor y una línea de apoyo. */
+function Stat({ label, value, hint, className }: Readonly<{ label: string; value: string | number; hint: string; className?: string }>) {
+  return <div className="flex flex-col gap-1">
+    <dt className="text-sm text-muted-foreground">{label}</dt>
+    <dd className={className ?? 'text-2xl font-semibold tabular-nums text-foreground'}>{value}</dd>
+    <dd className="text-xs text-muted-foreground">{hint}</dd>
+  </div>
+}
 
-      <div className="text-sm leading-relaxed break-words text-foreground">
-        {activity.description}
-      </div>
-
-      {activity.teacher && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 mt-1">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <InitialsAvatar
-              name={activity.teacher.name}
-              tone={isTutor ? 'red' : isPeer ? 'blue' : 'gray'}
-              className="size-7 text-xs"
-            />
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs truncate">{activity.teacher.name}</span>
-              <span className="text-[11px] text-muted-foreground truncate">{activity.teacher.email}</span>
-            </div>
-          </div>
-          <Badge variant="outline" className="text-[11px]">
-            {isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}
-          </Badge>
-        </div>
-      )}
-    </li>
-  )
+function Person({ name, email }: Readonly<{ name: string; email?: string | null }>) {
+  return <div className="flex items-center gap-3">
+    <Initials name={name} />
+    <div className="flex min-w-0 flex-col">
+      <span className="text-sm font-medium">{name}</span>
+      {email && <span className="truncate text-xs text-muted-foreground">{email}</span>}
+    </div>
+  </div>
 }
 
 function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
   const [activeTab, setActiveTab] = useState<TrackingTab>('estado-ficha')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('')
   const [search, setSearch] = useState('')
 
   const tracking = topic.tracking
@@ -113,18 +65,16 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
 
   const filteredActivities = useMemo(() => {
     return activities.filter((act) => {
-      // Status filter
       if (statusFilter === 'pending' && act.is_completed) return false
       if (statusFilter === 'completed' && !act.is_completed) return false
 
-      // Role filter
-      if (roleFilter !== 'all' && act.teacher) {
-        const teacherRole = 'role' in act.teacher ? (act.teacher as { role?: string }).role : undefined
-        if (roleFilter === 'tutor' && teacherRole !== 'tutor') return false
-        if (roleFilter === 'peer' && teacherRole !== 'par_academico') return false
+      // Las tareas sin docente no se ocultan al filtrar por quién las asignó.
+      if (roleFilter && act.teacher) {
+        const role = teacherRole(act)
+        if (roleFilter === 'tutor' && role !== 'tutor') return false
+        if (roleFilter === 'peer' && role !== 'par_academico') return false
       }
 
-      // Search filter
       if (search.trim()) {
         const needle = search.trim().toLowerCase()
         const text = `${act.description} ${act.teacher?.name ?? ''}`.toLowerCase()
@@ -135,229 +85,109 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
     })
   }, [activities, statusFilter, roleFilter, search])
 
+  const context = [topic.academic_period?.name, topic.section ? `Paralelo ${topic.section.name}` : null].filter(Boolean).join(' · ')
+
   return (
-    <div className="flex flex-col gap-6">
-      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TrackingTab)} className="w-full">
-        <TabsList aria-label="Pestañas de seguimiento">
-          <TabsTrigger value="estado-ficha" className="gap-2">
-            <SparklesIcon className="size-4" />
-            Estado de la Ficha
-          </TabsTrigger>
-          <TabsTrigger value="equipo-titulacion" className="gap-2">
-            <UsersIcon className="size-4" />
-            Equipo de Titulación
-          </TabsTrigger>
-          <TabsTrigger value="tareas" className="gap-2">
-            <ListTodoIcon className="size-4" />
-            Tareas ({activities.length})
-          </TabsTrigger>
-        </TabsList>
+    <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TrackingTab)} className="w-full">
+      <TabsList aria-label="Pestañas de seguimiento">
+        <TabsTrigger value="estado-ficha">Estado de la ficha</TabsTrigger>
+        <TabsTrigger value="equipo-titulacion">Equipo de titulación</TabsTrigger>
+        <TabsTrigger value="tareas">Tareas ({activities.length})</TabsTrigger>
+      </TabsList>
 
-        {/* 1. Estado de la Ficha */}
-        <TabsContent value="estado-ficha" className="flex flex-col gap-6 pt-2">
-          <Card className="flex flex-col gap-4 p-5 shadow-2xs">
+      <TabsContent value="estado-ficha">
+        <Card>
+          <CardContent className="flex flex-col gap-6 pt-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex flex-col gap-1 max-w-2xl">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Tema de titulación aprobado
-                </span>
-                <h3 className="font-display text-xl font-semibold tracking-tight text-foreground">
-                  {topic.title}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {[topic.academic_period?.name, topic.section ? `Paralelo ${topic.section.name}` : null]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
+              <div className="flex max-w-2xl min-w-0 flex-col gap-1">
+                <h3 className="break-words text-xl font-semibold tracking-tight">{topic.title}</h3>
+                {context && <p className="text-sm text-muted-foreground">{context}</p>}
               </div>
-              <Badge variant="success" className="px-3 py-1 text-xs">
-                Propuesta aprobada
-              </Badge>
+              <Badge variant="success">Propuesta aprobada</Badge>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 border-t pt-4">
+            <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Avance general</span>
-                <span className="text-2xl font-semibold tabular-nums text-foreground">
-                  {Math.round(progressPercentage)}%
-                </span>
-                <RedProgress value={progressPercentage} label="Avance de titulación" className="mt-1" />
+                <dt className="text-sm text-muted-foreground">Avance general</dt>
+                <dd className="text-2xl font-semibold tabular-nums text-foreground">{Math.round(progressPercentage)}%</dd>
+                <dd><RedProgress value={progressPercentage} label="Avance de titulación" className="mt-1" /></dd>
               </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Tareas asignadas</span>
-                <span className="text-2xl font-semibold tabular-nums text-foreground">{totalTasks}</span>
-                <span className="text-xs text-muted-foreground">En ficha de seguimiento</span>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Tareas completadas</span>
-                <span className="text-2xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                  {completedTasks}
-                </span>
-                <span className="text-xs text-muted-foreground">Revisadas con éxito</span>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Tareas pendientes</span>
-                <span className="text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">
-                  {pendingTasks}
-                </span>
-                <span className="text-xs text-muted-foreground">Por entregar o revisar</span>
-              </div>
-            </div>
+              <Stat label="Tareas asignadas" value={totalTasks} hint="En ficha de seguimiento" />
+              <Stat label="Tareas completadas" value={completedTasks} hint="Revisadas con éxito" className="text-2xl font-semibold tabular-nums text-success" />
+              <Stat label="Tareas pendientes" value={pendingTasks} hint="Por entregar o revisar" className="text-2xl font-semibold tabular-nums text-warning" />
+            </dl>
 
             {tracking?.opened_at && (
-              <div className="grid gap-4 sm:grid-cols-2 border-t pt-4">
+              <dl className="grid gap-6 border-t pt-6 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Ficha abierta</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {formatDegreeDate(tracking.opened_at)}
-                  </span>
+                  <dt className="text-sm text-muted-foreground">Ficha abierta</dt>
+                  <dd className="text-sm font-medium text-foreground">{formatDegreeDate(tracking.opened_at)}</dd>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">Estado de la ficha</span>
-                  <Badge variant="outline" className="w-fit capitalize text-xs">
-                    {tracking.status || 'En progreso'}
-                  </Badge>
+                  <dt className="text-sm text-muted-foreground">Estado de la ficha</dt>
+                  <dd><Badge variant="outline" className="w-fit first-letter:uppercase">{tracking.status ? tracking.status.replaceAll('_', ' ') : 'En progreso'}</Badge></dd>
                 </div>
-              </div>
+              </dl>
             )}
-          </Card>
-        </TabsContent>
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-        {/* 2. Equipo de Titulación */}
-        <TabsContent value="equipo-titulacion" className="flex flex-col gap-6 pt-2">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <SectionCard icon={UsersIcon} title="Docente Tutor" description="Responsable principal del acompañamiento">
-              {tutor ? (
-                <div className="flex items-center gap-3">
-                  <InitialsAvatar name={tutor.name} tone="red" />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-sm">{tutor.name}</span>
-                    <span className="text-xs text-muted-foreground truncate">{tutor.email}</span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Aún no se ha asignado un tutor.</p>
-              )}
-            </SectionCard>
-
-            <SectionCard icon={UserCheckIcon} title="Pares Académicos" description="Docentes revisores de tu propuesta">
+      <TabsContent value="equipo-titulacion">
+        <Card>
+          <CardContent className="grid gap-6 pt-6 sm:grid-cols-2 sm:gap-0 sm:divide-x">
+            <section aria-labelledby="tracking-tutor" className="flex flex-col gap-3 sm:pr-6">
+              <h3 id="tracking-tutor" className="font-semibold">Docente tutor</h3>
+              {tutor ? <Person name={tutor.name} email={tutor.email} /> : <p className="text-sm text-muted-foreground">Aún no se ha asignado un tutor.</p>}
+            </section>
+            <section aria-labelledby="tracking-peers" className="flex flex-col gap-3 sm:pl-6">
+              <h3 id="tracking-peers" className="font-semibold">Pares académicos</h3>
               {peers.length > 0 ? (
                 <ul className="flex flex-col gap-3">
-                  {peers.map((peer) => (
-                    <li key={peer.id} className="flex items-center gap-3">
-                      <InitialsAvatar name={peer.teacher?.name ?? 'Docente'} tone="blue" />
-                      <div className="flex min-w-0 flex-col">
-                        <span className="font-medium text-sm">{peer.teacher?.name ?? 'Docente'}</span>
-                        <span className="text-xs text-muted-foreground truncate">{peer.teacher?.email}</span>
-                      </div>
-                    </li>
-                  ))}
+                  {peers.map((peer) => <li key={peer.id}><Person name={peer.teacher?.name ?? 'Docente'} email={peer.teacher?.email} /></li>)}
                 </ul>
               ) : (
-                <p className="text-xs text-muted-foreground">Aún no se han asignado pares académicos.</p>
+                <p className="text-sm text-muted-foreground">Aún no se han asignado pares académicos.</p>
               )}
-            </SectionCard>
-          </div>
-        </TabsContent>
+            </section>
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-        {/* 3. Tareas */}
-        <TabsContent value="tareas" className="flex flex-col gap-6 pt-2">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-              <div className="flex items-center gap-2">
-                <ListTodoIcon className="size-5 text-primary" />
-                <h4 className="font-semibold text-base">Tareas y actividades de seguimiento</h4>
-              </div>
-              <Badge variant="outline" className="text-xs">
-                {filteredActivities.length} {filteredActivities.length === 1 ? 'tarea' : 'tareas'}
-              </Badge>
-            </div>
-
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <SearchField
-                id="student-task-search"
-                label="Buscar tareas"
-                placeholder="Buscar por descripción o docente…"
-                value={search}
-                onChange={setSearch}
-              />
-              <div className="flex flex-wrap items-center gap-2">
-                <FilterChips
-                  label="Filtrar por estado"
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                  options={[
-                    { value: 'all', label: 'Todas', count: totalTasks },
-                    { value: 'pending', label: 'Pendientes', count: pendingTasks },
-                    { value: 'completed', label: 'Completadas', count: completedTasks },
-                  ]}
-                />
-              </div>
-            </div>
-
-            {/* Role filter buttons */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className="text-muted-foreground mr-1">Filtrar por asignador:</span>
-              <Button
-                type="button"
-                size="sm"
-                variant={roleFilter === 'all' ? 'primary' : 'secondary'}
-                aria-pressed={roleFilter === 'all'}
-                onClick={() => setRoleFilter('all')}
-              >
-                {roleFilter === 'all' && <CheckIcon data-icon="inline-start" />}
-                Todos
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={roleFilter === 'tutor' ? 'primary' : 'secondary'}
-                aria-pressed={roleFilter === 'tutor'}
-                onClick={() => setRoleFilter('tutor')}
-              >
-                {roleFilter === 'tutor' && <CheckIcon data-icon="inline-start" />}
-                Tutor
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={roleFilter === 'peer' ? 'primary' : 'secondary'}
-                aria-pressed={roleFilter === 'peer'}
-                onClick={() => setRoleFilter('peer')}
-              >
-                {roleFilter === 'peer' && <CheckIcon data-icon="inline-start" />}
-                Pares académicos
-              </Button>
-            </div>
-
-            {filteredActivities.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-8 text-center bg-card">
-                <ListTodoIcon className="mx-auto size-8 text-muted-foreground/60 mb-2" />
-                <h5 className="font-semibold text-base">
-                  {activities.length === 0
-                    ? 'Aún no hay tareas registradas'
-                    : 'Ninguna tarea coincide con los filtros'}
-                </h5>
-                <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                  {activities.length === 0
-                    ? 'Tu docente tutor y pares académicos registrarán aquí las tareas, observaciones y avances de tu proyecto de titulación.'
-                    : 'Intenta cambiar los filtros de búsqueda o seleccionar "Todas".'}
-                </p>
-              </div>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {filteredActivities.map((activity) => (
-                  <TaskCard key={activity.id} activity={activity} />
-                ))}
-              </ul>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+      <TabsContent value="tareas" className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-xl font-semibold tracking-tight">Tareas y actividades de seguimiento</h3>
+          <span className="text-sm text-muted-foreground">{filteredActivities.length} {filteredActivities.length === 1 ? 'tarea' : 'tareas'}</span>
+        </div>
+        <FilterBar
+          id="student-tasks"
+          search={search}
+          onSearch={setSearch}
+          searchLabel="Buscar tareas"
+          searchPlaceholder="Buscar por descripción o docente…"
+          filters={[
+            { id: 'status', label: 'estado', value: statusFilter, onChange: (value) => setStatusFilter(value as StatusFilter), allLabel: 'Todos los estados', options: [{ value: 'pending', label: 'Pendientes' }, { value: 'completed', label: 'Completadas' }] },
+            { id: 'role', label: 'docente', value: roleFilter, onChange: (value) => setRoleFilter(value as RoleFilter), allLabel: 'Todos los docentes', options: [{ value: 'tutor', label: 'Tutor' }, { value: 'peer', label: 'Pares académicos' }] },
+          ]}
+          onClear={() => { setStatusFilter(''); setRoleFilter('') }}
+        />
+        <RecordTable
+          rows={filteredActivities}
+          loading={false}
+          empty={activities.length === 0
+            ? 'Aún no hay tareas registradas. Tu docente tutor y pares académicos las registrarán aquí.'
+            : 'Ninguna tarea coincide con los filtros.'}
+          columns={[
+            { label: 'Tarea', render: (activity) => <span className="break-words text-foreground">{activity.description}</span> },
+            { label: 'Asignada por', render: (activity) => activity.teacher
+              ? <div className="flex min-w-0 flex-col"><span>{activity.teacher.name}</span><span className="text-xs text-muted-foreground">{roleLabel(teacherRole(activity))}</span></div>
+              : <span className="text-muted-foreground">Sin docente</span> },
+            { label: 'Fecha', render: (activity) => activity.registered_at ? formatDegreeDate(activity.registered_at) : <span className="text-muted-foreground">Sin fecha</span> },
+            { label: 'Estado', render: (activity) => <Badge variant={activity.is_completed ? 'success' : 'warning'}>{activity.is_completed ? 'Completada' : 'Pendiente'}</Badge> },
+          ]}
+        />
+      </TabsContent>
+    </Tabs>
   )
 }
 
@@ -375,49 +205,29 @@ export function StudentDegreeTrackingPage() {
       <AdminSectionHeader
         title="Seguimiento de titulación"
         description="Consulta las tareas, avances y actividades registradas por tu docente tutor y pares académicos."
+        actions={approvedTopics.length > 1 && currentTopic ? (
+          <SelectInput
+            id="student-tracking-topic"
+            ariaLabel="Tema de titulación"
+            className="w-full sm:w-80"
+            value={String(currentTopic.id)}
+            onValueChange={(value) => setSelectedTopicId(Number(value))}
+            options={approvedTopics.map((topic) => ({ value: String(topic.id), label: topic.title }))}
+          />
+        ) : undefined}
       />
 
       <ErrorNotice message={resource.error} retry={resource.reload} />
 
       {resource.loading ? (
         <DegreeTrackingSkeleton />
-      ) : approvedTopics.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <div className="flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <TrendingUpIcon className="size-6" />
-            </div>
-            <h4 className="font-display text-lg font-semibold">
-              No tienes un tema de titulación aprobado
-            </h4>
-            <p className="text-sm text-muted-foreground max-w-md">
-              Para consultar el seguimiento, tu propuesta de tema de titulación debe ser revisada y aprobada por la Coordinación de Titulación.
-            </p>
-          </CardContent>
-        </Card>
+      ) : resource.error ? null : approvedTopics.length === 0 ? (
+        <StudentEmpty
+          title="No tienes un tema de titulación aprobado"
+          description="Para consultar el seguimiento, tu propuesta de tema de titulación debe ser revisada y aprobada por la Coordinación de Titulación."
+        />
       ) : (
-        <>
-          {approvedTopics.length > 1 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Seleccionar propuesta:</span>
-              {approvedTopics.map((topic) => (
-                <Button
-                  key={topic.id}
-                  type="button"
-                  size="sm"
-                  variant={currentTopic?.id === topic.id ? 'primary' : 'secondary'}
-                  aria-pressed={currentTopic?.id === topic.id}
-                  onClick={() => setSelectedTopicId(topic.id)}
-                >
-                  {currentTopic?.id === topic.id && <CheckIcon data-icon="inline-start" />}
-                  {topic.title}
-                </Button>
-              ))}
-            </div>
-          )}
-
-          {currentTopic && <TopicTrackingView topic={currentTopic} />}
-        </>
+        currentTopic && <TopicTrackingView topic={currentTopic} />
       )}
     </section>
   )
