@@ -77,7 +77,7 @@ export function DiagnosticReportDialog({
     : loading
       ? 'Calculando el reporte…'
       : !hasGrades
-        ? 'Aún no hay calificaciones diagnósticas registradas.'
+        ? 'No hay calificaciones para enviar.'
         : !tutoring.can_manage
           ? 'No tienes permiso para enviar este reporte.'
           : null

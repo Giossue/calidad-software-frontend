@@ -27,8 +27,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
 
   return (
     <Sonner
-      // Toast invertido respecto al tema: oscuro sobre claro y claro sobre oscuro.
-      theme={isDark ? "light" : "dark"}
+      // Mismo tema que la página, con los colores de los menús flotantes.
+      theme={isDark ? "dark" : "light"}
       expand
       className="toaster group"
       icons={{
@@ -41,9 +41,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          "--normal-bg": "var(--foreground)",
-          "--normal-text": "var(--background)",
-          "--normal-border": "var(--foreground)",
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }

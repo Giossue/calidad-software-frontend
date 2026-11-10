@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react'
-import { AlertTriangleIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { Trash2Icon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -51,6 +51,7 @@ export function Dialog({
   confirmCloseDescription = '¿Estás seguro de cerrar este formulario? Cualquier información o cambio realizado que no haya sido guardado se perderá por completo.',
   dismissible = true,
   headerActions,
+  layout = 'center',
 }: Readonly<{
   open: boolean
   onClose: () => void
@@ -66,6 +67,8 @@ export function Dialog({
   dismissible?: boolean
   /** Acciones de la cabecera (solo icono), junto al botón de cerrar. */
   headerActions?: ReactNode
+  /** `sheet`: panel lateral derecho a toda la altura (formularios de crear y editar). */
+  layout?: 'center' | 'sheet'
 }>) {
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -114,10 +117,10 @@ export function Dialog({
 
   return (
     <DialogContext.Provider value={{ requestClose: handleAttemptClose }}>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-        {/* Backdrop con desfoque suave */}
+      <div className={cn('fixed inset-0 z-50 flex', layout === 'sheet' ? 'justify-end' : 'items-center justify-center p-4 sm:p-6')}>
+        {/* Fondo atenuado */}
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in"
+          className="fixed inset-0 bg-black/50 transition-opacity animate-in fade-in"
           onClick={handleAttemptClose}
         />
 
@@ -127,15 +130,18 @@ export function Dialog({
           aria-modal="true"
           aria-label={title}
           className={cn(
-            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-lg bg-card shadow-2xl ring-1 ring-border animate-in zoom-in-95 duration-150',
+            'relative z-10 flex w-full flex-col bg-card shadow-modal ring-1 ring-surface-ring animate-in duration-150',
+            layout === 'sheet'
+              ? 'h-dvh slide-in-from-right sm:rounded-l-xl'
+              : 'max-h-[calc(100dvh-2rem)] rounded-xl zoom-in-95',
             maxWidth,
           )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header del Modal */}
-          <div className="flex shrink-0 items-start justify-between border-b border-border p-4 sm:p-6 dark:border-border">
+          <div className="flex shrink-0 items-start justify-between border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-1 pr-6">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">
+              <h2 className="text-lg font-semibold leading-tight text-foreground">
                 {title}
               </h2>
               {description && (
@@ -160,30 +166,25 @@ export function Dialog({
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (
             <div
-              className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-black/60 p-6 backdrop-blur-xs animate-in fade-in duration-150"
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-xl bg-black/50 p-6 animate-in fade-in duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex w-full max-w-md flex-col gap-5 rounded-lg border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-150">
-                <div className="flex items-start gap-4">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
-                    <AlertTriangleIcon className="size-6" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-bold text-foreground">
-                      {confirmCloseTitle}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {confirmCloseDescription}
-                    </p>
-                  </div>
+              <div className="flex w-full max-w-md flex-col gap-5 rounded-xl bg-card p-6 shadow-modal ring-1 ring-surface-ring animate-in zoom-in-95 duration-150">
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-base font-semibold text-foreground">
+                    {confirmCloseTitle}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {confirmCloseDescription}
+                  </p>
                 </div>
 
-                <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-end dark:border-border">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={() => setShowConfirm(false)}
-                    className="font-medium max-sm:w-full"
+                    className="max-sm:w-full"
                   >
                     Seguir editando
                   </Button>

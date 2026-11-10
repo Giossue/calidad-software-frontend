@@ -1,19 +1,25 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+/* Instrument Sans empaquetada: sin descargas en el navegador. */
+@import '@fontsource/instrument-sans/400.css';
+@import '@fontsource/instrument-sans/500.css';
+@import '@fontsource/instrument-sans/600.css';
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  Sistema visual compartido con el sistema de sílabos: escala de grises neutra, un solo
+  azul institucional y sombras semánticas. Sin degradados ni colores decorativos.
+*/
 @theme {
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-display: Arial, Helvetica, sans-serif;
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
   --color-brand-red: var(--brand-red);
   --color-brand-red-contrast: var(--brand-red-contrast);
   --color-brand-blue: var(--brand-blue);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-  --radius-shell: var(--radius-shell);
-  --shadow-shell: var(--shadow-shell);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -32,84 +38,105 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
   --color-table-header: var(--table-header);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  /* Contorno de las superficies: cada tema decide su intensidad. */
+  --color-surface-ring: var(--surface-ring);
+  /* Escala de sombras: control, superficie, menú y modal. */
+  --shadow-control: var(--shadow-control-value);
+  --shadow-surface: var(--shadow-surface-value);
+  --shadow-menu: var(--shadow-menu-value);
+  --shadow-modal: var(--shadow-modal-value);
 }
 
 :root {
-  --brand-red: #AC231E;
-  --brand-red-contrast: #D85B56;
-  --brand-blue: #122C41;
-  --background: #F5F6F8;
-  --foreground: #121C28;
-  --card: #FFFFFF;
-  --card-foreground: #121C28;
-  --popover: #FFFFFF;
-  --popover-foreground: #121C28;
-  --primary: var(--brand-blue);
-  --primary-foreground: #FAFAFA;
-  --secondary: #E6EDF5;
-  --secondary-foreground: var(--brand-blue);
-  --muted: #EDF2F8;
-  --muted-foreground: #5B6B7F;
-  --accent: #E6EDF5;
-  --accent-foreground: var(--brand-blue);
-  --destructive: #B91C1C;
-  --destructive-foreground: #FAFAFA;
-  --success: #13733B;
-  --success-foreground: #12663C;
-  --table-header: #F6F8FB;
-  --border: #DBE3EC;
-  --input: #7C8C9F;
-  --ring: #4A78A8;
-  --radius: 0.4rem;
-  --radius-shell: 2rem;
-  --shadow-shell: 0 24px 80px -32px oklch(0.2 0.06 170 / 0.45);
-  --sidebar: var(--brand-blue);
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #FFFFFF;
-  --sidebar-primary-foreground: var(--brand-blue);
-  --sidebar-accent: rgb(255 255 255 / 0.09);
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: rgb(255 255 255 / 0.16);
-  --sidebar-ring: #CFE0F3;
+  /* Azul institucional #002341, aclarado para que el botón se lea como azul. */
+  --brand-blue: hsl(207.7 100% 30%);
+  --brand-red: hsl(2 70% 40%);
+  --brand-red-contrast: hsl(2 70% 40%);
+  --background: hsl(0 0% 98%);
+  --foreground: hsl(0 0% 3.9%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 3.9%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 3.9%);
+  --primary: hsl(207.7 100% 30%);
+  --primary-foreground: hsl(0 0% 98%);
+  --secondary: hsl(0 0% 92.1%);
+  --secondary-foreground: hsl(0 0% 9%);
+  --muted: hsl(0 0% 96.1%);
+  --muted-foreground: hsl(0 0% 40%);
+  --accent: hsl(0 0% 96.1%);
+  --accent-foreground: hsl(0 0% 9%);
+  --destructive: hsl(0 84.2% 45%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --success: hsl(142 72% 26%);
+  --success-foreground: hsl(142 72% 24%);
+  --warning: hsl(32 95% 34%);
+  --table-header: hsl(0 0% 96.1%);
+  --border: hsl(0 0% 90%);
+  --input: hsl(0 0% 80%);
+  --ring: hsl(207.7 100% 30%);
+  --radius: 0.5rem;
+  --surface-ring: rgb(0 0 0 / 0.06);
+  --shadow-control-value: 0 0 #0000;
+  --shadow-surface-value: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-menu-value: 0px 4px 10px rgb(0 0 0 / 0.18);
+  --shadow-modal-value: 0px 10px 28px rgb(0 0 0 / 0.22);
+  --sidebar: hsl(0 0% 94%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(0 0% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(0 0% 90%);
+  --sidebar-accent-foreground: hsl(0 0% 9%);
+  --sidebar-border: hsl(0 0% 91%);
+  --sidebar-ring: hsl(207.7 100% 30%);
 }
 
 .dark {
-  --background: #17191C;
-  --foreground: #F1F2F3;
-  --card: #272A2F;
-  --card-foreground: #F1F2F3;
-  --popover: #2B2E33;
-  --popover-foreground: #F1F2F3;
-  --primary: #5274A8;
-  --primary-foreground: #FFFFFF;
-  --secondary: #31353B;
-  --secondary-foreground: #F1F2F3;
-  --muted: #2E3136;
-  --muted-foreground: #C0C5CB;
-  --accent: #2D3239;
-  --accent-foreground: #E8EBEF;
-  --destructive: #F87171;
-  --destructive-foreground: #3B0A0A;
-  --success: #4ADE80;
-  --success-foreground: #A9F2C7;
-  --table-header: #31353B;
-  --border: #464A50;
-  --input: #7A8087;
-  --ring: #A8B2C0;
-  --radius-shell: 2rem;
-  --shadow-shell: 0 24px 80px -32px rgb(0 0 0 / 0.7);
-  --sidebar: #2D4358;
-  --sidebar-foreground: #F4F6F8;
-  --sidebar-primary: #FFFFFF;
-  --sidebar-primary-foreground: #2D4358;
-  --sidebar-accent: #354F68;
-  --sidebar-accent-foreground: #F4F6F8;
-  --sidebar-border: #435E76;
-  --sidebar-ring: #9EB5E8;
+  --brand-blue: hsl(207.7 100% 35%);
+  --brand-red: hsl(0 84% 60%);
+  --brand-red-contrast: hsl(0 84% 60%);
+  --background: hsl(0 0% 3.9%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(0 0% 9%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(0 0% 11%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(207.7 100% 35%);
+  --primary-foreground: hsl(0 0% 98%);
+  --secondary: hsl(0 0% 14.9%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(0 0% 16.08%);
+  --muted-foreground: hsl(0 0% 66%);
+  --accent: hsl(0 0% 14.9%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --success: hsl(142 69% 58%);
+  --success-foreground: hsl(142 69% 70%);
+  --warning: hsl(38 92% 60%);
+  --table-header: hsl(0 0% 14.9%);
+  --border: hsl(0 0% 16%);
+  --input: hsl(0 0% 24%);
+  --ring: hsl(0 0% 83.1%);
+  /* En oscuro no se usan sombras de menú ni de modal: separan el color y el contorno. */
+  --surface-ring: rgb(255 255 255 / 0.1);
+  --shadow-control-value: 0 0 #0000;
+  --shadow-surface-value: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-menu-value: 0 0 #0000;
+  --shadow-modal-value: 0 0 #0000;
+  --sidebar: hsl(0 0% 9%);
+  --sidebar-foreground: hsl(0 0% 95.9%);
+  --sidebar-primary: hsl(0 0% 98%);
+  --sidebar-primary-foreground: hsl(0 0% 9%);
+  --sidebar-accent: hsl(0 0% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(0 0% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
 @layer base {
@@ -123,8 +150,8 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: Arial, Helvetica, sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
     max-width: 100%;
     overflow-x: hidden;
     min-height: 100vh;
@@ -135,6 +162,24 @@
     body {
       overflow-x: clip;
     }
+  }
+
+  button,
+  summary,
+  label[for],
+  [role='button'],
+  [role='tab'],
+  [role='option'],
+  [role='combobox'],
+  [role='menuitem'],
+  [role='menuitemradio'],
+  [role='menuitemcheckbox'] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 }
 
@@ -247,6 +292,7 @@ input[type='search']::-webkit-search-decoration {
   width: max-content;
   max-width: min(32rem, calc(100vw - 2rem));
   min-width: 0;
+  box-shadow: var(--shadow-menu);
 }
 
 .toaster[data-sonner-toaster] [data-sonner-toast] [data-description] {

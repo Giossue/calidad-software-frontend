@@ -64,7 +64,7 @@ export function DiagnosticGradesDialog({
   const blockReason = loading
     ? 'Cargando las calificaciones…'
     : !hasGrades
-      ? 'Aún no hay calificaciones diagnósticas registradas.'
+      ? 'No hay calificaciones para enviar.'
       : !tutoring.can_manage
         ? 'No tienes permiso para enviar estas calificaciones.'
         : null
