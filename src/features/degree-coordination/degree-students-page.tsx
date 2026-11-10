@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { CalendarDaysIcon, GraduationCapIcon, UserCheckIcon, UserMinusIcon } from 'lucide-react'
+import { GraduationCapIcon, UserMinusIcon } from 'lucide-react'
 
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { IconAction } from '@/components/ui/icon-action'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import {
   degreeCoordinationApi,
@@ -36,7 +37,7 @@ export function DegreeStudentsPage() {
     if (!enrollTarget) return
     void operation.run(
       () => degreeCoordinationApi.enrollDegreeStudent(enrollTarget.student_id),
-      `Estudiante ${enrollTarget.name} matriculado en titulación exitosamente.`,
+      `${enrollTarget.name} matriculado en titulación`,
       async () => {
         setEnrollTarget(null)
         await degreeList.reload()
@@ -48,7 +49,7 @@ export function DegreeStudentsPage() {
     if (!unenrollTarget) return
     void operation.run(
       () => degreeCoordinationApi.unenrollDegreeStudent(unenrollTarget.student_id),
-      `Se dio de baja a ${unenrollTarget.name} de titulación.`,
+      `${unenrollTarget.name} dado de baja de titulación`,
       async () => {
         setUnenrollTarget(null)
         await degreeList.reload()
@@ -58,54 +59,42 @@ export function DegreeStudentsPage() {
 
   const currentPeriodName = degreeList.meta?.current_period?.name
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl flex items-center gap-2">
-            <UserCheckIcon className="size-6 text-primary" />
-            Matrícula de Estudiantes en Titulación
-          </h2>
-        </div>
-        {currentPeriodName ? (
-          <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground shadow-2xs">
-            <CalendarDaysIcon className="size-4 text-primary shrink-0" />
-            <span>Período actual:</span>
-            <span className="font-medium text-primary">{currentPeriodName}</span>
-          </div>
-        ) : !degreeList.isInitialLoading ? (
-          <div className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-            <span>Sin período académico activo</span>
-          </div>
-        ) : null}
-      </div>
+  const noPeriod = !currentPeriodName && !degreeList.isInitialLoading && !degreeList.error
+  const hasFilters = Boolean(degreeList.searchInput || degreeFilter)
 
-      <div className="flex flex-col gap-3">
-        <FilterBar
-          id="coordination-degree-students-filter"
-          search={degreeList.searchInput}
-          onSearch={degreeList.setSearchInput}
-          searchLabel="Buscar estudiante"
-          searchPlaceholder="Busca por nombre, cédula o correo…"
-          filters={[
-            {
-              id: 'enrollment-status',
-              label: 'Estado de matrícula',
-              value: degreeFilter,
-              onChange: (val) => setDegreeFilter(val as '' | 'enrolled' | 'not_enrolled'),
-              allLabel: 'Todos los estudiantes',
-              options: [
-                { label: 'Matriculados en Titulación', value: 'enrolled' },
-                { label: 'Sin matrícula en Titulación', value: 'not_enrolled' },
-              ],
-            },
-          ]}
-          onClear={() => {
-            degreeList.setSearchInput('')
-            setDegreeFilter('')
-          }}
-        />
-      </div>
+  return (
+    <section className="flex flex-col gap-6">
+      <AdminSectionHeader
+        title="Matrícula en titulación"
+        description={currentPeriodName ? `Matricula a los estudiantes en titulación del período ${currentPeriodName}.` : 'Matricula a los estudiantes en titulación del período vigente.'}
+      />
+
+      {noPeriod && <Alert><AlertDescription>No hay un período académico activo. Administración debe activarlo para matricular estudiantes en titulación.</AlertDescription></Alert>}
+
+      <FilterBar
+        id="coordination-degree-students-filter"
+        search={degreeList.searchInput}
+        onSearch={degreeList.setSearchInput}
+        searchLabel="Buscar estudiante"
+        searchPlaceholder="Nombre, cédula o correo"
+        filters={[
+          {
+            id: 'enrollment-status',
+            label: 'Estado de matrícula',
+            value: degreeFilter,
+            onChange: (val) => setDegreeFilter(val as '' | 'enrolled' | 'not_enrolled'),
+            allLabel: 'Todos los estudiantes',
+            options: [
+              { label: 'Matriculados', value: 'enrolled' },
+              { label: 'Sin matrícula', value: 'not_enrolled' },
+            ],
+          },
+        ]}
+        onClear={() => {
+          degreeList.setSearchInput('')
+          setDegreeFilter('')
+        }}
+      />
 
       <ErrorNotice message={degreeList.error} retry={degreeList.reload} />
 
@@ -113,18 +102,7 @@ export function DegreeStudentsPage() {
         numberFrom={degreeList.meta?.from}
         rows={degreeList.data}
         loading={degreeList.isFetching || degreeList.isInitialLoading}
-        empty={
-          <Empty className="border-none py-12">
-            <EmptyMedia>
-            </EmptyMedia>
-            <EmptyTitle>No se encontraron estudiantes</EmptyTitle>
-            <EmptyDescription>
-              {degreeList.searchInput || degreeFilter !== ''
-                ? 'No hay estudiantes que coincidan con los filtros aplicados. Intenta con otros términos.'
-                : 'Aún no hay estudiantes registrados para el período académico actual.'}
-            </EmptyDescription>
-          </Empty>
-        }
+        empty={hasFilters ? 'No hay estudiantes con estos filtros.' : 'Aún no hay estudiantes para el período vigente.'}
         columns={[
           {
             label: 'Estudiante',
@@ -154,21 +132,26 @@ export function DegreeStudentsPage() {
             ),
           },
           {
-            label: 'Estado en Titulación',
+            label: 'Estado',
             render: (student) => <StatusBadge active={student.is_degree_enrolled} activeLabel="Matriculado" inactiveLabel="No matriculado" />,
           },
           {
-            label: 'Fecha Matrícula',
+            label: 'Fecha de matrícula',
             render: (student) => (
               <span className="text-sm text-muted-foreground">{student.enrolled_at || '—'}</span>
             ),
           },
           {
-            label: 'Acciones',
+            // Una sola acción por fila, escrita: matricular o dar de baja según su estado.
+            label: 'Matrícula',
             render: (student) => student.is_degree_enrolled ? (
-              <IconAction label="Dar de baja" icon={UserMinusIcon} tone="destructive" onClick={() => setUnenrollTarget(student)} disabled={operation.pending} />
+              <Button type="button" size="sm" variant="tertiary" tone="destructive" aria-label={`Dar de baja a ${student.name}`} onClick={() => setUnenrollTarget(student)} disabled={operation.pending}>
+                <UserMinusIcon data-icon="inline-start" />Dar de baja
+              </Button>
             ) : (
-              <IconAction label="Matricular en Titulación" icon={GraduationCapIcon} onClick={() => setEnrollTarget(student)} disabled={operation.pending} />
+              <Button type="button" size="sm" variant="secondary" aria-label={`Matricular a ${student.name}`} onClick={() => setEnrollTarget(student)} disabled={operation.pending}>
+                <GraduationCapIcon data-icon="inline-start" />Matricular
+              </Button>
             ),
           },
         ]}
@@ -182,27 +165,28 @@ export function DegreeStudentsPage() {
         onChange={degreeList.setPage}
       />
 
-      {/* Modal Confirmación Matrícula Titulación */}
       <ConfirmModal
         open={Boolean(enrollTarget)}
-        title={`¿Matricular a ${enrollTarget?.name} en Titulación?`}
-        description={`El estudiante quedará matriculado en titulación para el período ${currentPeriodName ?? 'actual'}. Se le habilitará inmediatamente la pestaña de titulación para presentar sus propuestas de grado.`}
+        variant="default"
+        confirmIcon={GraduationCapIcon}
+        title={`¿Matricular a ${enrollTarget?.name} en titulación?`}
+        description={`Se le habilitará el módulo de titulación del período ${currentPeriodName ?? 'vigente'} para presentar su propuesta.`}
         confirmLabel="Confirmar matrícula"
         pending={operation.pending}
         onClose={() => setEnrollTarget(null)}
         onConfirm={handleEnrollConfirm}
       />
 
-      {/* Modal Confirmación Dar de Baja Titulación */}
       <ConfirmModal
         open={Boolean(unenrollTarget)}
-        title={`¿Dar de baja a ${unenrollTarget?.name} de Titulación?`}
-        description={`¿Estás seguro de que deseas retirar la matrícula de titulación a ${unenrollTarget?.name}? Se le deshabilitará el acceso a la pestaña de titulación para el período actual.`}
-        confirmLabel="Sí, dar de baja"
+        confirmIcon={UserMinusIcon}
+        title={`¿Dar de baja a ${unenrollTarget?.name} de titulación?`}
+        description={`Perderá el acceso al módulo de titulación del período ${currentPeriodName ?? 'vigente'}.`}
+        confirmLabel="Dar de baja"
         pending={operation.pending}
         onClose={() => setUnenrollTarget(null)}
         onConfirm={handleUnenrollConfirm}
       />
-    </div>
+    </section>
   )
 }

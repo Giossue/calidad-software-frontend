@@ -1,11 +1,14 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { dashboardSection } from '@/features/tutoring/tutoring-navigation'
 import { ApiError } from '@/lib/api'
 import { degreeCoordinationApi, type DegreeTeacher, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { canCoordinateDegrees } from './degree-navigation'
+import { DegreeReportsPage } from './degree-reports-page'
 import { DegreeSectionsPage } from './degree-sections-page'
 import { DegreeTrackingPage } from './degree-tracking-page'
 import { DegreeStudentsPage } from './degree-students-page'
@@ -76,7 +79,7 @@ describe('Coordinación de titulación', () => {
   it('envía filtros de estado, paralelo y búsqueda a la API y permite consultar aprobados', async () => {
     const user = userEvent.setup()
     vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [approved], meta: { academic_period: period, filter_section_id: null } })
-    render(<DegreeTopicsPage />)
+    routed(<DegreeTopicsPage />)
     await screen.findByText('Plataforma de seguimiento')
     expect(within(screen.getByRole('table')).getByText('Aprobado')).toBeInTheDocument()
     await pick(user, screen.getByLabelText('Filtrar por Estado'), 'aprobado', 'Aprobado')
@@ -90,7 +93,7 @@ describe('Coordinación de titulación', () => {
     const secondStudent = { id: 6, name: 'Lucía Vera', identification: '0202222222', email: 'lucia@ueb.edu.ec', phone: null }
     const secondTopic: DegreeTopic = { ...topic, id: 31, title: 'Sistema de biblioteca', student: secondStudent, status: 'aprobado' }
     vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [topic, secondTopic], meta: { academic_period: period, filter_section_id: null } })
-    render(<DegreeTopicsPage />)
+    routed(<DegreeTopicsPage />)
     await screen.findByText('Plataforma de seguimiento')
 
     expect(screen.queryByText('Estudiantes únicos')).not.toBeInTheDocument()
@@ -103,7 +106,7 @@ describe('Coordinación de titulación', () => {
 
   it('evita duplicar la consulta a la API cuando no hay filtros activos', async () => {
     const user = userEvent.setup()
-    render(<DegreeTopicsPage />)
+    routed(<DegreeTopicsPage />)
     await screen.findByText('Plataforma de seguimiento')
 
     // Sin filtros, la tabla reutiliza la respuesta del período completo:
@@ -220,7 +223,7 @@ describe('Coordinación de titulación', () => {
     vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [approved], meta: { academic_period: period, filter_section_id: null } })
     vi.mocked(degreeCoordinationApi.topic).mockResolvedValue(approved)
     vi.mocked(degreeCoordinationApi.updatePeers).mockResolvedValue([])
-    render(<DegreeTopicsPage />)
+    routed(<DegreeTopicsPage />)
     await user.click(await screen.findByTitle('Revisar Plataforma de seguimiento'))
     await user.click(await screen.findByRole('button', { name: 'Gestionar pares académicos' }))
     const form = screen.getByRole('form', { name: 'Gestionar pares académicos' })
@@ -264,7 +267,7 @@ describe('Coordinación de titulación', () => {
     const user = userEvent.setup()
     vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [approved], meta: { academic_period: period, filter_section_id: null } })
     vi.mocked(degreeCoordinationApi.addActivity).mockResolvedValue({ data: { id: 1, description: 'Capítulo 1', is_completed: false, registered_at: '2026-09-29', completed_at: null, teacher: null }, message: 'ok' })
-    render(<DegreeTrackingPage />)
+    routed(<DegreeTrackingPage />)
     await user.click(await screen.findByTitle('Ver evolución de Plataforma de seguimiento'))
     await user.click(await screen.findByRole('button', { name: 'Nueva actividad' }))
     const form = screen.getByRole('form', { name: 'Registrar actividad de avance' })
@@ -274,6 +277,67 @@ describe('Coordinación de titulación', () => {
     expect(submit).toBeEnabled()
     await user.click(submit)
     await waitFor(() => expect(degreeCoordinationApi.addActivity).toHaveBeenCalledWith(30, { descripcion: 'Capítulo 1' }))
+    // El éxito se avisa con un toast, no con un recuadro dentro de la pantalla.
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'Registrar actividad de avance' })).not.toBeInTheDocument())
+    expect(screen.queryByText(/registrada exitosamente/)).not.toBeInTheDocument()
+  })
+
+  it('marca una actividad como completada una sola vez mientras se guarda', async () => {
+    const user = userEvent.setup()
+    const withActivity: DegreeTopic = { ...approved, tracking: { id: 70, opened_at: '2026-09-28', progress_percentage: 0, status: 'abierta', activities: [
+      { id: 1, description: 'Capítulo 1', is_completed: false, registered_at: '2026-09-29', teacher: null },
+    ] } }
+    vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [withActivity], meta: { academic_period: period, filter_section_id: null } })
+    vi.mocked(degreeCoordinationApi.topic).mockResolvedValue(withActivity)
+    let resolve: (value: Awaited<ReturnType<typeof degreeCoordinationApi.toggleActivity>>) => void = () => undefined
+    vi.mocked(degreeCoordinationApi.toggleActivity).mockImplementationOnce(() => new Promise((done) => { resolve = done }))
+    routed(<DegreeTrackingPage />, '/panel/degree-tracking?topic=30')
+    const checkbox = await screen.findByRole('checkbox', { name: 'Completada: Capítulo 1' })
+    await user.click(checkbox)
+    await user.click(checkbox)
+    expect(degreeCoordinationApi.toggleActivity).toHaveBeenCalledTimes(1)
+    expect(degreeCoordinationApi.toggleActivity).toHaveBeenCalledWith(30, 1, true)
+    expect(screen.getByRole('status', { name: 'Guardando actividad' })).toBeInTheDocument()
+    await act(async () => resolve({ data: { id: 1, is_completed: true, progress_percentage: 100 }, message: 'ok' }))
+    await waitFor(() => expect(degreeCoordinationApi.topic).toHaveBeenCalledTimes(2))
+  })
+
+  it('abre la propuesta desde la fila con sus secciones en pestañas y vuelve al listado', async () => {
+    const user = userEvent.setup()
+    routed(<DegreeTopicsPage />)
+    await user.click(await screen.findByTitle('Revisar Plataforma de seguimiento'))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Plataforma de seguimiento' })).toBeInTheDocument()
+    expect(screen.getByRole('tablist', { name: 'Secciones de la propuesta' })).toBeInTheDocument()
+    expect(screen.getByText('Sistema de seguimiento de proyectos.')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Docentes' }))
+    expect(await screen.findByText('Sin tutor asignado')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /Observaciones/ }))
+    expect(await screen.findByText('Aún no hay observaciones registradas.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Volver a propuestas' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Propuestas de titulación' })).toBeInTheDocument()
+  })
+
+  it('abre la propuesta indicada en la dirección para que el botón atrás del navegador funcione', async () => {
+    const user = userEvent.setup()
+    routed(<DegreeTopicsPage />, '/panel/degree-topics?topic=30')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Plataforma de seguimiento' })).toBeInTheDocument()
+    expect(degreeCoordinationApi.topic).toHaveBeenCalledWith(30)
+    await user.click(screen.getByRole('button', { name: 'Volver a propuestas' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Propuestas de titulación' })).toBeInTheDocument()
+  })
+
+  it('abre un informe desde la fila y explica la lista vacía según la búsqueda', async () => {
+    const user = userEvent.setup()
+    const report = { id: 80, topic_id: 30, topic_title: 'Plataforma de seguimiento', student_name: 'Carlos Salas', student_identification: '0201111111', coordinator_name: 'Coordinadora', generated_at: '2026-10-01', final_observations: 'Cumple con los objetivos planteados.', progress_percentage: 100, period_name: '2026-2' }
+    const meta = { current_page: 1, last_page: 1, total: 1, per_page: 15, from: 1, to: 1, active_count: 0, inactive_count: 0 }
+    vi.mocked(degreeCoordinationApi.reports).mockImplementation(async (params) => params?.search ? { data: [], meta: { ...meta, total: 0 } } : { data: [report], meta })
+    render(<DegreeReportsPage />)
+    await user.click(await screen.findByTitle('Ver informe de Carlos Salas'))
+    const dialog = await screen.findByRole('dialog', { name: 'Informe de titulación' })
+    expect(within(dialog).getByText('Cumple con los objetivos planteados.')).toBeInTheDocument()
+    await user.click(within(dialog).getAllByRole('button', { name: 'Cerrar' }).at(-1)!)
+    await user.type(screen.getByLabelText('Buscar reporte'), 'zzz')
+    expect(await screen.findByText('No hay informes con esta búsqueda.')).toBeInTheDocument()
   })
 
   it('sanea los caracteres no válidos del nombre del paralelo', async () => {
@@ -324,13 +388,16 @@ describe('Coordinación de titulación', () => {
 
     render(<DegreeStudentsPage />)
 
-    expect(await screen.findByRole('heading', { level: 2, name: /Matrícula de Estudiantes en Titulación/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Matrícula en titulación' })).toBeInTheDocument()
+    expect(screen.getByText(/período 2026-2/)).toBeInTheDocument()
     expect(screen.getByText('Estudiante Titulación')).toBeInTheDocument()
     expect(screen.getByText('0209999999')).toBeInTheDocument()
     expect(screen.getAllByRole('columnheader')[0]).toHaveTextContent('#')
     expect(screen.getByText('No matriculado')).toBeInTheDocument()
 
-    const enrollBtn = screen.getByRole('button', { name: 'Matricular en Titulación' })
+    // Una sola acción por fila, escrita (no un ícono suelto).
+    expect(screen.queryByRole('button', { name: 'Dar de baja a Estudiante Titulación' })).not.toBeInTheDocument()
+    const enrollBtn = screen.getByRole('button', { name: 'Matricular a Estudiante Titulación' })
     await user.click(enrollBtn)
 
     expect(screen.getByRole('heading', { level: 2, name: /¿Matricular a Estudiante Titulación en Titulación\?/i })).toBeInTheDocument()
@@ -340,6 +407,10 @@ describe('Coordinación de titulación', () => {
     await waitFor(() => expect(degreeCoordinationApi.enrollDegreeStudent).toHaveBeenCalledWith(50))
   })
 })
+
+function routed(ui: ReactElement, path = '/panel/degree') {
+  return render(<MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>)
+}
 
 async function chooseTutor(user: ReturnType<typeof userEvent.setup>, name: string) {
   const input = screen.getByLabelText('Docente tutor')

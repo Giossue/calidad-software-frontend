@@ -1,17 +1,14 @@
 import { useState } from 'react'
-import { ClipboardListIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { RefreshButton } from '@/components/ui/refresh-button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeTopicStatus } from '@/lib/degree-coordination-api'
 import { DEGREE_STATUS_LABELS, formatDegreeDate } from './degree-format'
-import { useDegreePeriod, useDegreeResource, useDegreeSearch } from './degree-hooks'
-import { DegreeStatusBadge } from './degree-shared'
+import { useDegreePeriod, useDegreeResource, useDegreeSearch, useDetailParam } from './degree-hooks'
+import { DegreePeriodNotice, DegreeStatusBadge } from './degree-shared'
 import { DegreeTopicDetail } from './degree-topic-detail'
 
 export function DegreeTopicsPage() {
@@ -19,7 +16,8 @@ export function DegreeTopicsPage() {
   const search = useDegreeSearch()
   const [status, setStatus] = useState<DegreeTopicStatus | ''>('')
   const [sectionId, setSectionId] = useState('')
-  const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null)
+  // La propuesta abierta vive en la dirección (?topic=), así funciona el botón atrás.
+  const detail = useDetailParam('topic')
   const hasActiveFilters = Boolean(search.input || status || sectionId)
 
   // El período completo (sin filtros) se pide una sola vez y alimenta tanto las
@@ -43,41 +41,39 @@ export function DegreeTopicsPage() {
     if (hasActiveFilters) filteredTopics.reload()
   }
 
-  if (selectedTopicId !== null) return <DegreeTopicDetail topicId={selectedTopicId} onBack={() => { setSelectedTopicId(null); reloadAll() }} />
+  if (detail.id !== null) return <DegreeTopicDetail topicId={detail.id} onBack={detail.close} onChanged={reloadAll} />
 
   function clearFilters() {
     setStatus('')
     setSectionId('')
   }
 
+  const noPeriod = period.status === 404
+
   return <section className="flex flex-col gap-6">
-    <AdminSectionHeader title="Propuestas de titulación" actions={<RefreshButton disabled={table.loading || period.loading} onClick={reloadAll} />} />
-    {period.status === 404 && <Alert><AlertDescription>No existe un período académico vigente. Administración debe configurar y activar un período para continuar con la coordinación de titulación.</AlertDescription></Alert>}
+    <AdminSectionHeader title="Propuestas de titulación" description="Revisa los temas que proponen los estudiantes y resuélvelos." actions={<RefreshButton disabled={table.loading || period.loading} onClick={reloadAll} />} />
+    {noPeriod && <DegreePeriodNotice resource={period} />}
     <FilterBar
       id="degree-topics"
       search={search.input}
       onSearch={search.setInput}
       searchLabel="Buscar propuesta"
       searchPlaceholder="Título, estudiante o cédula"
-      disabled={period.status === 404}
+      disabled={noPeriod}
       onClear={clearFilters}
       filters={[
         { id: 'status', label: 'Estado', value: status, onChange: (value) => setStatus(value as DegreeTopicStatus | ''), allLabel: 'Todos los estados', options: Object.entries(DEGREE_STATUS_LABELS).map(([value, label]) => ({ value, label })) },
         { id: 'section', label: 'Paralelo', value: sectionId, onChange: setSectionId, allLabel: 'Todos los paralelos', options: (period.data?.sections ?? []).map((section) => ({ value: String(section.id), label: `${section.name}${section.is_active ? '' : ' (inactivo)'}` })) },
       ]}
     />
-    {period.status !== 404 && <ErrorNotice message={table.error} retry={table.retry} />}
-    {period.status !== 404 && <RecordTable rows={table.rows} loading={table.loading} empty={<Empty className="border-none p-0">
-      <EmptyMedia variant="icon"><ClipboardListIcon /></EmptyMedia>
-      <EmptyTitle>No hay propuestas registradas</EmptyTitle>
-      <EmptyDescription>No hay propuestas que coincidan con los filtros en el período vigente.</EmptyDescription>
-    </Empty>} onRowClick={(topic) => setSelectedTopicId(topic.id)} rowTitle={(topic) => `Revisar ${topic.title}`} columns={[
+    {!noPeriod && <ErrorNotice message={table.error} retry={table.retry} />}
+    {!noPeriod && <RecordTable rows={table.rows} loading={table.loading} empty={hasActiveFilters ? 'No hay propuestas con estos filtros.' : 'Aún no hay propuestas en el período vigente.'} onRowClick={(topic) => detail.open(topic.id)} rowTitle={(topic) => `Revisar ${topic.title}`} columns={[
       { label: '#', render: (topic) => <span className="text-muted-foreground">#{topic.id}</span> },
       { label: 'Propuesta', render: (topic) => <span className="font-medium">{topic.title}</span> },
       { label: 'Estudiante', render: (topic) => <div className="flex flex-col gap-1"><span>{topic.student?.name ?? 'Sin estudiante'}</span><span className="text-xs text-muted-foreground">{topic.student?.identification} · {topic.section ? `Paralelo ${topic.section.name}` : 'Sin paralelo'}</span></div> },
       { label: 'Presentada', render: (topic) => formatDegreeDate(topic.proposed_at) },
       { label: 'Estado', render: (topic) => <DegreeStatusBadge status={topic.status} /> },
     ]} />}
-    {!table.loading && !table.error && <p className="text-sm text-muted-foreground">Mostrando {table.rows.length} de {table.rows.length} propuesta{table.rows.length === 1 ? '' : 's'}</p>}
+    {!noPeriod && !table.loading && !table.error && table.rows.length > 0 && <p className="text-sm text-muted-foreground">{table.rows.length} propuesta{table.rows.length === 1 ? '' : 's'}</p>}
   </section>
 }

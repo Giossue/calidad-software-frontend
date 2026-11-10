@@ -28,6 +28,7 @@ export function DegreeReportsPage() {
     <section className="flex flex-col gap-6">
       <AdminSectionHeader
         title="Reportes de titulación"
+        description="Consulta los informes de seguimiento emitidos para cada tema."
       />
 
       <FilterBar
@@ -51,7 +52,7 @@ export function DegreeReportsPage() {
       <RecordTable
         rows={reports}
         loading={resource.loading}
-        empty="No se han generado informes de titulación para los criterios seleccionados."
+        empty={search.search ? 'No hay informes con esta búsqueda.' : 'Aún no se han emitido informes de titulación.'}
         onRowClick={setSelectedReport}
         rowTitle={(report) => `Ver informe de ${report.student_name}`}
         columns={[
@@ -106,31 +107,25 @@ export function DegreeReportsPage() {
         onChange={setPage}
       />
 
-      {/* Modal Visualizar Informe */}
       {selectedReport && (
         <Dialog
           open={selectedReport !== null}
           onClose={() => setSelectedReport(null)}
           title="Informe de titulación"
-          description="Emisión oficial de seguimiento para el trabajo de titulación."
+          description={selectedReport.topic_title}
         >
-          <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/40 p-3 space-y-1.5 text-xs">
-              <div><span className="font-medium text-foreground">Tema: </span>{selectedReport.topic_title}</div>
-              <div><span className="font-medium text-foreground">Estudiante: </span>{selectedReport.student_name} ({selectedReport.student_identification})</div>
-              <div><span className="font-medium text-foreground">Fecha de generación: </span>{formatDegreeDate(selectedReport.generated_at)}</div>
-              <div><span className="font-medium text-foreground">Avance general: </span>{selectedReport.progress_percentage}%</div>
-              <div><span className="font-medium text-foreground">Generado por: </span>{selectedReport.coordinator_name}</div>
+          <div className="flex flex-col gap-5">
+            <dl className="grid gap-4 text-sm sm:grid-cols-2">
+              <ReportItem label="Estudiante" value={`${selectedReport.student_name} (${selectedReport.student_identification})`} />
+              <ReportItem label="Avance registrado" value={`${selectedReport.progress_percentage}%`} />
+              <ReportItem label="Emitido" value={formatDegreeDate(selectedReport.generated_at)} />
+              <ReportItem label="Generado por" value={selectedReport.coordinator_name || 'Coordinación'} />
+            </dl>
+            <div className="flex flex-col gap-1.5 border-t pt-4">
+              <h3 className="text-sm text-muted-foreground">Observaciones y dictamen final</h3>
+              <p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere]">{selectedReport.final_observations}</p>
             </div>
-
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-1">Observaciones y dictamen final:</h4>
-              <div className="rounded-lg border bg-background p-3 text-sm text-foreground whitespace-pre-wrap">
-                {selectedReport.final_observations}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end">
               <DialogCancelButton>Cerrar</DialogCancelButton>
             </div>
           </div>
@@ -138,4 +133,8 @@ export function DegreeReportsPage() {
       )}
     </section>
   )
+}
+
+function ReportItem({ label, value }: Readonly<{ label: string; value: string }>) {
+  return <div className="flex min-w-0 flex-col gap-0.5"><dt className="text-muted-foreground">{label}</dt><dd className="[overflow-wrap:anywhere]">{value}</dd></div>
 }

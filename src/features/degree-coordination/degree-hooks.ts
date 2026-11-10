@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { ApiError } from '@/lib/api'
 import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
@@ -44,4 +45,36 @@ export function useDegreeSearch() {
     return () => window.clearTimeout(timer)
   }, [input])
   return { input, setInput, search }
+}
+
+/**
+ * Registro abierto (p. ej. una propuesta) guardado en la dirección (`?topic=30`), así el
+ * botón atrás del navegador vuelve al listado y un enlace o recarga reabre el registro.
+ * "Volver" retrocede en el historial si el registro se abrió desde el listado.
+ */
+export function useDetailParam(name: string) {
+  const [params, setParams] = useSearchParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const raw = Number(params.get(name))
+  const id = Number.isInteger(raw) && raw > 0 ? raw : null
+  const openedFromList = (location.state as { degreeDetail?: string } | null)?.degreeDetail === name
+
+  function open(nextId: number) {
+    const next = new URLSearchParams(params)
+    next.set(name, String(nextId))
+    setParams(next, { state: { degreeDetail: name } })
+  }
+
+  function close() {
+    if (openedFromList) {
+      void navigate(-1)
+      return
+    }
+    const next = new URLSearchParams(params)
+    next.delete(name)
+    setParams(next, { replace: true })
+  }
+
+  return { id, open, close }
 }
