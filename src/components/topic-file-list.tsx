@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { DownloadIcon, FileIcon, FileSpreadsheetIcon, FileTextIcon, PresentationIcon, Trash2Icon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { getFriendlyError } from '@/components/ui/error-modal'
 import { IconAction } from '@/components/ui/icon-action'

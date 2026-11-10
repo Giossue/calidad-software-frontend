@@ -1,7 +1,9 @@
 // oxlint-disable react/only-export-components
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-import { api, ApiError, challengeStore, tokenStore, type User } from '@/lib/api'
+import { toast } from '@/lib/toast'
+
+import { api, ApiError, challengeStore, SESSION_EXPIRED_EVENT, tokenStore, type User } from '@/lib/api'
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous'
 
@@ -35,6 +37,18 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
         if (error instanceof ApiError && error.status === 401) tokenStore.clear()
         setStatus('anonymous')
       })
+  }, [])
+
+  // Si la sesión vence mientras se usa el sistema, se vuelve al ingreso con un aviso en
+  // lugar de dejar errores "No autenticado" en cada acción.
+  useEffect(() => {
+    function handleExpired() {
+      setUser(null)
+      setStatus('anonymous')
+      toast.info('Tu sesión expiró. Vuelve a ingresar')
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpired)
   }, [])
 
   const value = useMemo<AuthContextValue>(() => ({

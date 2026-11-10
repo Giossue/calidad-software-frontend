@@ -252,6 +252,9 @@ export function buildQuery(params: Record<string, string | number | undefined>):
   return `?${new URLSearchParams(entries.map(([key, value]) => [key, String(value)])).toString()}`
 }
 
+/** Se emite cuando la API rechaza una sesión abierta (token vencido o revocado). */
+export const SESSION_EXPIRED_EVENT = 'calidad-software:session-expired'
+
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = tokenStore.get()
   const response = await fetch(`${API_URL}${path}`, {
@@ -266,6 +269,11 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as ErrorPayload
+    // Con una sesión abierta, un 401 significa que venció: se cierra para volver al ingreso.
+    if (response.status === 401 && token) {
+      tokenStore.clear()
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    }
     throw new ApiError(response.status, payload)
   }
 

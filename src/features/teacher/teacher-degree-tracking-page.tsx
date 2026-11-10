@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 import { ArrowLeftIcon, PlusIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'

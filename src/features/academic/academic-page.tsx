@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeftIcon, PencilIcon, PlusIcon, PowerIcon, PowerOffIcon } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
+import { useLocation, useSearchParams } from 'react-router-dom'
+import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
@@ -15,12 +15,14 @@ import { FormDialog, isFormDialogOpen } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
+import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useDetailParam } from '@/hooks/use-detail-param'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Cycle, type Faculty, type Modality } from '@/lib/api'
-import { sanitizeLetters } from '@/lib/sanitize'
+import { asSentence, sanitizeOfficialName, useTouchedFields, visibleFieldError } from '@/features/admin/form-helpers'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 
@@ -50,24 +52,91 @@ function validateCycleForm(name: string): CycleFormErrors {
 }
 
 type SelectedCareer = { career: Career; siblings: readonly Career[] }
+type CareerLookup = { id: number; career: Career | null; error: string | null }
+
+/**
+ * Busca una carrera por id (no hay ruta de detalle). Con el nombre y la facultad conocidos,
+ * primero la busca por nombre; si no, entre las activas y luego en las inactivas.
+ */
+async function findCareer(id: number, hint?: Pick<Career, 'name' | 'faculty_id'>): Promise<Career | null> {
+  if (hint) {
+    const byName = (await api.listCareers({ search: hint.name, facultyId: hint.faculty_id })).data.find((career) => career.id === id)
+    if (byName) return byName
+  }
+  const active = (await api.listActiveCareers()).find((career) => career.id === id)
+  if (active) return active
+  for (let page = 1, lastPage = 1; page <= lastPage; page += 1) {
+    const response = await api.listCareers({ page, status: 'inactive' })
+    const found = response.data.find((career) => career.id === id)
+    if (found) return found
+    lastPage = response.meta?.last_page ?? 1
+  }
+  return null
+}
 
 /**
  * Carreras: la lista y, al pulsar una fila, la pantalla de la carrera con sus acciones arriba
- * y sus ciclos y datos en pestañas.
+ * y sus ciclos y datos en pestañas. La carrera abierta vive en la URL (`?carrera=<id>`):
+ * "Atrás" vuelve a donde se abrió y al recargar se vuelve a cargar.
  */
 export function AcademicPage() {
-  const [selected, setSelected] = useState<SelectedCareer | null>(null)
+  const detail = useDetailParam('carrera')
+  const location = useLocation()
+  // Quien abre la carrera desde otra pantalla (p. ej. la facultad) puede pasar el registro.
+  const passed = (location.state as { record?: Career } | null)?.record
+  const [selected, setSelected] = useState<SelectedCareer | null>(() => (passed ? { career: passed, siblings: [] } : null))
+  const [lookup, setLookup] = useState<CareerLookup | null>(null)
+  const [lookupVersion, setLookupVersion] = useState(0)
+  const detailId = detail.id
+  const selectedMatches = selected !== null && selected.career.id === detailId
 
-  return selected ? (
-    <CareerDetail
-      career={selected.career}
-      siblings={selected.siblings}
-      onChange={(career) => setSelected({ ...selected, career })}
-      onBack={() => setSelected(null)}
-    />
-  ) : (
-    <CareersPage onSelectCareer={(career, siblings) => setSelected({ career, siblings })} />
-  )
+  useEffect(() => {
+    if (detailId === null || selectedMatches) return
+    let cancelled = false
+    findCareer(detailId)
+      .then((career) => { if (!cancelled) setLookup({ id: detailId, career, error: null }) })
+      .catch((error: unknown) => { if (!cancelled) setLookup({ id: detailId, career: null, error: getFriendlyError(error).description }) })
+    return () => { cancelled = true }
+  }, [detailId, selectedMatches, lookupVersion])
+
+  if (detailId === null) {
+    return (
+      <CareersPage
+        onSelectCareer={(career, siblings) => {
+          setSelected({ career, siblings })
+          detail.open(career.id)
+        }}
+      />
+    )
+  }
+
+  const current = selectedMatches ? selected : lookup?.id === detailId && lookup.career ? { career: lookup.career, siblings: [] } : null
+  if (current) {
+    return (
+      <CareerDetail
+        career={current.career}
+        siblings={current.siblings}
+        onChange={(career) => setSelected({ ...current, career })}
+        onBack={detail.close}
+      />
+    )
+  }
+  if (lookup?.id === detailId) {
+    return (
+      <section className="flex flex-col items-start gap-4">
+        {lookup.error ? (
+          <ErrorNotice title="No se pudo cargar la carrera" message={lookup.error} retry={() => { setLookup(null); setLookupVersion((version) => version + 1) }} />
+        ) : (
+          <p className="text-sm text-muted-foreground">No encontramos esta carrera.</p>
+        )}
+        <Button type="button" variant="secondary" onClick={detail.close}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Volver a carreras
+        </Button>
+      </section>
+    )
+  }
+  return <DetailPageSkeleton label="Cargando carrera" tabs={2} />
 }
 
 function cyclesSummary(career: Career): string {
@@ -92,7 +161,9 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
   const [modalities, setModalities] = useState<readonly Modality[]>([])
   // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
   const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
+  // Errores al enviar (o del servidor); los de validación se ven en cuanto se toca el campo.
   const [careerErrors, setCareerErrors] = useState<CareerFormErrors>({})
+  const { touched, touch } = useTouchedFields<keyof CareerFormErrors>()
   const [pending, setPending] = useState(false)
 
   // El formulario parte de la carrera (o vacío al registrar).
@@ -116,26 +187,16 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
     event.preventDefault()
     if (pending) return
 
+    // Los errores de validación van solo bajo cada campo, sin otro recuadro.
     const errors = validateCareerForm(careerFacultyId, careerName)
     setCareerErrors(errors)
-    if (Object.keys(errors).length > 0) {
-      setFormError({
-        title: 'Revisa los campos requeridos',
-        description: 'Verifica la facultad y el nombre de la carrera antes de guardar.',
-      })
-      return
-    }
+    if (Object.keys(errors).length > 0) return
 
     const normalizedName = careerName.trim().toLowerCase()
     const duplicateLocally = siblings.find(
       (c) => (!editingCareer || c.id !== editingCareer.id) && c.name.trim().toLowerCase() === normalizedName,
     )
     if (duplicateLocally) {
-      setFormError({
-        title: 'Carrera ya registrada',
-        description:
-          'Ya existe una carrera con este nombre en el sistema. El nombre de la carrera es único institucionalmente y no puede repetirse en ninguna facultad.',
-      })
       setCareerErrors((prev) => ({
         ...prev,
         name: 'Ya existe una carrera con este nombre.',
@@ -183,7 +244,9 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
     || careerModalityId !== initialCareerModalityId
     || (Boolean(editingCareer) && careerCyclesCount !== initialCareerCyclesCount)
   // "Guardar" se bloquea con el primer error de validación; sin cambios lo bloquea FormDialog.
-  const careerBlockReason = Object.values(validateCareerForm(careerFacultyId, careerName))[0] ?? null
+  const liveCareerErrors = validateCareerForm(careerFacultyId, careerName)
+  const careerBlockReason = Object.values(liveCareerErrors)[0] ?? null
+  const careerFieldError = (field: keyof CareerFormErrors) => visibleFieldError(field, careerErrors, liveCareerErrors, touched)
   const facultyOptions = activeFaculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name }))
   const modalityOptions = modalities.map((modality) => ({ value: String(modality.id), label: modality.name }))
   const cycleCountOptions = [
@@ -199,7 +262,6 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
       onClose={onClose}
       onSubmit={submitCareer}
       title={editingCareer ? 'Editar carrera' : 'Registrar carrera'}
-      description={editingCareer ? undefined : 'Asigna la nueva carrera a una facultad activa.'}
       maxWidth="max-w-md"
       pending={pending}
       error={formError?.description ?? null}
@@ -207,16 +269,16 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
       dirty={isCareerFormDirty}
       blockReason={careerBlockReason}
       submitLabel={editingCareer ? 'Guardar cambios' : 'Registrar carrera'}
-      submitIcon={editingCareer ? undefined : PlusIcon}
     >
-      <FormField id="career-name" label="Nombre de la carrera" required counter={{ current: careerName.length, max: 150 }} error={careerErrors.name}>
+      <FormField id="career-name" label="Nombre de la carrera" required counter={{ current: careerName.length, max: 150 }} error={careerFieldError('name')}>
         <Input
           id="career-name"
           value={careerName}
           onChange={(e) => {
-            setCareerName(sanitizeLetters(e.target.value, 150))
+            setCareerName(sanitizeOfficialName(e.target.value, 150))
             setCareerErrors((current) => ({ ...current, name: undefined }))
           }}
+          onBlur={() => touch('name')}
           placeholder="Ej. Ingeniería en Software"
           disabled={pending}
           maxLength={150}
@@ -232,21 +294,23 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
         onValueChange={(value) => {
           setCareerFacultyId(value)
           setCareerErrors((current) => ({ ...current, facultyId: undefined }))
+          touch('facultyId')
         }}
         options={facultyOptions}
         placeholder="Selecciona una facultad"
         disabled={pending}
-        error={careerErrors.facultyId}
+        error={careerFieldError('facultyId')}
       />
 
       <SelectField
         id="career-modality"
         label="Modalidad"
+        optional
         value={careerModalityId}
         onValueChange={setCareerModalityId}
         options={modalityOptions}
-        emptyLabel="Seleccionar"
-        placeholder="Seleccionar"
+        emptyLabel={initialCareerModalityId ? 'Sin modalidad' : undefined}
+        placeholder="Selecciona la modalidad"
         disabled={pending}
       />
 
@@ -255,7 +319,7 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
         label={editingCareer ? 'Cantidad de ciclos' : 'Ciclos a crear'}
         tip={editingCareer
           ? 'Al aumentar la cantidad se crean los ciclos que faltan. Para quitar un ciclo, desactívalo desde la carrera.'
-          : 'Se crean automáticamente los ciclos de la carrera.'}
+          : undefined}
         value={careerCyclesCount}
         onValueChange={setCareerCyclesCount}
         options={cycleCountOptions}
@@ -389,6 +453,18 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
   // Al guardar la carrera (p. ej. con más ciclos), la lista de ciclos se vuelve a cargar.
   const [cyclesVersion, setCyclesVersion] = useState(0)
 
+  /**
+   * Vuelve a leer la carrera después de un cambio: la respuesta de editar no trae la modalidad,
+   * la facultad ni los conteos de ciclos, y crear o desactivar un ciclo cambia esos conteos.
+   */
+  async function refreshCareer(fallback: Career) {
+    try {
+      onChange((await findCareer(fallback.id, fallback)) ?? fallback)
+    } catch {
+      onChange(fallback)
+    }
+  }
+
   async function handleConfirmToggleCareer() {
     if (!careerToToggle || pending) return
     const { action } = careerToToggle
@@ -399,7 +475,7 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
         toast.success('Carrera habilitada', { description: `La carrera "${career.name}" fue habilitada.` })
       } else {
         await api.deactivateCareer(career.id)
-        toast.info('Carrera deshabilitada', { description: `Se desactivó la carrera "${career.name}".` })
+        toast.info('Carrera desactivada', { description: `Se desactivó la carrera "${career.name}".` })
       }
       setCareerToToggle(null)
       onChange({ ...career, status: action === 'activate' })
@@ -407,7 +483,7 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
       setCareerToToggle(null)
       // Fuera de un formulario, el error va en un toast.
       const friendly = getFriendlyError(error)
-      if (!isFormDialogOpen()) toast.error(friendly.title, { description: friendly.description })
+      if (!isFormDialogOpen()) toast.error(friendly.title, { description: asSentence(friendly.description) })
     } finally {
       setPending(false)
     }
@@ -460,7 +536,7 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
           <TabsTrigger value="data">Datos</TabsTrigger>
         </TabsList>
         <TabsContent value="cycles">
-          <CareerCyclesSection key={cyclesVersion} career={career} />
+          <CareerCyclesSection key={cyclesVersion} career={career} onCyclesChanged={() => refreshCareer(career)} />
         </TabsContent>
         <TabsContent value="data">
           <dl className="grid max-w-2xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
@@ -478,9 +554,13 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
         career={career}
         siblings={siblings}
         onClose={() => setIsCareerModalOpen(false)}
-        onSaved={(saved) => {
-          if (saved) onChange({ ...career, ...saved })
+        onSaved={async (saved) => {
           setCyclesVersion((version) => version + 1)
+          // Mientras se vuelve a leer, se muestra lo guardado sin perder los datos que la respuesta no trae.
+          const merged: Career = saved
+            ? { ...career, faculty_id: saved.faculty_id, name: saved.name, modality_id: saved.modality_id, status: saved.status }
+            : career
+          await refreshCareer(merged)
         }}
       />
 
@@ -517,7 +597,7 @@ type CyclePendingAction = 'cycle' | 'toggle-cycle' | null
 type CycleToggleTarget = { cycle: Cycle; action: 'activate' | 'deactivate' }
 
 /** Ciclos de la carrera (pestaña «Ciclos»): cada fila abre un modal corto para editarlo. */
-function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
+function CareerCyclesSection({ career, onCyclesChanged }: Readonly<{ career: Career; onCyclesChanged: () => Promise<unknown> | void }>) {
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
   const fetchCycles = useCallback(
     (page: number, search: string) => api.listCycles({ page, search, careerId: career.id, status: statusFilter || undefined }),
@@ -539,6 +619,7 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
   // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
   const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [cycleErrors, setCycleErrors] = useState<CycleFormErrors>({})
+  const { touched: cycleTouched, touch: touchCycle, reset: resetCycleTouched } = useTouchedFields<keyof CycleFormErrors>()
   const [pending, setPending] = useState<CyclePendingAction>(null)
 
   const [editingCycle, setEditingCycle] = useState<Cycle | null>(null)
@@ -556,6 +637,7 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
     setCycleNumber(String(nextNumber))
     setInitialCycleName('')
     setCycleErrors({})
+    resetCycleTouched()
     setFormError(null)
     setIsCycleModalOpen(true)
   }
@@ -566,6 +648,7 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
     setCycleNumber(String(cycle.number))
     setInitialCycleName(cycle.name)
     setCycleErrors({})
+    resetCycleTouched()
     setFormError(null)
     setIsCycleModalOpen(true)
   }
@@ -583,15 +666,10 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
     event.preventDefault()
     if (pending !== null) return
 
+    // Los errores de validación van solo bajo el campo, sin otro recuadro.
     const errors = validateCycleForm(cycleName)
     setCycleErrors(errors)
-    if (Object.keys(errors).length > 0) {
-      setFormError({
-        title: 'Revisa los campos requeridos',
-        description: 'Ingresa el nombre del ciclo antes de continuar.',
-      })
-      return
-    }
+    if (Object.keys(errors).length > 0) return
 
     setPending('cycle')
     setFormError(null)
@@ -613,7 +691,7 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
         toast.success('Ciclo creado', { description: `El ciclo "${input.name}" fue registrado.` })
       }
       closeCycleModal()
-      await reload()
+      await Promise.all([reload(), onCyclesChanged()])
     } catch (error: unknown) {
       const friendly = getFriendlyError(error)
       setFormError({
@@ -638,11 +716,11 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
         toast.success('Ciclo habilitado', { description: `El ciclo "${cycle.name}" fue habilitado.` })
       } else {
         await api.deactivateCycle(cycle.id)
-        toast.info('Ciclo deshabilitado', { description: `Se desactivó el ciclo "${cycle.name}".` })
+        toast.info('Ciclo desactivado', { description: `Se desactivó el ciclo "${cycle.name}".` })
       }
       setCycleToToggle(null)
       closeCycleModal()
-      await reload()
+      await Promise.all([reload(), onCyclesChanged()])
     } catch (error: unknown) {
       setCycleToToggle(null)
       const friendly = getFriendlyError(error)
@@ -657,7 +735,8 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
 
   const formPending = pending === 'cycle'
   const isCycleFormDirty = cycleName !== initialCycleName
-  const cycleBlockReason = Object.values(validateCycleForm(cycleName))[0] ?? null
+  const liveCycleErrors = validateCycleForm(cycleName)
+  const cycleBlockReason = Object.values(liveCycleErrors)[0] ?? null
   const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
 
   return (
@@ -722,7 +801,6 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
         dirty={isCycleFormDirty}
         blockReason={cycleBlockReason}
         submitLabel={editingCycle ? 'Guardar cambios' : 'Registrar ciclo'}
-        submitIcon={editingCycle ? undefined : PlusIcon}
         headerActions={
           editingCycle ? (
             <>
@@ -738,14 +816,15 @@ function CareerCyclesSection({ career }: Readonly<{ career: Career }>) {
           ) : undefined
         }
       >
-        <FormField id="cycle-name" label="Nombre del ciclo" required counter={{ current: cycleName.length, max: 100 }} error={cycleErrors.name}>
+        <FormField id="cycle-name" label="Nombre del ciclo" required counter={{ current: cycleName.length, max: 100 }} error={visibleFieldError('name', cycleErrors, liveCycleErrors, cycleTouched)}>
           <Input
             id="cycle-name"
             value={cycleName}
             onChange={(e) => {
-              setCycleName(sanitizeLetters(e.target.value, 100))
+              setCycleName(sanitizeOfficialName(e.target.value, 100))
               setCycleErrors((current) => ({ ...current, name: undefined }))
             }}
+            onBlur={() => touchCycle('name')}
             placeholder="Ej. Primer Ciclo"
             disabled={formPending}
             maxLength={100}

@@ -21,7 +21,7 @@ export function HelpButton({ onPageTour, onGeneralTour, onTeacherGuide }: Readon
         </TooltipTrigger>
         <TooltipContent>Ayuda</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-64" onCloseAutoFocus={(event) => event.preventDefault()}>
         {onTeacherGuide && (
           <DropdownMenuItem onSelect={onTeacherGuide}>
             <GraduationCapIcon aria-hidden="true" />

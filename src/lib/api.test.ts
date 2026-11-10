@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { api, ApiError, challengeStore, tokenStore } from './api'
+import { api, ApiError, challengeStore, SESSION_EXPIRED_EVENT, tokenStore } from './api'
 
 const user = {
   id: 1,
@@ -185,5 +185,36 @@ describe('API de administración', () => {
       ['http://localhost:8000/api/v1/admin/modalities/4', 'PATCH'],
       ['http://localhost:8000/api/v1/admin/modalities/4/deactivate', 'PATCH'],
     ])
+  })
+})
+
+describe('Sesión vencida', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    tokenStore.clear()
+  })
+
+  it('al recibir 401 con una sesión abierta borra el token y avisa que la sesión expiró', async () => {
+    tokenStore.set('expired-token')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ message: 'Unauthenticated.' }, 401)))
+    const expired = vi.fn()
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired)
+
+    await expect(api.currentUser()).rejects.toBeInstanceOf(ApiError)
+
+    expect(tokenStore.get()).toBeNull()
+    expect(expired).toHaveBeenCalledTimes(1)
+    window.removeEventListener(SESSION_EXPIRED_EVENT, expired)
+  })
+
+  it('sin sesión abierta (p. ej. credenciales incorrectas) no avisa de sesión vencida', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ message: 'Credenciales incorrectas.' }, 401)))
+    const expired = vi.fn()
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired)
+
+    await expect(api.login('ana@example.com', 'mala')).rejects.toBeInstanceOf(ApiError)
+
+    expect(expired).not.toHaveBeenCalled()
+    window.removeEventListener(SESSION_EXPIRED_EVENT, expired)
   })
 })

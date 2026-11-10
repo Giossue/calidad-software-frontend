@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, SaveIcon, XCircleIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'

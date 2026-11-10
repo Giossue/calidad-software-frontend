@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'

@@ -2,6 +2,8 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { toast } from 'sonner'
+
 import { UsersPage } from '@/features/admin/users-page'
 import { api, ApiError, type Career, type Faculty, type User } from '@/lib/api'
 
@@ -471,11 +473,13 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Editar usuario' })).toBeInTheDocument()
 
-    // Vaciar el campo teléfono: al editar es opcional
+    // Vaciar el campo teléfono: se puede dejar vacío (se conserva el anterior), así que la cuenta
+    // nunca se queda sin teléfono y la etiqueta lo marca como obligatorio.
     const phoneInput = screen.getByLabelText(/Teléfono/i)
     await user.clear(phoneInput)
     expect(phoneInput).not.toBeRequired()
-    expect(phoneInput).toHaveAccessibleName('Teléfono(Opcional)')
+    expect(phoneInput).toHaveAccessibleName('Teléfono(obligatorio)')
+    expect(phoneInput).toHaveAttribute('placeholder', 'Anterior: 0991234567')
 
     await next(user)
     await next(user)
@@ -509,7 +513,75 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await choose(user, within(dialog).getByLabelText(/^Rol en el sistema/), 'Docente')
     await user.click(within(dialog).getByRole('button', { name: 'Registrar usuario' }))
 
-    expect(await within(dialog).findByText('Correo ya registrado')).toBeInTheDocument()
+    // El mensaje aparece una sola vez, en línea bajo "Correo" (el formulario vuelve a ese paso).
+    const messages = await within(dialog).findAllByText(/ya se encuentra registrado/)
+    expect(messages).toHaveLength(1)
+    expect(messages[0].closest('[data-slot="field"]')).toContainElement(within(dialog).getByLabelText(/^Correo electrónico institucional/))
+    expect(within(dialog).queryByText('Correo ya registrado')).not.toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('muestra el error de cada campo bajo el campo al salir de él, sin cambiar lo que es válido', async () => {
+    const user = userEvent.setup()
+    render(<UsersPage />)
+    await screen.findByText('Carlos Docente')
+    await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar usuario' })
+
+    await user.type(within(dialog).getByLabelText(/^Cédula o pasaporte/), '1234567890')
+    expect(within(dialog).queryByText('La cédula ingresada no es válida.')).not.toBeInTheDocument()
+    await user.type(within(dialog).getByLabelText(/^Teléfono/), '09912')
+    expect(await within(dialog).findByText('La cédula ingresada no es válida.')).toBeInTheDocument()
+    await user.type(within(dialog).getByLabelText(/^Correo electrónico institucional/), 'correo-invalido')
+    expect(await within(dialog).findByText('El teléfono debe tener 10 dígitos numéricos.')).toBeInTheDocument()
+    await user.tab()
+    expect(await within(dialog).findByText('Escribe un correo electrónico válido.')).toBeInTheDocument()
+
+    // Al corregir, el error desaparece.
+    const phone = within(dialog).getByLabelText(/^Teléfono/)
+    await user.clear(phone)
+    await user.type(phone, '0987654321')
+    expect(within(dialog).queryByText('El teléfono debe tener 10 dígitos numéricos.')).not.toBeInTheDocument()
+  })
+
+  it('al editar, la cédula registrada y el teléfono ya guardado siguen marcados como obligatorios', async () => {
+    const user = userEvent.setup()
+    render(<UsersPage />)
+    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Editar usuario' })
+
+    expect(within(dialog).getByLabelText(/^Cédula o pasaporte/)).toHaveAccessibleName('Cédula o pasaporte(obligatorio)')
+    expect(within(dialog).getByLabelText(/^Teléfono/)).toHaveAccessibleName('Teléfono(obligatorio)')
+    expect(within(dialog).queryByText('(Opcional)')).not.toBeInTheDocument()
+  })
+
+  it('al editar una cuenta sin teléfono, el teléfono es opcional', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listUsers).mockResolvedValue({
+      data: [{ ...mockUsers[0], phone: null }],
+      meta: { current_page: 1, last_page: 1, per_page: 15, total: 1, from: 1, to: 1, active_count: 1, inactive_count: 0, admin_count: 0, career_coordinator_count: 0, degree_coordinator_count: 0, teacher_count: 1, student_count: 0 },
+    })
+    render(<UsersPage />)
+    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Editar usuario' })
+    expect(within(dialog).getByText(/^Teléfono/).closest('label')).toHaveTextContent('(Opcional)')
+  })
+
+  it('en el paso de contraseña la ayuda va bajo el campo y la desactivación usa el mismo verbo', async () => {
+    const user = userEvent.setup()
+    const info = vi.spyOn(toast, 'info')
+    vi.spyOn(api, 'deactivateUser').mockResolvedValue({ ...mockUsers[0], is_active: false })
+    render(<UsersPage />)
+    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Editar usuario' })
+    await next(user)
+    await next(user)
+    const help = within(dialog).getByText('Déjala en blanco para conservar la actual.')
+    expect(help.closest('[data-slot="field"]')).toContainElement(within(dialog).getByLabelText(/^Nueva contraseña/))
+
+    await user.click(within(dialog).getByRole('button', { name: 'Desactivar cuenta' }))
+    const confirm = await screen.findByRole('dialog', { name: '¿Desactivar cuenta de usuario?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Desactivar cuenta' }))
+    await waitFor(() => expect(info).toHaveBeenCalledWith('Cuenta desactivada', expect.objectContaining({ description: 'Se desactivó la cuenta de Carlos Docente' })))
   })
 })

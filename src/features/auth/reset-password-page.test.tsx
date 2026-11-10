@@ -20,7 +20,7 @@ afterEach(() => {
 describe('ResetPasswordPage', () => {
   it('al restablecer la contraseña lleva al inicio de sesión con el correo de la cuenta', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'resetPassword').mockResolvedValue({ message: 'Tu contraseña fue restablecida.' })
+    vi.spyOn(api, 'resetPassword').mockResolvedValue({ message: 'Tu contraseña fue restablecida' })
     const success = vi.spyOn(toast, 'success')
 
     render(
@@ -36,7 +36,7 @@ describe('ResetPasswordPage', () => {
     await user.click(screen.getByRole('button', { name: 'Restablecer contraseña' }))
 
     expect(await screen.findByText('Login de ana.torres@ueb.edu.ec')).toBeInTheDocument()
-    await waitFor(() => expect(success).toHaveBeenCalledWith('Tu contraseña fue restablecida.', { description: 'Inicia sesión con tu nueva contraseña.' }))
+    await waitFor(() => expect(success).toHaveBeenCalledWith('Tu contraseña fue restablecida', { description: 'Inicia sesión con tu nueva contraseña' }))
     expect(api.resetPassword).toHaveBeenCalledWith({ email: 'ana.torres@ueb.edu.ec', token: 'abc', password: 'Nueva-Clave-2026', password_confirmation: 'Nueva-Clave-2026' })
   })
 })

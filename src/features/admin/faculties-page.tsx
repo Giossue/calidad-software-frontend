@@ -1,7 +1,7 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeftIcon, BookOpenIcon, PencilIcon, PlusIcon, PowerIcon, PowerOffIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
@@ -14,15 +14,16 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog, isFormDialogOpen } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
+import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useDetailParam } from '@/hooks/use-detail-param'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { api, type Faculty } from '@/lib/api'
-import { sanitizeLetters } from '@/lib/sanitize'
+import { api, type Career, type Faculty } from '@/lib/api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { asSentence, sanitizeOfficialName, useTouchedFields } from './form-helpers'
 
-type FacultyFormErrors = { name?: string }
 type ToggleTarget = { faculty: Faculty; action: 'activate' | 'deactivate' }
 
 function validateFacultyName(value: string): string | undefined {
@@ -36,24 +37,82 @@ function careersPath(faculty: Faculty): string {
   return `/panel/careers?${new URLSearchParams({ faculty: String(faculty.id), facultyName: faculty.name })}`
 }
 
+/** Ruta de la pantalla de una carrera; "Volver" en esa pantalla regresa a la facultad. */
+function careerDetailLocation(career: Career) {
+  return {
+    pathname: '/panel/careers',
+    search: `?${new URLSearchParams({ carrera: String(career.id) })}`,
+    state: { detailParam: 'carrera', record: career },
+  }
+}
+
+/** Busca una facultad por id (no hay ruta de detalle): primero entre las activas, luego en las inactivas. */
+async function findFaculty(id: number): Promise<Faculty | null> {
+  const active = (await api.listActiveFaculties()).find((faculty) => faculty.id === id)
+  if (active) return active
+  for (let page = 1, lastPage = 1; page <= lastPage; page += 1) {
+    const response = await api.listFaculties({ page, status: 'inactive' })
+    const found = response.data.find((faculty) => faculty.id === id)
+    if (found) return found
+    lastPage = response.meta?.last_page ?? 1
+  }
+  return null
+}
+
 function careersSummary(faculty: Faculty): string {
   return faculty.careers_count === 0
     ? 'Sin carreras'
     : `${faculty.active_careers_count} de ${faculty.careers_count} carrera${faculty.careers_count === 1 ? '' : 's'} activa${faculty.active_careers_count === 1 ? '' : 's'}`
 }
 
+type FacultyLookup = { id: number; faculty: Faculty | null; error: string | null }
+
 /**
  * Facultades: la lista y, al pulsar una fila, la pantalla de la facultad con sus carreras y
- * sus acciones (editar, habilitar o desactivar) arriba.
+ * sus acciones (editar, habilitar o desactivar) arriba. La facultad abierta vive en la URL
+ * (`?facultad=<id>`): "Atrás" vuelve a la lista y al recargar se vuelve a cargar.
  */
 export function FacultiesPage() {
-  const [selectedFaculty, setSelectedFaculty] = useState<Faculty | null>(null)
+  const detail = useDetailParam('facultad')
+  const [opened, setOpened] = useState<Faculty | null>(null)
+  const [lookup, setLookup] = useState<FacultyLookup | null>(null)
+  const [lookupVersion, setLookupVersion] = useState(0)
+  const detailId = detail.id
+  const openedMatches = opened !== null && opened.id === detailId
 
-  return selectedFaculty ? (
-    <FacultyDetail faculty={selectedFaculty} onChange={setSelectedFaculty} onBack={() => setSelectedFaculty(null)} />
-  ) : (
-    <FacultiesList onSelectFaculty={setSelectedFaculty} />
-  )
+  useEffect(() => {
+    if (detailId === null || openedMatches) return
+    let cancelled = false
+    findFaculty(detailId)
+      .then((faculty) => { if (!cancelled) setLookup({ id: detailId, faculty, error: null }) })
+      .catch((error: unknown) => { if (!cancelled) setLookup({ id: detailId, faculty: null, error: getFriendlyError(error).description }) })
+    return () => { cancelled = true }
+  }, [detailId, openedMatches, lookupVersion])
+
+  if (detailId === null) {
+    return <FacultiesList onSelectFaculty={(faculty) => { setOpened(faculty); detail.open(faculty.id) }} />
+  }
+
+  const faculty = openedMatches ? opened : lookup?.id === detailId ? lookup.faculty : undefined
+  if (faculty) {
+    return <FacultyDetail faculty={faculty} onChange={setOpened} onBack={detail.close} />
+  }
+  if (faculty === null && lookup) {
+    return (
+      <section className="flex flex-col items-start gap-4">
+        {lookup.error ? (
+          <ErrorNotice title="No se pudo cargar la facultad" message={lookup.error} retry={() => { setLookup(null); setLookupVersion((version) => version + 1) }} />
+        ) : (
+          <p className="text-sm text-muted-foreground">No encontramos esta facultad.</p>
+        )}
+        <Button type="button" variant="secondary" onClick={detail.close}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Volver a facultades
+        </Button>
+      </section>
+    )
+  }
+  return <DetailPageSkeleton label="Cargando facultad" tabs={0} />
 }
 
 /** Modal para registrar una facultad o cambiar su nombre. Quien lo abre le cambia la `key` en cada apertura. */
@@ -66,12 +125,13 @@ function FacultyFormDialog({ open, faculty, onClose, onSaved }: Readonly<{
   const initialName = faculty?.name ?? ''
   const [name, setName] = useState(initialName)
   const [nameError, setNameError] = useState<string | undefined>()
+  const { touched, touch } = useTouchedFields<'name'>()
   // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
   const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [pending, setPending] = useState(false)
 
   function updateName(value: string) {
-    setName(sanitizeLetters(value, 150))
+    setName(sanitizeOfficialName(value, 150))
     setNameError(undefined)
     setFormError(null)
   }
@@ -81,16 +141,10 @@ function FacultyFormDialog({ open, faculty, onClose, onSaved }: Readonly<{
     if (pending) return
 
     const normalizedName = name.trim()
-    const errors: FacultyFormErrors = { name: validateFacultyName(name) }
-
-    setNameError(errors.name)
-    if (errors.name) {
-      setFormError({
-        title: 'Revisa los campos requeridos',
-        description: 'El nombre de la facultad es obligatorio y no puede superar 150 caracteres.',
-      })
-      return
-    }
+    const error = validateFacultyName(name)
+    // El error de validación va solo bajo el campo, sin otro recuadro.
+    setNameError(error)
+    if (error) return
 
     setPending(true)
     setFormError(null)
@@ -121,7 +175,6 @@ function FacultyFormDialog({ open, faculty, onClose, onSaved }: Readonly<{
       onClose={onClose}
       onSubmit={submitFaculty}
       title={faculty ? 'Editar facultad' : 'Registrar facultad'}
-      description={faculty ? undefined : 'Escribe el nombre con el que aparecerá en el sistema.'}
       maxWidth="max-w-md"
       pending={pending}
       error={formError?.description ?? null}
@@ -129,14 +182,14 @@ function FacultyFormDialog({ open, faculty, onClose, onSaved }: Readonly<{
       dirty={name.trim() !== initialName.trim()}
       blockReason={validateFacultyName(name) ?? null}
       submitLabel={faculty ? 'Guardar cambios' : 'Registrar facultad'}
-      submitIcon={faculty ? undefined : PlusIcon}
     >
-      <FormField id="faculty-name" label="Nombre de la facultad" required counter={{ current: name.length, max: 150 }} error={nameError}>
+      <FormField id="faculty-name" label="Nombre de la facultad" required counter={{ current: name.length, max: 150 }} error={nameError ?? (touched.has('name') ? validateFacultyName(name) : undefined)}>
         <Input
           id="faculty-name"
           name="name"
           value={name}
           onChange={(e) => updateName(e.target.value)}
+          onBlur={() => touch('name')}
           maxLength={150}
           placeholder="Ej. Facultad de Jurisprudencia"
           disabled={pending}
@@ -251,7 +304,7 @@ function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
         toast.success('Facultad habilitada', { description: `La facultad "${faculty.name}" fue habilitada.` })
       } else {
         await api.deactivateFaculty(faculty.id)
-        toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${faculty.name}".` })
+        toast.info('Facultad desactivada', { description: `Se desactivó la facultad "${faculty.name}".` })
       }
       setFacultyToToggle(null)
       const active = action === 'activate'
@@ -260,7 +313,7 @@ function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
       setFacultyToToggle(null)
       // Fuera de un formulario, el error va en un toast.
       const friendly = getFriendlyError(error)
-      if (!isFormDialogOpen()) toast.error(friendly.title, { description: friendly.description })
+      if (!isFormDialogOpen()) toast.error(friendly.title, { description: asSentence(friendly.description) })
     } finally {
       setPending(false)
     }
@@ -324,6 +377,7 @@ function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
         <RecordTable
           rows={careers.data}
           loading={careers.isInitialLoading}
+          onRowClick={(career) => void navigate(careerDetailLocation(career))}
           empty="Esta facultad aún no tiene carreras registradas."
           columns={[
             { label: 'Carrera', render: (career) => career.name },

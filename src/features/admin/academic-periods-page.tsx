@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import { PlusIcon, PowerIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
@@ -21,6 +21,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type AcademicPeriod, type AcademicPeriodInput } from '@/lib/api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { useTouchedFields, visibleFieldError } from './form-helpers'
 
 const PAO_NUMBERS = ['I', 'II', 'III'] as const
 type PaoNumber = (typeof PAO_NUMBERS)[number]
@@ -145,7 +146,9 @@ export function AcademicPeriodsPage() {
     () => (form.paoNumber && form.year ? composePeriodName(form.paoNumber, form.year) : ''),
     [form.paoNumber, form.year],
   )
+  // Errores al enviar (o del servidor); los de validación se ven en cuanto se toca el campo.
   const [formErrors, setFormErrors] = useState<AcademicPeriodFormErrors>({})
+  const { touched, touch, reset: resetTouched } = useTouchedFields<keyof AcademicPeriodForm>()
   // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
   const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
@@ -155,6 +158,8 @@ export function AcademicPeriodsPage() {
   const [periodToActivate, setPeriodToActivate] = useState<AcademicPeriod | null>(null)
 
   function updateField(field: keyof AcademicPeriodForm, value: string) {
+    // Elegir el número o una fecha ya cuenta como tocar el campo; el año se marca al salir de él.
+    if (field !== 'year') touch(field)
     setForm((current) => ({ ...current, [field]: value }))
     setFormError(null)
     setFormErrors((current) => {
@@ -170,6 +175,7 @@ export function AcademicPeriodsPage() {
     setForm(INITIAL_FORM)
     setInitialForm(INITIAL_FORM)
     setFormErrors({})
+    resetTouched()
     setFormError(null)
     setIsModalOpen(true)
   }
@@ -186,6 +192,7 @@ export function AcademicPeriodsPage() {
     setForm(initial)
     setInitialForm(initial)
     setFormErrors({})
+    resetTouched()
     setFormError(null)
     setIsModalOpen(true)
   }
@@ -202,16 +209,10 @@ export function AcademicPeriodsPage() {
     event.preventDefault()
     if (pending !== null) return
 
+    // Los errores de validación van solo bajo cada campo, sin otro recuadro.
     const errors = validatePeriodForm(form, !editingPeriod)
     setFormErrors(errors)
-    if (Object.keys(errors).length > 0) {
-      const firstErrorMessage = Object.values(errors).find(Boolean)
-      setFormError({
-        title: errors.startDate || errors.endDate ? 'Fecha no válida' : (errors.paoNumber || errors.year) ? 'Nombre de período no válido' : 'Revisa los campos requeridos',
-        description: firstErrorMessage || 'Hay datos incompletos o fechas incorrectas en el período académico. Por favor, revísalos antes de continuar.',
-      })
-      return
-    }
+    if (Object.keys(errors).length > 0) return
 
     setPending('period')
     setFormError(null)
@@ -272,7 +273,9 @@ export function AcademicPeriodsPage() {
   const isCreating = editingPeriod === null
   const { minDate, maxDate } = getPeriodDateBounds()
   // "Guardar" se bloquea con el primer error de validación; sin cambios lo bloquea FormDialog.
-  const submitBlockReason = Object.values(validatePeriodForm(form, isCreating))[0] ?? null
+  const liveErrors = validatePeriodForm(form, isCreating)
+  const submitBlockReason = Object.values(liveErrors)[0] ?? null
+  const fieldError = (field: keyof AcademicPeriodForm) => visibleFieldError(field, formErrors, liveErrors, touched)
   const activationState = editingPeriod && !editingPeriod.is_active ? getActivationState(editingPeriod) : null
   const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
 
@@ -336,7 +339,6 @@ export function AcademicPeriodsPage() {
         onClose={closeModal}
         onSubmit={submitPeriod}
         title={editingPeriod ? 'Editar período académico' : 'Registrar período académico'}
-        description={editingPeriod ? undefined : 'Elige el número de PAO, el año y las fechas del período.'}
         maxWidth="max-w-lg"
         pending={pending === 'period'}
         error={formError?.description ?? null}
@@ -344,7 +346,6 @@ export function AcademicPeriodsPage() {
         dirty={isFormDirty}
         blockReason={submitBlockReason}
         submitLabel={editingPeriod ? 'Guardar cambios' : 'Registrar período'}
-        submitIcon={editingPeriod ? undefined : PlusIcon}
         headerActions={
           editingPeriod ? (
             <>
@@ -379,7 +380,7 @@ export function AcademicPeriodsPage() {
           label="Nombre del período académico"
           required
           tip={composedName ? <>Se registrará como <strong>{composedName}</strong>.</> : undefined}
-          error={formErrors.paoNumber ?? formErrors.year}
+          error={fieldError('paoNumber') ?? fieldError('year')}
         >
           <div className="flex items-center gap-2">
             <Input value="PAO" readOnly tabIndex={-1} aria-label="Prefijo del período" className="w-16 shrink-0 text-center font-medium select-none" />
@@ -391,7 +392,7 @@ export function AcademicPeriodsPage() {
               options={PAO_NUMBERS.map((n) => ({ value: n, label: n }))}
               placeholder="Nº"
               disabled={formDisabled}
-              invalid={Boolean(formErrors.paoNumber)}
+              invalid={Boolean(fieldError('paoNumber'))}
               className="flex-1"
             />
             <Input
@@ -400,9 +401,10 @@ export function AcademicPeriodsPage() {
               inputMode="numeric"
               value={form.year}
               onChange={(e) => updateField('year', e.target.value.replace(/\D/g, '').slice(0, 4))}
+              onBlur={() => touch('year')}
               placeholder="Año"
               aria-label="Año del período"
-              aria-invalid={Boolean(formErrors.year)}
+              aria-invalid={Boolean(fieldError('year'))}
               maxLength={4}
               autoComplete="off"
               disabled={formDisabled}
@@ -413,7 +415,7 @@ export function AcademicPeriodsPage() {
         </FormField>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <FormField id="academic-period-start-date" label="Fecha de inicio" required error={formErrors.startDate}>
+          <FormField id="academic-period-start-date" label="Fecha de inicio" required error={fieldError('startDate')}>
             <Input
               id="academic-period-start-date"
               name="start_date"
@@ -427,7 +429,7 @@ export function AcademicPeriodsPage() {
             />
           </FormField>
 
-          <FormField id="academic-period-end-date" label="Fecha de finalización" required error={formErrors.endDate}>
+          <FormField id="academic-period-end-date" label="Fecha de finalización" required error={fieldError('endDate')}>
             <Input
               id="academic-period-end-date"
               name="end_date"

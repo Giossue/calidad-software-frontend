@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { KeyRoundIcon } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { Button } from '@/components/ui/button'
 import { FieldGroup } from '@/components/ui/field'

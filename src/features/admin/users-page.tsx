@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CheckCircle2Icon, PlusIcon, UserCheckIcon, UserXIcon, XCircleIcon } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/toast'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
@@ -27,6 +27,7 @@ import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { useTouchedFields, visibleFieldError } from './form-helpers'
 
 type UserForm = {
   identification: string
@@ -196,7 +197,9 @@ export function UsersPage() {
   const identificationLocked = Boolean(editingUser?.identification)
   const [userForm, setUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [initialUserForm, setInitialUserForm] = useState<UserForm>(INITIAL_USER_FORM)
+  // Errores al enviar (o del servidor); los de validación se ven en cuanto se toca el campo.
   const [userErrors, setUserErrors] = useState<UserFormErrors>({})
+  const { touched, touch, reset: resetTouched } = useTouchedFields<keyof UserForm>()
   // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
   const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
   const [pending, setPending] = useState<PendingAction>(null)
@@ -242,6 +245,8 @@ export function UsersPage() {
   }
 
   function updateUserField(field: keyof UserForm, value: string) {
+    // Elegir una opción ya cuenta como tocar el campo; los de texto se marcan al salir de ellos.
+    if (field === 'role' || field === 'facultyId' || field === 'careerId' || field === 'cycleNumber') touch(field)
     setUserForm((current) => {
       const next = { ...current, [field]: value }
       if (field === 'role' && (value === 'administrador' || value === 'docente')) {
@@ -277,6 +282,7 @@ export function UsersPage() {
     setUserForm(INITIAL_USER_FORM)
     setInitialUserForm(INITIAL_USER_FORM)
     setUserErrors({})
+    resetTouched()
     setFormError(null)
     setIsModalOpen(true)
     void loadCatalogs()
@@ -306,6 +312,7 @@ export function UsersPage() {
     setUserForm(initial)
     setInitialUserForm(initial)
     setUserErrors({})
+    resetTouched()
     setFormError(null)
     setIsModalOpen(true)
     void loadCatalogs()
@@ -323,15 +330,10 @@ export function UsersPage() {
     event.preventDefault()
     if (pending !== null) return
 
+    // Los errores de validación van solo bajo cada campo, sin otro recuadro.
     const errors = validateUserForm(userForm, editingUser !== null, identificationLocked)
     setUserErrors(errors)
-    if (Object.keys(errors).length > 0) {
-      setFormError({
-        title: 'Revisa los campos requeridos',
-        description: 'Hay datos incompletos o con formato incorrecto en el formulario. Por favor, revísalos antes de continuar.',
-      })
-      return
-    }
+    if (Object.keys(errors).length > 0) return
 
     setPending('user')
     setFormError(null)
@@ -397,10 +399,10 @@ export function UsersPage() {
     try {
       if (action === 'activate') {
         await api.activateUser(user.id)
-        toast.success('Usuario habilitado', { description: `Se habilitó la cuenta de ${user.name}.` })
+        toast.success('Cuenta habilitada', { description: `Se habilitó la cuenta de ${user.name}.` })
       } else {
         await api.deactivateUser(user.id)
-        toast.info('Usuario deshabilitado', { description: `Se desactivó la cuenta de ${user.name}.` })
+        toast.info('Cuenta desactivada', { description: `Se desactivó la cuenta de ${user.name}.` })
       }
       setUserToToggle(null)
       closeModal()
@@ -422,6 +424,11 @@ export function UsersPage() {
   // "Guardar" se bloquea con el primer error de validación; sin cambios lo bloquea FormDialog.
   const formErrors = validateUserForm(userForm, editingUser !== null, identificationLocked)
   const submitBlockReason = Object.values(formErrors)[0] ?? null
+  const fieldError = (field: keyof UserForm) => visibleFieldError(field, userErrors, formErrors, touched)
+  // Al editar, el teléfono ya guardado no se puede quitar (si se deja vacío, se conserva): solo es
+  // opcional para una cuenta que aún no tiene teléfono. La cédula registrada sigue siendo obligatoria.
+  const phoneOptional = Boolean(editingUser) && !editingUser?.phone
+  const identificationOptional = Boolean(editingUser) && !identificationLocked
 
   const roleOptions = ROLE_OPTIONS.map((option) => ({ value: option.value, label: option.label }))
   const facultyOptions = faculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name }))
@@ -435,10 +442,11 @@ export function UsersPage() {
     <FormField
       id="user-identification"
       label="Cédula o pasaporte"
-      required={!editingUser}
+      required={!identificationOptional}
+      optional={identificationOptional}
       tip={identificationLocked ? 'La cédula o pasaporte ya registrado no se puede modificar.' : undefined}
       counter={{ current: userForm.identification.length, max: identificationMaxLength(userForm.identification) }}
-      error={userErrors.identification}
+      error={fieldError('identification')}
     >
       <div className="relative flex items-center">
         <Input
@@ -446,6 +454,7 @@ export function UsersPage() {
           name="identification"
           value={userForm.identification}
           onChange={(e) => updateUserField('identification', sanitizeIdentification(e.target.value))}
+          onBlur={() => touch('identification')}
           maxLength={10}
           autoComplete="off"
           placeholder="Ej. 1710034065 o AB1234567"
@@ -467,12 +476,13 @@ export function UsersPage() {
   // Paso 1: quién es la persona. Lo que la identifica va primero.
   const personalFields = (
     <>
-      <FormField id="user-name" label="Nombre completo" required counter={{ current: userForm.name.length, max: 150 }} error={userErrors.name}>
+      <FormField id="user-name" label="Nombre completo" required counter={{ current: userForm.name.length, max: 150 }} error={fieldError('name')}>
         <Input
           id="user-name"
           name="name"
           value={userForm.name}
           onChange={(e) => updateUserField('name', sanitizeLetters(e.target.value, 150))}
+          onBlur={() => touch('name')}
           maxLength={150}
           autoComplete="name"
           placeholder="Ej. Ana Torres"
@@ -487,11 +497,10 @@ export function UsersPage() {
         <FormField
           id="user-phone"
           label="Teléfono"
-          required={!editingUser}
-          optional={Boolean(editingUser)}
-         
+          required={!phoneOptional}
+          optional={phoneOptional}
           counter={{ current: userForm.phone.length, max: 10 }}
-          error={userErrors.phone}
+          error={fieldError('phone')}
         >
           <Input
             id="user-phone"
@@ -500,6 +509,7 @@ export function UsersPage() {
             inputMode="numeric"
             value={userForm.phone}
             onChange={(e) => updateUserField('phone', sanitizeDigits(e.target.value, 10))}
+            onBlur={() => touch('phone')}
             maxLength={10}
             placeholder={editingUser?.phone ? `Anterior: ${editingUser.phone}` : 'Ej. 0989938432'}
             disabled={formDisabled}
@@ -508,13 +518,14 @@ export function UsersPage() {
         </FormField>
       </div>
 
-      <FormField id="user-email" label="Correo electrónico institucional" required counter={{ current: userForm.email.length, max: 150 }} error={userErrors.email}>
+      <FormField id="user-email" label="Correo electrónico institucional" required counter={{ current: userForm.email.length, max: 150 }} error={fieldError('email')}>
         <Input
           id="user-email"
           name="email"
           type="email"
           value={userForm.email}
           onChange={(e) => updateUserField('email', e.target.value.slice(0, 150))}
+          onBlur={() => touch('email')}
           maxLength={150}
           placeholder="Ej. maria.perez@ueb.edu.ec"
           disabled={formDisabled}
@@ -537,7 +548,7 @@ export function UsersPage() {
         options={roleOptions}
         placeholder="Selecciona un rol"
         disabled={formDisabled}
-        error={userErrors.role}
+        error={fieldError('role')}
       />
 
       {userForm.role && userForm.role !== 'administrador' && userForm.role !== 'docente' && (
@@ -552,7 +563,7 @@ export function UsersPage() {
             options={facultyOptions}
             placeholder={catalogsLoading ? 'Cargando facultades…' : 'Selecciona una facultad'}
             disabled={formDisabled || catalogsLoading}
-            error={userErrors.facultyId}
+            error={fieldError('facultyId')}
           />
 
           <SelectField
@@ -565,7 +576,7 @@ export function UsersPage() {
             options={careerOptions}
             placeholder={!userForm.facultyId ? 'Primero selecciona una facultad' : filteredCareers.length === 0 ? 'No hay carreras en esta facultad' : 'Selecciona una carrera'}
             disabled={formDisabled || catalogsLoading || !userForm.facultyId}
-            error={userErrors.careerId}
+            error={fieldError('careerId')}
           />
 
           {userForm.role === 'estudiante' && (
@@ -580,7 +591,7 @@ export function UsersPage() {
               options={cycleOptions}
               placeholder={!userForm.careerId ? 'Primero selecciona una carrera' : cycleLevels === 0 ? 'La carrera no tiene ciclos registrados' : 'Selecciona el ciclo'}
               disabled={formDisabled || catalogsLoading || cycleLevels === 0}
-              error={userErrors.cycleNumber}
+              error={fieldError('cycleNumber')}
             />
           )}
         </div>
@@ -591,12 +602,13 @@ export function UsersPage() {
   // Paso 3 (solo al editar): nueva contraseña opcional.
   const passwordFields = (
     <div className="grid gap-5 sm:grid-cols-2">
-      <FormField id="user-password" label="Nueva contraseña" optional error={userErrors.password}>
+      <FormField id="user-password" label="Nueva contraseña" optional tip="Déjala en blanco para conservar la actual." error={fieldError('password')}>
         <PasswordInput
           id="user-password"
           name="password"
           value={userForm.password}
           onChange={(e) => updateUserField('password', e.target.value)}
+          onBlur={() => touch('password')}
           autoComplete="new-password"
           placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
           disabled={formDisabled}
@@ -605,12 +617,13 @@ export function UsersPage() {
         {userForm.password && <PasswordStrength id="user-password-strength" password={userForm.password} />}
       </FormField>
 
-      <FormField id="user-password-confirmation" label="Confirmar nueva contraseña" required={Boolean(userForm.password)} error={userErrors.password_confirmation}>
+      <FormField id="user-password-confirmation" label="Confirmar nueva contraseña" required={Boolean(userForm.password)} error={fieldError('password_confirmation')}>
         <PasswordInput
           id="user-password-confirmation"
           name="password_confirmation"
           value={userForm.password_confirmation}
           onChange={(e) => updateUserField('password_confirmation', e.target.value)}
+          onBlur={() => touch('password_confirmation')}
           autoComplete="new-password"
           placeholder="Repite la contraseña"
           disabled={formDisabled}
@@ -639,7 +652,7 @@ export function UsersPage() {
   const userFormSteps: FormStep[] = [
     { title: 'Datos personales', blockReason: firstErrorOf(PERSONAL_FIELDS), fields: ['name', 'identification', 'phone', 'email'], content: personalFields },
     { title: 'Rol y carrera', blockReason: firstErrorOf(ROLE_FIELDS), fields: ['role', 'faculty_id', 'career_id', 'cycle_number'], content: roleFields },
-    ...(editingUser ? [{ title: 'Contraseña', description: 'Déjala en blanco para conservar la actual.', content: passwordFields }] : []),
+    ...(editingUser ? [{ title: 'Contraseña', fields: ['password', 'password_confirmation'], content: passwordFields }] : []),
   ]
 
   const hasFilters = searchInput.trim() !== '' || roleFilter !== '' || statusFilter !== '' || careerFilter !== ''
@@ -732,7 +745,6 @@ export function UsersPage() {
         dirty={isUserFormDirty}
         blockReason={submitBlockReason}
         submitLabel={editingUser ? 'Guardar cambios' : 'Registrar usuario'}
-        submitIcon={editingUser ? undefined : PlusIcon}
         headerActions={
           editingUser ? (
             <>
