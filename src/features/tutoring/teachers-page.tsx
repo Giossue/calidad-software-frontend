@@ -257,7 +257,7 @@ export function TutoringTeachersPage() {
           )}
         </div>
       </FormField>
-      <FormField id="teacher-email" label="Correo institucional" required tip="Utiliza una dirección de la Universidad Estatal de Bolívar (@ueb.edu.ec o @mailes.ueb.edu.ec)." counter={{ current: form.email.length, max: 150 }} error={form.email ? teacherErrors.email : null}>
+      <FormField id="teacher-email" label="Correo institucional" required counter={{ current: form.email.length, max: 150 }} error={form.email ? teacherErrors.email : null}>
         <Input id="teacher-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value.slice(0, 150) })} required maxLength={150} placeholder="docente@ueb.edu.ec" />
       </FormField>
       <FormField id="teacher-phone" label="Teléfono" required counter={{ current: form.phone.length, max: 10 }} error={form.phone ? teacherErrors.phone : null}>

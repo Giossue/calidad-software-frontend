@@ -301,7 +301,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
   const placementFields = (
     <>
-      <FormField id="subject-period" label="Período académico" tip={`Todas las asignaturas corresponden automáticamente al período académico vigente (${currentPeriod?.name ?? 'sin período'}).`}>
+      <FormField id="subject-period" label="Período académico">
         <div className="relative flex items-center">
           <Input
             id="subject-period"
@@ -324,7 +324,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         placeholder="Selecciona un ciclo"
         options={uniqueCycleLevels.map((cycle) => ({ value: String(cycle.id), label: cycle.name }))}
       />
-      <FormField id="subject-parallels" label="Paralelo(s)" optional tip="Puedes seleccionar varios paralelos." error={sectionError}>
+      <FormField id="subject-parallels" label="Paralelo(s)" optional error={sectionError}>
         {isAddingSection ? (
           <div className="flex items-center gap-2">
             <Input

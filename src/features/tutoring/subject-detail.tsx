@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowLeftIcon, GitBranchIcon, PencilIcon, PlusIcon, PowerOffIcon, XIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, GitBranchIcon, PencilIcon, PlusIcon, PowerOffIcon, XIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
@@ -66,13 +67,11 @@ export function SubjectDetail({
             <StatusBadge active={subject.is_active} activeLabel="Activa" inactiveLabel="Inactiva" />
             {subject.is_active && (
               <>
-                <Button type="button" variant="secondary" disabled={operation.pending} onClick={onEdit}>
-                  <PencilIcon data-icon="inline-start" />
-                  Editar asignatura
+                <Button type="button" variant="secondary" size="icon" aria-label="Editar asignatura" disabled={operation.pending} onClick={onEdit}>
+                  <PencilIcon />
                 </Button>
-                <Button type="button" variant="secondary" tone="destructive" disabled={operation.pending} onClick={onDeactivate}>
-                  <PowerOffIcon data-icon="inline-start" />
-                  Desactivar asignatura
+                <Button type="button" variant="secondary" size="icon" tone="destructive" aria-label="Desactivar asignatura" disabled={operation.pending} onClick={onDeactivate}>
+                  <PowerOffIcon />
                 </Button>
               </>
             )}
@@ -89,26 +88,32 @@ export function SubjectDetail({
         <TabsContent value="parallels">
           <ParallelsPanel subject={subject} cycles={cycles} parallels={parallels} operation={operation} onChanged={onChanged} />
         </TabsContent>
-        <TabsContent value="curriculum" className="flex flex-col gap-4">
-          <dl className="grid max-w-3xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <dt className="text-muted-foreground">Viene de</dt>
-              <dd>{previous.length > 0 ? previous.map((item) => formatSubjectName(item.name)).join(', ') : 'Ninguna: inicia una secuencia.'}</dd>
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <dt className="text-muted-foreground">Continúa en</dt>
-              <dd>{next.length > 0 ? next.map((item) => formatSubjectName(item.name)).join(', ') : 'Ninguna: aquí termina la secuencia.'}</dd>
-            </div>
-          </dl>
-          <p className="text-sm text-muted-foreground">Quien aprueba esta asignatura (y las demás previas de la siguiente) queda inscrito en la tutoría de la siguiente en el nuevo período.</p>
-          {subject.is_active && (
-            <div>
-              <Button type="button" variant="secondary" disabled={operation.pending} onClick={onEditSequence}>
-                <GitBranchIcon data-icon="inline-start" />
-                Editar secuencia
-              </Button>
-            </div>
-          )}
+        <TabsContent value="curriculum">
+          <Card>
+            <CardContent className="flex flex-col gap-5 pt-6">
+              {/* La secuencia se lee de izquierda a derecha: de dónde viene, esta asignatura y en cuál continúa. */}
+              <ol aria-label="Secuencia en la malla" className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                <SequenceStep label="Viene de" names={previous.map((item) => formatSubjectName(item.name))} empty="Ninguna: inicia una secuencia." />
+                <SequenceArrow />
+                <SequenceStep label="Esta asignatura" names={[formatSubjectName(subject.name)]} current />
+                <SequenceArrow />
+                <SequenceStep label="Continúa en" names={next.map((item) => formatSubjectName(item.name))} empty="Ninguna: aquí termina la secuencia." />
+              </ol>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  {next.length > 0
+                    ? `Al aprobarla, el estudiante pasa a la tutoría de ${next.map((item) => formatSubjectName(item.name)).join(' y ')} en el siguiente período.`
+                    : 'Al aprobarla, el estudiante no pasa a otra tutoría de esta secuencia.'}
+                </p>
+                {subject.is_active && (
+                  <Button type="button" variant="secondary" disabled={operation.pending} onClick={onEditSequence}>
+                    <GitBranchIcon data-icon="inline-start" />
+                    Editar secuencia
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         <TabsContent value="data">
           <dl className="grid max-w-3xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
@@ -274,5 +279,28 @@ function ParallelsPanel({ subject, cycles, parallels, operation, onChanged }: Re
         </form>
       )}
     </div>
+  )
+}
+
+/** Un tramo de la secuencia: su rótulo y las asignaturas (o qué significa que no haya). */
+function SequenceStep({ label, names, empty, current = false }: Readonly<{ label: string; names: readonly string[]; empty?: string; current?: boolean }>) {
+  return (
+    <li className={`flex min-w-0 flex-1 flex-col gap-1 rounded-md border p-3 ${current ? 'border-primary bg-accent' : 'border-border'}`}>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {names.length > 0 ? (
+        names.map((name) => <span key={name} className="text-sm">{name}</span>)
+      ) : (
+        <span className="text-sm text-muted-foreground">{empty}</span>
+      )}
+    </li>
+  )
+}
+
+function SequenceArrow() {
+  return (
+    <li aria-hidden="true" className="flex shrink-0 justify-center text-muted-foreground">
+      <ArrowRightIcon className="hidden size-4 sm:block" />
+      <ArrowDownIcon className="size-4 sm:hidden" />
+    </li>
   )
 }

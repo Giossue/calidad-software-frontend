@@ -206,6 +206,12 @@
   }
 }
 
+/* Campos sobre el fondo de la página (filtros, buscadores): fondo blanco para que se
+   distingan. Dentro de modales y tarjetas siguen con el gris suave de los campos. */
+[data-slot='sidebar-inset'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='textarea']):not(:is([role='dialog'], [data-slot='card']) *) {
+  background-color: var(--card);
+}
+
 /* Esqueleto de carga con brillo, como en sílabos. */
 @keyframes skeleton-shimmer {
   from {

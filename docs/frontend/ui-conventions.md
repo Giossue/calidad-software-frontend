@@ -38,6 +38,9 @@ allá, se copian aquí.
 Cada pantalla se piensa para que la tarea habitual tome el menor esfuerzo, sin cambiar
 las reglas de negocio que ya aplica el sistema.
 
+- **Acciones del encabezado de una página de detalle**: editar, desactivar o cambiar
+  van como botones de solo ícono (con su tooltip y nombre accesible). Las acciones del
+  flujo de trabajo (aprobar, rechazar, registrar) llevan texto.
 - **La fila abre el registro.** Si un registro tiene más de una cosa que ver o hacer
   (horario, supervisión, estudiantes…), la fila completa abre su pantalla con la
   información separada en pestañas y las acciones arriba (p. ej. "Editar"). No se
@@ -110,7 +113,10 @@ las reglas de negocio que ya aplica el sistema.
   Siguiente" en el primero, "Atrás / Siguiente" en los intermedios y "Atrás / acción"
   en el último; "Siguiente" se bloquea mostrando qué falta. Úsalo cuando el formulario
   tiene grupos de campos distintos o más de unos cinco campos.
-- La ayuda de un campo va visible bajo el campo (`FormField tip`), no en un tooltip.
+- La ayuda de un campo va visible bajo el campo (`FormField tip`), no en un tooltip, y
+  solo si dice algo que no se entiende ya: nada de "Cédula de 10 dígitos", "Utiliza un
+  correo @ueb.edu.ec", "solo letras y espacios" o "Mínimo 5 caracteres" (si el dato no
+  sirve, lo dice el error del campo).
 - El error de cada campo va en línea bajo el campo; el error del servidor una sola vez,
   dentro del modal. El motivo por el que "Guardar" o "Siguiente" está bloqueado no se
   repite en el modal (los obligatorios ya llevan asterisco): se lee en el tooltip del

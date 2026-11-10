@@ -281,22 +281,19 @@ function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge active={faculty.status} activeLabel="Activa" inactiveLabel="Inactiva" />
-            <Button type="button" variant="secondary" disabled={pending} onClick={() => { setFormKey((key) => key + 1); setIsModalOpen(true) }}>
-              <PencilIcon data-icon="inline-start" />
-              Editar facultad
+            <Button type="button" variant="secondary" size="icon" aria-label="Editar facultad" disabled={pending} onClick={() => { setFormKey((key) => key + 1); setIsModalOpen(true) }}>
+              <PencilIcon />
             </Button>
             {!faculty.status ? (
-              <Button type="button" variant="secondary" disabled={pending} onClick={() => setFacultyToToggle({ faculty, action: 'activate' })}>
-                <PowerIcon data-icon="inline-start" />
-                Habilitar facultad
+              <Button type="button" variant="secondary" size="icon" aria-label="Habilitar facultad" disabled={pending} onClick={() => setFacultyToToggle({ faculty, action: 'activate' })}>
+                <PowerIcon />
               </Button>
             ) : hasActiveCareers ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span tabIndex={0}>
-                    <Button type="button" variant="secondary" tone="destructive" disabled>
-                      <PowerOffIcon data-icon="inline-start" />
-                      Desactivar facultad
+                    <Button type="button" variant="secondary" size="icon" tone="destructive" aria-label="Desactivar facultad" disabled tooltip={false}>
+                      <PowerOffIcon />
                     </Button>
                   </span>
                 </TooltipTrigger>
@@ -305,9 +302,8 @@ function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <Button type="button" variant="secondary" tone="destructive" disabled={pending} onClick={() => setFacultyToToggle({ faculty, action: 'deactivate' })}>
-                <PowerOffIcon data-icon="inline-start" />
-                Desactivar facultad
+              <Button type="button" variant="secondary" size="icon" tone="destructive" aria-label="Desactivar facultad" disabled={pending} onClick={() => setFacultyToToggle({ faculty, action: 'deactivate' })}>
+                <PowerOffIcon />
               </Button>
             )}
           </div>

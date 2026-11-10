@@ -914,7 +914,7 @@ function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Re
   const orderedDays = WEEK_DAYS.filter((day) => days.includes(day))
 
   return (
-    <FormField id={`${prefix}-schedule-days`} label="Horario" required tip="Marca los días de la tutoría y elige la hora de cada uno.">
+    <FormField id={`${prefix}-schedule-days`} label="Horario" required>
       <div id={`${prefix}-schedule-days`} className="flex flex-wrap gap-x-4 gap-y-2" role="group" aria-label="Días de la semana">
         {WEEK_DAYS.map((day) => (
           <label key={day} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
@@ -1004,7 +1004,7 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
       label="Paralelo"
       // Igual que la validación: al crear siempre; al editar, si la asignatura tiene paralelos.
       required={prefix === 'create' || parallels.length > 0}
-      tip="Cada paralelo es una tutoría con su propio docente."
+     
       error={parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null}
     >
       {parallels.length > 0 ? (

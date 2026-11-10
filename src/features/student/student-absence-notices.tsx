@@ -132,7 +132,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
                 options={options.map((item) => ({ value: item.date, label: classLabel(item) }))}
               />}
         </FormField>
-        <FormField id="absence-reason" label="Motivo" required tip="Mínimo 5 caracteres." counter={{ current: reason.length, max: 500 }}>
+        <FormField id="absence-reason" label="Motivo" required counter={{ current: reason.length, max: 500 }}>
           <Textarea id="absence-reason" value={reason} onChange={(event) => setReason(event.target.value.slice(0, 500))} maxLength={500} rows={3} required placeholder="Ej. Cita médica programada" />
         </FormField>
       </FormDialog>

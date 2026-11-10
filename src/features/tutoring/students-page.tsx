@@ -390,9 +390,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             actions={
               <div className="flex items-center gap-2">
                 <StatusBadge active={assignStudent.is_active} />
-                <Button type="button" variant="secondary" onClick={() => openCycleModal(assignStudent)}>
-                  <ArrowRightLeftIcon data-icon="inline-start" />
-                  {assignStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
+                <Button type="button" variant="secondary" size="icon" aria-label={assignStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'} onClick={() => openCycleModal(assignStudent)}>
+                  <ArrowRightLeftIcon />
                 </Button>
               </div>
             }
@@ -694,7 +693,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             blockReason: dataBlockReason,
             content: (
               <>
-                <FormField id="new-student-name" label="Nombres y apellidos" required tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
+                <FormField id="new-student-name" label="Nombres y apellidos" required counter={{ current: form.name.length, max: 150 }}>
                   <Input
                     id="new-student-name"
                     required
@@ -709,7 +708,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   id="new-student-cedula"
                   label="Cédula o pasaporte"
                   required
-                  tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres."
+                 
                   counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }}
                   error={shouldShowIdentificationStatus(form.identification) && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null}
                 >
@@ -727,7 +726,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   id="new-student-email"
                   label="Correo institucional"
                   required
-                  tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`}
+                 
                   counter={{ current: form.email.length, max: 150 }}
                   error={form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null}
                 >
@@ -763,7 +762,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                   id="new-student-cycle"
                   label="Ciclo"
                   required
-                  tip="Ciclo que cursa el estudiante. El último ciclo de la carrera es de titulación; los anteriores, de tutorías."
+                  tip="El último ciclo de la carrera es de titulación; los anteriores, de tutorías."
                   value={form.cycle_id}
                   onValueChange={handleCycleChange}
                   disabled={loadingCycles}
@@ -782,7 +781,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     isDegreeCycle
                       ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.'
                       : form.cycle_id
-                        ? 'Puedes inscribir al estudiante en una tutoría de este ciclo de inmediato o hacerlo después.'
+                        ? undefined
                         : 'Selecciona primero un ciclo para habilitar las tutorías.'
                   }
                   value={form.tutoring_id}

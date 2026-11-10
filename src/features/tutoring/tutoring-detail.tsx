@@ -55,9 +55,8 @@ export function TutoringDetail({
           <div className="flex items-center gap-2">
             <StatusBadge active={tutoring.is_active} activeLabel="Tutoría activa" inactiveLabel="Tutoría inactiva" />
             {onEdit && (
-              <Button type="button" variant="secondary" onClick={onEdit}>
-                <PencilIcon data-icon="inline-start" />
-                Editar tutoría
+              <Button type="button" variant="secondary" size="icon" aria-label="Editar tutoría" onClick={onEdit}>
+                <PencilIcon />
               </Button>
             )}
           </div>

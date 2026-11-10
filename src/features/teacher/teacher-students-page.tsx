@@ -207,7 +207,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       </>}
       {mode === 'new' && <>
         <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>
-        <FormField id="teacher-student-identification" label="Cédula o pasaporte" required tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres." counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shouldShowIdentificationStatus(form.identification) ? identificationError : null}>
+        <FormField id="teacher-student-identification" label="Cédula o pasaporte" required counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shouldShowIdentificationStatus(form.identification) ? identificationError : null}>
           <Input
             id="teacher-student-identification"
             value={form.identification}
@@ -218,7 +218,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           />
         </FormField>
 
-        <FormField id="teacher-student-name" label="Nombres y apellidos" required tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
+        <FormField id="teacher-student-name" label="Nombres y apellidos" required counter={{ current: form.name.length, max: 150 }}>
           <Input
             id="teacher-student-name"
             value={form.name}
@@ -229,7 +229,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           />
         </FormField>
 
-        <FormField id="teacher-student-email" label="Correo institucional" required tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`} counter={{ current: form.email.length, max: 150 }} error={emailError}>
+        <FormField id="teacher-student-email" label="Correo institucional" required counter={{ current: form.email.length, max: 150 }} error={emailError}>
           <Input
             id="teacher-student-email"
             type="email"

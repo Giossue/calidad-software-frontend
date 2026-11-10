@@ -489,7 +489,7 @@ export function UsersPage() {
           label="Teléfono"
           required={!editingUser}
           optional={Boolean(editingUser)}
-          tip={editingUser ? 'Si no colocas un número, se mantendrá el teléfono anterior o quedará vacío si no tenía uno registrado.' : undefined}
+         
           counter={{ current: userForm.phone.length, max: 10 }}
           error={userErrors.phone}
         >

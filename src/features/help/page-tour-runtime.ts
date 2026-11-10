@@ -16,7 +16,8 @@ function resolveTarget(target: TourTarget, root: ParentNode): Element | null {
     return [...scope.querySelectorAll(target)].find(isVisible) ?? null
   }
   if ('button' in target) {
-    return [...root.querySelectorAll('button')].find((button) => isVisible(button) && (button.textContent ?? '').includes(target.button)) ?? null
+    // Por su texto o, si es un botón de solo ícono, por su nombre accesible.
+    return [...root.querySelectorAll('button')].find((button) => isVisible(button) && ((button.textContent ?? '').includes(target.button) || (button.getAttribute('aria-label') ?? '').includes(target.button))) ?? null
   }
   // Acciones de la primera fila: la última celda, si tiene botones.
   const cell = root.querySelector('[data-slot="table-body"] > tr:first-child > td:last-child')

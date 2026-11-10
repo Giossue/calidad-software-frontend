@@ -182,7 +182,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
         submitLabel="Guardar horarios"
         maxWidth="max-w-2xl"
       >
-        <FormField id="teacher-schedule-days" label="Horario" required tip="Marca los días de la tutoría y elige la hora de cada uno.">
+        <FormField id="teacher-schedule-days" label="Horario" required>
           <div id="teacher-schedule-days" className="flex flex-wrap gap-x-4 gap-y-2" role="group" aria-label="Días de la semana">
             {WEEK_DAYS.map((day) => (
               <label key={day} className="inline-flex items-center gap-2 text-sm">

@@ -432,25 +432,22 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
             <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" />
             <Button
               type="button"
-              variant="secondary"
+              variant="secondary" size="icon" aria-label="Editar carrera"
               disabled={pending}
               onClick={() => {
                 setCareerFormKey((key) => key + 1)
                 setIsCareerModalOpen(true)
               }}
             >
-              <PencilIcon data-icon="inline-start" />
-              Editar carrera
+              <PencilIcon />
             </Button>
             {career.status ? (
-              <Button type="button" variant="secondary" tone="destructive" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'deactivate' })}>
-                <PowerOffIcon data-icon="inline-start" />
-                Desactivar carrera
+              <Button type="button" variant="secondary" size="icon" tone="destructive" aria-label="Desactivar carrera" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'deactivate' })}>
+                <PowerOffIcon />
               </Button>
             ) : (
-              <Button type="button" variant="secondary" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'activate' })}>
-                <PowerIcon data-icon="inline-start" />
-                Habilitar carrera
+              <Button type="button" variant="secondary" size="icon" aria-label="Habilitar carrera" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'activate' })}>
+                <PowerIcon />
               </Button>
             )}
           </div>
