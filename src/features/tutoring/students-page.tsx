@@ -547,7 +547,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                       </span>
                     ),
                   },
-                  { label: 'Estado', render: (student) => <span className={cn('text-sm', !student.is_active && 'text-muted-foreground')}>{student.is_active ? 'Activo' : 'Inactivo'}</span> },
+                  { label: 'Estado', render: (student) => <StatusBadge active={student.is_active} /> },
                 ]}
               />
 

@@ -1170,7 +1170,8 @@ describe('Coordinación de tutorías', () => {
     expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('1')
     expect(within(row).queryByRole('button')).not.toBeInTheDocument()
     expect(within(row).getByText('1 tutoría')).toBeInTheDocument()
-    expect(within(row).getByText('Activo').closest('[data-slot="badge"]')).toBeNull()
+    // El estado siempre va en badge (solo los estados llevan badge).
+    expect(within(row).getByText('Activo').closest('[data-slot="badge"]')).not.toBeNull()
     expect(within(row).getByText('Arrastra: PROGRAMACIÓN I')).toBeInTheDocument()
 
     // La fila abre la pantalla del estudiante con sus tutorías y sus datos en pestañas.

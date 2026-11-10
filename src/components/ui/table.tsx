@@ -89,7 +89,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors not-data-[group]:odd:bg-card not-data-[group]:even:bg-muted/50 data-[group=odd]:bg-card data-[group=even]:bg-muted/50 hover:bg-muted data-[hovered]:bg-muted! has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b transition-colors not-data-[group]:odd:bg-card not-data-[group]:even:bg-muted/50 data-[group=odd]:bg-card data-[group=even]:bg-muted/50 hover:bg-accent! data-[hovered]:bg-accent! has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
       {...props}
@@ -115,7 +115,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "border-l border-border p-2 align-middle font-normal break-words whitespace-normal first:border-l-0 [&_*]:font-normal! [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "border-l border-border p-2 align-middle font-normal text-foreground break-words whitespace-normal first:border-l-0 [&_*]:font-normal! [&_.text-muted-foreground:not([data-slot=empty-state]_*)]:text-foreground! [&_.font-mono]:font-sans! [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

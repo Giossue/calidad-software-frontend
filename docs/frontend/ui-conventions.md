@@ -92,7 +92,9 @@ las reglas de negocio que ya aplica el sistema.
 - **Solo los estados llevan badge** (activo/inactivo, aprobado, matriculado…), con
   `Badge`/`StatusBadge` y variantes semánticas. Código, ciclo, paralelos, rol, grupo o
   día van como texto simple.
-- Solo los encabezados van en negrita; el contenido de las celdas, en peso normal.
+- Solo los encabezados van en negrita; el contenido de las celdas, en peso normal, del
+  mismo color de texto (nada de gris) y con la misma fuente (nada de monoespaciada).
+- El estado de cada fila va siempre en badge, nunca como texto suelto.
 - En filas compuestas (una celda que abarca varias filas), el color alterno y el
   resaltado al pasar el cursor van por grupo.
 

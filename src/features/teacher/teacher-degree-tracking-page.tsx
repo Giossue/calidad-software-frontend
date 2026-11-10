@@ -532,15 +532,15 @@ function TareasPanel({
                       onCheckedChange={() => onToggle(act)}
                       aria-label={act.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
                     />
-                    <span className={cn('text-sm', act.is_completed ? 'text-success' : 'text-muted-foreground')}>
+                    <Badge variant={act.is_completed ? 'success' : 'warning'}>
                       {act.is_completed ? 'Completada' : 'Pendiente'}
-                    </span>
+                    </Badge>
                   </label>
                 )
               }
 
               return (
-                <Badge variant={act.is_completed ? 'success' : 'neutral'}>
+                <Badge variant={act.is_completed ? 'success' : 'warning'}>
                   {act.is_completed ? 'Completada' : 'Pendiente'}
                 </Badge>
               )
