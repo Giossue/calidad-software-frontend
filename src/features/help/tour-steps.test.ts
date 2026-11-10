@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { buildTourSteps, MODULE_HELP } from './tour-steps'
 
 const titles = (moduleIds: readonly string[]) => buildTourSteps(moduleIds).map((step) => step.popover?.title)
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('buildTourSteps', () => {
   it('explica solo los módulos del menú de la cuenta, en su orden', () => {
@@ -19,8 +23,16 @@ describe('buildTourSteps', () => {
 
     expect(steps).toEqual([
       '¡Bienvenido!', 'Menú principal', 'Notificaciones', 'Modo claro u oscuro',
-      'Tu cuenta', 'Accesibilidad', 'Instala la aplicación', '¿Necesitas ayuda?',
+      'Accesibilidad', 'Tu cuenta', '¿Necesitas ayuda?',
     ])
+  })
+
+  it('ofrece instalar la aplicación solo en el celular', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(max-width: 767px)' }))
+    expect(titles([])).toContain('Instala la aplicación')
+
+    vi.stubGlobal('matchMedia', () => ({ matches: false }))
+    expect(titles([])).not.toContain('Instala la aplicación')
   })
 
   it('saluda por el primer nombre', () => {

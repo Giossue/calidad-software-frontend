@@ -1,11 +1,11 @@
 /**
  * Guías por pantalla. Cada clave identifica una pantalla o sub-pantalla
- * («users», «tutorings/detail», «teacher-tutorings/grades»…) y lista los
+ * («users», «tutorings/detail», «teacher-tutorings/content/topic»…) y lista los
  * elementos que se explican. Un paso cuyo elemento no está en pantalla (por
  * ejemplo, la paginación con una sola página) se omite al iniciar la guía.
  */
 
-/** Dónde está el elemento: selector CSS o botón por su texto visible. */
+/** Dónde está el elemento: selector CSS, botón por su texto o nombre accesible, o acciones de la primera fila. */
 export type TourTarget = string | { readonly button: string } | { readonly rowActions: true }
 
 export type PageTourStep = Readonly<{
@@ -46,15 +46,21 @@ const careerPicker = (module: string): readonly PageTourStep[] => [
 
 const careerBack = step(CAREER_BACK, 'Cambiar de carrera', 'Vuelve a la lista de carreras para elegir otra.')
 
+/** Botón «Volver a …» de una pantalla de detalle. */
+const back = (label: string, description: string) => step({ button: label }, 'Volver', description)
+/** Activar o desactivar desde la cabecera de un detalle (botones de solo ícono). */
+const toggle = (noun: string, description: string) => step([{ button: `Desactivar ${noun}` }, { button: `Habilitar ${noun}` }], 'Cambiar estado', description)
+const studentTutoringTabs = step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre contenido, asistencia, calificaciones y horarios. Cada pestaña tiene su propia guía.')
+
 export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   // ---------- Administración ----------
   users: [
     step(HEADER, 'Gestión de usuarios', 'Aquí administras todas las cuentas del sistema.'),
-    step({ button: 'Nuevo usuario' }, 'Nuevo usuario', 'Registra una cuenta con su rol y carrera. La persona recibe una contraseña provisional por correo y la cambia al primer ingreso.'),
+    step({ button: 'Nuevo usuario' }, 'Nuevo usuario', 'Registra una cuenta en dos pasos: datos personales, y rol y carrera. La persona recibe una contraseña provisional por correo y la cambia al primer ingreso.'),
     bulk('Registra muchas cuentas a la vez.'),
     refresh,
     filters('Busca por nombre, correo o cédula, y filtra por rol, estado o carrera. «Pendientes de completar datos» muestra quienes aún no ingresan por primera vez.'),
-    table('Cada fila es una cuenta con su rol, carrera y estado. Haz clic en ella para editar sus datos, rol, carreras o estado.'),
+    table('Haz clic en una cuenta para editar sus datos, rol o carreras, o para habilitarla o desactivarla.'),
     pagination,
   ],
   periods: [
@@ -63,7 +69,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     bulk('Registra varios períodos a la vez.'),
     refresh,
     filters('Busca un período por su nombre o filtra por estado.'),
-    table('Haz clic en un período para editarlo o marcarlo como vigente. El vigente es el que usan las tutorías y la titulación; solo puede haber uno.'),
+    table('Haz clic en un período para editarlo o habilitarlo como vigente. El vigente es el que usan las tutorías y la titulación; solo puede haber uno.'),
     pagination,
   ],
   faculties: [
@@ -72,7 +78,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     bulk('Registra varias facultades a la vez.'),
     refresh,
     filters('Busca una facultad o filtra por estado.'),
-    table('Haz clic en una facultad para ver sus carreras, editarla o cambiar su estado.'),
+    table('Haz clic en una facultad para abrirla.'),
     pagination,
   ],
   careers: [
@@ -80,21 +86,23 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step({ button: 'Nueva carrera' }, 'Nueva carrera', 'Registra una carrera con su facultad, modalidad y número de ciclos.'),
     bulk('Registra varias carreras a la vez.'),
     refresh,
-    filters('Busca por nombre o facultad, y filtra por facultad o estado.'),
-    table('Haz clic en una carrera para ver sus ciclos y datos, editarla o cambiar su estado.'),
+    filters('Busca por nombre y filtra por facultad o estado.'),
+    table('Haz clic en una carrera para abrirla.'),
     pagination,
   ],
   'faculties/detail': [
-    step({ button: 'Volver a facultades' }, 'Volver', 'Regresa a la lista de facultades.'),
-    step(HEADER, 'Facultad', 'Su estado y las acciones para editarla o cambiar su estado.'),
+    back('Volver a facultades', 'Regresa a la lista de facultades.'),
+    step(HEADER, 'Facultad', 'Su nombre, sus carreras y su estado.'),
     step({ button: 'Editar facultad' }, 'Editar facultad', 'Cambia el nombre de la facultad.'),
+    toggle('facultad', 'Habilita o desactiva la facultad. Para desactivarla, primero desactiva sus carreras.'),
     step({ button: 'Administrar carreras' }, 'Administrar carreras', 'Abre la oferta de carreras filtrada por esta facultad.'),
     table('Carreras de la facultad.'),
   ],
   'careers/detail': [
-    step({ button: 'Volver a carreras' }, 'Volver', 'Regresa a la lista de carreras.'),
+    back('Volver a carreras', 'Regresa a la lista de carreras.'),
     step(HEADER, 'Carrera', 'Su facultad, modalidad y estado.'),
     step({ button: 'Editar carrera' }, 'Editar carrera', 'Cambia el nombre, la facultad, la modalidad o el número de ciclos.'),
+    toggle('carrera', 'Habilita o desactiva la carrera.'),
     step('[aria-label="Secciones de la carrera"]', 'Ciclos y datos', '«Ciclos» muestra los ciclos o niveles de la carrera; «Datos», su información.'),
     step({ button: 'Nuevo ciclo' }, 'Nuevo ciclo', 'Agrega un ciclo a la carrera.'),
     bulk('Registra varios ciclos a la vez.'),
@@ -109,17 +117,24 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Asignaturas de la carrera', 'Aquí administras las asignaturas de cada ciclo.'),
     step(CREATE, 'Registrar asignatura', 'Agrega una asignatura indicando su ciclo.'),
     bulk('Registra varias asignaturas a la vez.'),
-    step('[aria-label="Ciclos de la carrera"]', 'Ciclos', 'Cambia de ciclo para ver sus asignaturas.'),
+    step('[aria-label="Ciclos de la carrera"]', 'Ciclo', 'Elige el ciclo cuyas asignaturas quieres ver.'),
     filters('Busca por nombre o código y filtra por estado.'),
-    table('Cada fila es una asignatura con sus paralelos y la asignatura que continúa en la malla. Haz clic en ella para abrirla.'),
+    table('Cada fila muestra la asignatura, en cuál continúa y sus paralelos. Haz clic en ella para abrirla.'),
     pagination,
+  ],
+  'tutoring-subjects/detail': [
+    back('Volver a asignaturas', 'Regresa a la lista de asignaturas.'),
+    step(HEADER, 'Asignatura', 'Su código, ciclo y estado.'),
+    step({ button: 'Editar asignatura' }, 'Editar asignatura', 'Cambia el nombre, el código o la modalidad.'),
+    step({ button: 'Desactivar asignatura' }, 'Desactivar asignatura', 'Deja de ofrecer la asignatura.'),
+    step('[aria-label="Secciones de la asignatura"]', 'Paralelos, malla y datos', '«Paralelos» asigna o quita paralelos; «Malla» muestra de cuál viene y en cuál continúa, y permite editar la secuencia; «Datos», su información.'),
   ],
   'tutoring-curriculum/career-picker': careerPicker('Malla curricular'),
   'tutoring-curriculum/curriculum': [
     careerBack,
     step(HEADER, 'Malla curricular', 'Las asignaturas de la carrera ordenadas por ciclo, como en la malla oficial.'),
     step('[data-tour="curriculum-upload"]', 'Subir nueva malla curricular', 'Sube la malla nueva en Excel, CSV o PDF, elige desde qué PAO rige y hasta qué ciclo se aplica. Los estudiantes de ciclos superiores terminan con la malla anterior.'),
-    step('[data-tour="curriculum-version"]', 'Versiones de la malla', 'Si la carrera tiene varias mallas, elige cuál ver. Debajo se indica desde qué PAO rige y a quiénes se aplica.'),
+    step('[data-tour="curriculum-version"]', 'Versiones de la malla', 'Si la carrera tiene varias mallas, elige cuál ver. Una malla que ninguna tutoría usa se puede eliminar.'),
     step('[data-tour="curriculum-detail"]', 'Secuencia de la asignatura', 'Al elegir una asignatura, aquí ves de cuál viene y en cuál continúa. En la malla se resaltan en ámbar las previas y en verde las que continúan.'),
     step('section[aria-label$="ciclo"] button', 'Asignaturas', 'Cada tarjeta indica en qué asignatura continúa, o «Fin de secuencia» si ahí termina. La secuencia se edita en Asignaturas.'),
   ],
@@ -129,18 +144,15 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step({ button: 'Vincular docente existente' }, 'Vincular docente existente', 'Si el docente ya tiene cuenta (por ejemplo, en otra carrera), agrégalo a tu carrera sin crearle otra.'),
     bulk('Registra varios docentes a la vez.'),
     filters('Busca por nombre o correo y filtra por carrera o estado.'),
-    table('Cada fila es un docente con sus carreras. Haz clic en él para abrirlo.'),
+    table('Cada fila es un docente con sus asignaturas y paralelos. Haz clic en él para abrirlo.'),
     pagination,
   ],
-  'tutoring-subjects/detail': [
-    step({ button: 'Volver a asignaturas' }, 'Volver', 'Regresa a la lista de asignaturas.'),
-    step({ button: 'Editar asignatura' }, 'Editar asignatura', 'Cambia el nombre, el código o la modalidad.'),
-    step('[aria-label="Secciones de la asignatura"]', 'Paralelos, malla y datos', '«Paralelos» asigna o quita paralelos; «Malla» muestra de qué asignatura viene y en cuál continúa; «Datos», su información.'),
-  ],
   'tutoring-teachers/detail': [
-    step({ button: 'Volver a docentes' }, 'Volver', 'Regresa a la lista de docentes.'),
+    back('Volver a docentes', 'Regresa a la lista de docentes.'),
+    step(HEADER, 'Docente', 'Su nombre, correo y estado.'),
     step({ button: 'Editar docente' }, 'Editar docente', 'Cambia los datos del docente.'),
-    step('[aria-label="Secciones del docente"]', 'Asignaturas, carreras y datos', '«Asignaturas» muestra sus tutorías; «Carreras», de cuáles forma parte (y quitarlo de una); «Datos», su información.'),
+    step({ button: 'Desactivar docente' }, 'Desactivar docente', 'Quita el acceso de la cuenta; deja de recibir nuevas tutorías.'),
+    step('[aria-label="Secciones del docente"]', 'Asignaturas, carreras y datos', '«Asignaturas» muestra sus tutorías; «Carreras», de cuáles forma parte, y ahí puedes quitarlo de una; «Datos», su información.'),
   ],
   'tutoring-students/career-picker': careerPicker('Estudiantes'),
   'tutoring-students': [
@@ -148,11 +160,17 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Estudiantes de la carrera', 'Aquí registras a los estudiantes y los ubicas en su ciclo.'),
     step(CREATE, 'Nuevo estudiante', 'Registra un estudiante con su ciclo y, si quieres, inscríbelo en una tutoría.'),
     bulk('Registra muchos estudiantes a la vez. Los importados quedan en «Sin ciclo» hasta que les asignes uno.'),
-    step('[aria-label="Ciclos de la carrera"]', 'Ciclos', 'Cambia de ciclo para ver a sus estudiantes. «Sin ciclo» reúne a quienes aún no tienen uno asignado.'),
+    step('[aria-label="Ciclos de la carrera"]', 'Ciclo', 'Elige el ciclo cuyos estudiantes quieres ver. «Sin ciclo» reúne a quienes aún no tienen uno asignado.'),
     filters('Busca por nombre, cédula o correo y filtra según sus tutorías.'),
     table('Cada fila es un estudiante con sus tutorías. Haz clic en él para abrirlo.'),
     rowActions('En el ciclo de titulación, matricula al estudiante, dale de baja o cámbialo de ciclo.'),
     pagination,
+  ],
+  'tutoring-students/detail': [
+    back('Volver a estudiantes', 'Regresa a la lista de estudiantes.'),
+    step(HEADER, 'Estudiante', 'Su ciclo y su estado.'),
+    step([{ button: 'Cambiar ciclo' }, { button: 'Asignar ciclo' }], 'Ciclo del estudiante', 'Asigna o cambia el ciclo que cursa.'),
+    step('[aria-label="Secciones del estudiante"]', 'Tutorías y datos', '«Tutorías» muestra en cuáles está inscrito y permite inscribirlo en otra; «Datos», su información de contacto.'),
   ],
   'tutorings/career-picker': careerPicker('Tutorías'),
   tutorings: [
@@ -165,15 +183,10 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     pagination,
   ],
   'tutorings/detail': [
-    step({ button: 'Volver a tutorías' }, 'Volver', 'Regresa a la lista de tutorías.'),
+    back('Volver a tutorías', 'Regresa a la lista de tutorías.'),
+    step(HEADER, 'Tutoría', 'Su ciclo, paralelo, modalidad, período y estado.'),
     step({ button: 'Editar tutoría' }, 'Editar tutoría', 'Cambia el docente, el horario o el paralelo, o activa la tutoría si está inactiva.'),
     step('[aria-label="Secciones de la tutoría"]', 'Resumen, supervisión y estudiantes', '«Resumen» muestra el docente y el horario; «Supervisión», las sesiones con su asistencia; «Estudiantes», quiénes están inscritos.'),
-    table('Información de la pestaña elegida.'),
-  ],
-  'tutoring-students/detail': [
-    step({ button: 'Volver a estudiantes' }, 'Volver', 'Regresa a la lista de estudiantes.'),
-    step({ button: 'Cambiar ciclo' }, 'Cambiar ciclo', 'Cambia el ciclo que cursa el estudiante.'),
-    step('[aria-label="Secciones del estudiante"]', 'Tutorías y datos', '«Tutorías» muestra en cuáles está inscrito y permite inscribirlo en otra; «Datos», su información de contacto.'),
   ],
   'tutoring-reports/career-picker': careerPicker('Informes'),
   'tutoring-reports': [
@@ -188,7 +201,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   'degree-students': [
     step(HEADER, 'Matrícula en titulación', 'Aquí matriculas a los estudiantes en titulación para el período vigente.'),
     filters('Busca por nombre, cédula o correo y filtra por estado de matrícula.'),
-    table('Cada fila es un estudiante con su estado de matrícula. Haz clic en él para matricularlo en titulación o darle de baja; al matricularlo se le habilita el módulo de titulación.'),
+    table('Haz clic en un estudiante para matricularlo en titulación o darle de baja. Al matricularlo se le habilita el módulo de titulación.'),
     pagination,
   ],
   'degree-topics': [
@@ -199,12 +212,13 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     pagination,
   ],
   'degree-topics/detail': [
-    step({ button: 'Volver a propuestas' }, 'Volver', 'Regresa a la lista de propuestas.'),
+    back('Volver a propuestas', 'Regresa a la lista de propuestas.'),
     step(HEADER, 'Propuesta', 'Título, estudiante y estado de la propuesta.'),
     step({ button: 'Aprobar propuesta' }, 'Aprobar', 'Aprueba el tema y asigna el docente tutor y los pares académicos.'),
     step({ button: 'Rechazar propuesta' }, 'Rechazar', 'Rechaza el tema indicando el motivo; el estudiante podrá proponer otro.'),
     step({ button: 'Gestionar pares académicos' }, 'Pares académicos', 'Cambia los docentes que revisan la propuesta.'),
     step({ button: 'Registrar observación' }, 'Observaciones', 'Deja una observación al estudiante; le llega una notificación.'),
+    step('[aria-label="Secciones de la propuesta"]', 'Propuesta, docentes y observaciones', '«Propuesta» muestra la descripción y los datos del estudiante; «Docentes», el tutor y los pares; «Observaciones», lo que se le ha indicado.'),
   ],
   'degree-tracking': [
     step(HEADER, 'Seguimiento de titulación', 'Aquí supervisas el avance de los temas aprobados.'),
@@ -213,9 +227,11 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     pagination,
   ],
   'degree-tracking/detail': [
+    back('Volver a seguimiento', 'Regresa a la lista de temas.'),
     step({ button: 'Generar Informe' }, 'Generar informe', 'Registra las observaciones y el dictamen sobre la evolución del tema.'),
     step({ button: 'Nueva actividad' }, 'Nueva actividad', 'Define un hito o entregable para la ficha de seguimiento.'),
-    table('Cronograma de actividades del estudiante y su estado.'),
+    step('[aria-label="Avance del tema"]', 'Avance', 'Porcentaje de actividades completadas del tema.'),
+    table('Cronograma de actividades. Marca «Completada» cuando el estudiante cumpla una actividad.'),
   ],
   'degree-reports': [
     step(HEADER, 'Reportes de titulación', 'Aquí consultas los informes de seguimiento emitidos.'),
@@ -231,29 +247,52 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     table('Haz clic en una tutoría para gestionar su asistencia, contenido, horarios, estudiantes y calificaciones.'),
     pagination,
   ],
+  'teacher-tutorings/attendance': [
+    step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre asistencia, contenido, horarios, estudiantes y calificaciones. Cada pestaña tiene su propia guía.'),
+    step({ button: 'Registrar asistencia' }, 'Registrar asistencia', 'Toma lista de la clase de hoy. Se habilita solo durante el horario de la clase.'),
+    table('Sesiones registradas con su fecha y asistencia. Haz clic en una para consultarla.'),
+  ],
+  'teacher-tutorings/attendance/register': [
+    step([{ button: 'Marcar todos' }, { button: 'Desmarcar todos' }], 'Marcar todos', 'Marca a todos como presentes y luego corrige a quienes faltaron.'),
+    table('Haz clic en un estudiante para marcarlo presente o ausente. Los avisos de inasistencia aparecen junto a su nombre.'),
+    step({ button: 'Guardar asistencia' }, 'Guardar asistencia', 'Guarda la lista. Mientras dure la clase puedes corregirla; después queda cerrada.'),
+    step({ button: 'Volver a las sesiones' }, 'Volver', 'Regresa a la lista de sesiones.'),
+  ],
+  'teacher-tutorings/attendance/session': [
+    step({ button: 'Volver a las sesiones' }, 'Volver', 'Regresa a la lista de sesiones.'),
+    table('Asistencia registrada en esta sesión. Es un registro histórico: solo consulta.'),
+  ],
+  'teacher-tutorings/content': [
+    filters('Busca un tema, elige una sesión para ver lo que se trabajó en ella y filtra por estado.'),
+    step({ button: 'Asignar temas a esta sesión' }, 'Asignar temas a la sesión', 'Marca los temas que trataste en la sesión elegida.'),
+    step({ button: 'Registrar tema' }, 'Registrar tema', 'Planifica los temas de la tutoría y adjunta recursos (PDF, Word, PowerPoint, Excel) para tus estudiantes.'),
+    table('Temas de la tutoría con sus recursos. Haz clic en uno para abrirlo y registrar sus actividades.'),
+  ],
+  'teacher-tutorings/content/topic': [
+    step({ button: 'Temas' }, 'Volver', 'Regresa a la lista de temas.'),
+    step({ button: 'Editar tema' }, 'Editar tema', 'Cambia el nombre o los recursos del tema.'),
+    step({ button: 'Registrar actividad' }, 'Registrar actividad', 'Agrega una actividad del tema con su duración.'),
+    table('Actividades del tema. Haz clic en una para registrar sus metodologías.'),
+  ],
+  'teacher-tutorings/content/activity': [
+    step({ button: 'Actividades' }, 'Volver', 'Regresa a las actividades del tema.'),
+    step({ button: 'Editar actividad' }, 'Editar actividad', 'Cambia el nombre o la duración de la actividad.'),
+    step({ button: 'Registrar metodología' }, 'Registrar metodología', 'Describe cómo trabajas la actividad con tus estudiantes.'),
+    table('Metodologías de la actividad. Haz clic en una para editarla.'),
+  ],
+  'teacher-tutorings/schedules': [
+    step({ button: 'Editar horarios' }, 'Editar horarios', 'Configura los días y horas en que se dicta la tutoría. Sin horario no se puede tomar asistencia.'),
+    table('Horarios actuales de la tutoría.'),
+  ],
   'teacher-tutorings/students': [
     filters('Busca por nombre, cédula o correo y filtra por estado.'),
     step({ button: 'Registrar estudiante' }, 'Registrar estudiante', 'Inscribe a un estudiante de tu paralelo o registra uno nuevo; si es nuevo, recibe una contraseña provisional por correo.'),
-    table('Estudiantes inscritos en la tutoría. Al cerrar el ciclo, registra en «Resultado final» si aprobó o reprobó: quien aprueba pasa a la tutoría de la asignatura siguiente. Haz clic en un estudiante para añadir sus notas o deshabilitar su inscripción; si está deshabilitado, haz clic para reinscribirlo.'),
+    table('Estudiantes inscritos. Al cerrar el ciclo, elige en «Resultado final» si aprobó o reprobó: quien aprueba pasa a la tutoría de la asignatura siguiente. Haz clic en un estudiante para añadir sus notas o deshabilitar su inscripción; si está deshabilitado, para reinscribirlo.'),
     pagination,
-  ],
-  'teacher-tutorings/content': [
-    filters('Busca un tema y filtra por estado.'),
-    step({ button: 'Registrar tema' }, 'Registrar tema', 'Planifica los temas de la tutoría y adjunta recursos (PDF, Word, PowerPoint, Excel) para tus estudiantes. Dentro de cada tema registras sus actividades y metodologías.'),
-    table('Temas de la tutoría y sus recursos. Haz clic en uno para ver sus actividades; ahí lo editas con «Editar tema» y, en cada actividad, sus metodologías.'),
-  ],
-  'teacher-tutorings/attendance': [
-    step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre asistencia, contenido, horarios, estudiantes y calificaciones. Cada pestaña tiene su propia guía.'),
-    step({ button: 'Registrar asistencia' }, 'Registrar asistencia', 'Toma lista de una sesión y marca los temas que se trabajaron.'),
-    table('Sesiones registradas con su fecha y asistentes. Los avisos de inasistencia de los estudiantes aparecen al tomar lista.'),
   ],
   'teacher-tutorings/grades': [
     step('[aria-label="Etapa de calificación"]', 'Etapa de calificación', 'Elige qué nota vas a ingresar. Cada etapa indica si está completa o pendiente.'),
     table('Escribe las notas en la tabla, de 0 a la nota máxima y con hasta dos decimales.'),
-  ],
-  'teacher-tutorings/schedules': [
-    step({ button: 'Editar horarios' }, 'Editar horarios', 'Configura los días y horas en que se dicta la tutoría.'),
-    table('Horarios actuales de la tutoría.'),
   ],
   'teacher-reports': [
     step(HEADER, 'Informes', 'Aquí preparas los informes de tus tutorías.'),
@@ -261,9 +300,9 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
   'teacher-reports/tutoring': [
     step({ button: 'Elegir otra tutoría' }, 'Cambiar de tutoría', 'Vuelve a la lista de tutorías.'),
-    step('[aria-label="Secciones de informes"]', 'Informes y actividades', '«Informes enviados» lista lo que ya enviaste; «Revisión de actividades» resume lo trabajado en la tutoría.'),
+    step('[aria-label="Secciones de informes"]', 'Informes y actividades', '«Informes enviados» lista lo que ya enviaste; «Revisión de actividades» resume lo trabajado en cada sesión.'),
     step({ button: 'Reportes oficiales' }, 'Reportes oficiales', 'Genera el reporte de evaluación diagnóstica, las calificaciones diagnósticas, el seguimiento de tutorías o el informe final PAO en el formato institucional.'),
-    table('Informes enviados.'),
+    table('Informes enviados. Haz clic en uno para leerlo.'),
   ],
   'teacher-degree-assignments': [
     step(HEADER, 'Mis asignaciones de titulación', 'Aquí ves los temas donde eres tutor o par académico.'),
@@ -278,16 +317,18 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     pagination,
   ],
   'teacher-degree-tracking/estado-ficha': [
+    step({ button: 'Volver a mis temas' }, 'Volver', 'Regresa a la lista de temas.'),
     step('[data-slot="sidebar-container"] [data-slot="sidebar-menu-sub"]', 'Secciones de la ficha', 'Cambia entre el estado de la ficha, el equipo de titulación y las tareas.', 'right'),
-    step(HEADER, 'Estado de la ficha', 'Resumen del avance acumulado del tema y su estado general.'),
+    step(HEADER, 'Tema', 'El tema, el estudiante y tu participación.'),
+    step('[aria-label="Progreso general"]', 'Estado de la ficha', 'Avance acumulado del tema según las tareas completadas.'),
   ],
   'teacher-degree-tracking/equipo-titulacion': [
-    step(HEADER, 'Equipo de titulación', 'Estudiante, tutor y pares académicos del tema.'),
+    step('section[aria-label="Equipo de Titulación"]', 'Equipo de titulación', 'Estudiante, tutor y pares académicos del tema, con su correo.'),
   ],
   'teacher-degree-tracking/tareas': [
     step({ button: 'Asignar tarea' }, 'Asignar tarea', 'Asigna una tarea o avance al estudiante.'),
-    filters('Filtra las tareas por estado.'),
-    table('Tareas del tema con quién las asignó y su estado.'),
+    filters('Busca por tarea o docente y filtra por estado.'),
+    table('Tareas del tema con quién las asignó y su estado. Solo puedes marcar como completada una tarea que registraste tú.'),
   ],
 
   // ---------- Estudiante ----------
@@ -298,23 +339,29 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     pagination,
   ],
   'student-tutorings/content': [
-    step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre contenido, asistencia, calificaciones y horarios. Cada pestaña tiene su propia guía.'),
-    table('Temas, actividades y metodologías que publica tu docente. Abre un tema para ver sus detalles y descargar sus recursos.'),
+    back('Volver a mis tutorías', 'Regresa a la lista de tus tutorías.'),
+    step(HEADER, 'Tutoría', 'Ciclo, paralelo y docente de la tutoría.'),
+    studentTutoringTabs,
+    step('[aria-label="Avance de temas"]', 'Avance', 'Cuántos temas ya se trabajaron en clase.'),
+    step('button[aria-label^="Ver detalle de"]', 'Temas', 'Abre un tema para ver sus actividades y metodologías y descargar sus recursos.'),
   ],
   'student-tutorings/attendance': [
-    table('Tu récord de asistencia por sesión.'),
+    step('[aria-label="Porcentaje de asistencia"]', 'Tu asistencia', 'Porcentaje de sesiones a las que asististe.'),
     step({ button: 'Ver avisos' }, 'Tus avisos', 'Consulta los avisos que enviaste y lo que registró tu docente.'),
-    step({ button: 'Avisar inasistencia' }, 'Avisar inasistencia', 'Si vas a faltar, avisa a tu docente; lo verá al tomar lista.'),
+    step({ button: 'Avisar inasistencia' }, 'Avisar inasistencia', 'Si vas a faltar, elige la clase y avisa a tu docente; lo verá al tomar lista.'),
+    table('Tu asistencia en cada sesión.'),
   ],
   'student-tutorings/grades': [
     step('[aria-label="Diagnóstico"]', 'Tus calificaciones', 'Diagnóstico, Parcial 1 y Parcial 2 aparecen a medida que tu docente los registra. Tu grupo de conocimiento sale de la nota diagnóstica.', 'top'),
   ],
   'student-tutorings/schedules': [
-    table('Días y horarios de las sesiones de tutoría.'),
+    step('section[aria-label="Horario de clases"]', 'Horario', 'Días, horas y aula de cada sesión.'),
+    step('[aria-label="Docente"]', 'Docente', 'Datos de contacto de tu docente.'),
   ],
   'student-degree-topics': [
     step(HEADER, 'Mis propuestas', 'Aquí presentas tu tema de titulación y sigues su estado.'),
     step([{ button: 'Nueva propuesta' }, { button: 'Proponer alternativa' }], 'Proponer un tema', 'Presenta tu tema. Si fue rechazado, puedes proponer una alternativa.'),
+    step('[role="article"]', 'Tu propuesta', 'Su estado, la revisión, los docentes asignados y las observaciones de coordinación.'),
     step({ button: 'Cambiar propuesta' }, 'Cambiar propuesta', 'Corrige tu propuesta mientras está en revisión.'),
   ],
   'student-degree-tracking': [
@@ -322,6 +369,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step('[aria-label="Pestañas de seguimiento"]', 'Secciones', 'Cambia entre el estado de tu ficha, tu equipo de titulación y tus tareas.'),
   ],
   'student-degree-assignments': [
-    step(HEADER, 'Tutor y pares', 'Aquí ves el docente tutor y los pares académicos de tu tema aprobado, con sus datos de contacto.'),
+    step(HEADER, 'Tutor y pares', 'Aquí ves el docente tutor y los pares académicos de tu tema aprobado.'),
+    step('[role="region"]', 'Tu equipo', 'Datos de contacto del tutor y de cada par académico.'),
   ],
 }

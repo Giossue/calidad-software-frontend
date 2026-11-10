@@ -24,30 +24,47 @@ function resolveTarget(target: TourTarget, root: ParentNode): Element | null {
   return cell && isVisible(cell) && cell.querySelector('button') ? cell : null
 }
 
-/**
- * Identificador de la pantalla actual. Las pestañas internas de una tutoría o de
- * una ficha de titulación se leen de la URL; las demás sub-vistas, del atributo
- * `data-tour-view` de su contenedor.
- */
-export function currentPageTourKey(section: string, params: URLSearchParams): string {
-  const tabbed: Record<string, readonly [param: string, defaultTab: string]> = {
-    'teacher-tutorings': ['tutoring', 'attendance'],
-    'student-tutorings': ['tutoring', 'content'],
-    'teacher-degree-tracking': ['topic', 'estado-ficha'],
-  }
-  const tabs = tabbed[section]
-  if (tabs && params.get(tabs[0])) return `${section}/${params.get('tab') ?? tabs[1]}`
-
-  const root = document.querySelector(CONTENT) ?? document
-  const views = [...root.querySelectorAll('[data-tour-view]')].filter(isVisible)
-  const view = views.at(-1)?.getAttribute('data-tour-view')
-  return view && PAGE_TOURS[`${section}/${view}`] ? `${section}/${view}` : section
+/** Pantallas con pestañas en la URL: parámetro que abre el registro y pestaña por defecto. */
+const TABBED: Readonly<Record<string, readonly [param: string, defaultTab: string]>> = {
+  'teacher-tutorings': ['tutoring', 'attendance'],
+  'student-tutorings': ['tutoring', 'content'],
+  'teacher-degree-tracking': ['topic', 'estado-ficha'],
 }
 
-/** La pantalla todavía está cargando datos. */
+/** Sub-vistas que se abren con un parámetro de la URL dentro de una pestaña, de la más interna a la más externa. */
+const URL_SUB_VIEWS: Readonly<Record<string, readonly string[]>> = {
+  'teacher-tutorings': ['activity', 'topic', 'session'],
+}
+
+/** La última sub-vista visible marcada con `data-tour-view`. */
+function visibleView(): string | null {
+  const root = document.querySelector(CONTENT) ?? document
+  const views = [...root.querySelectorAll('[data-tour-view]')].filter(isVisible)
+  return views.at(-1)?.getAttribute('data-tour-view') ?? null
+}
+
+/**
+ * Identificador de la pantalla actual. Las pestañas de una tutoría o de una ficha
+ * de titulación se leen de la URL, igual que el tema o la sesión abiertos dentro
+ * de ellas; las demás sub-vistas (detalle, selección de carrera…), del atributo
+ * `data-tour-view` de su contenedor. Si la sub-vista no tiene guía propia, se usa
+ * la de la pantalla que la contiene.
+ */
+export function currentPageTourKey(section: string, params: URLSearchParams): string {
+  const tabs = TABBED[section]
+  const base = tabs && params.get(tabs[0]) ? `${section}/${params.get('tab') ?? tabs[1]}` : section
+  const subView = (URL_SUB_VIEWS[section] ?? []).find((param) => base !== section && params.get(param))
+  const view = visibleView()
+  const candidates = [subView && `${base}/${subView}`, view && `${base}/${view}`]
+  return candidates.find((key): key is string => Boolean(key && PAGE_TOURS[key])) ?? base
+}
+
+/** La pantalla todavía está cargando datos: algo ocupado o un aviso «Cargando…». */
 export function isPageLoading(): boolean {
   const root = document.querySelector(CONTENT)
-  return Boolean(root?.querySelector('[aria-busy="true"], [role="status"][aria-label^="Cargando"]'))
+  if (!root) return false
+  if (root.querySelector('[aria-busy="true"]')) return true
+  return [...root.querySelectorAll('[role="status"]')].some((status) => (status.getAttribute('aria-label') ?? status.textContent ?? '').trim().startsWith('Cargando'))
 }
 
 /** Pasos de la guía de la pantalla, solo con los elementos que están a la vista. */

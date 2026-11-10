@@ -262,21 +262,22 @@ html.reduce-motion *::after {
   transition-duration: 0.001ms !important;
 }
 
-/* Tutorial del sistema (driver.js): globos con los colores del tema claro u oscuro. */
+/* Tutorial del sistema (driver.js): globo con los colores, radio, sombra y botones del sistema. */
 .driver-popover.system-tour {
   --driver-popover-font-family: var(--font-sans);
   background-color: var(--popover);
   color: var(--popover-foreground);
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) * 2);
+  border-radius: calc(var(--radius) - 2px);
   max-width: min(340px, calc(100vw - 32px));
   padding: 16px;
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow-menu-value);
 }
 
 .driver-popover.system-tour .driver-popover-title {
   font-size: 1rem;
   font-weight: 600;
+  line-height: 1.5rem;
 }
 
 .driver-popover.system-tour .driver-popover-description {
@@ -291,40 +292,50 @@ html.reduce-motion *::after {
 
 .driver-popover.system-tour .driver-popover-close-btn {
   color: var(--muted-foreground);
+  border-radius: calc(var(--radius) - 2px);
 }
 
 .driver-popover.system-tour .driver-popover-close-btn:hover,
 .driver-popover.system-tour .driver-popover-close-btn:focus-visible {
-  color: var(--popover-foreground);
+  color: var(--accent-foreground);
+  background-color: var(--accent);
 }
 
 .driver-popover.system-tour .driver-popover-footer-btn {
-  background-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 12px;
+  border-radius: calc(var(--radius) - 2px);
+  font: 500 0.875rem/1 var(--font-sans);
+  text-shadow: none;
+  background-color: var(--field);
   color: var(--popover-foreground);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 6px 12px;
-  font-size: 0.8125rem;
-  text-shadow: none;
+  box-shadow: var(--shadow-control-value);
+  transition: background-color 150ms, color 150ms;
 }
 
-.driver-popover.system-tour .driver-popover-footer-btn:hover,
+.driver-popover.system-tour .driver-popover-footer-btn:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
 .driver-popover.system-tour .driver-popover-footer-btn:focus-visible {
-  background-color: var(--muted);
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
 }
 
 .driver-popover.system-tour .driver-popover-next-btn {
-  background-color: var(--primary);
-  color: var(--primary-foreground);
-  border-color: var(--primary);
+  background-color: var(--button-primary);
+  color: var(--button-primary-foreground);
+  border-color: transparent;
+  box-shadow: none;
 }
 
-.driver-popover.system-tour .driver-popover-next-btn:hover,
-.driver-popover.system-tour .driver-popover-next-btn:focus-visible {
-  background-color: var(--primary);
-  filter: brightness(1.1);
+.driver-popover.system-tour .driver-popover-next-btn:hover {
+  background-color: color-mix(in oklab, var(--button-primary) 90%, transparent);
+  color: var(--button-primary-foreground);
 }
 
 .driver-popover.system-tour .driver-popover-arrow-side-left { border-left-color: var(--popover); }
