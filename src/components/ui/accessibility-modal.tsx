@@ -1,11 +1,5 @@
 import { useEffect, useState } from 'react'
-import {
-  CheckIcon,
-  EyeIcon,
-  SaveIcon,
-  TypeIcon,
-  ZapIcon,
-} from 'lucide-react'
+import { CheckIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -50,9 +44,7 @@ export function AccessibilityModal({
 
   function handleSave() {
     saveAccessibilitySettings(settings)
-    toast.success('Preferencias guardadas', {
-      description: 'Se actualizaron y guardaron los ajustes de accesibilidad del sistema.',
-    })
+    toast.success('Preferencias guardadas')
     onClose()
   }
 
@@ -68,115 +60,66 @@ export function AccessibilityModal({
       open={open}
       onClose={handleCancel}
       confirmClose={dirty}
-      title="Configuración de Accesibilidad"
-      description="Personaliza la apariencia, tamaño de texto y contraste del sistema en tiempo real."
+      title="Accesibilidad"
+      description="Los cambios se ven al instante."
       maxWidth="max-w-lg"
     >
-      <div className="flex flex-col gap-5">
-        {/* Tamaño de Texto */}
-        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <TypeIcon className="size-5" />
+      <div className="flex flex-col">
+        <div className="divide-y divide-border">
+          <SettingRow label="Tamaño del texto" hint="Agranda todo el texto un 18 %.">
+            <div className="flex items-center gap-2" role="group" aria-label="Tamaño del texto">
+              <Button type="button" size="sm" variant={settings.fontSize === 'normal' ? 'primary' : 'secondary'} aria-pressed={settings.fontSize === 'normal'} onClick={() => updateSetting('fontSize', 'normal')}>
+                Normal
+              </Button>
+              <Button type="button" size="sm" variant={settings.fontSize === 'large' ? 'primary' : 'secondary'} aria-pressed={settings.fontSize === 'large'} onClick={() => updateSetting('fontSize', 'large')}>
+                Grande
+              </Button>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground">Tamaño de Texto</span>
-              <span className="text-xs text-muted-foreground">Escala de lectura global (+18%)</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={settings.fontSize === 'normal' ? 'primary' : 'secondary'}
-              aria-pressed={settings.fontSize === 'normal'}
-              onClick={() => updateSetting('fontSize', 'normal')}
-            >
-              {settings.fontSize === 'normal' && <CheckIcon data-icon="inline-start" />}
-              Normal
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={settings.fontSize === 'large' ? 'primary' : 'secondary'}
-              aria-pressed={settings.fontSize === 'large'}
-              onClick={() => updateSetting('fontSize', 'large')}
-            >
-              {settings.fontSize === 'large' && <CheckIcon data-icon="inline-start" />}
-              Grande
-            </Button>
-          </div>
+          </SettingRow>
+          <SettingRow label="Alto contraste" hint="Realza bordes, enfoque y texto.">
+            <Switch checked={settings.highContrast} label="Alto contraste" onChange={(value) => updateSetting('highContrast', value)} />
+          </SettingRow>
+          <SettingRow label="Reducir movimiento" hint="Quita transiciones y animaciones.">
+            <Switch checked={settings.reduceMotion} label="Reducir movimiento" onChange={(value) => updateSetting('reduceMotion', value)} />
+          </SettingRow>
         </div>
 
-        {/* Alto Contraste */}
-        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <EyeIcon className="size-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground">Alto Contraste</span>
-              <span className="text-xs text-muted-foreground">Realce de bordes, enfoque y diferenciación visual</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => updateSetting('highContrast', !settings.highContrast)}
-            role="switch"
-            aria-checked={settings.highContrast}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-              settings.highContrast ? 'bg-primary' : 'bg-input'
-            }`}
-            aria-label="Conmutar Alto Contraste"
-          >
-            <span
-              className={`inline-block size-4 transform rounded-full bg-background transition-transform ${
-                settings.highContrast ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Reducción de Animaciones */}
-        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <ZapIcon className="size-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground">Reducir Movimiento</span>
-              <span className="text-xs text-muted-foreground">Desactiva transiciones y animaciones</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => updateSetting('reduceMotion', !settings.reduceMotion)}
-            role="switch"
-            aria-checked={settings.reduceMotion}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-              settings.reduceMotion ? 'bg-primary' : 'bg-input'
-            }`}
-            aria-label="Conmutar Reducción de Movimiento"
-          >
-            <span
-              className={`inline-block size-4 transform rounded-full bg-background transition-transform ${
-                settings.reduceMotion ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Botones de Acción */}
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
-          <DialogCancelButton onClick={handleCancel}>
-            Cancelar
-          </DialogCancelButton>
+        <div className="sticky -bottom-6 -mx-6 -mb-6 mt-4 flex flex-col-reverse gap-2 border-t bg-card p-4 sm:flex-row sm:justify-end">
+          <DialogCancelButton onClick={handleCancel}>Cancelar</DialogCancelButton>
           <Button onClick={handleSave}>
-            <SaveIcon data-icon="inline-start" />
-            Guardar Ajustes
+            <CheckIcon data-icon="inline-start" />
+            Guardar preferencias
           </Button>
         </div>
       </div>
     </Dialog>
+  )
+}
+
+/** Una preferencia: nombre, una línea de qué hace y su control, sin recuadros. */
+function SettingRow({ label, hint, children }: Readonly<{ label: string; hint: string; children: React.ReactNode }>) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-4 first:pt-0">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm text-muted-foreground">{hint}</span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Switch({ checked, label, onChange }: Readonly<{ checked: boolean; label: string; onChange: (value: boolean) => void }>) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full outline-hidden transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${checked ? 'bg-primary' : 'bg-input'}`}
+    >
+      <span className={`inline-block size-4 rounded-full bg-background transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+    </button>
   )
 }

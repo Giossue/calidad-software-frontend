@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, type LucideIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -110,6 +110,23 @@ export function FormDialog({
   const isLastStep = !steps || stepIndex >= steps.length - 1
   const stepReason = step && !isLastStep ? (step.blockReason ?? null) : null
 
+  // El error del servidor se muestra una sola vez: si ya aparece bajo su campo, no se repite
+  // en el recuadro; y en cuanto el usuario corrige algo, el recuadro desaparece.
+  const formRef = useRef<HTMLFormElement>(null)
+  const [shownInline, setShownInline] = useState(false)
+  const [editedSinceError, setEditedSinceError] = useState(false)
+  useEffect(() => {
+    setEditedSinceError(false)
+  }, [error])
+  useLayoutEffect(() => {
+    if (!error) {
+      setShownInline(false)
+      return
+    }
+    const inline = [...(formRef.current?.querySelectorAll('[data-slot="field-error"]') ?? [])].some((node) => node.textContent?.includes(error))
+    setShownInline(inline)
+  })
+
   function goNext() {
     if (steps && !isLastStep && !stepReason) setStepIndex((index) => index + 1)
   }
@@ -139,7 +156,7 @@ export function FormDialog({
       }}
       maxWidth={maxWidth}
     >
-      <form onSubmit={handleSubmit} aria-label={title} className="flex flex-1 flex-col">
+      <form ref={formRef} onSubmit={handleSubmit} onInput={() => { if (error) setEditedSinceError(true) }} onChange={() => { if (error) setEditedSinceError(true) }} aria-label={title} className="flex flex-1 flex-col">
         <fieldset disabled={pending} className="flex flex-1 flex-col">
           <FieldGroup className="flex-1 pb-4">
             {children}
@@ -151,7 +168,7 @@ export function FormDialog({
                 <FieldGroup>{step.content}</FieldGroup>
               </FieldSet>
             )}
-            <ErrorNotice title={errorModal?.title} message={error} />
+            <ErrorNotice title={errorModal?.title} message={shownInline || editedSinceError ? null : error} />
           </FieldGroup>
           <div className="sticky -bottom-6 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 border-t bg-card p-4 sm:flex-row sm:items-center sm:justify-end">
             {stepIndex > 0 && steps ? (
@@ -191,7 +208,7 @@ export function FormDialog({
  */
 function BlockedReason({ reason, children }: Readonly<{ reason: string | null; children: ReactNode }>) {
   return (
-    <Tooltip open={reason ? undefined : false}>
+    <Tooltip>
       <TooltipTrigger asChild>
         <span tabIndex={reason ? 0 : undefined} className="inline-flex rounded-md outline-hidden focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:[&>button]:w-full">
           {children}

@@ -170,6 +170,8 @@
   html {
     max-width: 100%;
     overflow-x: hidden;
+    /* Reserva el espacio de la barra de desplazamiento: al abrir un modal la página no salta. */
+    scrollbar-gutter: stable;
   }
 
   body {
