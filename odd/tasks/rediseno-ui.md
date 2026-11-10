@@ -16,10 +16,10 @@ Objective: redo the whole interface (look, layout, navigation, feedback) copying
 
 | ID | Specs | Scope | Route | Status | Commit |
 |---|---|---|---|---|---|
-| T1 | S3,S4,S5 | Foundations: tokens/font/shadows in `src/index.css`, ui primitives (card, table, badge, sonner, spinner, label, dialog, button sizes) | inline | pending | |
-| T2 | S2,S3,S5 | App shell: sidebar, header + breadcrumb title, user menu in sidebar footer, page frame replacing `AdminSectionHeader`, loading state instead of blank | inline | pending | |
-| T3 | S3 | Auth screens: one sober `AuthShell` for login/forgot/reset/2FA/verify | inline | pending | |
-| T4 | S2,S4 | Shared feedback/CRUD components: FormSheet, ConfirmModal, error flow of `useOperation`/`FormDialog`, Empty in tables, TableActionsMenu, FilterToolbar, pagination | inline | pending | |
+| T1 | S3,S4,S5,S7 | Foundations: tokens/font/shadows in `src/index.css`, ui primitives | inline | done | c41f002, e410df8, 50fa490 |
+| T2 | S2,S3,S5,S7 | App shell: blue sidebar + UEB logo, header with account, page header with section icon, loading state | inline | done | 0631e16, 50fa490 |
+| T3 | S3,S7 | Auth screens: silabos split layout with campus photo | inline | done | e1660dd, 50fa490 |
+| T4 | S2,S4,S7 | Shared feedback/CRUD: FormDialog modal, ConfirmModal, EmptyState, RowActionsMenu, auto-tooltip on icon buttons | inline | done | 1555048, e410df8, 50fa490 |
 | T5 | S2-S5 | Admin screens (users, periods, faculties, careers) | tbd | pending | |
 | T6 | S2-S5 | Coordinador de carrera screens (`features/tutoring`) | tbd | pending | |
 | T7 | S2-S5 | Coordinador de titulación screens (`features/degree-coordination`) | tbd | pending | |
@@ -38,3 +38,4 @@ T5-T9 are independent units with disjoint edit surfaces once T1-T4 land; they ma
 - **L5 (analysis):** T1-T4 committed (c41f002, 0631e16, e1660dd, 1555048). L4 reopens T1 (exact tokens, overlay, tooltips) and T2 (sidebar color, logo). Local silabos checkout (`main`, in sync with origin at last fetch) shows sidebar `hsl(0 0% 94%)` and `AppLogoIcon` = Laravel starter SVG; asked the user which source to copy for sidebar color and logo.
 - **L6 (2026-11-09, user):** "a ver, cuales son tus preguntas? y ojo, lo que yo decía el el de  /home/giossue/Documentos/proyecto-grado-silabos-backend/, ahi dentro esta el frontend también"
 - **L7 (analysis):** T1-T4 and e410df8 copied the wrong repo (`proyecto-grado-silabos`, an older Laravel/Inertia app). The real reference is the nested Vue SPA `proyecto-grado-silabos-backend/proyecto-grado-silabos-frontend`: tokens in `src/styles.css` (brand blue `#122c41`, blue-tinted shadows, blue sidebar, Inter Variable). Re-copying tokens, font, primitives, shell and logo from it; S3's "neutral grayscale" wording is superseded by S7.
+- **L8 (progress):** 50fa490 copies the real silabos frontend (tokens verbatim, Inter, blue sidebar + `logo-ueb-horizontal.webp`, header account menu with logout confirmation, no breadcrumb, page header icon tile, table column dividers, underline tabs, `bg-overlay/95` centered modals, inverted toasts, shimmer skeletons, campus login). Checks: `npm test` 239 passed/1 skipped, build OK, lint warnings only (pre-existing). Visual check in local browser (coordinador). Next: T5-T9 per-role screens (row actions → RowActionsMenu, filters "Todos los …", pagination "1–15 de 42", remove raw colors/arbitrary sizes, EmptyState).
