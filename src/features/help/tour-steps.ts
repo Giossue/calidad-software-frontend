@@ -111,6 +111,12 @@ function firstVisible(selectors: readonly string[]): () => Element {
 
 const tour = (id: string) => `[data-tour="${id}"]`
 
+/** Saludo con el nombre completo sin títulos académicos ("Ing.", "Mgtr.", "PhD."…). */
+function greeting(userName?: string): string {
+  const name = (userName ?? '').split(/\s+/).filter((word) => word && !word.endsWith('.')).join(' ')
+  return name ? `¡Hola, ${name}!` : '¡Bienvenido!'
+}
+
 /** Mismo corte que el menú lateral (`useIsMobile`): en el celular el menú se abre como panel. */
 function isMobileViewport(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches
@@ -134,7 +140,7 @@ export function buildTourSteps(moduleIds: readonly string[], userName?: string):
   return [
     {
       popover: {
-        title: userName ? `¡Hola, ${userName.split(/\s+/)[0]}!` : '¡Bienvenido!',
+        title: greeting(userName),
         description: 'Este es el Sistema de Tutorías y Titulación de la Universidad Estatal de Bolívar. Te mostramos en pocos pasos dónde está cada cosa.',
       },
     },

@@ -222,7 +222,12 @@ export class ApiError extends Error {
     // El límite de intentos de Laravel responde en inglés ("Too Many Attempts.").
     super(status === 429 && (!payload.message || payload.message === 'Too Many Attempts.')
       ? 'Demasiados intentos. Espera un minuto e inténtalo de nuevo.'
-      : (payload.message ?? 'No fue posible completar la solicitud.'))
+      // Un error interno del servidor nunca llega tal cual a la pantalla (puede traer SQL o datos del servidor).
+      : status >= 500
+        ? 'Ocurrió un problema en el servidor. Intenta de nuevo en unos minutos.'
+        : status === 0
+          ? 'No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.'
+          : (payload.message ?? 'No fue posible completar la solicitud.'))
     this.status = status
     this.payload = payload
   }
@@ -257,15 +262,21 @@ export const SESSION_EXPIRED_EVENT = 'calidad-software:session-expired'
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = tokenStore.get()
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      Accept: 'application/json',
-      ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: {
+        Accept: 'application/json',
+        ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init.headers,
+      },
+    })
+  } catch {
+    // Sin conexión o servidor caído: un mensaje en español en lugar de «Failed to fetch».
+    throw new ApiError(0, {})
+  }
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as ErrorPayload

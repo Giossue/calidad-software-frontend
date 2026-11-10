@@ -14,6 +14,7 @@ import { TwoFactorPage } from '@/features/auth/two-factor-page'
 import { VerifyEmailPage } from '@/features/auth/verify-email-page'
 import { applyAccessibilitySettings, getStoredAccessibility } from '@/lib/accessibility'
 import { DashboardPage } from '@/pages/dashboard-page'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 // Mientras se comprueba la sesión: la forma del sistema (menú, cabecera y pantalla), sin
 // pantalla en blanco ni un ícono girando.
@@ -51,7 +52,9 @@ function ProtectedDashboard() {
     <>
       {/* `inert` bloquea foco y clics del sistema mientras el modal exige completar la cuenta. */}
       <div className="contents" inert={mustCompleteProfile}>
-        <DashboardPage />
+        <ErrorBoundary>
+          <DashboardPage />
+        </ErrorBoundary>
       </div>
       {mustCompleteProfile && <CompleteProfileModal />}
     </>

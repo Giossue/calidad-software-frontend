@@ -35,8 +35,10 @@ describe('buildTourSteps', () => {
     expect(titles([])).not.toContain('Instala la aplicación')
   })
 
-  it('saluda por el primer nombre', () => {
-    expect(buildTourSteps([], 'Ana María Torres')[0].popover?.title).toBe('¡Hola, Ana!')
+  it('saluda con el nombre completo, sin títulos académicos (los apellidos pueden ir primero)', () => {
+    expect(buildTourSteps([], 'Ana María Torres')[0].popover?.title).toBe('¡Hola, Ana María Torres!')
+    expect(buildTourSteps([], 'Mgtr. Gabriela Naranjo Paredes')[0].popover?.title).toBe('¡Hola, Gabriela Naranjo Paredes!')
+    expect(buildTourSteps([], 'Andrade Loor Sofía')[0].popover?.title).toBe('¡Hola, Andrade Loor Sofía!')
   })
 
   it('tiene explicación para todos los módulos del menú', () => {

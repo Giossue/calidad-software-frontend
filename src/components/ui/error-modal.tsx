@@ -25,6 +25,10 @@ export function getFriendlyError(error: unknown): FriendlyErrorInfo {
     return parseFriendlyString(error)
   }
 
+  if (error instanceof ApiError && (error.status >= 500 || error.status === 0)) {
+    return { title: error.status === 0 ? 'Sin conexión' : 'No se pudo completar la acción', description: error.message }
+  }
+
   if (error instanceof ApiError) {
     const errorsDict = error.payload?.errors ?? {}
     const errorKeys = Object.keys(errorsDict)

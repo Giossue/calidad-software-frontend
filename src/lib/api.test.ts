@@ -218,3 +218,25 @@ describe('Sesión vencida', () => {
     window.removeEventListener(SESSION_EXPIRED_EVENT, expired)
   })
 })
+
+describe('Mensajes de error comprensibles', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    tokenStore.clear()
+  })
+
+  it('un error del servidor (5xx) no muestra detalles internos', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ message: 'SQLSTATE[23514]: Check violation… host=127.0.0.1 port=5432' }, 500)))
+    const error = await api.currentUser().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).message).toBe('Ocurrió un problema en el servidor. Intenta de nuevo en unos minutos.')
+    expect((error as ApiError).message).not.toMatch(/SQLSTATE|5432/)
+  })
+
+  it('sin conexión muestra un mensaje en español en lugar de «Failed to fetch»', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    const error = await api.currentUser().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).message).toBe('No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.')
+  })
+})

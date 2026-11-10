@@ -56,7 +56,7 @@ describe('Tutorial del sistema', () => {
     renderDashboard({ ...teacher, completed_tours: [] })
 
     await waitFor(() => expect(startSystemTour).toHaveBeenCalledTimes(1), WAIT)
-    expect(tourTitles(0)).toEqual(expect.arrayContaining(['¡Hola, Luis!', 'Mis tutorías', 'Titulación']))
+    expect(tourTitles(0)).toEqual(expect.arrayContaining(['¡Hola, Luis Mora!', 'Mis tutorías', 'Titulación']))
 
     vi.mocked(startSystemTour).mock.calls[0][1]?.()
     expect(api.completeTour).toHaveBeenCalledWith('general')
@@ -86,7 +86,7 @@ describe('Tutorial del sistema', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Ayuda' }))
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Recorrido general del sistema' }))
-    expect(tourTitles(1)[0]).toBe('¡Hola, Luis!')
+    expect(tourTitles(1)[0]).toBe('¡Hola, Luis Mora!')
     expect(api.completeTour).not.toHaveBeenCalled()
   })
 
