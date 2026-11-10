@@ -44,19 +44,28 @@ export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }
  */
 export function RecordTable<T extends { readonly id: number | string }>({ rows, columns: baseColumns, loading, empty, onRowClick, rowTitle, isRowSelected, numberFrom }: Readonly<{ rows: readonly T[]; columns: readonly { label: string; render: (row: T) => ReactNode; span?: (row: T) => number }[]; loading: boolean; empty: ReactNode; onRowClick?: (row: T) => void; rowTitle?: (row: T) => string; isRowSelected?: (row: T) => boolean; numberFrom?: number | null }>) {
   const numbered = numberFrom !== undefined
+  // Filas agrupadas (una celda con `span` cubre varias): el color alterno, el resaltado y la
+  // numeración van por grupo, no por fila.
+  const grouped = baseColumns.some((column) => column.span)
+  const groupIndex: number[] = []
+  const groupSize: number[] = []
+  rows.forEach((row, index) => {
+    const startsGroup = index === 0 || !baseColumns.some((column) => column.span?.(row) === 0)
+    const group = index === 0 ? 0 : groupIndex[index - 1] + (startsGroup ? 1 : 0)
+    groupIndex.push(group)
+    groupSize[group] = (groupSize[group] ?? 0) + 1
+  })
+  const firstOfGroup = (index: number) => index === 0 || groupIndex[index - 1] !== groupIndex[index]
   const columns: readonly { label: string; render: (row: T) => ReactNode; span?: (row: T) => number }[] = !numbered ? baseColumns : [
-    { label: '#', render: (row: T) => <span className="text-sm tabular-nums text-muted-foreground">{(numberFrom ?? 1) + rows.indexOf(row)}</span> },
+    {
+      label: '#',
+      render: (row: T) => <span className="text-sm tabular-nums text-muted-foreground">{(numberFrom ?? 1) + groupIndex[rows.indexOf(row)]}</span>,
+      ...(grouped ? { span: (row: T) => { const index = rows.indexOf(row); return firstOfGroup(index) ? groupSize[groupIndex[index]] : 0 } } : {}),
+    },
     ...baseColumns,
   ]
-  // Filas agrupadas (una celda con `span` cubre varias): el color alterno va por grupo, no por fila.
-  const grouped = columns.some((column) => column.span)
   // Al pasar el cursor por una fila de un grupo se resalta el grupo completo.
   const [hoveredGroup, setHoveredGroup] = useState<number | null>(null)
-  const groupIndex: number[] = []
-  rows.forEach((row, index) => {
-    const startsGroup = index === 0 || !columns.some((column) => column.span?.(row) === 0)
-    groupIndex.push(index === 0 ? 0 : groupIndex[index - 1] + (startsGroup ? 1 : 0))
-  })
   return <div aria-busy={loading} data-tour="page-table">
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody {...(numbered ? { 'data-numbered': '', style: { counterReset: `row-number ${(numberFrom ?? 1) - 1}` } } : {})}>
       {loading ? <TableRowsSkeleton columns={columns.length} /> : rows.length === 0 ? <TableRow className="hover:bg-transparent"><TableCell colSpan={columns.length} className="whitespace-normal p-0">{typeof empty === 'string' ? <EmptyState>{empty}</EmptyState> : <div className="flex min-h-40 flex-col items-center justify-center px-4 py-8 text-center">{empty}</div>}</TableCell></TableRow> : rows.map((row, rowIndex) => <TableRow key={row.id} data-group={grouped ? (groupIndex[rowIndex] % 2 === 0 ? 'odd' : 'even') : undefined} data-hovered={grouped && hoveredGroup === groupIndex[rowIndex] ? '' : undefined} onMouseEnter={grouped ? () => setHoveredGroup(groupIndex[rowIndex]) : undefined} onMouseLeave={grouped ? () => setHoveredGroup(null) : undefined} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {

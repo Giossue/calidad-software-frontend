@@ -42,12 +42,24 @@ function groupFor(value: string, settings: GradeSettings): string | null {
 }
 
 const FINAL_RESULT_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', failed: 'Reprobó' }
+const GRADE_STAGES = ['diagnostic', 'partial', 'second_partial'] as const
+const GRADE_STAGE_LABELS: Record<(typeof GRADE_STAGES)[number], string> = { diagnostic: 'Diagnóstico', partial: 'Parcial 1', second_partial: 'Parcial 2' }
+const groupSpan = ({ first }: { first: boolean }) => (first ? GRADE_STAGES.length : 0)
+
 const FINAL_RESULT_OPTIONS = [{ value: 'approved', label: 'Aprobó' }, { value: 'failed', label: 'Reprobó' }]
 
 /** Grupo de conocimiento con un color semántico (alto, medio, bajo). */
 export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.students(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
+  // Cada estudiante ocupa una fila por etapa (diagnóstico, parcial 1, parcial 2).
+  const gradeRows = list.data.flatMap((student) => GRADE_STAGES.map((stage, index) => ({
+    id: `${student.id}-${stage}`,
+    student,
+    stage,
+    grade: stage === 'diagnostic' ? student.diagnostic_grade : stage === 'partial' ? student.partial_grade : student.second_partial_grade,
+    first: index === 0,
+  })))
   const operation = useOperation()
 
   function recordFinalResult(student: Enrollment, result: FinalResult | null) {
@@ -175,30 +187,37 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       <Button ref={registerButton} className="shrink-0" disabled={!tutoring.can_manage} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>
     </div>
     <ErrorNotice message={list.error} retry={list.reload} />
-    <RecordTable rows={list.data} numberFrom={list.meta?.from} loading={list.isFetching || list.isInitialLoading} onRowClick={openStudent} rowTitle={(student) => (canGrade(student) ? `Añadir notas de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
-      { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
-      { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
-      { label: 'Grupo de Conocimiento', render: (student) => student.knowledge_group
-        ? <span>{student.knowledge_group}</span>
-        : <span className="text-xs text-muted-foreground">Sin diagnóstico</span> },
-      { label: 'Calificaciones', render: (student) => <div className="flex flex-col gap-0.5 text-xs tabular-nums">
-        <span>Diag: {student.diagnostic_grade ?? '—'}</span>
-        <span className="text-muted-foreground">P1: {student.partial_grade ?? '—'} · P2: {student.second_partial_grade ?? '—'}</span>
-      </div> },
-      // El desplegable vive dentro de una fila que abre las notas: sus clics no deben llegar a la fila.
-      { label: 'Resultado final', render: (student) => <div className="flex min-w-36 flex-col gap-1" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-        <SelectInput
-          ariaLabel={`Resultado final de ${student.name}`}
-          value={student.final_result ?? ''}
-          onValueChange={(value) => recordFinalResult(student, (value || null) as FinalResult | null)}
-          emptyLabel="Sin registrar"
-          options={FINAL_RESULT_OPTIONS}
-          disabled={!tutoring.can_manage || !student.is_active || operation.pending}
-        />
-        {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
-      </div> },
-      { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
-    ]} />
+    <RecordTable
+      rows={gradeRows}
+      numberFrom={list.meta?.from}
+      loading={list.isFetching || list.isInitialLoading}
+      onRowClick={({ student }) => openStudent(student)}
+      rowTitle={({ student }) => (canGrade(student) ? `Añadir notas de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
+      empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />}
+      columns={[
+        { label: 'Estudiante', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
+        { label: 'Contacto', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
+        { label: 'Grupo de Conocimiento', span: groupSpan, render: ({ student }) => student.knowledge_group
+          ? <span>{student.knowledge_group}</span>
+          : <span className="text-xs text-muted-foreground">Sin diagnóstico</span> },
+        // Una fila por etapa, en vez de todas las notas en una sola celda.
+        { label: 'Etapa', render: ({ stage }) => GRADE_STAGE_LABELS[stage] },
+        { label: 'Nota', render: ({ grade }) => <span className="tabular-nums">{grade ?? '—'}</span> },
+        // El desplegable vive dentro de una fila que abre las notas: sus clics no deben llegar a la fila.
+        { label: 'Resultado final', span: groupSpan, render: ({ student }) => <div className="flex min-w-36 flex-col gap-1" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <SelectInput
+            ariaLabel={`Resultado final de ${student.name}`}
+            value={student.final_result ?? ''}
+            onValueChange={(value) => recordFinalResult(student, (value || null) as FinalResult | null)}
+            emptyLabel="Sin registrar"
+            options={FINAL_RESULT_OPTIONS}
+            disabled={!tutoring.can_manage || !student.is_active || operation.pending}
+          />
+          {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
+        </div> },
+        { label: 'Inscripción', span: groupSpan, render: ({ student }) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
+      ]}
+    />
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
 
     {/* Modal para registrar un estudiante nuevo o inscribir uno existente */}

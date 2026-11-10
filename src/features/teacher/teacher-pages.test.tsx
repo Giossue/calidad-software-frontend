@@ -404,6 +404,29 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('muestra las notas de cada estudiante en una fila por etapa, con sus datos agrupados', async () => {
+    vi.mocked(teacherApi.students).mockResolvedValue(paginated([
+      { ...student, diagnostic_grade: '7.40', partial_grade: '9.30', second_partial_grade: null },
+      { ...student, id: 2, name: 'Luis Mora', identification: '0201111111', diagnostic_grade: null, partial_grade: null, second_partial_grade: null },
+    ]))
+    workspace('students')
+    await screen.findByText('Luis Mora')
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(expect.arrayContaining(['Etapa', 'Nota']))
+    expect(screen.queryByText(/Diag:/)).not.toBeInTheDocument()
+
+    // Tres filas por estudiante; la celda del estudiante y su número abarcan las tres.
+    const anaCell = screen.getByText(student.name).closest('td') as HTMLElement
+    expect(anaCell).toHaveAttribute('rowspan', '3')
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(6)
+    expect(within(rows[0]).getByText('Diagnóstico')).toBeInTheDocument()
+    expect(within(rows[0]).getByText('7.40')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('Parcial 1')).toBeInTheDocument()
+    expect(within(rows[1]).getByText('9.30')).toBeInTheDocument()
+    expect(within(rows[2]).getByText('Parcial 2')).toBeInTheDocument()
+    expect(within(rows[3]).getAllByRole('cell')[0]).toHaveTextContent('2')
+  })
+
   it('muestra el grupo de conocimiento en la lista de estudiantes y la evolución diagnóstica en calificaciones', async () => {
     vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, knowledge_group: 'Alto' }]))
     workspace('students')
