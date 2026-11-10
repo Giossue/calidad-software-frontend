@@ -1,5 +1,5 @@
 import { useCallback, useState, type FormEvent } from 'react'
-import { BookOpenIcon, PlusIcon, PowerIcon, PowerOffIcon } from 'lucide-react'
+import { ArrowLeftIcon, BookOpenIcon, PencilIcon, PlusIcon, PowerIcon, PowerOffIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -13,9 +13,7 @@ import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
-import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
-import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
@@ -25,7 +23,6 @@ import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 
 type FacultyFormErrors = { name?: string }
-type PendingAction = 'faculty' | 'toggle-faculty' | null
 type ToggleTarget = { faculty: Faculty; action: 'activate' | 'deactivate' }
 
 function validateFacultyName(value: string): string | undefined {
@@ -39,8 +36,118 @@ function careersPath(faculty: Faculty): string {
   return `/panel/careers?${new URLSearchParams({ faculty: String(faculty.id), facultyName: faculty.name })}`
 }
 
+function careersSummary(faculty: Faculty): string {
+  return faculty.careers_count === 0
+    ? 'Sin carreras'
+    : `${faculty.active_careers_count} de ${faculty.careers_count} carrera${faculty.careers_count === 1 ? '' : 's'} activa${faculty.active_careers_count === 1 ? '' : 's'}`
+}
+
+/**
+ * Facultades: la lista y, al pulsar una fila, la pantalla de la facultad con sus carreras y
+ * sus acciones (editar, habilitar o desactivar) arriba.
+ */
 export function FacultiesPage() {
-  const navigate = useNavigate()
+  const [selectedFaculty, setSelectedFaculty] = useState<Faculty | null>(null)
+
+  return selectedFaculty ? (
+    <FacultyDetail faculty={selectedFaculty} onChange={setSelectedFaculty} onBack={() => setSelectedFaculty(null)} />
+  ) : (
+    <FacultiesList onSelectFaculty={setSelectedFaculty} />
+  )
+}
+
+/** Modal para registrar una facultad o cambiar su nombre. Quien lo abre le cambia la `key` en cada apertura. */
+function FacultyFormDialog({ open, faculty, onClose, onSaved }: Readonly<{
+  open: boolean
+  faculty: Faculty | null
+  onClose: () => void
+  onSaved: (name: string) => Promise<unknown> | void
+}>) {
+  const initialName = faculty?.name ?? ''
+  const [name, setName] = useState(initialName)
+  const [nameError, setNameError] = useState<string | undefined>()
+  // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
+  const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
+  const [pending, setPending] = useState(false)
+
+  function updateName(value: string) {
+    setName(sanitizeLetters(value, 150))
+    setNameError(undefined)
+    setFormError(null)
+  }
+
+  async function submitFaculty(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (pending) return
+
+    const normalizedName = name.trim()
+    const errors: FacultyFormErrors = { name: validateFacultyName(name) }
+
+    setNameError(errors.name)
+    if (errors.name) {
+      setFormError({
+        title: 'Revisa los campos requeridos',
+        description: 'El nombre de la facultad es obligatorio y no puede superar 150 caracteres.',
+      })
+      return
+    }
+
+    setPending(true)
+    setFormError(null)
+    try {
+      if (faculty) {
+        await api.updateFaculty(faculty.id, { name: normalizedName })
+        toast.success('Facultad actualizada', { description: `La facultad "${normalizedName}" fue modificada.` })
+      } else {
+        await api.createFaculty({ name: normalizedName })
+        toast.success('Facultad creada', { description: `La facultad "${normalizedName}" ha sido agregada.` })
+      }
+      onClose()
+      await onSaved(normalizedName)
+    } catch (error: unknown) {
+      const friendly = getFriendlyError(error)
+      setFormError(friendly)
+      if (friendly.field === 'name') {
+        setNameError(friendly.description)
+      }
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <FormDialog
+      open={open}
+      onClose={onClose}
+      onSubmit={submitFaculty}
+      title={faculty ? 'Editar facultad' : 'Registrar facultad'}
+      description={faculty ? undefined : 'Escribe el nombre con el que aparecerá en el sistema.'}
+      maxWidth="max-w-md"
+      pending={pending}
+      error={formError?.description ?? null}
+      errorModal={formError}
+      dirty={name.trim() !== initialName.trim()}
+      blockReason={validateFacultyName(name) ?? null}
+      submitLabel={faculty ? 'Guardar cambios' : 'Registrar facultad'}
+      submitIcon={faculty ? undefined : PlusIcon}
+    >
+      <FormField id="faculty-name" label="Nombre de la facultad" required counter={{ current: name.length, max: 150 }} error={nameError}>
+        <Input
+          id="faculty-name"
+          name="name"
+          value={name}
+          onChange={(e) => updateName(e.target.value)}
+          maxLength={150}
+          placeholder="Ej. Facultad de Jurisprudencia"
+          disabled={pending}
+          required
+        />
+      </FormField>
+    </FormDialog>
+  )
+}
+
+function FacultiesList({ onSelectFaculty }: Readonly<{ onSelectFaculty: (faculty: Faculty) => void }>) {
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
   const fetchFaculties = useCallback((page: number, search: string) => api.listFaculties({ page, search, status: statusFilter || undefined }), [statusFilter])
   const {
@@ -56,118 +163,8 @@ export function FacultiesPage() {
     reload,
   } = usePaginatedCatalog(fetchFaculties, statusFilter)
 
-  const [editingFaculty, setEditingFaculty] = useState<Faculty | null>(null)
-  const [name, setName] = useState('')
-  const [initialName, setInitialName] = useState('')
-  const [nameError, setNameError] = useState<string | undefined>()
-  // Error del servidor (o de validación al enviar): se muestra una vez, en línea, dentro del modal.
-  const [formError, setFormError] = useState<FriendlyErrorInfo | null>(null)
-  const [pending, setPending] = useState<PendingAction>(null)
-
-  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [facultyToToggle, setFacultyToToggle] = useState<ToggleTarget | null>(null)
-
-  function updateName(value: string) {
-    setName(sanitizeLetters(value, 150))
-    setNameError(undefined)
-    setFormError(null)
-  }
-
-  function openCreateModal() {
-    setEditingFaculty(null)
-    setName('')
-    setInitialName('')
-    setNameError(undefined)
-    setFormError(null)
-    setIsModalOpen(true)
-  }
-
-  function openEditModal(faculty: Faculty) {
-    setEditingFaculty(faculty)
-    setName(faculty.name)
-    setInitialName(faculty.name)
-    setNameError(undefined)
-    setFormError(null)
-    setIsModalOpen(true)
-  }
-
-  function closeModal() {
-    setIsModalOpen(false)
-    setEditingFaculty(null)
-    setName('')
-    setNameError(undefined)
-    setFormError(null)
-  }
-
-  async function submitFaculty(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (pending !== null) return
-
-    const normalizedName = name.trim()
-    const errors: FacultyFormErrors = { name: validateFacultyName(name) }
-
-    setNameError(errors.name)
-    if (errors.name) {
-      setFormError({
-        title: 'Revisa los campos requeridos',
-        description: 'El nombre de la facultad es obligatorio y no puede superar 150 caracteres.',
-      })
-      return
-    }
-
-    setPending('faculty')
-    setFormError(null)
-    try {
-      if (editingFaculty) {
-        await api.updateFaculty(editingFaculty.id, { name: normalizedName })
-        toast.success('Facultad actualizada', { description: `La facultad "${normalizedName}" fue modificada.` })
-      } else {
-        await api.createFaculty({ name: normalizedName })
-        toast.success('Facultad creada', { description: `La facultad "${normalizedName}" ha sido agregada.` })
-      }
-      closeModal()
-      await reload()
-    } catch (error: unknown) {
-      const friendly = getFriendlyError(error)
-      setFormError(friendly)
-      if (friendly.field === 'name') {
-        setNameError(friendly.description)
-      }
-    } finally {
-      setPending(null)
-    }
-  }
-
-  async function handleConfirmToggle() {
-    if (!facultyToToggle || pending !== null) return
-
-    const { faculty, action } = facultyToToggle
-    setPending('toggle-faculty')
-    try {
-      if (action === 'activate') {
-        await api.activateFaculty(faculty.id)
-        toast.success('Facultad habilitada', { description: `La facultad "${faculty.name}" fue habilitada.` })
-      } else {
-        await api.deactivateFaculty(faculty.id)
-        toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${faculty.name}".` })
-      }
-      setFacultyToToggle(null)
-      closeModal()
-      await reload()
-    } catch (error: unknown) {
-      setFacultyToToggle(null)
-      const friendly = getFriendlyError(error)
-      setFormError(friendly)
-    } finally {
-      setPending(null)
-    }
-  }
-
-  const formDisabled = pending !== null
-  const isFormDirty = name.trim() !== initialName.trim()
-  const submitBlockReason = validateFacultyName(name) ?? null
-  const editingHasActiveCareers = (editingFaculty?.active_careers_count ?? 0) > 0
+  const [formKey, setFormKey] = useState(0)
   const hasFilters = searchInput.trim() !== '' || statusFilter !== ''
 
   return (
@@ -179,7 +176,7 @@ export function FacultiesPage() {
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             <RefreshButton onClick={() => void reload()} loading={isFetching} />
             <BulkImportButton type="faculties" title="Carga masiva de facultades" onFinished={reload} className="flex-1 sm:flex-none" />
-            <Button onClick={openCreateModal} className="w-full sm:w-auto" data-tour="page-create">
+            <Button onClick={() => { setFormKey((key) => key + 1); setIsModalOpen(true) }} className="w-full sm:w-auto" data-tour="page-create">
               <PlusIcon data-icon="inline-start" />
               Nueva facultad
             </Button>
@@ -205,31 +202,12 @@ export function FacultiesPage() {
         <RecordTable
           rows={faculties}
           loading={isInitialLoading}
-          onRowClick={openEditModal}
-          isRowSelected={(faculty) => editingFaculty?.id === faculty.id}
+          onRowClick={onSelectFaculty}
           empty={hasFilters ? 'No hay facultades con estos filtros.' : 'Aún no hay facultades registradas.'}
           columns={[
-            { label: 'Facultad', render: (faculty) => <span className="font-medium">{faculty.name}</span> },
-            {
-              label: 'Carreras',
-              render: (faculty) => (
-                <span className="text-muted-foreground">
-                  {faculty.careers_count === 0
-                    ? 'Sin carreras'
-                    : `${faculty.active_careers_count} de ${faculty.careers_count} carrera${faculty.careers_count === 1 ? '' : 's'} activa${faculty.active_careers_count === 1 ? '' : 's'}`}
-                </span>
-              ),
-            },
+            { label: 'Facultad', render: (faculty) => faculty.name },
+            { label: 'Carreras', render: (faculty) => <span className="text-muted-foreground">{careersSummary(faculty)}</span> },
             { label: 'Estado', render: (faculty) => <StatusBadge active={faculty.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },
-            {
-              label: 'Acciones',
-              render: (faculty) => (
-                <RowActionsMenu
-                  name={faculty.name}
-                  actions={[{ label: 'Ver carreras', icon: BookOpenIcon, onSelect: () => navigate(careersPath(faculty)) }]}
-                />
-              ),
-            },
           ]}
         />
 
@@ -241,70 +219,136 @@ export function FacultiesPage() {
         </div>
       </div>
 
-      <FormDialog
-        open={isModalOpen}
-        onClose={closeModal}
-        onSubmit={submitFaculty}
-        title={editingFaculty ? 'Editar Facultad' : 'Registrar Facultad'}
-        description={editingFaculty ? undefined : 'Escribe el nombre con el que aparecerá en el sistema.'}
-        maxWidth="max-w-md"
-        pending={pending === 'faculty'}
-        error={formError?.description ?? null}
-        errorModal={formError}
-        dirty={isFormDirty}
-        blockReason={submitBlockReason}
-        submitLabel={editingFaculty ? 'Guardar Cambios' : 'Registrar Facultad'}
-        submitIcon={editingFaculty ? undefined : PlusIcon}
-        headerActions={
-          editingFaculty ? (
-            <>
-              <StatusBadge active={editingFaculty.status} activeLabel="Activa" inactiveLabel="Inactiva" />
-              {!editingFaculty.status ? (
-                <IconAction
-                  label="Habilitar facultad"
-                  icon={PowerIcon}
-                  disabled={formDisabled}
-                  onClick={() => setFacultyToToggle({ faculty: editingFaculty, action: 'activate' })}
-                />
-              ) : editingHasActiveCareers ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0}>
-                      <Button type="button" variant="tertiary" size="icon" disabled aria-label="Desactivar facultad">
-                        <PowerOffIcon />
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {`No puedes desactivar: tiene ${editingFaculty.active_careers_count} carrera(s) activa(s). Desactívalas primero.`}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <IconAction
-                  label="Desactivar facultad"
-                  icon={PowerOffIcon}
-                  tone="destructive"
-                  disabled={formDisabled}
-                  onClick={() => setFacultyToToggle({ faculty: editingFaculty, action: 'deactivate' })}
-                />
-              )}
-            </>
-          ) : undefined
+      <FacultyFormDialog key={formKey} open={isModalOpen} faculty={null} onClose={() => setIsModalOpen(false)} onSaved={reload} />
+    </section>
+  )
+}
+
+/** Pantalla de una facultad: arriba su estado y acciones; debajo, sus carreras. */
+function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
+  faculty: Faculty
+  onChange: (faculty: Faculty) => void
+  onBack: () => void
+}>) {
+  const navigate = useNavigate()
+  const fetchCareers = useCallback((page: number, search: string) => api.listCareers({ page, search, facultyId: faculty.id }), [faculty.id])
+  const careers = usePaginatedCatalog(fetchCareers, String(faculty.id))
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [formKey, setFormKey] = useState(0)
+  const [facultyToToggle, setFacultyToToggle] = useState<ToggleTarget | null>(null)
+  const [pending, setPending] = useState(false)
+  const hasActiveCareers = faculty.active_careers_count > 0
+
+  async function handleConfirmToggle() {
+    if (!facultyToToggle || pending) return
+
+    const { action } = facultyToToggle
+    setPending(true)
+    try {
+      if (action === 'activate') {
+        await api.activateFaculty(faculty.id)
+        toast.success('Facultad habilitada', { description: `La facultad "${faculty.name}" fue habilitada.` })
+      } else {
+        await api.deactivateFaculty(faculty.id)
+        toast.info('Facultad deshabilitada', { description: `Se desactivó la facultad "${faculty.name}".` })
+      }
+      setFacultyToToggle(null)
+      const active = action === 'activate'
+      onChange({ ...faculty, status: active, is_active: active })
+    } catch (error: unknown) {
+      setFacultyToToggle(null)
+      // Fuera de un formulario, el error va en un toast.
+      const friendly = getFriendlyError(error)
+      toast.error(friendly.title, { description: friendly.description })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-6" data-tour-view="detail">
+      <div>
+        <Button type="button" variant="tertiary" onClick={onBack}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Volver a facultades
+        </Button>
+      </div>
+
+      <AdminSectionHeader
+        title={faculty.name}
+        description={careersSummary(faculty)}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge active={faculty.status} activeLabel="Activa" inactiveLabel="Inactiva" />
+            <Button type="button" variant="secondary" disabled={pending} onClick={() => { setFormKey((key) => key + 1); setIsModalOpen(true) }}>
+              <PencilIcon data-icon="inline-start" />
+              Editar facultad
+            </Button>
+            {!faculty.status ? (
+              <Button type="button" variant="secondary" disabled={pending} onClick={() => setFacultyToToggle({ faculty, action: 'activate' })}>
+                <PowerIcon data-icon="inline-start" />
+                Habilitar facultad
+              </Button>
+            ) : hasActiveCareers ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0}>
+                    <Button type="button" variant="secondary" tone="destructive" disabled>
+                      <PowerOffIcon data-icon="inline-start" />
+                      Desactivar facultad
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {`No puedes desactivar: tiene ${faculty.active_careers_count} carrera(s) activa(s). Desactívalas primero.`}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button type="button" variant="secondary" tone="destructive" disabled={pending} onClick={() => setFacultyToToggle({ faculty, action: 'deactivate' })}>
+                <PowerOffIcon data-icon="inline-start" />
+                Desactivar facultad
+              </Button>
+            )}
+          </div>
         }
-      >
-        <FormField id="faculty-name" label="Nombre de la facultad" counter={{ current: name.length, max: 150 }} error={nameError}>
-          <Input
-            id="faculty-name"
-            name="name"
-            value={name}
-            onChange={(e) => updateName(e.target.value)}
-            maxLength={150}
-            placeholder="Ej. Facultad de Jurisprudencia"
-            disabled={formDisabled}
-            required
-          />
-        </FormField>
-      </FormDialog>
+      />
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xl font-semibold tracking-tight">Carreras</h2>
+          <Button type="button" variant="secondary" onClick={() => navigate(careersPath(faculty))}>
+            <BookOpenIcon data-icon="inline-start" />
+            Administrar carreras
+          </Button>
+        </div>
+
+        <ErrorNotice title="No se pudieron cargar las carreras" message={careers.error} retry={careers.reload} />
+
+        <RecordTable
+          rows={careers.data}
+          loading={careers.isInitialLoading}
+          empty="Esta facultad aún no tiene carreras registradas."
+          columns={[
+            { label: 'Carrera', render: (career) => career.name },
+            { label: 'Modalidad', render: (career) => <span className="text-muted-foreground">{career.modality_name ?? 'Sin modalidad'}</span> },
+            { label: 'Ciclos', render: (career) => <span className="text-muted-foreground">{career.cycles_count === 0 ? 'Sin ciclos' : `${career.active_cycles_count} de ${career.cycles_count} activos`}</span> },
+            { label: 'Estado', render: (career) => <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },
+          ]}
+        />
+
+        {(careers.meta?.last_page ?? 1) > 1 && (
+          <CatalogPagination label="carreras" page={careers.page} lastPage={careers.meta?.last_page ?? 1} disabled={careers.isFetching} onChange={careers.setPage} />
+        )}
+      </div>
+
+      <FacultyFormDialog
+        key={formKey}
+        open={isModalOpen}
+        faculty={faculty}
+        onClose={() => setIsModalOpen(false)}
+        onSaved={(name) => onChange({ ...faculty, name })}
+      />
 
       <ConfirmModal
         open={Boolean(facultyToToggle)}
@@ -320,7 +364,7 @@ export function FacultiesPage() {
         confirmIcon={facultyToToggle?.action === 'activate' ? PowerIcon : PowerOffIcon}
         cancelLabel="Cancelar"
         variant={facultyToToggle?.action === 'activate' ? 'default' : 'destructive'}
-        pending={pending === 'toggle-faculty'}
+        pending={pending}
       />
     </section>
   )

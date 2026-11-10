@@ -316,7 +316,7 @@ export function AcademicPeriodsPage() {
           isRowSelected={(period) => editingPeriod?.id === period.id}
           empty={hasFilters ? 'No hay períodos con estos filtros.' : 'Aún no hay períodos registrados.'}
           columns={[
-            { label: 'Período', render: (period) => <span className="font-medium">{period.name}</span> },
+            { label: 'Período', render: (period) => period.name },
             { label: 'Inicio', render: (period) => <span className="text-muted-foreground">{formatDate(period.start_date)}</span> },
             { label: 'Fin', render: (period) => <span className="text-muted-foreground">{formatDate(period.end_date)}</span> },
             { label: 'Estado', render: (period) => <StatusBadge active={period.is_active} /> },
@@ -335,7 +335,7 @@ export function AcademicPeriodsPage() {
         open={isModalOpen}
         onClose={closeModal}
         onSubmit={submitPeriod}
-        title={editingPeriod ? 'Editar Período Académico' : 'Registrar Período Académico'}
+        title={editingPeriod ? 'Editar período académico' : 'Registrar período académico'}
         description={editingPeriod ? undefined : 'Elige el número de PAO, el año y las fechas del período.'}
         maxWidth="max-w-lg"
         pending={pending === 'period'}
@@ -343,7 +343,7 @@ export function AcademicPeriodsPage() {
         errorModal={formError}
         dirty={isFormDirty}
         blockReason={submitBlockReason}
-        submitLabel={editingPeriod ? 'Guardar Cambios' : 'Registrar Período'}
+        submitLabel={editingPeriod ? 'Guardar cambios' : 'Registrar período'}
         submitIcon={editingPeriod ? undefined : PlusIcon}
         headerActions={
           editingPeriod ? (
@@ -377,6 +377,7 @@ export function AcademicPeriodsPage() {
         <FormField
           id="period-pao-number"
           label="Nombre del período académico"
+          required
           tip={composedName ? <>Se registrará como <strong>{composedName}</strong>.</> : undefined}
           error={formErrors.paoNumber ?? formErrors.year}
         >
@@ -412,7 +413,7 @@ export function AcademicPeriodsPage() {
         </FormField>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <FormField id="academic-period-start-date" label="Fecha de inicio" error={formErrors.startDate}>
+          <FormField id="academic-period-start-date" label="Fecha de inicio" required error={formErrors.startDate}>
             <Input
               id="academic-period-start-date"
               name="start_date"
@@ -426,7 +427,7 @@ export function AcademicPeriodsPage() {
             />
           </FormField>
 
-          <FormField id="academic-period-end-date" label="Fecha de finalización" error={formErrors.endDate}>
+          <FormField id="academic-period-end-date" label="Fecha de finalización" required error={formErrors.endDate}>
             <Input
               id="academic-period-end-date"
               name="end_date"

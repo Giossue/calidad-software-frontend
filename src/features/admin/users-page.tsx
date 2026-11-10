@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FieldDescription } from '@/components/ui/field'
-import { FormDialog } from '@/components/ui/form-dialog'
+import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
@@ -65,6 +65,10 @@ const ROLE_OPTIONS = [
   { value: 'coordinador_titulacion', label: 'Coordinador de titulación' },
   { value: 'administrador', label: 'Administrador' },
 ] as const
+
+// Campos de cada paso del formulario, en el orden en que se muestran.
+const PERSONAL_FIELDS: readonly (keyof UserForm)[] = ['name', 'identification', 'phone', 'email']
+const ROLE_FIELDS: readonly (keyof UserForm)[] = ['role', 'facultyId', 'careerId', 'cycleNumber']
 
 const INITIAL_USER_FORM: UserForm = {
   identification: '',
@@ -427,72 +431,63 @@ export function UsersPage() {
     label: number === cycleLevels ? `Ciclo ${number} · Titulación` : `Ciclo ${number} · Tutorías`,
   }))
 
-  const userFormFields = (
-    <>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <FormField
-          id="user-identification"
-          label="Cédula o pasaporte"
-          tip={identificationLocked ? 'La cédula o pasaporte ya registrado no se puede modificar.' : undefined}
-          counter={{ current: userForm.identification.length, max: identificationMaxLength(userForm.identification) }}
-          error={userErrors.identification}
-        >
-          <div className="relative flex items-center">
-            <Input
-              id="user-identification"
-              name="identification"
-              value={userForm.identification}
-              onChange={(e) => updateUserField('identification', sanitizeIdentification(e.target.value))}
-              maxLength={10}
-              autoComplete="off"
-              placeholder="Ej. 1710034065 o AB1234567"
-              disabled={formDisabled || identificationLocked}
-              required
-              className={cn(shouldShowIdentificationStatus(userForm.identification) && 'pr-9')}
-            />
-            {shouldShowIdentificationStatus(userForm.identification) && (
-              isValidIdentification(userForm.identification) ? (
-                <CheckCircle2Icon className="absolute right-3 size-4 text-success" aria-label="Identificación válida" />
-              ) : (
-                <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
-              )
-            )}
-          </div>
-        </FormField>
-
-        <FormField id="user-name" label="Nombre completo" counter={{ current: userForm.name.length, max: 150 }} error={userErrors.name}>
-          <Input
-            id="user-name"
-            name="name"
-            value={userForm.name}
-            onChange={(e) => updateUserField('name', sanitizeLetters(e.target.value, 150))}
-            maxLength={150}
-            autoComplete="name"
-            placeholder="Ej. Ana Torres"
-            disabled={formDisabled}
-            required
-          />
-        </FormField>
-      </div>
-
-      <FormField id="user-email" label="Correo electrónico institucional" counter={{ current: userForm.email.length, max: 150 }} error={userErrors.email}>
+  const identificationField = (
+    <FormField
+      id="user-identification"
+      label="Cédula o pasaporte"
+      required={!editingUser}
+      tip={identificationLocked ? 'La cédula o pasaporte ya registrado no se puede modificar.' : undefined}
+      counter={{ current: userForm.identification.length, max: identificationMaxLength(userForm.identification) }}
+      error={userErrors.identification}
+    >
+      <div className="relative flex items-center">
         <Input
-          id="user-email"
-          name="email"
-          type="email"
-          value={userForm.email}
-          onChange={(e) => updateUserField('email', e.target.value.slice(0, 150))}
+          id="user-identification"
+          name="identification"
+          value={userForm.identification}
+          onChange={(e) => updateUserField('identification', sanitizeIdentification(e.target.value))}
+          maxLength={10}
+          autoComplete="off"
+          placeholder="Ej. 1710034065 o AB1234567"
+          disabled={formDisabled || identificationLocked}
+          required
+          className={cn(shouldShowIdentificationStatus(userForm.identification) && 'pr-9')}
+        />
+        {shouldShowIdentificationStatus(userForm.identification) && (
+          isValidIdentification(userForm.identification) ? (
+            <CheckCircle2Icon className="absolute right-3 size-4 text-success" aria-label="Identificación válida" />
+          ) : (
+            <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
+          )
+        )}
+      </div>
+    </FormField>
+  )
+
+  // Paso 1: quién es la persona. Lo que la identifica va primero.
+  const personalFields = (
+    <>
+      <FormField id="user-name" label="Nombre completo" required counter={{ current: userForm.name.length, max: 150 }} error={userErrors.name}>
+        <Input
+          id="user-name"
+          name="name"
+          value={userForm.name}
+          onChange={(e) => updateUserField('name', sanitizeLetters(e.target.value, 150))}
           maxLength={150}
-          placeholder="nombre@ueb.edu.ec"
+          autoComplete="name"
+          placeholder="Ej. Ana Torres"
           disabled={formDisabled}
           required
         />
       </FormField>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        {identificationField}
+
         <FormField
           id="user-phone"
           label="Teléfono"
+          required={!editingUser}
           optional={Boolean(editingUser)}
           tip={editingUser ? 'Si no colocas un número, se mantendrá el teléfono anterior o quedará vacío si no tenía uno registrado.' : undefined}
           counter={{ current: userForm.phone.length, max: 10 }}
@@ -511,27 +506,47 @@ export function UsersPage() {
             required={!editingUser}
           />
         </FormField>
-
-        <SelectField
-          id="user-role"
-          name="role"
-          label="Rol en el sistema"
-          value={userForm.role}
-          onValueChange={(value) => updateUserField('role', value)}
-          options={roleOptions}
-          placeholder="Selecciona un rol"
-          disabled={formDisabled}
-          error={userErrors.role}
-        />
       </div>
 
-      {/* Selector de Facultad y Carrera para roles académicos específicos (Estudiante, Coordinadores) */}
+      <FormField id="user-email" label="Correo electrónico institucional" required counter={{ current: userForm.email.length, max: 150 }} error={userErrors.email}>
+        <Input
+          id="user-email"
+          name="email"
+          type="email"
+          value={userForm.email}
+          onChange={(e) => updateUserField('email', e.target.value.slice(0, 150))}
+          maxLength={150}
+          placeholder="Ej. maria.perez@ueb.edu.ec"
+          disabled={formDisabled}
+          required
+        />
+      </FormField>
+    </>
+  )
+
+  // Paso 2: qué hace en el sistema. Facultad y carrera solo para roles académicos (estudiante, coordinadores).
+  const roleFields = (
+    <>
+      <SelectField
+        id="user-role"
+        name="role"
+        label="Rol en el sistema"
+        required
+        value={userForm.role}
+        onValueChange={(value) => updateUserField('role', value)}
+        options={roleOptions}
+        placeholder="Selecciona un rol"
+        disabled={formDisabled}
+        error={userErrors.role}
+      />
+
       {userForm.role && userForm.role !== 'administrador' && userForm.role !== 'docente' && (
         <div className="grid gap-5 sm:grid-cols-2">
           <SelectField
             id="user-faculty"
             name="facultyId"
             label="Facultad"
+            required
             value={userForm.facultyId}
             onValueChange={(value) => updateUserField('facultyId', value)}
             options={facultyOptions}
@@ -544,6 +559,7 @@ export function UsersPage() {
             id="user-career"
             name="careerId"
             label="Carrera"
+            required
             value={userForm.careerId}
             onValueChange={(value) => updateUserField('careerId', value)}
             options={careerOptions}
@@ -557,6 +573,7 @@ export function UsersPage() {
               id="user-cycle"
               name="cycleNumber"
               label="Ciclo"
+              required
               tip="El último ciclo de la carrera habilita el módulo de titulación; los anteriores, el de tutorías."
               value={userForm.cycleNumber}
               onValueChange={(value) => updateUserField('cycleNumber', value)}
@@ -568,54 +585,62 @@ export function UsersPage() {
           )}
         </div>
       )}
-
-      {/* Campos de contraseña SOLO al Editar (Opcional) */}
-      {editingUser && (
-        <div className="grid gap-5 sm:grid-cols-2">
-          <FormField id="user-password" label="Nueva Contraseña (Opcional)" error={userErrors.password}>
-            <PasswordInput
-              id="user-password"
-              name="password"
-              value={userForm.password}
-              onChange={(e) => updateUserField('password', e.target.value)}
-              autoComplete="new-password"
-              placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
-              disabled={formDisabled}
-              aria-describedby={userForm.password ? 'user-password-strength' : undefined}
-            />
-            {userForm.password && <PasswordStrength id="user-password-strength" password={userForm.password} />}
-          </FormField>
-
-          <FormField id="user-password-confirmation" label="Confirmar nueva contraseña" error={userErrors.password_confirmation}>
-            <PasswordInput
-              id="user-password-confirmation"
-              name="password_confirmation"
-              value={userForm.password_confirmation}
-              onChange={(e) => updateUserField('password_confirmation', e.target.value)}
-              autoComplete="new-password"
-              placeholder="Repite la contraseña"
-              disabled={formDisabled}
-              required={Boolean(userForm.password)}
-            />
-            {userForm.password_confirmation && (
-              <FieldDescription
-                className={cn(
-                  'text-xs',
-                  userForm.password === userForm.password_confirmation
-                    ? 'text-success'
-                    : 'text-destructive',
-                )}
-              >
-                {userForm.password === userForm.password_confirmation
-                  ? 'Las contraseñas coinciden.'
-                  : 'Las contraseñas no coinciden.'}
-              </FieldDescription>
-            )}
-          </FormField>
-        </div>
-      )}
     </>
   )
+
+  // Paso 3 (solo al editar): nueva contraseña opcional.
+  const passwordFields = (
+    <div className="grid gap-5 sm:grid-cols-2">
+      <FormField id="user-password" label="Nueva contraseña" optional error={userErrors.password}>
+        <PasswordInput
+          id="user-password"
+          name="password"
+          value={userForm.password}
+          onChange={(e) => updateUserField('password', e.target.value)}
+          autoComplete="new-password"
+          placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`}
+          disabled={formDisabled}
+          aria-describedby={userForm.password ? 'user-password-strength' : undefined}
+        />
+        {userForm.password && <PasswordStrength id="user-password-strength" password={userForm.password} />}
+      </FormField>
+
+      <FormField id="user-password-confirmation" label="Confirmar nueva contraseña" required={Boolean(userForm.password)} error={userErrors.password_confirmation}>
+        <PasswordInput
+          id="user-password-confirmation"
+          name="password_confirmation"
+          value={userForm.password_confirmation}
+          onChange={(e) => updateUserField('password_confirmation', e.target.value)}
+          autoComplete="new-password"
+          placeholder="Repite la contraseña"
+          disabled={formDisabled}
+          required={Boolean(userForm.password)}
+        />
+        {userForm.password_confirmation && (
+          <FieldDescription
+            className={cn(
+              'text-xs',
+              userForm.password === userForm.password_confirmation
+                ? 'text-success'
+                : 'text-destructive',
+            )}
+          >
+            {userForm.password === userForm.password_confirmation
+              ? 'Las contraseñas coinciden.'
+              : 'Las contraseñas no coinciden.'}
+          </FieldDescription>
+        )}
+      </FormField>
+    </div>
+  )
+
+  // "Siguiente" se bloquea con el primer error de los campos de cada paso (las mismas reglas de validación).
+  const firstErrorOf = (fields: readonly (keyof UserForm)[]) => fields.map((field) => formErrors[field]).find(Boolean) ?? null
+  const userFormSteps: FormStep[] = [
+    { title: 'Datos personales', description: 'Así aparecerá la persona en el sistema.', blockReason: firstErrorOf(PERSONAL_FIELDS), content: personalFields },
+    { title: 'Rol y carrera', description: 'Define qué puede hacer en el sistema.', blockReason: firstErrorOf(ROLE_FIELDS), content: roleFields },
+    ...(editingUser ? [{ title: 'Contraseña', description: 'Déjala en blanco para conservar la actual.', content: passwordFields }] : []),
+  ]
 
   const hasFilters = searchInput.trim() !== '' || roleFilter !== '' || statusFilter !== '' || careerFilter !== ''
 
@@ -670,7 +695,7 @@ export function UsersPage() {
               label: 'Usuario',
               render: (user) => (
                 <div className="flex min-w-0 flex-col">
-                  <span className="font-medium [overflow-wrap:anywhere]">{user.name}</span>
+                  <span className="[overflow-wrap:anywhere]">{user.name}</span>
                   <span className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{user.email}</span>
                 </div>
               ),
@@ -698,19 +723,15 @@ export function UsersPage() {
         open={isModalOpen}
         onClose={closeModal}
         onSubmit={submitUser}
-        title={editingUser ? 'Editar Usuario' : 'Registrar Nuevo Usuario'}
-        description={
-          editingUser
-            ? 'Modifica los datos y asignaciones de la cuenta seleccionada.'
-            : 'Ingresa los datos personales del usuario. La contraseña provisional será enviada por correo electrónico.'
-        }
+        title={editingUser ? 'Editar usuario' : 'Registrar usuario'}
+        description={editingUser ? undefined : 'La persona recibirá su contraseña provisional por correo.'}
         maxWidth="max-w-2xl"
         pending={pending === 'user'}
         error={formError?.description ?? null}
         errorModal={formError}
         dirty={isUserFormDirty}
         blockReason={submitBlockReason}
-        submitLabel={editingUser ? 'Guardar Cambios' : 'Registrar Usuario'}
+        submitLabel={editingUser ? 'Guardar cambios' : 'Registrar usuario'}
         submitIcon={editingUser ? undefined : PlusIcon}
         headerActions={
           editingUser ? (
@@ -726,9 +747,8 @@ export function UsersPage() {
             </>
           ) : undefined
         }
-      >
-        {userFormFields}
-      </FormDialog>
+        steps={userFormSteps}
+      />
 
       <ConfirmModal
         open={Boolean(userToToggle)}
