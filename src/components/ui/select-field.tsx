@@ -69,6 +69,7 @@ export function SelectField({
   label,
   tip,
   optional,
+  required,
   error,
   className,
   labelClassName,
@@ -79,13 +80,14 @@ export function SelectField({
     label: ReactNode
     tip?: ReactNode
     optional?: boolean
+    required?: boolean
     error?: string | null
     /** Clases de la etiqueta (p. ej. `sr-only` cuando el contexto ya la nombra). */
     labelClassName?: string
   }
 >) {
   return (
-    <FormField id={id} label={label} tip={tip} optional={optional} error={error} className={className} labelClassName={labelClassName}>
+    <FormField id={id} label={label} tip={tip} optional={optional} required={required} error={error} className={className} labelClassName={labelClassName}>
       <SelectInput id={id} invalid={Boolean(error)} {...select} />
     </FormField>
   )

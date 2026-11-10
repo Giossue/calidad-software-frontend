@@ -12,6 +12,7 @@ export function FormField({
   label,
   tip,
   optional = false,
+  required = false,
   counter,
   error,
   className,
@@ -23,6 +24,8 @@ export function FormField({
   /** Ayuda breve: se muestra siempre bajo el campo, no escondida en un tooltip. */
   tip?: ReactNode
   optional?: boolean
+  /** Campo obligatorio: asterisco rojo junto a la etiqueta, como en sílabos. */
+  required?: boolean
   counter?: { current: number; max: number }
   error?: string | null
   className?: string
@@ -32,7 +35,7 @@ export function FormField({
   return (
     <Field data-invalid={Boolean(error)} className={cn(className)}>
       <div className={cn('flex items-center justify-between gap-2', labelClassName?.includes('sr-only') && !counter && 'sr-only')}>
-        <FieldLabel htmlFor={id} className={labelClassName}>
+        <FieldLabel htmlFor={id} className={labelClassName} required={required}>
           {label}
           {optional && <span className="text-xs font-normal text-muted-foreground">(Opcional)</span>}
         </FieldLabel>

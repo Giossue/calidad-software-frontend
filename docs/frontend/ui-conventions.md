@@ -42,8 +42,12 @@ las reglas de negocio que ya aplica el sistema.
   (horario, supervisión, estudiantes…), la fila completa abre su pantalla con la
   información separada en pestañas y las acciones arriba (p. ej. "Editar"). No se
   ponen dos o más íconos sueltos en una columna "Acciones".
-- **Si la fila solo se edita**, la fila abre el modal de edición. Una única acción
-  extra que no es editar puede ir en `RowActionsMenu`.
+- **Modal o página según la cantidad de información.** Si el registro tiene poco que
+  ver o editar (unos pocos campos), la fila abre un modal. Si tiene bastante
+  (varias secciones, listas relacionadas, acciones propias como gestionar paralelos o
+  desactivar), la fila abre su página con pestañas y las acciones arriba. No se
+  bombardea al usuario con modales cargados de información.
+- Una única acción extra que no es editar puede ir en `RowActionsMenu`.
 - **Desplegable antes que fila de pestañas para elegir un valor.** Elegir ciclo,
   período o carrera se hace con un desplegable en la fila de filtros. Las pestañas
   son para secciones de un mismo registro, no para filtrar listas.
@@ -60,9 +64,12 @@ las reglas de negocio que ya aplica el sistema.
 1. `AdminSectionHeader` (o `ModuleHeader`): título `h1`, una descripción práctica de
    una línea y las acciones a la derecha.
    La acción principal lleva icono; las secundarias son `variant="secondary"`.
-2. Filtros: búsqueda primero, luego filtros, y un botón terciario "Quitar filtros"
-   que solo aparece con filtros activos. Un filtro nunca dice solo "Todos": su opción
-   vacía nombra lo que agrupa ("Todos los ciclos", "Todos los estados").
+2. Filtros: búsqueda primero, luego filtros, y un botón terciario "Limpiar" que solo
+   aparece con filtros activos. Un filtro nunca dice solo "Todos": su opción vacía
+   nombra lo que agrupa ("Todos los ciclos", "Todos los estados"). Los desplegables
+   de la fila de filtros no llevan una etiqueta visible al lado: su valor lo dice todo
+   (la etiqueta va para lectores de pantalla). Un valor obligatorio, como el ciclo, va
+   primero en la fila (`FilterBar leading`).
 3. La tabla (`RecordTable`, `DataTable` o `Table` dentro de `Card`), y debajo la paginación.
 
 ## Tablas
@@ -77,8 +84,12 @@ las reglas de negocio que ya aplica el sistema.
 - Las filas resaltan al pasar el cursor; las que abren algo llevan `cursor-pointer`.
 - Fila vacía: `EmptyState` con una frase concreta que cambia con los filtros
   ("No hay asignaturas con estos filtros." vs. "Aún no hay asignaturas registradas.").
-- Estado (activo/inactivo, aprobado…): `Badge`/`StatusBadge` con variantes semánticas,
-  sin inventar colores por estado.
+- **Solo los estados llevan badge** (activo/inactivo, aprobado, matriculado…), con
+  `Badge`/`StatusBadge` y variantes semánticas. Código, ciclo, paralelos, rol, grupo o
+  día van como texto simple.
+- Solo los encabezados van en negrita; el contenido de las celdas, en peso normal.
+- En filas compuestas (una celda que abarca varias filas), el color alterno y el
+  resaltado al pasar el cursor van por grupo.
 
 ## Formularios
 
@@ -87,6 +98,15 @@ las reglas de negocio que ya aplica el sistema.
   (negro). Clic fuera no cierra. No se usan paneles laterales (sheets).
 - Confirmaciones: el mismo modal, título en pregunta ("¿Cerrar sesión?") y botón
   destructivo con ícono y verbo.
+- Los campos van en el orden en que se piensan: primero lo que identifica (nombre,
+  código), después lo demás.
+- **Campos obligatorios con asterisco**: `FormField required` / `SelectField required`
+  (asterisco rojo y "(obligatorio)" para lectores de pantalla).
+- **Formularios largos por pasos**: `FormDialog steps` divide el formulario en pasos
+  con título y una línea de ayuda, como la convocatoria de sílabos: "Cancelar /
+  Siguiente" en el primero, "Atrás / Siguiente" en los intermedios y "Atrás / acción"
+  en el último; "Siguiente" se bloquea mostrando qué falta. Úsalo cuando el formulario
+  tiene grupos de campos distintos o más de unos cinco campos.
 - La ayuda de un campo va visible bajo el campo (`FormField tip`), no en un tooltip.
 - El error de cada campo va en línea bajo el campo; el error del servidor una sola vez,
   dentro del panel. El motivo por el que "Guardar" está bloqueado se lee junto al botón.

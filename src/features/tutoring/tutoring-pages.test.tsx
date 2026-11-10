@@ -1010,7 +1010,7 @@ describe('Coordinación de tutorías', () => {
     render(<TutoringReportsPage />)
     expect(await screen.findByRole('heading', { level: 1, name: 'Software' })).toBeInTheDocument()
     expect(screen.queryByText('Asistencias registradas')).not.toBeInTheDocument()
-    expect(screen.getByText('Mostrando 2 de 2 informes')).toBeInTheDocument()
+    expect(await screen.findByText('Mostrando 2 de 2 informes')).toBeInTheDocument()
     expect(tutoringApi.allReports).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined })
 
     expect(screen.getAllByText('Matemática')).toHaveLength(2)
