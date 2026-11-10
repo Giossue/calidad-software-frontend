@@ -53,7 +53,11 @@ export function DegreePeriodNotice({ resource }: Readonly<{ resource: ReturnType
 }
 
 export function DegreePeriodCard({ resource, extra }: Readonly<{ resource: ReturnType<typeof useDegreePeriod>; extra?: ReactNode }>) {
-  if (resource.loading) return <Skeleton role="status" aria-label="Cargando período académico" className="h-24 w-full" />
+  if (resource.loading) return <Card role="status" aria-label="Cargando período académico"><CardContent className="flex flex-col gap-2 pt-6" aria-hidden="true">
+    <Skeleton className="h-4 w-44" />
+    <Skeleton className="h-5 w-32" />
+    <Skeleton className="h-4 w-56" />
+  </CardContent></Card>
   if (resource.status === 404 || resource.error) return <DegreePeriodNotice resource={resource} />
   if (!resource.data) return null
   const { period } = resource.data

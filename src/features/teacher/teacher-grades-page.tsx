@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SelectInput } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeleton } from '@/components/ui/loading-skeletons'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -135,6 +136,18 @@ function groupFor(value: string, settings: GradeSettings): string | null {
 
 // --- Panel ---
 
+/** La etapa a calificar y la tabla de notas (#, estudiante, tres notas y evolución). */
+function GradesSkeleton() {
+  return <div role="status" aria-label="Cargando calificaciones" className="flex flex-col gap-5">
+    <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+      <Skeleton className="h-5 w-12" />
+      <Skeleton className="h-9 w-56" />
+      <Skeleton className="h-5 w-72 max-w-full" />
+    </div>
+    <TableSkeleton columns={GRADE_FIELDS.length + 3} />
+  </div>
+}
+
 export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const resource = useDegreeResource(async () => {
     const [students, settings, joints] = await Promise.all([teacherApi.allStudents(tutoring.id), teacherApi.gradeSettings(), teacherApi.jointTutorings(tutoring.id)])
@@ -145,7 +158,7 @@ export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
 
   return <div className="flex flex-col gap-5">
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {resource.loading ? <Skeleton className="h-64 w-full" aria-label="Cargando calificaciones" /> : resource.data && <GradesForm tutoring={tutoring} {...resource.data} onSaved={resource.reload} />}
+    {resource.loading ? <GradesSkeleton /> : resource.data && <GradesForm tutoring={tutoring} {...resource.data} onSaved={resource.reload} />}
   </div>
 }
 

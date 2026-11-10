@@ -125,6 +125,16 @@ describe('Asignación de carreras a coordinadores', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('mientras cargan las carreras muestra la lista de casillas con brillo, no un texto suelto', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    render(<CoordinatorCareersDialog user={coordinator} onSaved={vi.fn()} onClose={vi.fn()} />)
+    const loading = await screen.findByRole('status', { name: 'Cargando carreras' })
+    expect(loading.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(2)
+    expect(screen.queryByText('Cargando carreras…')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar carreras' })).toBeDisabled()
+  })
+
   it('explica cuando no hay carreras activas y permite revocar una asignación antigua', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ data: [] }))

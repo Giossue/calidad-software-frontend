@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { FilterBarSkeleton, TableSkeleton } from '@/components/ui/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -12,6 +13,7 @@ import { ContentPanel } from './teacher-content-page'
 import { GradesPanel } from './teacher-grades-page'
 import { SchedulesPanel } from './teacher-schedules-page'
 import { StudentsPanel } from './teacher-students-page'
+import { TabsSkeleton } from '@/features/tutoring/tutoring-skeletons'
 
 const TABS = [
   { id: 'attendance', label: 'Asistencia' },
@@ -48,7 +50,7 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
 
   return <section className="flex flex-col gap-6">
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {resource.loading ? <div role="status" aria-label="Cargando tutoría" className="flex flex-col gap-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-48 w-full" /></div>
+    {resource.loading ? <WorkspaceSkeleton tab={tab} />
       : resource.error ? null
       : !tutoring ? <Alert><AlertDescription>Esta tutoría ya no está asignada a tu cuenta. Vuelve a tus tutorías y elige otra.</AlertDescription></Alert>
       : <>
@@ -77,4 +79,23 @@ function TutoringHeader({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
       {[tutoring.career_name, `${tutoring.cycle_name}${tutoring.section_name ? ` · ${tutoring.section_name}` : ''}`, tutoring.modality_name].filter(Boolean).join(' · ')}
     </p>
   </header>
+}
+
+/** Encabezado de la tutoría, sus pestañas y la forma del panel que se va a abrir. */
+function WorkspaceSkeleton({ tab }: Readonly<{ tab: TabId }>) {
+  return <div role="status" aria-label="Cargando tutoría" className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2" aria-hidden="true">
+      <div className="flex items-center gap-3"><Skeleton className="h-8 w-72 max-w-full" /><Skeleton className="h-5 w-20 rounded-full" /></div>
+      <Skeleton className="h-5 w-96 max-w-full" />
+    </div>
+    <div className="flex flex-col gap-4">
+      <TabsSkeleton tabs={TABS.length} />
+      {tab === 'attendance' || tab === 'schedules'
+        ? <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true"><Skeleton className="h-5 w-80 max-w-full" /><Skeleton className="h-9 w-48" /></div>
+        : tab === 'grades'
+          ? <div className="flex items-center gap-2" aria-hidden="true"><Skeleton className="h-5 w-12" /><Skeleton className="h-9 w-56" /></div>
+          : <FilterBarSkeleton />}
+      <TableSkeleton columns={tab === 'grades' ? 6 : 4} />
+    </div>
+  </div>
 }

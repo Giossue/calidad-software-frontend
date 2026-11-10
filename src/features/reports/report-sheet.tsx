@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { PrinterIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 // Piezas comunes de los formatos oficiales de Tutorías Académicas. Las hojas se ven
@@ -52,6 +53,35 @@ export function Signature({ name, role }: Readonly<{ name: string | null; role: 
 /** Marco gris que rodea la hoja dentro de los diálogos. */
 export function SheetFrame({ children }: Readonly<{ children: ReactNode }>) {
   return <div className="rounded-md bg-muted p-2 sm:p-4">{children}</div>
+}
+
+/**
+ * La hoja mientras se calcula: membrete, título, datos, tabla y firmas con brillo, dentro del
+ * mismo marco gris. Anuncia `label` (empieza por "Cargando").
+ */
+export function SheetSkeleton({ label }: Readonly<{ label: string }>) {
+  return (
+    <div role="status" aria-label={label} className="rounded-md bg-muted p-2 sm:p-4">
+      <div className="flex flex-col gap-5 bg-white p-5 sm:p-8" aria-hidden="true">
+        <div className="flex items-center gap-3 border-b border-slate-300 pb-3">
+          <Skeleton className="size-12 shrink-0" />
+          <div className="flex flex-col gap-1.5"><Skeleton className="h-3.5 w-56 max-w-full" /><Skeleton className="h-3.5 w-48 max-w-full" /></div>
+        </div>
+        <Skeleton className="mx-auto h-4 w-72 max-w-full" />
+        <div className="grid gap-2 sm:grid-cols-2">
+          {['w-3/4', 'w-2/3', 'w-1/2', 'w-3/5'].map((width) => <Skeleton key={width} className={`h-3.5 ${width}`} />)}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-7 w-full rounded-none" />
+          {[0, 1, 2, 3, 4].map((row) => <Skeleton key={row} className="h-6 w-full rounded-none" />)}
+        </div>
+        <div className="flex flex-wrap justify-around gap-6 pt-8">
+          <Skeleton className="h-3.5 w-48" />
+          <Skeleton className="h-3.5 w-48" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /**

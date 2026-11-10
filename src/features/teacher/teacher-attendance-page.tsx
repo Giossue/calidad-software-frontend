@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { DataTable } from '@/components/ui/data-table'
 import { IconAction } from '@/components/ui/icon-action'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeleton } from '@/components/ui/loading-skeletons'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -115,7 +116,7 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
 
   if (section === 'register') {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4" data-tour-view="register">
         <div className="flex items-center gap-2">
           <IconAction label="Volver a las sesiones" icon={ArrowLeftIcon} onClick={handleCloseRegister} />
           <h3 className="text-xl font-semibold tracking-tight">Registrar asistencia</h3>
@@ -304,6 +305,23 @@ const CONSULT_COLUMNS: ColumnDef<TutoringSession['attendance'][number]>[] = [
 
 // --- Flujo de registro de asistencia ---
 
+/** La fecha de hoy con el conteo de presentes y la lista de estudiantes por marcar. */
+function SessionFormSkeleton() {
+  return (
+    <div role="status" aria-label="Cargando asistencia" className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3" aria-hidden="true">
+        <Skeleton className="h-5 w-64 max-w-full" />
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-8 w-32" />
+        </div>
+      </div>
+      <TableSkeleton columns={3} />
+      <div className="flex justify-end" aria-hidden="true"><Skeleton className="h-9 w-44" /></div>
+    </div>
+  )
+}
+
 function SessionFlow({
   tutoring,
   date,
@@ -337,7 +355,7 @@ function SessionFlow({
     <div className="flex flex-col gap-5">
       <ErrorNotice message={resource.error} retry={resource.reload} />
       {resource.loading ? (
-        <Skeleton className="h-64 w-full" aria-label="Cargando asistencia" />
+        <SessionFormSkeleton />
       ) : (
         resource.data && (
           <SessionForm

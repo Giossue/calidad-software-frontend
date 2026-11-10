@@ -12,6 +12,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
+import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { maxCycleNumber } from '@/lib/academic-stage'
@@ -23,6 +24,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { SubjectDetail } from './subject-detail'
 import { useDetailParam } from '@/hooks/use-detail-param'
 import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
+import { CheckboxListSkeleton } from './tutoring-skeletons'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const ALL_CYCLES = 'all'
@@ -432,7 +434,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         <Button type="button" variant="secondary" onClick={detail.close}>Volver a asignaturas</Button>
       </div>
     ) : detail.id !== null ? (
-      <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Spinner />Cargando asignatura…</p>
+      <DetailPageSkeleton label="Cargando asignatura" />
     ) : (
       <>
         <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
@@ -548,7 +550,7 @@ function NextSubjectsField({ subject, options, cycleNumber, value, onChange, dis
           <p className="text-xs text-muted-foreground">Viene de: {previous.map((item) => formatSubjectName(item.name)).join(', ')}</p>
         )}
         {options === null ? (
-          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Spinner />Cargando asignaturas…</p>
+          <div role="status" aria-label="Cargando asignaturas"><CheckboxListSkeleton /></div>
         ) : candidates.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay asignaturas de ciclos posteriores en esta carrera.</p>
         ) : (

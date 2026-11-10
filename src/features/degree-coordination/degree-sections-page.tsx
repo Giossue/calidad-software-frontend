@@ -32,7 +32,7 @@ export function DegreeSectionsPage() {
   return <section className="flex flex-col gap-6">
     <AdminSectionHeader title="Período y paralelos" actions={<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3"><BulkImportButton type="sections" title="Carga masiva de paralelos" description="Los paralelos se registran en el período académico vigente." onFinished={resource.reload} className="flex-1 sm:flex-none" /><Button type="button" disabled={resource.loading || !resource.data || operation.pending} onClick={() => { setName(''); operation.clearError(); setOpen(true) }} className="w-full sm:w-auto"><PlusIcon data-icon="inline-start" />Registrar paralelo</Button></div>} />
     <DegreePeriodCard resource={resource} />
-    {resource.data && <RecordTable rows={resource.data.sections} loading={resource.loading} empty="Todavía no hay paralelos registrados en este período." columns={[
+    {(resource.loading || resource.data) && <RecordTable rows={resource.data?.sections ?? []} loading={resource.loading} empty="Todavía no hay paralelos registrados en este período." columns={[
       { label: 'Paralelo', render: (section) => section.name },
       { label: 'Estado', render: (section) => <StatusBadge active={section.is_active} /> },
     ]} />}

@@ -13,6 +13,7 @@ import { FormField } from '@/components/ui/form-field'
 import { SearchInput } from '@/components/ui/search-input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { HeaderSkeleton, TabsSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { degreeCoordinationApi, type DegreeAssignment, type DegreeTeacher } from '@/lib/degree-coordination-api'
@@ -190,7 +191,7 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
 
   return <section className="flex flex-col gap-6" data-tour-view="detail">
     <div><Button type="button" variant="tertiary" onClick={onBack} disabled={operation.pending}><ArrowLeftIcon data-icon="inline-start" />Volver a propuestas</Button></div>
-    {resource.loading && <Skeleton role="status" aria-label="Cargando propuesta" className="h-40 w-full" />}
+    {resource.loading && <TopicDetailSkeleton />}
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {topic && <>
       <AdminSectionHeader title={topic.title} description={context} actions={<div className="flex flex-wrap items-center gap-2">
@@ -254,4 +255,25 @@ function TeacherLine({ name, email, extra }: Readonly<{ name: string; email?: st
 
 function PeerLine({ assignment }: Readonly<{ assignment: DegreeAssignment }>) {
   return <TeacherLine name={assignment.teacher?.name ?? 'Docente no disponible'} email={assignment.teacher?.email} extra={`Desde ${formatDegreeDate(assignment.assigned_at)}`} />
+}
+
+/** Encabezado con estado y acciones, pestañas y la tarjeta de la propuesta (descripción y datos). */
+function TopicDetailSkeleton() {
+  return <div role="status" aria-label="Cargando propuesta" className="flex flex-col gap-6">
+    <HeaderSkeleton badge actions={2} />
+    <TabsSkeleton tabs={3} />
+    <Card><CardContent className="flex flex-col gap-6 pt-6" aria-hidden="true">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-11/12" />
+        <Skeleton className="h-4 w-3/5" />
+      </div>
+      <div className="grid gap-4 border-t pt-5 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 6 }, (_, index) => <div key={index} className="flex flex-col gap-1.5">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-36 max-w-full" />
+        </div>)}
+      </div>
+    </CardContent></Card>
+  </div>
 }

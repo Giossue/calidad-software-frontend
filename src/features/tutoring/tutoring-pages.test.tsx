@@ -362,6 +362,15 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByLabelText('Buscar carrera')).not.toBeInTheDocument()
   })
 
+  it('al abrir un docente desde la URL, mientras carga muestra la forma de su ficha y no la lista', async () => {
+    vi.mocked(tutoringApi.teachers).mockReturnValue(new Promise(() => {}))
+    render(<MemoryRouter initialEntries={['/?docente=5']}><TutoringTeachersPage /></MemoryRouter>)
+    const loading = await screen.findByRole('status', { name: 'Cargando docente' })
+    expect(loading.parentElement?.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(5)
+    expect(screen.queryByText('Cargando docente…')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar docente nuevo' })).not.toBeInTheDocument()
+  })
+
   it('con varias carreras lista primero las carreras con búsqueda y entra a la elegida; con una sola entra directo', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.careers).mockResolvedValue([career, { ...career, id: 11, name: 'Comunicación' }])

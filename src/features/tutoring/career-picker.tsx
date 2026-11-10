@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Skeleton } from '@/components/ui/skeleton'
+import { ListPageSkeleton } from '@/components/ui/loading-skeletons'
 import { StatusBadge } from '@/components/ui/status-badge'
 import type { Career } from '@/lib/api'
 import { FilterBar } from './filter-bar'
@@ -70,11 +70,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
 }
 
 function CareerLoading() {
-  return <div role="status" aria-label="Cargando carreras" className="flex flex-col gap-6">
-    <div className="flex flex-col gap-2"><Skeleton className="h-8 w-64" /><Skeleton className="h-5 w-96 max-w-full" /></div>
-    <Skeleton className="h-9 w-full" />
-    <div className="flex flex-col gap-3 rounded-md p-4 ring-1 ring-surface-ring"><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-4/5" /><Skeleton className="h-5 w-3/5" /></div>
-  </div>
+  return <ListPageSkeleton label="Cargando carreras" actions={0} filters={0} columns={4} />
 }
 
 export function CareerBreadcrumb({ root, career, onBack }: Readonly<{ root: string; career: string; onBack?: () => void }>) {

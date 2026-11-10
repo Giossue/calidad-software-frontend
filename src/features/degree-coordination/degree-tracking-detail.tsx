@@ -14,6 +14,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { HeadedTableSkeleton, HeaderSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { degreeCoordinationApi, type DegreeActivity } from '@/lib/degree-coordination-api'
 import { formatDegreeDate } from './degree-format'
 import { useDegreeResource } from './degree-hooks'
@@ -98,7 +99,7 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
           Volver a seguimiento
         </Button>
       </div>
-      {resource.loading && <Skeleton role="status" aria-label="Cargando ficha de seguimiento" className="h-40 w-full" />}
+      {resource.loading && <TrackingDetailSkeleton />}
       <ErrorNotice message={resource.error} retry={resource.reload} />
       {topic && <>
         <AdminSectionHeader
@@ -195,4 +196,22 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
 
 function SummaryItem({ label, value }: Readonly<{ label: string; value: string }>) {
   return <div className="flex flex-col gap-0.5 text-sm"><span className="text-muted-foreground">{label}</span><span className="font-medium">{value}</span></div>
+}
+
+/** Encabezado con sus dos acciones, la tarjeta de avance y la tabla de actividades. */
+function TrackingDetailSkeleton() {
+  return <div role="status" aria-label="Cargando ficha de seguimiento" className="flex flex-col gap-6">
+    <HeaderSkeleton actions={2} />
+    <Card><CardContent className="grid gap-6 pt-6 sm:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]" aria-hidden="true">
+      <div className="flex flex-col gap-2">
+        <div className="flex justify-between"><Skeleton className="h-4 w-14" /><Skeleton className="h-4 w-10" /></div>
+        <Skeleton className="h-2 w-full rounded-full" />
+      </div>
+      {[0, 1, 2].map((item) => <div key={item} className="flex flex-col gap-1.5">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-4 w-20" />
+      </div>)}
+    </CardContent></Card>
+    <HeadedTableSkeleton headers={['Completada', 'Actividad', 'Registrada', 'Docente']} rows={4} />
+  </div>
 }

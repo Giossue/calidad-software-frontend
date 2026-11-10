@@ -51,7 +51,7 @@ export function StudentTutoringWorkspace({ subjectId, onBack }: Readonly<{ subje
   return <section className="flex min-w-0 flex-col gap-6">
     <div><Button type="button" variant="tertiary" onClick={onBack}><ArrowLeftIcon data-icon="inline-start" />Volver a mis tutorías</Button></div>
     <ErrorNotice message={resource.error} retry={resource.reload} />
-    {resource.loading ? <WorkspaceSkeleton />
+    {resource.loading ? <WorkspaceSkeleton tab={tab} />
       : resource.error ? null
       : !enrollment || !subject ? <Alert><AlertDescription>Ya no estás inscrito en esta tutoría. Vuelve a tus tutorías y elige otra.</AlertDescription></Alert>
       : <>

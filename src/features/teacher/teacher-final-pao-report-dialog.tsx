@@ -6,10 +6,9 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { FinalPaoReportDocument } from '@/features/reports/final-pao-report-document'
-import { PrintReport, SheetFrame } from '@/features/reports/report-sheet'
+import { PrintReport, SheetFrame, SheetSkeleton } from '@/features/reports/report-sheet'
 import { describeError, useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import type { FinalPaoReportSummary } from '@/lib/final-pao-report'
@@ -225,9 +224,6 @@ export function FinalPaoReportDialog({
 
 function LoadingNotice() {
   return (
-    <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Spinner aria-hidden="true" />
-      Calculando el informe con las tutorías, asistencias y notas registradas…
-    </p>
+    <SheetSkeleton label="Cargando el informe con las tutorías, asistencias y notas registradas" />
   )
 }

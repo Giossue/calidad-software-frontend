@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
+import { FilterBarSkeleton, TableSkeleton } from '@/components/ui/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
@@ -181,6 +182,62 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
   )
 }
 
+/** Volver, el tema con su estudiante y la forma de la pestaña abierta (ficha, equipo o tareas). */
+function TrackingDetailSkeleton({ tab }: Readonly<{ tab: TeacherTrackingTab }>) {
+  const panelHeading = (
+    <div className="flex flex-col gap-1.5" aria-hidden="true">
+      <Skeleton className="h-7 w-80 max-w-full" />
+      <Skeleton className="h-4 w-96 max-w-full" />
+    </div>
+  )
+  return (
+    <div role="status" aria-label="Cargando seguimiento" className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3" aria-hidden="true">
+        <Skeleton className="h-8 w-40" />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-8 w-96 max-w-full" />
+            <Skeleton className="h-5 w-56" />
+          </div>
+          <Skeleton className="h-5 w-24" />
+        </div>
+      </div>
+      {tab === 'estado-ficha' && (
+        <Card className="flex flex-col gap-5 p-5">
+          {panelHeading}
+          <div className="flex flex-col gap-2" aria-hidden="true">
+            <div className="flex items-center justify-between"><Skeleton className="h-4 w-28" /><Skeleton className="h-6 w-12" /></div>
+            <Skeleton className="h-3 w-full rounded-full" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden="true">
+            {[0, 1, 2, 3].map((fact) => <div key={fact} className="flex flex-col gap-1.5"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-16" /></div>)}
+          </div>
+        </Card>
+      )}
+      {tab === 'equipo-titulacion' && (
+        <div className="flex flex-col gap-3">
+          {panelHeading}
+          <Card className="divide-y divide-border" aria-hidden="true">
+            {[0, 1, 2].map((member) => (
+              <div key={member} className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+                <Skeleton className="h-4 w-28 sm:w-40 sm:shrink-0" />
+                <div className="flex flex-col gap-1.5"><Skeleton className="h-4 w-48" /><Skeleton className="h-3 w-56" /></div>
+              </div>
+            ))}
+          </Card>
+        </div>
+      )}
+      {tab === 'tareas' && (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">{panelHeading}<Skeleton className="h-9 w-36" aria-hidden="true" /></div>
+          <FilterBarSkeleton />
+          <TableSkeleton columns={4} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; onBack: () => void }>) {
   const { user } = useAuth()
   const [params] = useSearchParams()
@@ -223,13 +280,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
   }
 
   if (resource.loading) {
-    return (
-      <div role="status" aria-label="Cargando seguimiento" className="flex flex-col gap-4">
-        <Skeleton className="h-9 w-40" />
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    )
+    return <TrackingDetailSkeleton tab={tab} />
   }
 
   if (resource.error) {

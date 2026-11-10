@@ -6,10 +6,9 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
-import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { FollowUpReportDocument } from '@/features/reports/follow-up-report-document'
-import { PrintReport, SheetFrame } from '@/features/reports/report-sheet'
+import { PrintReport, SheetFrame, SheetSkeleton } from '@/features/reports/report-sheet'
 import { describeError, useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import type { FollowUpReportSummary } from '@/lib/follow-up-report'
@@ -152,10 +151,7 @@ export function FollowUpReportDialog({
               />
             </FormField>
             {loading && (
-              <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Spinner aria-hidden="true" />
-                Calculando el reporte con las tutorías registradas…
-              </p>
+              <SheetSkeleton label="Cargando el reporte con las tutorías registradas" />
             )}
             {validRange && preview && !hasSessions && (
               <Alert>

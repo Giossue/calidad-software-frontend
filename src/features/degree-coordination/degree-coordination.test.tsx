@@ -341,6 +341,15 @@ describe('Coordinación de titulación', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Propuestas de titulación' })).toBeInTheDocument()
   })
 
+  it('mientras carga la propuesta muestra la forma de su ficha (encabezado, pestañas y datos)', async () => {
+    vi.mocked(degreeCoordinationApi.topic).mockReturnValue(new Promise(() => {}))
+    routed(<DegreeTopicsPage />, '/panel/degree-topics?topic=30')
+    const loading = await screen.findByRole('status', { name: 'Cargando propuesta' })
+    expect(loading.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(10)
+    expect(screen.getByRole('button', { name: 'Volver a propuestas' })).toBeInTheDocument()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+  })
+
   it('abre un informe desde la fila y explica la lista vacía según la búsqueda', async () => {
     const user = userEvent.setup()
     const report = { id: 80, topic_id: 30, topic_title: 'Plataforma de seguimiento', student_name: 'Carlos Salas', student_identification: '0201111111', coordinator_name: 'Coordinadora', generated_at: '2026-10-01', final_observations: 'Cumple con los objetivos planteados.', progress_percentage: 100, period_name: '2026-2' }

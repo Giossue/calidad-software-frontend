@@ -19,6 +19,8 @@ import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
+import { Skeleton } from '@/components/ui/skeleton'
+import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
 import { TOPIC_FILE_ACCEPT, TOPIC_FILES_PER_TOPIC, topicFileError, type TopicFile } from '@/lib/topic-files'
@@ -271,6 +273,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       <PencilIcon />
     </Button>
   )
+
+  // Al abrir un tema (o una actividad) desde la URL, mientras llega la lista se muestra su forma, no la de la lista de temas.
+  if (topicId !== null && !topic && list.isInitialLoading) return <ContentLevelSkeleton activity={activityId !== null} />
 
   return <div className="flex flex-col gap-5">
     {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(null)}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(topic.id)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
@@ -555,5 +560,20 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       </div>
     </FormDialog>
     <ConfirmModal open={Boolean(deactivating)} title={`¿Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}?`} description="El contenido dejará de estar disponible para nuevas sesiones. Su historial se conservará." pending={operation.pending} confirmLabel="Deshabilitar contenido" onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={deactivate} />
+  </div>
+}
+
+/** Pantalla de un tema o una actividad: volver, el título con sus acciones y la tabla del nivel. */
+function ContentLevelSkeleton({ activity }: Readonly<{ activity: boolean }>) {
+  return <div role="status" aria-label={activity ? 'Cargando actividad' : 'Cargando tema'} className="flex flex-col gap-5">
+    <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+      <Skeleton className="h-8 w-24" />
+      {activity && <Skeleton className="h-8 w-40" />}
+    </div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true">
+      <Skeleton className="h-7 w-80 max-w-full" />
+      <div className="flex gap-2"><Skeleton className="size-9" /><Skeleton className="h-9 w-44" /></div>
+    </div>
+    <HeadedTableSkeleton headers={activity ? ['Metodología', 'Estado'] : ['Actividad', 'Duración', 'Metodologías', 'Estado']} />
   </div>
 }

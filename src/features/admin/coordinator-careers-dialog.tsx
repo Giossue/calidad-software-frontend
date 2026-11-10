@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { FormDialog } from '@/components/ui/form-dialog'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ApiError, type Career, type User } from '@/lib/api'
 import { coordinatorCareersApi } from '@/lib/coordinator-careers-api'
 
@@ -89,7 +89,20 @@ export function CoordinatorCareersDialog({ user, onClose, onSaved }: Readonly<{
       submitDisabled={loading || Boolean(loadError)}
       submitLabel="Guardar carreras"
     >
-        {loading && <p role="status" className="flex items-center gap-2"><Spinner aria-hidden="true" /> Cargando carreras…</p>}
+        {loading && (
+          <div role="status" aria-label="Cargando carreras" className="flex flex-col gap-3">
+            <Skeleton className="h-5 w-40" aria-hidden="true" />
+            <Skeleton className="h-4 w-full max-w-md" aria-hidden="true" />
+            <div className="flex flex-col gap-4 pt-1" aria-hidden="true">
+              {['w-3/4', 'w-1/2', 'w-2/3', 'w-2/5'].map((width) => (
+                <div key={width} className="flex items-center gap-3">
+                  <Skeleton className="size-4 shrink-0 rounded-sm" />
+                  <Skeleton className={`h-4 ${width}`} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <ErrorNotice
           title="No se pudieron cargar las carreras"
           message={loadError}

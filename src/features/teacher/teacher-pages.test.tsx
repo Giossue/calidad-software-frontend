@@ -119,6 +119,20 @@ describe('Módulo Docente', () => {
     expect(await screen.findByRole('combobox', { name: 'Etapa' })).toBeInTheDocument()
   })
 
+  it('mientras carga la tutoría y luego sus notas, muestra esqueletos con la forma de cada pantalla', async () => {
+    let resolveTutorings: (value: TeacherTutoring[]) => void = () => undefined
+    vi.mocked(teacherApi.allTutorings).mockReturnValue(new Promise((resolve) => { resolveTutorings = resolve }))
+    vi.mocked(teacherApi.allStudents).mockReturnValue(new Promise(() => {}))
+    workspace('grades')
+    const workspaceLoading = await screen.findByRole('status', { name: 'Cargando tutoría' })
+    expect(workspaceLoading.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(10)
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    await act(async () => resolveTutorings([tutoring]))
+    const gradesLoading = await screen.findByRole('status', { name: 'Cargando calificaciones' })
+    expect(gradesLoading.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(10)
+    expect(screen.getByRole('tab', { name: 'Calificaciones' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('registra el resultado final de un estudiante con la sugerencia según los parciales', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, final_result: null, suggested_result: 'approved' }]))

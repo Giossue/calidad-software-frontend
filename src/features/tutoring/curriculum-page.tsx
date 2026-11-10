@@ -155,8 +155,16 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
       />
 
       {curricula.loading || resource.loading ? (
-        <div role="status" aria-label="Cargando malla curricular" className="flex flex-col gap-3">
-          {[1, 2, 3].map((index) => <Skeleton key={index} className="h-28 w-full" />)}
+        <div role="status" aria-label="Cargando malla curricular" className="flex flex-col gap-5">
+          <Skeleton className="h-9 w-full" aria-hidden="true" />
+          {[5, 4, 3].map((count) => (
+            <div key={count} className="flex flex-col gap-2" aria-hidden="true">
+              <Skeleton className="h-4 w-20" />
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-24" />)}
+              </div>
+            </div>
+          ))}
         </div>
       ) : rows.length === 0 ? (
         <EmptyState className="rounded-md ring-1 ring-surface-ring">Esta carrera aún no tiene asignaturas activas. Regístralas en Asignaturas.</EmptyState>

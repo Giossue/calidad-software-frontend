@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
@@ -409,10 +410,13 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 </p>
               )}
               {loadingAvailable ? (
-                <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Spinner />
-                  Cargando tutorías disponibles…
-                </p>
+                <div role="status" aria-label="Cargando tutorías disponibles" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex flex-col gap-2 sm:max-w-xl sm:flex-1" aria-hidden="true">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                  <Skeleton className="h-9 w-44" aria-hidden="true" />
+                </div>
               ) : availableTutorings.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay más tutorías disponibles para inscribir a este estudiante.</p>
               ) : (

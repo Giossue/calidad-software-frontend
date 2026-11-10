@@ -4,9 +4,8 @@ import { SendIcon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FormDialog } from '@/components/ui/form-dialog'
-import { Spinner } from '@/components/ui/spinner'
 import { DiagnosticGradesSheet } from '@/features/reports/diagnostic-grades-document'
-import { PrintReport, SheetFrame } from '@/features/reports/report-sheet'
+import { PrintReport, SheetFrame, SheetSkeleton } from '@/features/reports/report-sheet'
 import { describeError, useOperation } from '@/features/tutoring/tutoring-hooks'
 import type { DiagnosticGradesSummary } from '@/lib/diagnostic-grades'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
@@ -87,10 +86,7 @@ export function DiagnosticGradesDialog({
     >
       <ErrorNotice message={loadError} retry={() => { setLoadError(null); setAttempt((value) => value + 1) }} />
       {loading && (
-        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner aria-hidden="true" />
-          Cargando las calificaciones diagnósticas registradas…
-        </p>
+        <SheetSkeleton label="Cargando las calificaciones diagnósticas registradas" />
       )}
       {preview && !hasGrades && (
         <Alert>
