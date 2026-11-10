@@ -121,8 +121,8 @@ export function FormDialog({
             {children}
             {step && (
               <FieldSet key={step.title}>
-                {/* Como en la convocatoria de sílabos: el título del paso, sin barra de pasos. */}
-                <FieldLegend>{step.title}</FieldLegend>
+                {/* Los campos ya dicen qué se pide: el título del paso solo para lectores de pantalla. */}
+                <FieldLegend className="sr-only">{step.title}</FieldLegend>
                 {step.description && <FieldDescription>{step.description}</FieldDescription>}
                 <FieldGroup>{step.content}</FieldGroup>
               </FieldSet>

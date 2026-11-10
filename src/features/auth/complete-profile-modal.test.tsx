@@ -144,25 +144,21 @@ describe('CompleteProfileModal', () => {
     await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith(expect.objectContaining({ phone: '0987654321' })))
   })
 
-  it('al llegar a un paso ya visitado, también puede volver haciendo clic en su indicador', async () => {
+  it('vuelve al paso anterior con «Atrás», sin barra de pasos', async () => {
     const user = userEvent.setup()
     const student = { ...imported, must_change_password: false }
     vi.mocked(useAuth).mockReturnValue({ user: student, status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), logout: vi.fn(), replaceUser: vi.fn() })
     vi.spyOn(api, 'academicOptions').mockResolvedValue(options)
 
     render(<CompleteProfileModal />)
+    expect(screen.queryByRole('navigation', { name: 'Progreso del formulario' })).not.toBeInTheDocument()
     await user.type(screen.getByLabelText('Cédula o pasaporte'), '0926687856')
     await user.type(screen.getByLabelText('Teléfono celular'), '0991234567')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     await waitFor(() => expect(screen.getByLabelText('Facultad')).toBeEnabled())
 
-    // El indicador del paso 1 ("Tus datos") ya fue visitado, así que puede usarse para volver.
-    await user.click(screen.getByRole('button', { name: /Tus datos/ }))
+    await user.click(screen.getByRole('button', { name: 'Atrás' }))
     expect(screen.getByLabelText('Cédula o pasaporte')).toHaveValue('0926687856')
-
-    // El paso "Datos académicos" todavía no se visita de nuevo pero sigue habilitado por haber sido alcanzado.
-    await user.click(screen.getByRole('button', { name: /Datos académicos/ }))
-    expect(screen.getByLabelText('Facultad')).toBeInTheDocument()
   })
 
   it('a una cuenta sin cédula solo le pide sus datos, sin cambiar la contraseña', async () => {

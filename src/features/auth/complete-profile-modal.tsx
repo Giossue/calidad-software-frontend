@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, CheckIcon, SaveIcon, XCircleIcon } from 'lucide-react'
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, SaveIcon, XCircleIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -52,14 +52,11 @@ export function CompleteProfileModal() {
   const [pending, setPending] = useState(false)
 
   const steps: ReadonlyArray<{ key: StepKey; label: string; heading: string; description: string }> = [
-    { key: 'datos', label: 'Tus datos', heading: 'Confirma tus datos', description: 'Verifica tu identificación y datos de contacto.' },
-    ...(isStudent ? [{ key: 'academico' as const, label: 'Datos académicos', heading: 'Datos académicos', description: 'Indica la facultad, carrera y ciclo que cursas actualmente.' }] : []),
+    { key: 'datos', label: 'Tus datos', heading: 'Confirma tus datos', description: '' },
+    ...(isStudent ? [{ key: 'academico' as const, label: 'Datos académicos', heading: 'Datos académicos', description: '' }] : []),
     ...(mustChangePassword ? [{ key: 'password' as const, label: 'Contraseña', heading: 'Crea tu nueva contraseña', description: `Reemplaza la contraseña provisional enviada a ${user?.email ?? 'tu correo'} por una que solo tú conozcas.` }] : []),
   ]
   const [stepIndex, setStepIndex] = useState(0)
-  // Recuerda el paso más lejano alcanzado para permitir saltar de vuelta a cualquier paso ya
-  // visitado (y corregirlo) aunque el usuario haya retrocedido antes.
-  const [maxReachedStep, setMaxReachedStep] = useState(0)
   const currentStep = steps[stepIndex]
   const isFirstStep = stepIndex === 0
   const isLastStep = stepIndex === steps.length - 1
@@ -67,7 +64,6 @@ export function CompleteProfileModal() {
   function goToStep(index: number) {
     setError(null)
     setStepIndex(index)
-    setMaxReachedStep((max) => Math.max(max, index))
   }
 
   useEffect(() => {
@@ -129,46 +125,12 @@ export function CompleteProfileModal() {
       title="Completa tu cuenta"
       description="Para continuar necesitamos que completes estos datos."
     >
-      {steps.length > 1 && (
-        <nav aria-label="Progreso del formulario" className="mb-5 flex items-center gap-2">
-          {steps.map((step, index) => {
-            const reached = index <= maxReachedStep
-            const active = index === stepIndex
-            return (
-              <Button
-                key={step.key}
-                type="button"
-                variant={active ? 'secondary' : 'tertiary'}
-                size="sm"
-                disabled={!reached}
-                aria-current={active ? 'step' : undefined}
-                onClick={() => reached && goToStep(index)}
-                className="flex-1 justify-start"
-              >
-                <span
-                  className={cn(
-                    'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px]',
-                    active && 'bg-primary text-primary-foreground',
-                    !active && reached && 'bg-accent text-accent-foreground',
-                    !reached && 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  {reached && !active ? <CheckIcon className="size-3" /> : index + 1}
-                </span>
-                <span className="hidden truncate sm:inline">{step.label}</span>
-              </Button>
-            )
-          })}
-        </nav>
-      )}
-
       <AuthFeedback error={error} />
       <form onSubmit={handleFormSubmit} aria-label="Completar cuenta" noValidate>
         <FieldGroup>
-          <div className="flex flex-col gap-1">
-            <h3 className="text-base font-semibold text-foreground">{currentStep.heading}</h3>
-            <p className="text-sm text-muted-foreground">{currentStep.description}</p>
-          </div>
+          {/* Los campos ya dicen qué se pide: solo se explica lo que no se ve (la contraseña provisional). */}
+          <h3 className="sr-only">{currentStep.heading}</h3>
+          {currentStep.description && <p className="text-sm text-muted-foreground">{currentStep.description}</p>}
 
           {currentStep.key === 'datos' && (
             <>
