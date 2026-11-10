@@ -221,7 +221,7 @@ function SessionsList({
           />
         }
         columns={[
-          { label: 'Sesión', render: (session) => <span className="font-medium">{session.number ? `Sesión ${session.number}` : 'Sesión'}</span> },
+          { label: 'Sesión', render: (session) => (session.number ? `Sesión ${session.number}` : 'Sesión') },
           {
             label: 'Día',
             render: (session) => {
@@ -233,7 +233,7 @@ function SessionsList({
           },
           {
             label: 'Fecha',
-            render: (session) => <span className="font-medium">{formatDate(session.date)}</span>,
+            render: (session) => formatDate(session.date),
           },
           { label: 'Asistencia', render: (session) => attendanceSummary(session) },
         ]}
@@ -260,7 +260,7 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
       const notice = meta.notices.get(row.original.id)
       return (
         <div className="flex flex-col gap-1">
-          <span className="font-medium">{row.original.name}</span>
+          <span>{row.original.name}</span>
           {notice && <span className="whitespace-normal text-xs text-warning">Avisó que no asistirá: {notice.reason}</span>}
         </div>
       )
@@ -288,7 +288,7 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
 
 const CONSULT_COLUMNS: ColumnDef<TutoringSession['attendance'][number]>[] = [
   { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
-  { id: 'name', header: 'Estudiante', cell: ({ row }) => <span className="font-medium">{row.original.student_name}</span> },
+  { id: 'name', header: 'Estudiante', cell: ({ row }) => row.original.student_name },
   {
     id: 'present',
     header: () => <div className="text-center">Asistencia</div>,

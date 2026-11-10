@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeftIcon, BookOpenIcon, CheckCircle2Icon, ListChecksIcon, PaperclipIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { ArrowLeftIcon, CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { TopicFileList } from '@/components/topic-file-list'
@@ -11,7 +12,6 @@ import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -82,8 +82,17 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const activeSession = selectedSessionDate !== 'all' ? sessions.find((s) => s.date === selectedSessionDate) : null
 
   const operation = useOperation()
-  const [topicId, setTopicId] = useState<number | null>(null)
-  const [activityId, setActivityId] = useState<number | null>(null)
+  // Tema y actividad abiertos van en la URL: son pantallas dentro de la pestaña y
+  // el botón "atrás" del navegador vuelve al nivel anterior.
+  const [params, setParams] = useSearchParams()
+  const topicId = Number(params.get('topic')) || null
+  const activityId = Number(params.get('activity')) || null
+  function openLevel(nextTopic: number | null, nextActivity: number | null = null) {
+    const next = new URLSearchParams(params)
+    if (nextTopic) next.set('topic', String(nextTopic)); else next.delete('topic')
+    if (nextTopic && nextActivity) next.set('activity', String(nextActivity)); else next.delete('activity')
+    setParams(next)
+  }
   const [editing, setEditing] = useState<Editing | null>(null)
   const [deactivating, setDeactivating] = useState<Editing | null>(null)
   const [form, setForm] = useState(EMPTY)
@@ -235,6 +244,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     openForm(nextKind, record)
   }
   const rowTitle = (record: ContentRecord) => canManage && record.is_active ? 'Editar' : ''
+  const openTitle = (record: TutoringTopic | Activity) => `Abrir ${record.name}`
   const title = activity ? `Metodologías de ${activity.name}` : topic ? `Actividades de ${topic.name}` : 'Temas de la tutoría'
   const contentBlockReason = editing?.kind === 'methodology'
     ? (form.description.trim() ? null : 'Escribe la descripción de la metodología.')
@@ -253,9 +263,18 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       Registrar {LABELS[kind]}
     </Button>
   )
+  // La pantalla del tema (o de la actividad) lleva arriba la acción de editarlo.
+  const parentKind: Kind = activity ? 'activity' : 'topic'
+  const parentRecord = activity ?? topic
+  const editParentButton = parentRecord && (
+    <Button variant="secondary" className="shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(parentKind, parentRecord)}>
+      <PencilIcon data-icon="inline-start" />
+      Editar {LABELS[parentKind]}
+    </Button>
+  )
 
   return <div className="flex flex-col gap-5">
-    {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => { setTopicId(null); setActivityId(null) }}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => setActivityId(null)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
+    {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(null)}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(topic.id)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
 
     {!topic && !activity && (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -268,7 +287,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             onClear={() => setStatus('')}
             leading={sessions.length > 0 ? (
               <div className="flex shrink-0 items-center gap-2">
-                <Label htmlFor="teacher-content-session" className="text-muted-foreground">Sesión</Label>
+                <Label htmlFor="teacher-content-session" className="sr-only">Sesión</Label>
                 <SelectInput
                   id="teacher-content-session"
                   value={selectedSessionDate === 'all' ? '' : selectedSessionDate}
@@ -309,7 +328,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     {topic && (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
-        {registerButton}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {editParentButton}
+          {registerButton}
+        </div>
       </div>
     )}
 
@@ -338,19 +360,14 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       <RecordTable
         rows={topic.activities}
         loading={list.isFetching}
-        onRowClick={(item) => editRecord(item, 'activity')}
-        rowTitle={rowTitle}
+        onRowClick={(item) => { if (!operation.pending) openLevel(topic.id, item.id) }}
+        rowTitle={openTitle}
         empty={<TeacherEmpty title="Este tema aún no tiene actividades" />}
         columns={[
-          { label: 'Actividad', render: (item) => <span className="font-medium">{item.name}</span> },
+          { label: 'Actividad', render: (item) => item.name },
           { label: 'Duración', render: (item) => item.duration },
+          { label: 'Metodologías', render: (item) => <span className="text-muted-foreground">{item.methodologies.length === 1 ? '1 metodología' : `${item.methodologies.length} metodologías`}</span> },
           { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
-          {
-            label: 'Acciones',
-            render: (item) => <RowActionsMenu name={item.name} disabled={operation.pending} actions={[
-              { label: 'Ver metodologías', icon: ListChecksIcon, onSelect: () => setActivityId(item.id) },
-            ]} />,
-          },
         ]}
       />
     ) : (
@@ -362,8 +379,8 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               : list.data.filter((item) => activeSession?.topics.some((st) => st.id === item.id))
           }
           loading={list.isFetching || list.isInitialLoading}
-          onRowClick={(item) => editRecord(item, 'topic')}
-          rowTitle={rowTitle}
+          onRowClick={(item) => { if (!operation.pending) openLevel(item.id) }}
+          rowTitle={openTitle}
           empty={
             selectedSessionDate !== 'all' && activeSession ? (
               <TeacherEmpty
@@ -378,7 +395,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             )
           }
           columns={[
-            { label: 'Tema', render: (item) => <span className="font-medium">{item.name}</span> },
+            { label: 'Tema', render: (item) => item.name },
             ...(selectedSessionDate === 'all' && sessions.length > 0 ? [{
               label: 'Sesión',
               render: (item: TutoringTopic) => {
@@ -407,12 +424,6 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               ),
             },
             { label: 'Habilitado', render: (item) => <StatusBadge active={item.is_active} /> },
-            {
-              label: 'Acciones',
-              render: (item) => <RowActionsMenu name={item.name} disabled={operation.pending} actions={[
-                { label: 'Ver actividades', icon: BookOpenIcon, onSelect: () => setTopicId(item.id) },
-              ]} />,
-            },
           ]}
         />
         {selectedSessionDate === 'all' && (
@@ -440,7 +451,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       headerActions={editing?.record ? <IconAction label={`Deshabilitar ${LABELS[editing.kind]}`} icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} /> : undefined}
     >
       {editing?.kind !== 'methodology' && (
-        <FormField id="teacher-content-name" label="Nombre" counter={{ current: form.name.length, max: 150 }}>
+        <FormField id="teacher-content-name" label="Nombre" required counter={{ current: form.name.length, max: 150 }}>
           <Input
             id="teacher-content-name"
             value={form.name}
@@ -497,7 +508,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         </FormField>
       )}
       {editing?.kind === 'methodology' && (
-        <FormField id="teacher-content-description" label="Descripción" counter={{ current: form.description.length, max: 255 }}>
+        <FormField id="teacher-content-description" label="Descripción" required counter={{ current: form.description.length, max: 255 }}>
           <Textarea
             id="teacher-content-description"
             value={form.description}
@@ -534,7 +545,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                   className="mt-0.5"
                 />
                 <span className="flex flex-col gap-0.5">
-                  <span className="font-medium">{t.name}</span>
+                  <span>{t.name}</span>
                   <span className="text-xs text-muted-foreground">
                     {t.activities.length} {t.activities.length === 1 ? 'actividad planificada' : 'actividades planificadas'}
                   </span>

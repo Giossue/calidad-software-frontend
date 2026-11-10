@@ -130,7 +130,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
             label: 'Tema',
             render: (topic) => (
               <div className="flex flex-col gap-1">
-                <span className="font-medium text-foreground">{topic.title}</span>
+                <span className="text-foreground">{topic.title}</span>
                 <span className="text-xs text-muted-foreground">{topic.academic_period?.name}</span>
               </div>
             ),
@@ -162,7 +162,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                     <div className={cn('h-full transition-all', progressTone(pct))} style={{ width: `${pct}%` }} />
                   </div>
-                  <span className={cn('text-xs font-medium w-9 text-right', progressTextTone(pct))}>{pct}%</span>
+                  <span className={cn('text-xs w-9 text-right', progressTextTone(pct))}>{pct}%</span>
                 </div>
               )
             },
@@ -331,7 +331,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
         submitLabel="Registrar tarea"
         submitIcon={PlusIcon}
       >
-        <FormField id="activity-desc" label="Descripción de la tarea o entrega" counter={{ current: newActivityDesc.length, max: 1000 }}>
+        <FormField id="activity-desc" label="Descripción de la tarea o entrega" required counter={{ current: newActivityDesc.length, max: 1000 }}>
           <Textarea
             id="activity-desc"
             maxLength={1000}
@@ -510,7 +510,7 @@ function TareasPanel({
               return act.teacher ? (
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate">
-                    {act.teacher.name} {isMyTask && <span className="font-medium text-primary">(Tú)</span>}
+                    {act.teacher.name} {isMyTask && <span className="text-primary">(Tú)</span>}
                   </span>
                   <span className="text-xs text-muted-foreground">{isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}</span>
                 </div>

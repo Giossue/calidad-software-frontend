@@ -220,15 +220,13 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   'teacher-tutorings/students': [
     filters('Busca por nombre, cédula o correo y filtra por estado.'),
     step({ button: 'Registrar estudiante' }, 'Registrar estudiante', 'Inscribe a un estudiante de tu paralelo o registra uno nuevo; si es nuevo, recibe una contraseña provisional por correo.'),
-    table('Estudiantes inscritos en la tutoría. Al cerrar el ciclo, registra en «Resultado final» si aprobó o reprobó: quien aprueba pasa a la tutoría de la asignatura siguiente.'),
-    rowActions('Haz clic en un estudiante para añadir sus notas; en «⋯» deshabilitas su inscripción o lo reinscribes.'),
+    table('Estudiantes inscritos en la tutoría. Al cerrar el ciclo, registra en «Resultado final» si aprobó o reprobó: quien aprueba pasa a la tutoría de la asignatura siguiente. Haz clic en un estudiante para añadir sus notas o deshabilitar su inscripción; si está deshabilitado, haz clic para reinscribirlo.'),
     pagination,
   ],
   'teacher-tutorings/content': [
     filters('Busca un tema y filtra por estado.'),
     step({ button: 'Registrar tema' }, 'Registrar tema', 'Planifica los temas de la tutoría y adjunta recursos (PDF, Word, PowerPoint, Excel) para tus estudiantes. Dentro de cada tema registras sus actividades y metodologías.'),
-    table('Temas de la tutoría y sus recursos. Haz clic en uno para editarlo o adjuntarle archivos.'),
-    rowActions('Entra a las actividades del tema; dentro de cada actividad están sus metodologías.'),
+    table('Temas de la tutoría y sus recursos. Haz clic en uno para ver sus actividades; ahí lo editas con «Editar tema» y, en cada actividad, sus metodologías.'),
   ],
   'teacher-tutorings/attendance': [
     step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre asistencia, contenido, horarios, estudiantes y calificaciones. Cada pestaña tiene su propia guía.'),

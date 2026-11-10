@@ -199,15 +199,15 @@ describe('Módulo Docente', () => {
     workspace('students')
     await screen.findByText('Ana Pérez')
     await user.click(screen.getByRole('button', { name: 'Registrar estudiante' }))
-    await user.click(screen.getByLabelText('Estudiante'))
-    await user.click(await screen.findByRole('option', { name: /Ana Pérez/ }))
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
+    await user.click(within(form).getByLabelText(/^Estudiante/))
+    await user.click(await screen.findByRole('option', { name: /Ana Pérez/ }))
     fireEvent.submit(form); fireEvent.submit(form)
     expect(teacherApi.enrollStudent).toHaveBeenCalledTimes(1)
     expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80 })
     await act(async () => reject(new ApiError(422, { message: 'No se pudo inscribir.', errors: { student_id: ['El estudiante ya está inscrito.'] } })))
     expect(await screen.findByText('El estudiante ya está inscrito.')).toBeInTheDocument()
-    expect(screen.getByLabelText('Estudiante')).toHaveValue('Ana Pérez')
+    expect(within(form).getByLabelText(/^Estudiante/)).toHaveValue('Ana Pérez')
     expect(within(form).getByRole('button', { name: 'Inscribir estudiante' })).toBeEnabled()
   })
 
@@ -218,10 +218,15 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
     expect(within(form).getByRole('button', { name: 'Inscribir estudiante' })).toBeDisabled()
-    expect(within(form).queryByLabelText('Cédula o pasaporte')).not.toBeInTheDocument()
+    expect(within(form).queryByLabelText(/^Cédula o pasaporte/)).not.toBeInTheDocument()
 
     await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
-    expect(within(form).queryByLabelText('Estudiante')).not.toBeInTheDocument()
+    expect(within(form).queryByLabelText(/^Estudiante/)).not.toBeInTheDocument()
+    // Lo que exige el registro lleva asterisco; el teléfono es opcional.
+    for (const field of ['Cédula o pasaporte', 'Nombres y apellidos', 'Correo institucional']) {
+      expect(within(within(form).getByText(field).closest('label') as HTMLElement).getByText('(obligatorio)')).toBeInTheDocument()
+    }
+    expect(within(within(form).getByText('Teléfono').closest('label') as HTMLElement).queryByText('(obligatorio)')).not.toBeInTheDocument()
     await user.type(within(form).getByLabelText(/Cédula/i), '0201234564')
     await user.type(within(form).getByLabelText(/Nombres y Apellidos/i), 'Luis Mora')
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'luis.mora@ueb.edu.ec')
@@ -242,15 +247,32 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(teacherApi.saveGrades).toHaveBeenCalledWith(40, [{ enrollment_id: 70, diagnostic: '8.50', partial: undefined, partial_two: undefined }]))
   })
 
-  it('confirma la baja de la inscripción antes de enviarla', async () => {
+  it('confirma la baja de la inscripción, que se pide desde el registro del estudiante y no desde una columna de acciones', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.deactivateStudent).mockResolvedValue({ ...student, is_active: false })
     workspace('students')
-    await user.click(await screen.findByRole('button', { name: 'Acciones para Ana Pérez' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Deshabilitar inscripción' }))
+    await user.click(await screen.findByText('Ana Pérez'))
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
+    const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
+    await user.click(within(screen.getByRole('dialog', { name: 'Calificaciones del estudiante' })).getByRole('button', { name: 'Deshabilitar inscripción' }))
     expect(teacherApi.deactivateStudent).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: 'Deshabilitar inscripción' }))
+    const confirm = await screen.findByRole('dialog', { name: '¿Deshabilitar inscripción?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Deshabilitar inscripción' }))
     await waitFor(() => expect(teacherApi.deactivateStudent).toHaveBeenCalledWith(40, 70))
+    await waitFor(() => expect(form).not.toBeInTheDocument())
+  })
+
+  it('reinscribe con clic en la fila de una inscripción deshabilitada, tras confirmar', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, is_active: false }]))
+    vi.mocked(teacherApi.enrollStudent).mockResolvedValue(student)
+    workspace('students')
+    await user.click(await screen.findByText('Ana Pérez'))
+    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
+    const confirm = await screen.findByRole('dialog', { name: '¿Reinscribir a Ana Pérez?' })
+    expect(teacherApi.enrollStudent).not.toHaveBeenCalled()
+    await user.click(within(confirm).getByRole('button', { name: 'Reinscribir estudiante' }))
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80 }))
   })
 
   it('carga las notas por etapa: todos los estudiantes de una etapa y recién ahí guarda', async () => {
@@ -314,6 +336,8 @@ describe('Módulo Docente', () => {
     workspace('grades')
     expect(await screen.findByText('Evolución (Diag → P2)')).toBeInTheDocument()
     expect(await screen.findByText('+2.50')).toBeInTheDocument()
+    // La evolución es un valor, no un estado: va como texto, sin badge.
+    expect(screen.getByText('+2.50').closest('.rounded-full')).toBeNull()
   })
 
   it('cancela la carga de una etapa y vuelve a modo consulta, descartando lo no guardado tras confirmar', async () => {
@@ -630,7 +654,10 @@ describe('Módulo Docente', () => {
     workspace('content')
     await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
     expect(screen.queryByLabelText(/Descripción/i)).not.toBeInTheDocument()
-    await user.type(screen.getByLabelText('Nombre'), 'Introducción')
+    // El nombre es obligatorio: asterisco y aviso para lectores de pantalla.
+    const nameLabel = screen.getByText('Nombre').closest('label') as HTMLElement
+    expect(within(nameLabel).getByText('(obligatorio)')).toHaveClass('sr-only')
+    await user.type(screen.getByLabelText(/^Nombre/), 'Introducción')
     await user.click(within(screen.getByRole('form', { name: 'Registrar tema' })).getByRole('button', { name: 'Registrar tema' }))
     await waitFor(() => expect(teacherApi.createTopic).toHaveBeenCalledWith(40, { name: 'Introducción', description: '' }))
   })
@@ -642,7 +669,7 @@ describe('Módulo Docente', () => {
     workspace('content')
     await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
     const form = screen.getByRole('form', { name: 'Registrar tema' })
-    await user.type(within(form).getByLabelText('Nombre'), 'Introducción')
+    await user.type(within(form).getByLabelText(/^Nombre/), 'Introducción')
 
     const input = form.querySelector<HTMLInputElement>('input[type="file"]')!
     const pdf = new File(['%PDF'], 'guia.pdf', { type: 'application/pdf' })
@@ -670,6 +697,7 @@ describe('Módulo Docente', () => {
     expect(await screen.findByText('2 archivos')).toBeInTheDocument()
 
     await user.click(screen.getByText('Pruebas'))
+    await user.click(await screen.findByRole('button', { name: 'Editar tema' }))
     const form = await screen.findByRole('form', { name: 'Editar tema' })
     expect(within(form).getByText(/Presentación · 3.0 MB/)).toBeInTheDocument()
     await user.click(within(form).getByRole('button', { name: 'Descargar Clase 1.pptx' }))
@@ -704,22 +732,28 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('form', { name: 'Editar tema' })).not.toBeInTheDocument()
   })
 
-  it('edita un tema con clic en la fila y lo deshabilita desde la cabecera del modal', async () => {
+  it('abre el tema con clic en la fila, lo edita desde su pantalla y lo deshabilita desde la cabecera del modal', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.topics).mockResolvedValue(paginated([topic]))
     vi.mocked(teacherApi.updateTopic).mockResolvedValue({ ...topic, name: 'Pruebas 2' })
     vi.mocked(teacherApi.deactivateTopic).mockResolvedValue({ ...topic, is_active: false })
     workspace('content')
+    await screen.findByText('Pruebas')
     expect(screen.queryByRole('button', { name: /^Editar/ })).not.toBeInTheDocument()
-    await user.click(await screen.findByText('Pruebas'))
+    // Sin columna de acciones: la fila abre la pantalla del tema.
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
+    await user.click(screen.getByText('Pruebas'))
+    expect(await screen.findByRole('heading', { name: 'Actividades de Pruebas' })).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Editar tema' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Editar tema' }))
     const form = await screen.findByRole('form', { name: 'Editar tema' })
     // Sin cambios no se puede guardar.
     expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
-    await user.type(within(form).getByLabelText('Nombre'), ' 2')
+    await user.type(within(form).getByLabelText(/^Nombre/), ' 2')
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
     await waitFor(() => expect(teacherApi.updateTopic).toHaveBeenCalledWith(40, 90, { name: 'Pruebas 2', description: '' }))
 
-    await user.click(await screen.findByText('Pruebas'))
+    await user.click(await screen.findByRole('button', { name: 'Editar tema' }))
     await user.click(await screen.findByRole('button', { name: 'Deshabilitar tema' }))
     await user.click(await screen.findByRole('button', { name: 'Deshabilitar contenido' }))
     await waitFor(() => expect(teacherApi.deactivateTopic).toHaveBeenCalledWith(40, 90))
@@ -740,20 +774,30 @@ describe('Módulo Docente', () => {
       return method
     })
     workspace('content')
-    await user.click(await screen.findByRole('button', { name: 'Acciones para Pruebas' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Ver actividades' }))
-    await user.click(screen.getByRole('button', { name: 'Registrar actividad' }))
-    await user.type(screen.getByLabelText('Nombre'), 'Diseñar casos')
+    await user.click(await screen.findByText('Pruebas'))
+    await user.click(await screen.findByRole('button', { name: 'Registrar actividad' }))
+    await user.type(screen.getByLabelText(/^Nombre/), 'Diseñar casos')
     expect(screen.queryByRole('button', { name: '30m' })).not.toBeInTheDocument()
     await user.click(within(screen.getByRole('form', { name: 'Registrar actividad' })).getByRole('button', { name: 'Registrar actividad' }))
     await waitFor(() => expect(teacherApi.createActivity).toHaveBeenCalledWith(40, 90, { name: 'Diseñar casos', duration: '30 minutos' }))
-    await user.click(await screen.findByRole('button', { name: 'Acciones para Diseñar casos' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Ver metodologías' }))
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
+    await user.click(await screen.findByText('Diseñar casos'))
+    expect(await screen.findByRole('heading', { name: 'Metodologías de Diseñar casos' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editar actividad' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Registrar metodología' }))
-    await user.type(screen.getByLabelText('Descripción'), 'Trabajo colaborativo')
+    await user.type(screen.getByLabelText(/^Descripción/), 'Trabajo colaborativo')
     await user.click(within(screen.getByRole('form', { name: 'Registrar metodología' })).getByRole('button', { name: 'Registrar metodología' }))
     expect(await screen.findByText('Trabajo colaborativo')).toBeInTheDocument()
     expect(teacherApi.createMethodology).toHaveBeenCalledWith(40, 90, 91, { description: 'Trabajo colaborativo' })
+  })
+
+  it('abre la pantalla de un tema desde la URL y vuelve a la lista de temas', async () => {
+    const user = userEvent.setup()
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
+    expect(await screen.findByRole('heading', { name: 'Actividades de Pruebas' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Temas' }))
+    expect(await screen.findByRole('row', { name: /Pruebas/ })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Actividades de Pruebas' })).not.toBeInTheDocument()
   })
 
   it('ya no ofrece el informe libre y sigue mostrando como texto los informes libres anteriores', async () => {
@@ -764,7 +808,12 @@ describe('Módulo Docente', () => {
     expect(await screen.findByRole('button', { name: 'Reportes oficiales' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enviar informe' })).not.toBeInTheDocument()
     await user.click(await screen.findByRole('row', { name: /María López/ }))
+    // El informe se lee en su propia pantalla, no en un modal, y se vuelve a la lista.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Informe de tutorías' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Contenido del informe' })).toHaveTextContent('Estudiantes inscritos: 1')
+    await user.click(screen.getByRole('button', { name: 'Volver a los informes' }))
+    expect(await screen.findByRole('row', { name: /María López/ })).toBeInTheDocument()
   })
 
   it('prepara el reporte de evaluación diagnóstica con el formato oficial y lo envía a coordinación', async () => {
@@ -888,6 +937,14 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Seguimiento de Tutorías' }))
 
     const form = screen.getByRole('form', { name: 'Reporte de seguimiento a las tutorías' })
+    // Paso 1: el período del reporte (todo obligatorio); el documento se revisa en el paso 2.
+    expect(within(form).getByRole('navigation', { name: 'Pasos de Reporte de seguimiento a las tutorías' })).toBeInTheDocument()
+    for (const field of ['Parcial', 'Tutorías desde', 'Tutorías hasta', 'Fecha de presentación']) {
+      expect(within(within(form).getByText(field).closest('label') as HTMLElement).getByText('(obligatorio)')).toBeInTheDocument()
+    }
+    expect(within(form).queryByRole('table', { name: 'Actividades programadas' })).not.toBeInTheDocument()
+    expect(within(form).queryByRole('button', { name: 'Enviar a coordinación' })).not.toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     const activities = await within(form).findByRole('table', { name: 'Actividades programadas' })
     expect(within(activities).getAllByText('2026/03/19')).toHaveLength(2)
     expect(within(activities).getByText('Aprendizaje basado en problemas (ABP)')).toBeInTheDocument()
@@ -899,8 +956,10 @@ describe('Módulo Docente', () => {
     expect(within(improved).getByText('3,00')).toBeInTheDocument()
     expect(within(improved).getByText('6,00')).toBeInTheDocument()
 
-    await choose(user, within(form).getByLabelText('Parcial'), 'Segundo parcial')
+    await user.click(within(form).getByRole('button', { name: 'Atrás' }))
+    await choose(user, within(form).getByLabelText(/^Parcial/), 'Segundo parcial')
     await waitFor(() => expect(teacherApi.followUpReportPreview).toHaveBeenLastCalledWith(40, { partial: 2, from: '2026-01-01', to: today, date: today }))
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     await user.type(within(form).getByLabelText(/Observación/), 'Temas elegidos por los estudiantes.')
     await user.click(within(form).getByRole('button', { name: 'Enviar a coordinación' }))
 
@@ -936,16 +995,20 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Informe Final PAO' }))
 
     const form = screen.getByRole('form', { name: 'Informe final PAO' })
+    // Paso 1: datos del informe y asignaturas incluidas; el documento se revisa en el paso 2.
+    expect(within(within(form).getByText('Fecha de informe').closest('label') as HTMLElement).getByText('(obligatorio)')).toBeInTheDocument()
+    expect(within(form).queryByRole('table', { name: 'Matriz de operacionalización de tutorías' })).not.toBeInTheDocument()
+    expect(await within(form).findByLabelText('Calidad de software · Paralelo A', { selector: 'button' })).toBeDisabled()
+    await user.click(within(form).getByLabelText('Métodos Numéricos · Paralelo A', { selector: 'button' }))
+    await waitFor(() => expect(teacherApi.finalPaoReportPreview).toHaveBeenLastCalledWith(40, { date: today, tutoring_ids: [40, 41] }))
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
+
     const matrix = await within(form).findByRole('table', { name: 'Matriz de operacionalización de tutorías' })
     expect(within(matrix).getByRole('columnheader', { name: '% Efectividad de las tutorías' })).toBeInTheDocument()
     expect(within(matrix).getByText('50%')).toBeInTheDocument()
     expect(within(matrix).getByText('4,5')).toBeInTheDocument()
     expect(within(form).getByRole('table', { name: 'Horario de tutorías' })).toHaveTextContent('Miércoles')
     expect(within(form).getByRole('table', { name: 'Estudiantes que mejoraron su rendimiento en Calidad de software' })).toHaveTextContent('8,00')
-    expect(within(form).getByLabelText('Calidad de software · Paralelo A', { selector: 'button' })).toBeDisabled()
-
-    await user.click(within(form).getByLabelText('Métodos Numéricos · Paralelo A', { selector: 'button' }))
-    await waitFor(() => expect(teacherApi.finalPaoReportPreview).toHaveBeenLastCalledWith(40, { date: today, tutoring_ids: [40, 41] }))
     await user.type(within(form).getByLabelText(/Calidad de software · Paralelo A/, { selector: 'input' }), 'Asistencia constante.')
     expect(within(matrix).getByText('Asistencia constante.')).toBeInTheDocument()
     await user.type(within(form).getByLabelText(/Conclusiones/), 'Se redujo el riesgo.')

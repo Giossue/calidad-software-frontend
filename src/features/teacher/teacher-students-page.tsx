@@ -8,7 +8,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FieldDescription } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { RowActionsMenu } from '@/components/ui/row-actions-menu'
+import { IconAction } from '@/components/ui/icon-action'
 import { SearchSelect } from '@/components/ui/search-select'
 import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -60,6 +60,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   }
   const [open, setOpen] = useState(false)
   const [deactivating, setDeactivating] = useState<Enrollment | null>(null)
+  const [reenrolling, setReenrolling] = useState<Enrollment | null>(null)
   const [gradingStudent, setGradingStudent] = useState<Enrollment | null>(null)
   const [gradesForm, setGradesForm] = useState(EMPTY_GRADES)
   const [initialGrades, setInitialGrades] = useState(EMPTY_GRADES)
@@ -85,8 +86,15 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
     )
   }
 
-  // La fila abre las notas solo de una inscripción activa en una tutoría en curso.
+  // La fila abre el registro del estudiante: sus notas si la inscripción está activa,
+  // o la confirmación para reinscribirlo si está deshabilitada (sin columna de acciones).
   const canGrade = (student: Enrollment) => tutoring.can_manage && student.is_active && !operation.pending
+  const canReenroll = (student: Enrollment) => tutoring.can_manage && !student.is_active && student.student_is_active && !operation.pending
+
+  function openStudent(student: Enrollment) {
+    if (canGrade(student)) openGrades(student)
+    else if (canReenroll(student)) { operation.clearError(); setReenrolling(student) }
+  }
 
   function openGrades(student: Enrollment) {
     const current = {
@@ -147,8 +155,8 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       <Button className="shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>
     </div>
     <ErrorNotice message={list.error} retry={list.reload} />{!open && !gradingStudent && <ErrorNotice message={operation.error} />}
-    <RecordTable rows={list.data} numberFrom={list.meta?.from} loading={list.isFetching || list.isInitialLoading} onRowClick={(student) => { if (canGrade(student)) openGrades(student) }} rowTitle={(student) => (canGrade(student) ? `Añadir notas de ${student.name}` : '')} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
-      { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span className="font-medium">{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
+    <RecordTable rows={list.data} numberFrom={list.meta?.from} loading={list.isFetching || list.isInitialLoading} onRowClick={openStudent} rowTitle={(student) => (canGrade(student) ? `Añadir notas de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
+      { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
       { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
       { label: 'Grupo de Conocimiento', render: (student) => student.knowledge_group
         ? <span>{student.knowledge_group}</span>
@@ -170,10 +178,6 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
       </div> },
       { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
-      { label: 'Acciones', render: (student) => <RowActionsMenu name={student.name} disabled={!tutoring.can_manage || operation.pending} actions={[
-        { label: 'Reinscribir', icon: RotateCcwIcon, visible: !student.is_active, disabled: !student.student_is_active, onSelect: () => void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: student.student_id }), 'Estudiante inscrito nuevamente.', list.reload) },
-        { label: 'Deshabilitar inscripción', icon: PowerOffIcon, tone: 'destructive', visible: student.is_active, onSelect: () => { operation.clearError(); setDeactivating(student) } },
-      ]} /> },
     ]} />
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
 
@@ -186,7 +190,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         </TabsList>
       </Tabs>
       {mode === 'existing' && <>
-        <FormField id="teacher-student-search" label="Estudiante" tip={`Se listan los estudiantes del paralelo ${tutoring.section_name ?? ''} que aún no están inscritos en esta tutoría (hasta 100).`}>
+        <FormField id="teacher-student-search" label="Estudiante" required tip={`Se listan los estudiantes del paralelo ${tutoring.section_name ?? ''} que aún no están inscritos en esta tutoría (hasta 100).`}>
           <SearchSelect
             id="teacher-student-search"
             query={search.input}
@@ -203,7 +207,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       </>}
       {mode === 'new' && <>
         <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>
-        <FormField id="teacher-student-identification" label="Cédula o pasaporte" tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres." counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shouldShowIdentificationStatus(form.identification) ? identificationError : null}>
+        <FormField id="teacher-student-identification" label="Cédula o pasaporte" required tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres." counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shouldShowIdentificationStatus(form.identification) ? identificationError : null}>
           <Input
             id="teacher-student-identification"
             value={form.identification}
@@ -214,7 +218,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           />
         </FormField>
 
-        <FormField id="teacher-student-name" label="Nombres y apellidos" tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
+        <FormField id="teacher-student-name" label="Nombres y apellidos" required tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
           <Input
             id="teacher-student-name"
             value={form.name}
@@ -225,7 +229,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           />
         </FormField>
 
-        <FormField id="teacher-student-email" label="Correo institucional" tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`} counter={{ current: form.email.length, max: 150 }} error={emailError}>
+        <FormField id="teacher-student-email" label="Correo institucional" required tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`} counter={{ current: form.email.length, max: 150 }} error={emailError}>
           <Input
             id="teacher-student-email"
             type="email"
@@ -261,6 +265,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       onSubmit={submitGrades}
       submitLabel="Guardar calificaciones"
       blockReason={gradesBlockReason}
+      headerActions={gradingStudent ? <IconAction label="Deshabilitar inscripción" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(gradingStudent) }} /> : undefined}
     >
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -313,6 +318,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       </div>
     </FormDialog>
 
-    <ConfirmModal open={Boolean(deactivating)} title="¿Deshabilitar inscripción?" description={`${deactivating?.name ?? 'El estudiante'} dejará de participar en esta tutoría. Se conservarán sus notas y asistencias.`} confirmLabel="Deshabilitar inscripción" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => teacherApi.deactivateStudent(tutoring.id, deactivating.id), 'Inscripción deshabilitada.', async () => { setDeactivating(null); await list.reload() }) }} />
+    <ConfirmModal open={Boolean(deactivating)} title="¿Deshabilitar inscripción?" description={`${deactivating?.name ?? 'El estudiante'} dejará de participar en esta tutoría. Se conservarán sus notas y asistencias.`} confirmLabel="Deshabilitar inscripción" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => teacherApi.deactivateStudent(tutoring.id, deactivating.id), 'Inscripción deshabilitada.', async () => { setDeactivating(null); setGradingStudent(null); await list.reload() }) }} />
+    <ConfirmModal open={Boolean(reenrolling)} variant="default" confirmIcon={RotateCcwIcon} title={`¿Reinscribir a ${reenrolling?.name ?? 'el estudiante'}?`} description="Volverá a participar en esta tutoría con sus notas y asistencias anteriores." confirmLabel="Reinscribir estudiante" pending={operation.pending} onClose={() => { if (!operation.pending) setReenrolling(null) }} onConfirm={() => { if (reenrolling) void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: reenrolling.student_id }), 'Estudiante inscrito nuevamente.', async () => { setReenrolling(null); await list.reload() }) }} />
   </div>
 }

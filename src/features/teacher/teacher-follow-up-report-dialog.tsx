@@ -114,57 +114,71 @@ export function FollowUpReportDialog({
       submitLabel="Enviar a coordinación"
       submitIcon={SendIcon}
       maxWidth="max-w-5xl"
+      steps={[
+        {
+          title: 'Período del reporte',
+          description: 'Elige el parcial y las fechas de las tutorías que cubre el reporte.',
+          blockReason: validRange ? null : 'Indica un rango de fechas válido.',
+          content: <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SelectField id="follow-up-partial" label="Parcial" required value={String(partial)} onValueChange={(value) => update({ partial: value === '2' ? 2 : 1 })} options={PARTIAL_OPTIONS} />
+              <FormField id="follow-up-date" label="Fecha de presentación" required>
+                <Input id="follow-up-date" type="date" value={date} max={today} onChange={(event) => update({ date: event.target.value })} required />
+              </FormField>
+              <FormField id="follow-up-from" label="Tutorías desde" required>
+                <Input id="follow-up-from" type="date" value={from} max={to || today} onChange={(event) => update({ from: event.target.value })} required />
+              </FormField>
+              <FormField id="follow-up-to" label="Tutorías hasta" required>
+                <Input id="follow-up-to" type="date" value={to} min={from} max={today} onChange={(event) => update({ to: event.target.value })} required />
+              </FormField>
+            </div>
+            {!validRange && (
+              <Alert variant="destructive">
+                <AlertDescription>Indica un rango de fechas válido: «desde» no puede ser posterior a «hasta».</AlertDescription>
+              </Alert>
+            )}
+          </>,
+        },
+        {
+          title: 'Revisión y envío',
+          description: 'Añade una observación si hace falta y revisa el documento antes de enviarlo.',
+          content: <>
+            <FormField id="follow-up-observations" label="Observación" optional counter={{ current: observations.length, max: MAX_OBSERVATIONS }}>
+              <Textarea
+                id="follow-up-observations"
+                value={observations}
+                onChange={(event) => setObservations(event.target.value)}
+                maxLength={MAX_OBSERVATIONS}
+                rows={3}
+                placeholder="Ej.: Los temas de refuerzo fueron seleccionados por los estudiantes según sus requerimientos académicos."
+              />
+            </FormField>
+            {loading && (
+              <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Spinner aria-hidden="true" />
+                Calculando el reporte con las tutorías registradas…
+              </p>
+            )}
+            {validRange && preview && !hasSessions && (
+              <Alert>
+                <AlertDescription>No hay tutorías registradas entre las fechas indicadas. Ajusta el rango o registra la asistencia antes de enviar el reporte.</AlertDescription>
+              </Alert>
+            )}
+            {summary && (
+              <SheetFrame>
+                <FollowUpReportDocument summary={summary} />
+              </SheetFrame>
+            )}
+            {summary && (
+              <div className="flex justify-end">
+                <PrintReport disabled={operation.pending}><FollowUpReportDocument summary={summary} /></PrintReport>
+              </div>
+            )}
+          </>,
+        },
+      ]}
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SelectField id="follow-up-partial" label="Parcial" value={String(partial)} onValueChange={(value) => update({ partial: value === '2' ? 2 : 1 })} options={PARTIAL_OPTIONS} />
-        <FormField id="follow-up-from" label="Tutorías desde">
-          <Input id="follow-up-from" type="date" value={from} max={to || today} onChange={(event) => update({ from: event.target.value })} required />
-        </FormField>
-        <FormField id="follow-up-to" label="Tutorías hasta">
-          <Input id="follow-up-to" type="date" value={to} min={from} max={today} onChange={(event) => update({ to: event.target.value })} required />
-        </FormField>
-        <FormField id="follow-up-date" label="Fecha de presentación">
-          <Input id="follow-up-date" type="date" value={date} max={today} onChange={(event) => update({ date: event.target.value })} required />
-        </FormField>
-      </div>
-      <FormField id="follow-up-observations" label="Observación" optional counter={{ current: observations.length, max: MAX_OBSERVATIONS }}>
-        <Textarea
-          id="follow-up-observations"
-          value={observations}
-          onChange={(event) => setObservations(event.target.value)}
-          maxLength={MAX_OBSERVATIONS}
-          rows={3}
-          placeholder="Ej.: Los temas de refuerzo fueron seleccionados por los estudiantes según sus requerimientos académicos."
-        />
-      </FormField>
-
-      {!validRange && (
-        <Alert variant="destructive">
-          <AlertDescription>Indica un rango de fechas válido: «desde» no puede ser posterior a «hasta».</AlertDescription>
-        </Alert>
-      )}
       <ErrorNotice message={loadError} retry={() => { setLoadError(null); setAttempt((value) => value + 1) }} />
-      {loading && (
-        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner aria-hidden="true" />
-          Calculando el reporte con las tutorías registradas…
-        </p>
-      )}
-      {validRange && preview && !hasSessions && (
-        <Alert>
-          <AlertDescription>No hay tutorías registradas entre las fechas indicadas. Ajusta el rango o registra la asistencia antes de enviar el reporte.</AlertDescription>
-        </Alert>
-      )}
-      {summary && (
-        <SheetFrame>
-          <FollowUpReportDocument summary={summary} />
-        </SheetFrame>
-      )}
-      {summary && (
-        <div className="flex justify-end">
-          <PrintReport disabled={operation.pending}><FollowUpReportDocument summary={summary} /></PrintReport>
-        </div>
-      )}
     </FormDialog>
   )
 }

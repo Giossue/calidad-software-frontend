@@ -59,7 +59,7 @@ export function TeacherReportsStandalonePage() {
           />
         }
         columns={[
-          { label: 'Asignatura', render: (tutoring) => <div className="flex flex-col gap-1"><span className="font-medium">{tutoring.subject_name}</span><span className="text-xs text-muted-foreground">{tutoring.career_name}</span></div> },
+          { label: 'Asignatura', render: (tutoring) => <div className="flex flex-col gap-1"><span>{tutoring.subject_name}</span><span className="text-xs text-muted-foreground">{tutoring.career_name}</span></div> },
           { label: 'Ciclo y paralelo', render: groupLabel },
           { label: 'Estado', render: (tutoring) => <StatusBadge active={tutoring.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" /> },
         ]}

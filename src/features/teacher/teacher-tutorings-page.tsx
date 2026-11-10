@@ -33,7 +33,7 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
     ]} />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} onRowClick={(item) => onOpen(item.id)} rowTitle={(item) => `Abrir ${item.subject_name}`} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No hay tutorías para mostrar" description="Revisa los filtros o consulta con el Coordinador de Carrera tus asignaciones." />} columns={[
-      { label: 'Asignatura', render: (item) => <div className="flex flex-col gap-1"><span className="font-medium">{item.subject_name}</span><span className="text-xs text-muted-foreground">{item.career_name} · {item.modality_name}</span></div> },
+      { label: 'Asignatura', render: (item) => <div className="flex flex-col gap-1"><span>{item.subject_name}</span><span className="text-xs text-muted-foreground">{item.career_name} · {item.modality_name}</span></div> },
       { label: 'Período y ciclo', render: (item) => <div className="flex flex-col gap-1"><span>{item.period_name}</span><span className="text-xs text-muted-foreground">{item.cycle_name} · {item.section_name ?? 'Sin paralelo'}</span></div> },
       { label: 'Estudiantes', render: (item) => `${item.active_enrollment_count} inscritos` },
       { label: 'Estado', render: (item) => <StatusBadge active={item.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" /> },

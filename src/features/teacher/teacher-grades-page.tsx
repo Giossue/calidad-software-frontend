@@ -3,7 +3,6 @@ import { MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-re
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/data-table'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -155,7 +154,7 @@ type GradesTableMeta = { grid: Grid; stage: GradeType | null; settings: GradeSet
 // Columnas estables: el estado llega por `meta` para que las casillas no se remonten (y pierdan el foco) al escribir.
 const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
   { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
-  { id: 'name', header: 'Estudiante', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+  { id: 'name', header: 'Estudiante', cell: ({ row }) => row.original.name },
   ...GRADE_FIELDS.map(({ type, label }): ColumnDef<Enrollment> => ({
     id: type,
     header: ({ table }) => <div className={`text-center ${(table.options.meta as GradesTableMeta).stage === type ? 'text-foreground' : ''}`}>{label}</div>,
@@ -181,7 +180,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => focusNextRow(event, type)}
         />
         {type === 'diagnostic' && value && groupFor(value, meta.settings) && (
-          <span className="text-xs font-medium text-success">{groupFor(value, meta.settings)}</span>
+          <span className="text-xs text-success">{groupFor(value, meta.settings)}</span>
         )}
       </div>
     },
@@ -197,15 +196,16 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
       const evo = computeEvolution(diagStr, p2Str, p1Str)
 
       const icon = evo.status === 'up' ? <TrendingUpIcon aria-hidden="true" /> : evo.status === 'down' ? <TrendingDownIcon aria-hidden="true" /> : evo.status === 'same' ? <MinusIcon aria-hidden="true" /> : null
-      const variant = evo.status === 'up' ? 'success' : evo.status === 'down' ? 'danger' : 'neutral'
+      const tone = evo.status === 'up' ? 'text-success' : evo.status === 'down' ? 'text-destructive' : 'text-muted-foreground'
       // El detalle del cálculo se lee en un tooltip; la celda muestra solo la diferencia.
+      // Es un valor, no un estado: va como texto con su color, sin badge.
       return (
         <div className="flex justify-center">
           <Tooltip>
             <TooltipTrigger asChild>
               {evo.status === 'pending' || evo.status === 'no_diag'
                 ? <span tabIndex={0} className="text-xs text-muted-foreground">{evo.label}</span>
-                : <Badge tabIndex={0} variant={variant} className="tabular-nums">{icon}<span>{evo.label}</span></Badge>}
+                : <span tabIndex={0} className={`inline-flex items-center gap-1 text-sm tabular-nums [&>svg]:size-4 ${tone}`}>{icon}<span>{evo.label}</span></span>}
             </TooltipTrigger>
             <TooltipContent>{evo.title}</TooltipContent>
           </Tooltip>

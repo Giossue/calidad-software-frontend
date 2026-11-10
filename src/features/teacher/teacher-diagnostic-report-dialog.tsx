@@ -99,7 +99,7 @@ export function DiagnosticReportDialog({
       maxWidth="max-w-5xl"
     >
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
-        <FormField id="diagnostic-report-date" label="Fecha">
+        <FormField id="diagnostic-report-date" label="Fecha" required>
           <Input
             id="diagnostic-report-date"
             type="date"

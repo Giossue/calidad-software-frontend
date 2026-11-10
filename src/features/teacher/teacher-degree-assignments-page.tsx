@@ -24,7 +24,7 @@ export function TeacherDegreeAssignmentsPage() {
     ]} />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={list.data} onRowClick={setReading} rowTitle={(item) => `Ver detalle de ${item.topic.title}`} loading={list.isInitialLoading || list.isFetching} empty={<TeacherEmpty title="No tienes asignaciones de titulación con estos criterios" description="Las asignaciones aparecerán cuando el Coordinador de Titulación te designe como tutor o par académico." />} columns={[
-      { label: 'Tema', render: (item) => <div className="flex flex-col gap-1"><span className="font-medium">{item.topic.title}</span><span className="text-xs text-muted-foreground">{item.period.name}</span></div> },
+      { label: 'Tema', render: (item) => <div className="flex flex-col gap-1"><span>{item.topic.title}</span><span className="text-xs text-muted-foreground">{item.period.name}</span></div> },
       { label: 'Estudiante', render: (item) => <div className="flex flex-col gap-1"><span>{item.student.name}</span><span className="text-xs text-muted-foreground break-all">{item.student.email}</span></div> },
       { label: 'Participación', render: (item) => ROLE_LABELS[item.role] }, { label: 'Asignación', render: (item) => item.assigned_at ? formatDate(item.assigned_at) : 'Sin fecha' },
     ]} />

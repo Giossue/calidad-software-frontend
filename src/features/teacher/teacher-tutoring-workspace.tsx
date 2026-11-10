@@ -40,6 +40,9 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
     const next = new URLSearchParams(params)
     next.set('tab', value)
     next.delete('session')
+    // El tema o la actividad abiertos en Contenido no se arrastran a otra pestaña.
+    next.delete('topic')
+    next.delete('activity')
     setParams(next, { replace: true })
   }
 

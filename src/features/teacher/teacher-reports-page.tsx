@@ -11,7 +11,6 @@ import {
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,7 +64,35 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   const [gradesOpen, setGradesOpen] = useState(false)
   const [followUpOpen, setFollowUpOpen] = useState(false)
   const [finalOpen, setFinalOpen] = useState(false)
-  const readingStructured = Boolean(reading && isStructuredReport(reading.summary))
+
+  // Un informe enviado es un documento completo: se lee en su propia pantalla, no en un modal.
+  if (reading) {
+    const structured = isStructuredReport(reading.summary)
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1">
+          <Button type="button" variant="tertiary" size="sm" onClick={() => setReading(null)} className="-ml-2 w-fit">
+            <ArrowLeftIcon data-icon="inline-start" />
+            Volver a los informes
+          </Button>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-1">
+              <h3 className="text-xl font-semibold tracking-tight">{reading.type}</h3>
+              <p className="text-sm text-muted-foreground">{reading.author_name} · {formatDate(reading.generated_at, true)}</p>
+            </div>
+            {structured && <PrintStructuredReport summary={reading.summary} />}
+          </div>
+        </div>
+        <article aria-label="Contenido del informe">
+          {structured ? (
+            <StructuredReport summary={reading.summary} />
+          ) : (
+            <p className="whitespace-pre-wrap break-words text-sm leading-6">{reading.content}</p>
+          )}
+        </article>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -125,7 +152,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         onRowClick={(report) => { if (report.content) setReading(report) }}
         rowTitle={(report) => (report.content ? 'Leer informe' : '')}
         columns={[
-          { label: 'Informe', render: (report) => <span className="font-medium">{report.type}</span> },
+          { label: 'Informe', render: (report) => report.type },
           { label: 'Autor', render: (report) => report.author_name },
           { label: 'Enviado', render: (report) => formatDate(report.generated_at, true) },
         ]}
@@ -138,29 +165,6 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
         disabled={list.isFetching}
         onChange={list.setPage}
       />
-
-      <Dialog
-        open={Boolean(reading)}
-        title={reading?.type ?? 'Informe'}
-        description={reading ? `${reading.author_name} · ${formatDate(reading.generated_at, true)}` : undefined}
-        confirmClose={false}
-        onClose={() => setReading(null)}
-        maxWidth={readingStructured ? 'max-w-5xl' : undefined}
-      >
-        <div className="flex flex-col gap-5">
-          <article aria-label="Contenido del informe" className="max-h-[60vh] overflow-y-auto">
-            {readingStructured ? (
-              <StructuredReport summary={reading?.summary} />
-            ) : (
-              <p className="whitespace-pre-wrap break-words text-sm leading-6">{reading?.content}</p>
-            )}
-          </article>
-          <div className="flex flex-wrap justify-end gap-3">
-            {readingStructured && <PrintStructuredReport summary={reading?.summary} />}
-            <DialogCancelButton>Cerrar informe</DialogCancelButton>
-          </div>
-        </div>
-      </Dialog>
     </div>
   )
 }
@@ -287,7 +291,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
           },
           {
             label: 'Fecha',
-            render: (session) => <span className="font-medium">{formatDate(session.date)}</span>,
+            render: (session) => formatDate(session.date),
           },
           {
             label: 'Asistencia',
