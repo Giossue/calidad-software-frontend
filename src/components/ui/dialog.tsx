@@ -51,7 +51,6 @@ export function Dialog({
   confirmCloseDescription = '¿Estás seguro de cerrar este formulario? Cualquier información o cambio realizado que no haya sido guardado se perderá por completo.',
   dismissible = true,
   headerActions,
-  layout = 'center',
 }: Readonly<{
   open: boolean
   onClose: () => void
@@ -67,8 +66,6 @@ export function Dialog({
   dismissible?: boolean
   /** Acciones de la cabecera (solo icono), junto al botón de cerrar. */
   headerActions?: ReactNode
-  /** `sheet`: panel lateral derecho a toda la altura (formularios de crear y editar). */
-  layout?: 'center' | 'sheet'
 }>) {
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -117,10 +114,10 @@ export function Dialog({
 
   return (
     <DialogContext.Provider value={{ requestClose: handleAttemptClose }}>
-      <div className={cn('fixed inset-0 z-50 flex', layout === 'sheet' ? 'justify-end' : 'items-center justify-center p-4 sm:p-6')}>
-        {/* Fondo atenuado */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        {/* Fondo oscuro, igual que en sílabos */}
         <div
-          className="fixed inset-0 bg-black/50 transition-opacity animate-in fade-in"
+          className="fixed inset-0 bg-black/80 transition-opacity animate-in fade-in"
           onClick={handleAttemptClose}
         />
 
@@ -130,10 +127,7 @@ export function Dialog({
           aria-modal="true"
           aria-label={title}
           className={cn(
-            'relative z-10 flex w-full flex-col bg-card shadow-modal ring-1 ring-surface-ring animate-in duration-150',
-            layout === 'sheet'
-              ? 'h-dvh slide-in-from-right sm:rounded-l-xl'
-              : 'max-h-[calc(100dvh-2rem)] rounded-xl zoom-in-95',
+            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-lg border bg-card text-card-foreground shadow-modal animate-in fade-in-0 zoom-in-95 duration-200',
             maxWidth,
           )}
           onClick={(e) => e.stopPropagation()}
@@ -161,15 +155,15 @@ export function Dialog({
           </div>
 
           {/* Cuerpo del Modal */}
-          <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6', layout === 'sheet' && 'flex flex-col')}>{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
 
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (
             <div
-              className="absolute inset-0 z-30 flex items-center justify-center rounded-xl bg-black/50 p-6 animate-in fade-in duration-150"
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-black/80 p-6 animate-in fade-in duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex w-full max-w-md flex-col gap-5 rounded-xl bg-card p-6 shadow-modal ring-1 ring-surface-ring animate-in zoom-in-95 duration-150">
+              <div className="flex w-full max-w-md flex-col gap-5 rounded-lg border bg-card p-6 shadow-modal animate-in zoom-in-95 duration-150">
                 <div className="flex flex-col gap-1.5">
                   <h3 className="text-base font-semibold text-foreground">
                     {confirmCloseTitle}

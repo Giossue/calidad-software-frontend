@@ -29,7 +29,6 @@ export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
       size="icon"
       onClick={toggle}
       aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      title={isDark ? 'Modo claro' : 'Modo oscuro'}
       data-tour="theme"
       className={cn('relative overflow-hidden', className)}
     >

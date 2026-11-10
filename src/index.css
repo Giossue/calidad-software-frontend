@@ -55,8 +55,8 @@
 :root {
   /* Azul institucional #002341, aclarado para que el botón se lea como azul. */
   --brand-blue: hsl(207.7 100% 30%);
-  --brand-red: hsl(2 70% 40%);
-  --brand-red-contrast: hsl(2 70% 40%);
+  --brand-red: hsl(0 84.2% 48%);
+  --brand-red-contrast: hsl(0 84.2% 48%);
   --background: hsl(0 0% 98%);
   --foreground: hsl(0 0% 3.9%);
   --card: hsl(0 0% 100%);
@@ -68,18 +68,18 @@
   --secondary: hsl(0 0% 92.1%);
   --secondary-foreground: hsl(0 0% 9%);
   --muted: hsl(0 0% 96.1%);
-  --muted-foreground: hsl(0 0% 40%);
+  --muted-foreground: hsl(0 0% 44%);
   --accent: hsl(0 0% 96.1%);
   --accent-foreground: hsl(0 0% 9%);
-  --destructive: hsl(0 84.2% 45%);
+  --destructive: hsl(0 84.2% 48%);
   --destructive-foreground: hsl(0 0% 98%);
   --success: hsl(142 72% 26%);
   --success-foreground: hsl(142 72% 24%);
   --warning: hsl(32 95% 34%);
   --table-header: hsl(0 0% 96.1%);
-  --border: hsl(0 0% 90%);
-  --input: hsl(0 0% 80%);
-  --ring: hsl(207.7 100% 30%);
+  --border: hsl(0 0% 92%);
+  --input: hsl(0 0% 84%);
+  --ring: hsl(0 0% 3.9%);
   --radius: 0.5rem;
   --surface-ring: rgb(0 0 0 / 0.06);
   --shadow-control-value: 0 0 #0000;
@@ -91,15 +91,15 @@
   --sidebar-primary: hsl(0 0% 10%);
   --sidebar-primary-foreground: hsl(0 0% 98%);
   --sidebar-accent: hsl(0 0% 90%);
-  --sidebar-accent-foreground: hsl(0 0% 9%);
+  --sidebar-accent-foreground: hsl(0 0% 30%);
   --sidebar-border: hsl(0 0% 91%);
-  --sidebar-ring: hsl(207.7 100% 30%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
 .dark {
   --brand-blue: hsl(207.7 100% 35%);
-  --brand-red: hsl(0 84% 60%);
-  --brand-red-contrast: hsl(0 84% 60%);
+  --brand-red: hsl(0 84% 48%);
+  --brand-red-contrast: hsl(0 84% 48%);
   --background: hsl(0 0% 3.9%);
   --foreground: hsl(0 0% 98%);
   --card: hsl(0 0% 9%);
@@ -111,15 +111,15 @@
   --secondary: hsl(0 0% 14.9%);
   --secondary-foreground: hsl(0 0% 98%);
   --muted: hsl(0 0% 16.08%);
-  --muted-foreground: hsl(0 0% 66%);
+  --muted-foreground: hsl(0 0% 63.9%);
   --accent: hsl(0 0% 14.9%);
   --accent-foreground: hsl(0 0% 98%);
-  --destructive: hsl(0 84% 60%);
+  --destructive: hsl(0 84% 48%);
   --destructive-foreground: hsl(0 0% 98%);
   --success: hsl(142 69% 58%);
   --success-foreground: hsl(142 69% 70%);
   --warning: hsl(38 92% 60%);
-  --table-header: hsl(0 0% 14.9%);
+  --table-header: hsl(0 0% 16.08%);
   --border: hsl(0 0% 16%);
   --input: hsl(0 0% 24%);
   --ring: hsl(0 0% 83.1%);

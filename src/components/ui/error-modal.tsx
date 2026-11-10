@@ -382,24 +382,22 @@ export function ErrorModal({
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
       {/* Backdrop oscuro con desenfoque suave */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/80 transition-opacity"
         onClick={onClose}
       />
 
       {/* Contenedor Modal de Error */}
       <div
-        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto rounded-lg border border-destructive/30 bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-150"
+        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col gap-5 overflow-y-auto rounded-lg border bg-card p-6 shadow-modal animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="error-modal-title"
       >
-        <div className="flex items-start gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-            <AlertCircleIcon className="size-6" />
-          </div>
+        <div className="flex items-start gap-3">
+          <AlertCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />
           <div className="flex flex-1 flex-col gap-1.5 pr-2">
-            <h3 id="error-modal-title" className="text-lg font-bold text-foreground">
+            <h3 id="error-modal-title" className="text-lg font-semibold text-foreground">
               {title}
             </h3>
             <p className="text-sm leading-relaxed text-muted-foreground">
@@ -411,7 +409,7 @@ export function ErrorModal({
           </Button>
         </div>
 
-        <div className="flex items-center justify-end border-t border-border pt-4">
+        <div className="flex items-center justify-end">
           <Button type="button" onClick={onClose}>
             <CheckIcon data-icon="inline-start" />
             {buttonLabel}

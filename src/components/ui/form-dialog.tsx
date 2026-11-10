@@ -9,11 +9,11 @@ import { FieldGroup } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 
 /**
- * Formulario estándar en un panel lateral derecho, con pie fijo (Cancelar + acción).
+ * Formulario estándar en un modal centrado, con pie fijo (Cancelar + acción).
  * Pide confirmar al cerrar solo si hay cambios (`dirty`) y deja "Guardar" bloqueado cuando:
  *  - no hay cambios (`requireChanges`, activo por defecto), o
  *  - el formulario no es válido (`blockReason`: se muestra junto al botón, no escondido).
- * Un error del servidor se muestra una sola vez, en línea, dentro del panel.
+ * Un error del servidor se muestra una sola vez, en línea, dentro del modal.
  * `headerActions` son acciones de solo icono junto a la X (p. ej. habilitar/desactivar).
  */
 export function FormDialog({
@@ -66,7 +66,6 @@ export function FormDialog({
   return (
     <Dialog
       open={open}
-      layout="sheet"
       title={title}
       description={description}
       confirmClose={dirty}
