@@ -146,7 +146,7 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
         open={open}
         onClose={close}
         title="Subir nueva malla curricular"
-        description={`${careerName}. La malla nueva rige desde el PAO que elijas y solo para los estudiantes hasta el ciclo que indiques; los de ciclos superiores terminan con la malla anterior.`}
+        description={`${careerName}. Sube el archivo, elige desde qué PAO rige y a qué ciclos se aplica.`}
         confirmClose={dirty}
         maxWidth="max-w-4xl"
       >
@@ -197,7 +197,7 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
               options={cycleOptions.map((number) => ({ value: String(number), label: number === 1 ? 'Solo 1.º ciclo' : `De 1.º a ${number}.º ciclo` }))}
             />
             {period && cycle > 0 && (
-              <p className="rounded-lg border bg-muted/30 p-3 text-sm" aria-live="polite">
+              <p className="text-sm text-muted-foreground" aria-live="polite">
                 Desde <strong>{period.name}</strong>, los estudiantes que hoy están de 1.º a {cycle}.º ciclo seguirán la nueva malla. Los de {cycle + 1}.º ciclo en adelante seguirán con <strong>{current?.name ?? 'la malla anterior'}</strong> hasta terminar.
               </p>
             )}
@@ -216,10 +216,10 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
               {rows.length} asignaturas · rige desde {period?.name} para 1.º a {cycle}.º ciclo.
               {errors.size > 0 ? ` Corrige ${errors.size === 1 ? 'la asignatura marcada' : `las ${errors.size} asignaturas marcadas`} para continuar.` : ' Revisa las previas: separa varias con «|».'}
             </p>
-            <div className="max-h-[50vh] overflow-auto rounded-lg border">
+            <div className="max-h-[50vh] overflow-auto rounded-md ring-1 ring-surface-ring">
               <table className="w-full text-left text-sm">
                 <caption className="sr-only">Asignaturas de la nueva malla</caption>
-                <thead className="sticky top-0 z-10 bg-muted">
+                <thead className="sticky top-0 z-10 bg-field">
                   <tr>
                     <th scope="col" className="px-2 py-2">Código</th>
                     <th scope="col" className="px-2 py-2">Nombre</th>

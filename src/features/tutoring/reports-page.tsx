@@ -1,13 +1,9 @@
 import { useState } from 'react'
-import { FileTextIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { IconAction } from '@/components/ui/icon-action'
-import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { PrintStructuredReport, StructuredReport } from '@/features/reports/structured-report'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isStructuredReport } from '@/lib/structured-report'
@@ -68,6 +64,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
       <CareerBreadcrumb root="Informes" career={careerName} onBack={onBack} />
       <ModuleHeader
         title={careerName}
+        description="Lee los informes que envían los docentes de tus tutorías. Haz clic en uno para abrirlo."
       />
 
       <FilterBar
@@ -93,15 +90,9 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
       <RecordTable
         rows={list.data}
         loading={list.isFetching || list.isInitialLoading}
-        empty={
-          <Empty className="border-none p-6">
-            <EmptyMedia variant="icon"><FileTextIcon /></EmptyMedia>
-            <EmptyTitle>No hay informes registrados</EmptyTitle>
-            <EmptyDescription>
-              Los informes académicos registrados por los docentes en las tutorías aparecerán aquí.
-            </EmptyDescription>
-          </Empty>
-        }
+        empty={list.searchInput || cycleFilter
+          ? 'No hay informes con estos filtros.'
+          : 'Aún no hay informes. Aparecerán aquí cuando los docentes los envíen.'}
         onRowClick={(report) => { if (report.content) setReadingReport(report) }}
         rowTitle={(report) => report.content ? `Leer informe ${report.type}` : ''}
         isRowSelected={(report) => readingReport?.id === report.id}
@@ -113,15 +104,9 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
                 <span className="font-medium text-foreground">
                   {report.subject_name || `Tutoría #${report.tutoring_id ?? report.id}`}
                 </span>
-                <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
-                  {report.career_name && <span>{report.career_name}</span>}
-                  {report.cycle_name && <span>· {report.cycle_name}</span>}
-                  {report.section_name && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      Paralelo {report.section_name}
-                    </Badge>
-                  )}
-                </div>
+                <span className="text-xs text-muted-foreground">
+                  {[report.career_name, report.cycle_name, report.section_name ? `Paralelo ${report.section_name}` : null].filter(Boolean).join(' · ')}
+                </span>
               </div>
             ),
           },
@@ -130,32 +115,23 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             render: (report: TutoringReport) => (
               <div className="flex flex-col gap-0.5">
                 <span className="text-foreground">{report.type}</span>
-                <span className="text-xs text-muted-foreground">Informe #{report.id}</span>
+                {!report.content && <span className="text-xs text-muted-foreground">Sin contenido adjunto</span>}
               </div>
             ),
           },
           {
-            label: 'Docente (Autor)',
+            label: 'Docente',
             render: (report: TutoringReport) => (
               <span className="text-sm">{report.author_name || 'Docente'}</span>
             ),
           },
           {
-            label: 'Fecha de generación',
+            label: 'Fecha',
             render: (report: TutoringReport) => (
               <span className="text-sm text-muted-foreground">
                 {formatDate(report.generated_at, true)}
               </span>
             ),
-          },
-          {
-            label: 'Acciones',
-            render: (report: TutoringReport) =>
-              report.content ? (
-                <IconAction label="Leer informe" icon={FileTextIcon} onClick={() => setReadingReport(report)} />
-              ) : (
-                <span className="text-xs text-muted-foreground">Sin contenido adjunto</span>
-              ),
           },
         ]}
       />
@@ -197,14 +173,12 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
               {readingStructured ? (
                 <StructuredReport summary={readingReport.summary} />
               ) : (
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
-                    {readingReport.content}
-                  </p>
-                </div>
+                <p className="whitespace-pre-wrap text-sm leading-6 [overflow-wrap:anywhere] text-foreground">
+                  {readingReport.content}
+                </p>
               )}
             </article>
-            <div className="flex flex-wrap justify-end gap-3 pt-2 border-t">
+            <div className="flex flex-wrap justify-end gap-3">
               {readingStructured && <PrintStructuredReport summary={readingReport.summary} />}
               <Button type="button" variant="secondary" onClick={() => setReadingReport(null)}>
                 Cerrar informe

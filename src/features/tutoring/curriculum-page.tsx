@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { SelectField } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -158,18 +159,18 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
           {[1, 2, 3].map((index) => <Skeleton key={index} className="h-28 w-full" />)}
         </div>
       ) : rows.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Esta carrera aún no tiene asignaturas activas. Regístralas en Asignaturas.</p>
+        <EmptyState className="rounded-md ring-1 ring-surface-ring">Esta carrera aún no tiene asignaturas activas. Regístralas en Asignaturas.</EmptyState>
       ) : (
         <>
-          <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:justify-between" aria-live="polite" data-tour="curriculum-detail">
+          <div className="flex flex-col gap-3 rounded-md bg-muted px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between" aria-live="polite" data-tour="curriculum-detail">
             {selected ? (
               <div className="flex min-w-0 flex-col gap-1">
                 <span className="font-medium">{formatSubjectName(selected.name)}</span>
                 <span className="text-muted-foreground">
-                  <span className="font-medium text-amber-700 dark:text-amber-300">Viene de:</span> {(selected.previous_subjects ?? []).map((item) => formatSubjectName(item.name)).join(', ') || 'ninguna (inicia una secuencia)'}
+                  <span className="font-medium text-warning">Viene de:</span> {(selected.previous_subjects ?? []).map((item) => formatSubjectName(item.name)).join(', ') || 'ninguna (inicia una secuencia)'}
                 </span>
                 <span className="text-muted-foreground">
-                  <span className="font-medium text-emerald-700 dark:text-emerald-300">Continúa en:</span> {(selected.next_subjects ?? []).map((item) => formatSubjectName(item.name)).join(', ') || 'ninguna (aquí termina la secuencia)'}
+                  <span className="font-medium text-success">Continúa en:</span> {(selected.next_subjects ?? []).map((item) => formatSubjectName(item.name)).join(', ') || 'ninguna (aquí termina la secuencia)'}
                 </span>
               </div>
             ) : (
@@ -200,23 +201,23 @@ function CurriculumView({ catalogs, careerId, careerName, onBack }: Readonly<{ c
                           aria-pressed={isSelected}
                           onClick={() => setSelectedId(isSelected ? null : subject.id)}
                           className={cn(
-                            'flex h-full w-full flex-col gap-1.5 rounded-lg border bg-card p-3 text-left transition-[opacity,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                            isSelected && 'border-primary ring-2 ring-primary/30',
-                            isPrevious && 'border-amber-500 bg-amber-500/10',
-                            isNext && 'border-emerald-500 bg-emerald-500/10',
+                            'flex h-full w-full flex-col gap-1.5 rounded-md bg-card p-3 text-left shadow-surface ring-1 ring-surface-ring transition-[opacity,box-shadow] hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                            isSelected && 'ring-2 ring-primary',
+                            isPrevious && 'bg-warning/10 ring-2 ring-warning',
+                            isNext && 'bg-success/10 ring-2 ring-success',
                             dimmed && 'opacity-40',
                           )}
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span className="font-mono text-[11px] text-muted-foreground">{subject.code ?? 'Sin código'}</span>
-                            {isPrevious && <span className="flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"><ArrowUpIcon className="size-3" aria-hidden="true" />Previa</span>}
-                            {isNext && <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"><ArrowDownIcon className="size-3" aria-hidden="true" />Continúa</span>}
+                            <span className="font-mono text-xs text-muted-foreground">{subject.code ?? 'Sin código'}</span>
+                            {isPrevious && <span className="flex items-center gap-1 text-xs font-medium text-warning"><ArrowUpIcon className="size-4" aria-hidden="true" />Previa</span>}
+                            {isNext && <span className="flex items-center gap-1 text-xs font-medium text-success"><ArrowDownIcon className="size-4" aria-hidden="true" />Continúa</span>}
                           </span>
                           <span className="text-sm font-medium leading-snug">{formatSubjectName(subject.name)}</span>
                           <span className="mt-auto flex items-center gap-1 text-xs text-muted-foreground">
                             {nextCount > 0
-                              ? <><ArrowDownIcon className="size-3" aria-hidden="true" />{(subject.next_subjects ?? []).map((item) => formatSubjectName(item.name)).join(', ')}</>
-                              : <><FlagIcon className="size-3" aria-hidden="true" />Fin de secuencia</>}
+                              ? <><ArrowDownIcon className="size-4 shrink-0" aria-hidden="true" />{(subject.next_subjects ?? []).map((item) => formatSubjectName(item.name)).join(', ')}</>
+                              : <><FlagIcon className="size-4 shrink-0" aria-hidden="true" />Fin de secuencia</>}
                           </span>
                         </button>
                       </li>

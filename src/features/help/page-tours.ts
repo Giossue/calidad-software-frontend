@@ -125,7 +125,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     bulk('Registra varios docentes a la vez.'),
     filters('Busca por nombre o correo y filtra por carrera o estado.'),
     table('Cada fila es un docente con sus carreras. Haz clic en él para editar sus datos.'),
-    rowActions('Consulta sus carreras o desactiva al docente.'),
+    rowActions('Quita al docente de una de tus carreras.'),
     pagination,
   ],
   'tutoring-students/career-picker': careerPicker('Estudiantes'),
@@ -136,8 +136,8 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     bulk('Registra muchos estudiantes a la vez. Los importados quedan en «Sin ciclo» hasta que les asignes uno.'),
     step('[aria-label="Ciclos de la carrera"]', 'Ciclos', 'Cambia de ciclo para ver a sus estudiantes. «Sin ciclo» reúne a quienes aún no tienen uno asignado.'),
     filters('Busca por nombre, cédula o correo y filtra según sus tutorías.'),
-    table('Cada fila es un estudiante con las tutorías en las que está inscrito.'),
-    rowActions('Gestiona las tutorías del estudiante.'),
+    table('Cada fila es un estudiante con sus tutorías. Haz clic en él para abrirlo.'),
+    rowActions('En el ciclo de titulación, matricula al estudiante, dale de baja o cámbialo de ciclo.'),
     pagination,
   ],
   'tutorings/career-picker': careerPicker('Tutorías'),
@@ -156,13 +156,17 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step('[aria-label="Secciones de la tutoría"]', 'Resumen, supervisión y estudiantes', '«Resumen» muestra el docente y el horario; «Supervisión», las sesiones con su asistencia; «Estudiantes», quiénes están inscritos.'),
     table('Información de la pestaña elegida.'),
   ],
+  'tutoring-students/detail': [
+    step({ button: 'Volver a estudiantes' }, 'Volver', 'Regresa a la lista de estudiantes.'),
+    step({ button: 'Cambiar ciclo' }, 'Cambiar ciclo', 'Cambia el ciclo que cursa el estudiante.'),
+    step('[aria-label="Secciones del estudiante"]', 'Tutorías y datos', '«Tutorías» muestra en cuáles está inscrito y permite inscribirlo en otra; «Datos», su información de contacto.'),
+  ],
   'tutoring-reports/career-picker': careerPicker('Informes'),
   'tutoring-reports': [
     careerBack,
     step(HEADER, 'Informes de tutorías', 'Aquí lees los informes que envían los docentes.'),
     filters('Busca por tipo, contenido, autor o asignatura y filtra por ciclo.'),
     table('Cada fila es un informe enviado por un docente. Haz clic en él para leerlo.'),
-    rowActions('Abre el informe para leerlo completo.'),
     pagination,
   ],
 
@@ -303,7 +307,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   'student-degree-topics': [
     step(HEADER, 'Mis propuestas', 'Aquí presentas tu tema de titulación y sigues su estado.'),
     step([{ button: 'Nueva propuesta' }, { button: 'Proponer alternativa' }], 'Proponer un tema', 'Presenta tu tema. Si fue rechazado, puedes proponer una alternativa.'),
-    step({ button: 'Editar' }, 'Editar propuesta', 'Corrige tu propuesta mientras está en revisión.'),
+    step({ button: 'Cambiar propuesta' }, 'Cambiar propuesta', 'Corrige tu propuesta mientras está en revisión.'),
   ],
   'student-degree-tracking': [
     step(HEADER, 'Seguimiento', 'Aquí ves el avance de tu trabajo de titulación.'),

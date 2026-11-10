@@ -1,15 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { BanIcon, CheckCircle2Icon, LinkIcon, MoreVerticalIcon, PowerOffIcon, SaveIcon, UserPlusIcon, XCircleIcon, XIcon } from 'lucide-react'
+import { BanIcon, CheckCircle2Icon, LinkIcon, PowerOffIcon, SaveIcon, UserPlusIcon, XCircleIcon, XIcon } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { ErrorModal } from '@/components/ui/error-modal'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
+import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { Input } from '@/components/ui/input'
 import { SearchSelect } from '@/components/ui/search-select'
 import { SelectField } from '@/components/ui/select-field'
@@ -21,7 +20,6 @@ import { formatSubjectName, sanitizeDigits, sanitizeLetters } from '@/lib/saniti
 import { tutoringApi, type AvailableTeacher, type Teacher } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { FilterBar } from './filter-bar'
-import { RowActions } from './row-actions'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { ModuleHeader, RecordTable, ScopeNotice } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
@@ -135,7 +133,7 @@ export function TutoringTeachersPage() {
   })
 
   return <section className="flex flex-col gap-6">
-    <ModuleHeader title="Docentes" createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="secondary" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title="Docentes" description="Registra a los docentes de tus carreras o vincula a uno que ya tiene cuenta. Haz clic en uno para editarlo." createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="secondary" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <ScopeNotice catalogs={catalogs} />
     <FilterBar
       id="teachers"
@@ -151,7 +149,7 @@ export function TutoringTeachersPage() {
       ]}
     />
     <ErrorNotice message={list.error} retry={list.reload} />
-    <RecordTable rows={teacherRows} loading={list.isFetching || list.isInitialLoading} empty="No se encontraron docentes para esta búsqueda." onRowClick={({ teacher }) => { if (teacher.can_manage && teacher.is_active && !operation.pending) edit(teacher) }} rowTitle={({ teacher }) => teacher.can_manage && teacher.is_active ? `Editar ${teacher.name}` : ''} columns={[
+    <RecordTable rows={teacherRows} loading={list.isFetching || list.isInitialLoading} empty={list.searchInput || careerFilter || statusFilter ? 'No hay docentes con estos filtros.' : 'Aún no hay docentes registrados.'} onRowClick={({ teacher }) => { if (teacher.can_manage && teacher.is_active && !operation.pending) edit(teacher) }} rowTitle={({ teacher }) => teacher.can_manage && teacher.is_active ? `Editar ${teacher.name}` : ''} columns={[
       { label: 'Docente', span: ({ span }) => span, render: ({ teacher }) => <div className="flex flex-col gap-1"><span className="font-medium">{teacher.name}</span><span className="text-xs text-muted-foreground">{teacher.identification}</span></div> },
       { label: 'Contacto', span: ({ span }) => span, render: ({ teacher }) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono'}</span></div> },
       { label: 'Asignatura', render: ({ tutoring }) => tutoring ? <span className="leading-snug">{formatSubjectName(tutoring.subject_name)}</span> : <span className="text-sm text-muted-foreground">Sin tutorías</span> },
@@ -169,25 +167,15 @@ export function TutoringTeachersPage() {
           if (!teacher.is_active) return <span className="text-muted-foreground">—</span>
           const coordinatedCareers = catalogs.careers.filter((c) => teacher.career_ids.includes(c.id))
           if (coordinatedCareers.length === 0) return <span className="text-muted-foreground">—</span>
-          return <RowActions>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button type="button" variant="tertiary" size="icon" aria-label={`Más acciones para ${teacher.name}`} disabled={operation.pending}><MoreVerticalIcon /></Button></DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {coordinatedCareers.map((c) => (
-                  <DropdownMenuItem
-                    key={c.id}
-                    aria-label={`Quitar ${c.name} de ${teacher.name}`}
-                    onSelect={() => {
-                      operation.clearError()
-                      setUnlinking({ teacher, careerId: c.id, careerName: c.name })
-                    }}
-                  >
-                    <XIcon />Quitar de {c.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </RowActions>
+          return <RowActionsMenu name={teacher.name} disabled={operation.pending} actions={coordinatedCareers.map((c) => ({
+            label: `Quitar de ${c.name}`,
+            icon: XIcon,
+            tone: 'destructive' as const,
+            onSelect: () => {
+              operation.clearError()
+              setUnlinking({ teacher, careerId: c.id, careerName: c.name })
+            },
+          }))} />
         },
       },
     ]} />
@@ -243,7 +231,7 @@ export function TutoringTeachersPage() {
           <Input id="teacher-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required disabled={Boolean(editing)} maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
           {shouldShowIdentificationStatus(form.identification) && (
             isValidIdentification(form.identification)
-              ? <CheckCircle2Icon className="absolute right-3 size-4 text-emerald-500" aria-label="Identificación válida" />
+              ? <CheckCircle2Icon className="absolute right-3 size-4 text-success" aria-label="Identificación válida" />
               : <XCircleIcon className="absolute right-3 size-4 text-destructive" aria-label="Identificación inválida" />
           )}
         </div>
@@ -260,6 +248,5 @@ export function TutoringTeachersPage() {
     </FormDialog>
     <ConfirmModal open={Boolean(unlinking)} title="¿Quitar docente de la carrera?" description={`«${unlinking?.teacher.name ?? ''}» dejará de estar vinculado a «${unlinking?.careerName ?? ''}». Su cuenta y sus otras carreras no cambian. Si tiene tutorías activas en esa carrera, primero debes reasignarlas.`} confirmLabel="Quitar de la carrera" pending={operation.pending} onClose={() => { if (!operation.pending) setUnlinking(null) }} onConfirm={() => { if (unlinking) void operation.run(() => tutoringApi.unlinkTeacherFromCareer(unlinking.teacher.id, unlinking.careerId), 'Docente quitado de la carrera.', async () => { setUnlinking(null); await list.reload() }) }} />
     <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar docente?" description={`La cuenta de «${deactivating?.name ?? ''}» perderá el acceso y no podrá recibir nuevas asignaciones de tutorías.`} confirmLabel="Desactivar docente" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateTeacher(deactivating.id), 'Docente desactivado.', async () => { setDeactivating(null); setOpen(false); await list.reload() }) }} />
-    <ErrorModal open={Boolean(operation.errorModal && !open && !linkOpen)} onClose={operation.clearErrorModal} title={operation.errorModal?.title} description={operation.errorModal?.description} />
   </section>
 }

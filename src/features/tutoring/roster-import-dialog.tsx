@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CheckCircle2Icon, FileTextIcon, InfoIcon, TriangleAlertIcon, UploadIcon, XIcon } from 'lucide-react'
+import { CheckCircle2Icon, FileTextIcon, UploadIcon, XIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
@@ -11,10 +11,10 @@ import { tutoringApi, type RosterImport, type RosterStudentStatus } from '@/lib/
 import { cn } from '@/lib/utils'
 
 const STATUS: Record<RosterStudentStatus, { readonly preview: string; readonly done: string; readonly className: string }> = {
-  new: { preview: 'Se registra e inscribe', done: 'Registrado e inscrito', className: 'text-emerald-700 dark:text-emerald-300' },
-  enroll: { preview: 'Se inscribe', done: 'Inscrito', className: 'text-emerald-700 dark:text-emerald-300' },
+  new: { preview: 'Se registra e inscribe', done: 'Registrado e inscrito', className: 'text-success' },
+  enroll: { preview: 'Se inscribe', done: 'Inscrito', className: 'text-success' },
   enrolled: { preview: 'Ya inscrito', done: 'Ya inscrito', className: 'text-muted-foreground' },
-  blocked: { preview: 'No se inscribe', done: 'No se inscribió', className: 'text-amber-700 dark:text-amber-300' },
+  blocked: { preview: 'No se inscribe', done: 'No se inscribió', className: 'text-warning' },
   error: { preview: 'Error', done: 'Error', className: 'text-destructive' },
 }
 
@@ -77,7 +77,7 @@ export function RosterImportButton({ careerId, onFinished }: Readonly<{ careerId
         open={open}
         onClose={close}
         title="Cargar listado de la asignatura"
-        description="Sube el listado (PDF) que descargas del sistema académico. Se crea la tutoría del período vigente si no existe, se le asigna el docente y se registran e inscriben sus estudiantes."
+        description="Sube el listado que descargas del sistema académico. Al confirmar se crea la tutoría si no existe, se asigna el docente y se inscriben sus estudiantes."
         confirmClose={false}
         maxWidth="max-w-3xl"
       >
@@ -110,12 +110,12 @@ export function RosterImportButton({ careerId, onFinished }: Readonly<{ careerId
           <div className="flex flex-col gap-4" aria-live="polite">
             {report.applied && (
               <p className="flex items-center gap-2 text-sm">
-                <CheckCircle2Icon className="size-5 text-emerald-600" aria-hidden="true" />
+                <CheckCircle2Icon className="size-4 shrink-0 text-success" aria-hidden="true" />
                 Listado cargado: {count(report, 'new')} registrados, {count(report, 'enroll')} inscritos, {count(report, 'enrolled')} ya estaban y {count(report, 'blocked', 'error')} sin inscribir.
               </p>
             )}
 
-            <dl className="grid gap-x-6 gap-y-2 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-2">
+            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
               <Detail label="Asignatura" value={report.subject ? `${formatSubjectName(report.subject.name)}${report.cycle_number ? ` · ${report.cycle_number}° ciclo` : ''}` : formatSubjectName(report.subject_name)} />
               <Detail label="Paralelo" value={report.section_name} />
               <Detail label="Período" value={report.period_name ?? '—'} />
@@ -134,10 +134,10 @@ export function RosterImportButton({ careerId, onFinished }: Readonly<{ careerId
             )}
             {report.notes.length > 0 && <Notice tone="info" title="Ten en cuenta" items={report.notes} />}
 
-            <div className="max-h-72 overflow-auto rounded-lg border">
+            <div className="max-h-72 overflow-auto rounded-md ring-1 ring-surface-ring">
               <table className="w-full text-left text-sm">
                 <caption className="sr-only">Estudiantes del listado</caption>
-                <thead className="sticky top-0 bg-muted">
+                <thead className="sticky top-0 bg-field">
                   <tr>
                     <th scope="col" className="w-10 px-3 py-2">#</th>
                     <th scope="col" className="px-3 py-2">Estudiante</th>
@@ -189,16 +189,15 @@ function Detail({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="flex min-w-0 flex-col">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="truncate font-medium" title={value}>{value}</dd>
+      <dd className="font-medium [overflow-wrap:anywhere]">{value}</dd>
     </div>
   )
 }
 
 function Notice({ tone, title, items }: Readonly<{ tone: 'error' | 'info'; title: string; items: readonly string[] }>) {
-  const Icon = tone === 'error' ? TriangleAlertIcon : InfoIcon
   return (
-    <section role={tone === 'error' ? 'alert' : undefined} className={cn('flex flex-col gap-1 rounded-lg border p-3 text-sm', tone === 'error' ? 'border-destructive/40 text-destructive' : 'border-amber-200 text-amber-800 dark:border-amber-900 dark:text-amber-200')}>
-      <h3 className="flex items-center gap-2 font-semibold"><Icon className="size-4" aria-hidden="true" />{title}</h3>
+    <section role={tone === 'error' ? 'alert' : undefined} className={cn('flex flex-col gap-1 rounded-md border p-3 text-sm', tone === 'error' ? 'border-destructive/40 text-destructive' : 'border-notice-border bg-notice text-notice-foreground')}>
+      <h3 className="font-semibold">{title}</h3>
       <ul className="list-disc pl-6">
         {items.map((item) => <li key={item}>{item}</li>)}
       </ul>

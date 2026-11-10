@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { PlusIcon, PowerOffIcon, RotateCcwIcon, SaveIcon, UserPlusIcon, UsersIcon } from 'lucide-react'
+import { PlusIcon, PowerOffIcon, RotateCcwIcon, SaveIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
@@ -18,9 +18,7 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { tutoringApi, type CoordinatorAvailableStudent, type CoordinatorEnrollment, type Tutoring } from '@/lib/tutoring-api'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterBar } from '@/features/tutoring/filter-bar'
-import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
 const EMPTY_FORM = { identification: '', name: '', email: '', phone: '' }
 type Mode = 'existing' | 'new'
@@ -124,7 +122,6 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         </Button>
       </div>
       <ErrorNotice message={list.error} retry={list.reload} />
-      {!open && <ErrorNotice message={operation.error} />}
       <RecordTable
         numberFrom={list.meta?.from}
         rows={list.data}
@@ -132,13 +129,9 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         onRowClick={openForm}
         rowTitle={(student) => `Ver o editar a ${student.name}`}
         isRowSelected={(student) => open && editing?.id === student.id}
-        empty={
-          <Empty className="border-none p-0">
-            <EmptyMedia variant="icon"><UsersIcon /></EmptyMedia>
-            <EmptyTitle>No hay estudiantes para mostrar</EmptyTitle>
-            <EmptyDescription>Registra un estudiante o revisa los filtros de búsqueda.</EmptyDescription>
-          </Empty>
-        }
+        empty={list.searchInput || status
+          ? 'No hay estudiantes con estos filtros.'
+          : 'Aún no hay estudiantes inscritos en esta tutoría.'}
         columns={[
           { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span className="font-medium">{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
           { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
@@ -165,12 +158,21 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         submitIcon={editing ? SaveIcon : UserPlusIcon} submitLabel={editing ? 'Guardar cambios' : mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'}
       >
         {!editing && (
-          <Tabs value={mode} onValueChange={(value) => { setMode(value as Mode); operation.clearError() }}>
-            <TabsList aria-label="Cómo registrar al estudiante">
-              <TabsTrigger value="existing">Ya registrado</TabsTrigger>
-              <TabsTrigger value="new">Estudiante nuevo</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div role="radiogroup" aria-label="Cómo registrar al estudiante" className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {([['existing', 'Ya registrado'], ['new', 'Estudiante nuevo']] as const).map(([value, label]) => (
+              <label key={value} className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="coord-student-mode"
+                  value={value}
+                  checked={mode === value}
+                  onChange={() => { setMode(value); operation.clearError() }}
+                  className="size-4 accent-primary"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
         )}
         {!editing && mode === 'existing' && (
           <>

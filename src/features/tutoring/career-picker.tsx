@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import type { Career } from '@/lib/api'
 import { FilterBar } from './filter-bar'
@@ -38,10 +39,14 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
   const offset = (Math.min(page, lastPage) - 1) * CAREERS_PER_PAGE
   const rows = filtered.slice(offset, offset + CAREERS_PER_PAGE)
 
+  // Mientras cargan las carreras aún no se sabe si hay que elegir una (con una sola se entra
+  // directo): un esqueleto con la forma de la pantalla evita mostrar el buscador de paso.
+  if (catalogs.loading && catalogs.careers.length === 0) return <CareerLoading />
+
   return <section className="flex flex-col gap-6" data-tour-view="career-picker">
     <ModuleHeader title={title} description={description} />
     <ScopeNotice catalogs={catalogs} />
-    <FilterBar id="career-picker" search={search} onSearch={(value) => { setSearch(value); setPage(1) }} searchLabel="Buscar carrera" searchPlaceholder="Busca por nombre de carrera…" filters={[]} onClear={() => { setSearch(''); setPage(1) }} />
+    {catalogs.careers.length > 0 && <FilterBar id="career-picker" search={search} onSearch={(value) => { setSearch(value); setPage(1) }} searchLabel="Buscar carrera" searchPlaceholder="Busca por nombre de carrera…" filters={[]} onClear={() => { setSearch(''); setPage(1) }} />}
     {catalogs.careers.length > 0 && <RecordTable
       rows={rows}
       loading={catalogs.loading}
@@ -62,6 +67,14 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
       <CatalogPagination label="carreras" page={Math.min(page, lastPage)} lastPage={lastPage} disabled={false} onChange={setPage} />
     </div>}
   </section>
+}
+
+function CareerLoading() {
+  return <div role="status" aria-label="Cargando carreras" className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2"><Skeleton className="h-8 w-64" /><Skeleton className="h-5 w-96 max-w-full" /></div>
+    <Skeleton className="h-9 w-full" />
+    <div className="flex flex-col gap-3 rounded-md p-4 ring-1 ring-surface-ring"><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-4/5" /><Skeleton className="h-5 w-3/5" /></div>
+  </div>
 }
 
 export function CareerBreadcrumb({ root, career, onBack }: Readonly<{ root: string; career: string; onBack?: () => void }>) {

@@ -1,30 +1,26 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import {
+  ArrowLeftIcon,
   ArrowRightLeftIcon,
-  CheckCircle2Icon,
   GraduationCapIcon,
-  PlusIcon,
-  Trash2Icon,
   UserMinusIcon,
   UserPlusIcon,
-  XCircleIcon,
 } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
-import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { FieldGroup } from '@/components/ui/field'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
-import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
+import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
@@ -42,7 +38,6 @@ import {
 import { FilterBar } from './filter-bar'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
-import { RowActions } from './row-actions'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
 
@@ -194,7 +189,12 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     event.preventDefault()
     if (!cycleTarget || !targetCycleId) return
     void operation.run(
-      () => tutoringApi.updateStudentCycle(cycleTarget.id, Number(targetCycleId)),
+      async () => {
+        const response = await tutoringApi.updateStudentCycle(cycleTarget.id, Number(targetCycleId))
+        // La pantalla del estudiante abierta refleja su nuevo ciclo.
+        const updated = response?.data
+        if (updated) setAssignStudent((current) => (current && current.id === updated.id ? { ...current, ...updated } : current))
+      },
       `Ciclo de ${cycleTarget.name} actualizado.`,
       async () => {
         setCycleTarget(null)
@@ -363,137 +363,322 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     />
   )
 
+  const sectionLabel = (name?: string | null) => (name ? `Paralelo ${name.replace(/^Paralelo\s+/i, '')}` : null)
+  const studentCycleText = (student: CoordinatorStudent) =>
+    student.cycle_number
+      ? [`${student.cycle_number}° ciclo${isDegreeCycleNumber(student.cycle_number, careerMaxCycle) ? ' · Titulación' : ''}`, sectionLabel(student.section_name)].filter(Boolean).join(' · ')
+      : 'Sin ciclo asignado'
+  const hasStudentFilters = Boolean(list.searchInput || tutoringStatus)
+
   return (
     <div className="flex flex-col gap-6">
-      <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
-      <ModuleHeader
-        title={careerName}
-        description={
-          tabLevel
-            ? 'Registra a los estudiantes de la carrera y revisa sus tutorías por ciclo.'
-            : 'Estudiantes sin ciclo asignado: asígnales el ciclo que cursan.'
-        }
-        createLabel="Nuevo estudiante"
-        onCreate={openCreateModal}
-        extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
-      />
+      {assignStudent ? (
+        // Pantalla del estudiante: se abre al pulsar su fila. Arriba el ciclo y la acción de
+        // cambiarlo; debajo, sus tutorías y sus datos en pestañas.
+        <div className="flex flex-col gap-6" data-tour-view="detail">
+          <div>
+            <Button type="button" variant="tertiary" onClick={() => setAssignStudent(null)}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Volver a estudiantes
+            </Button>
+          </div>
 
-
-      {!isDegreeTab && (
-      <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <FilterBar
-          id="tutoring-students-filter"
-          leading={cycleSelect}
-          search={list.searchInput}
-          onSearch={list.setSearchInput}
-          searchLabel="Buscar estudiante"
-          searchPlaceholder="Busca por nombre, cédula o correo…"
-          filters={[
-            { id: 'tutoring-status', label: 'Tutorías', value: tutoringStatus, onChange: (value) => setTutoringStatus(value as '' | 'with' | 'without'), allLabel: 'Con y sin tutorías', options: [{ value: 'with', label: 'Con tutorías' }, { value: 'without', label: 'Sin tutorías' }] },
-          ]}
-          onClear={() => { list.setSearchInput(''); setTutoringStatus('') }}
-        />
-      </div>
-
-      <ErrorNotice message={list.error} retry={list.reload} />
-
-      <RecordTable<CoordinatorStudent>
-        rows={list.data}
-        numberFrom={list.meta?.from}
-        loading={list.isFetching || list.isInitialLoading}
-        empty={
-          <Empty className="border-none py-12">
-            <EmptyMedia>
-            </EmptyMedia>
-            <EmptyTitle>No se encontraron estudiantes</EmptyTitle>
-            <EmptyDescription>
-              {list.searchInput
-                ? 'No hay estudiantes que coincidan con la búsqueda. Intenta con otros términos.'
-                : activeTab === WITHOUT_CYCLE
-                  ? 'Todos los estudiantes de la carrera tienen un ciclo asignado.'
-                  : 'Aún no hay estudiantes en este ciclo. Registra estudiantes para asignarlos a tutorías.'}
-            </EmptyDescription>
-            {!list.searchInput && activeTab !== WITHOUT_CYCLE && (
-              <Button type="button" onClick={openCreateModal} className="mt-4">
-                <PlusIcon data-icon="inline-start" />
-                Registrar primer estudiante
-              </Button>
-            )}
-          </Empty>
-        }
-        columns={[
-          {
-            label: 'Estudiante',
-            render: (student) => (
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-foreground">{student.name}</span>
-                <span className="text-xs text-muted-foreground">{student.email}</span>
-                {(student.pending_subjects ?? []).length > 0 && (
-                  <span className="text-xs text-amber-700 dark:text-amber-300">
-                    Arrastra: {(student.pending_subjects ?? []).map((subject) => formatSubjectName(subject.name)).join(', ')}
-                  </span>
-                )}
-              </div>
-            ),
-          },
-          {
-            label: 'Cédula / Teléfono',
-            render: (student) => (
-              <div className="flex flex-col gap-0.5">
-                <span className="font-mono text-sm">{student.identification}</span>
-                <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
-              </div>
-            ),
-          },
-          {
-            label: 'Tutorías',
-            render: (student) => (
-              <RowActions>
-                <Button type="button" variant="secondary" size="sm" onClick={() => openAssignModal(student)} aria-label={`Gestionar tutorías de ${student.name}`}>
-                  <GraduationCapIcon data-icon="inline-start" />
-                  {student.tutorings.length === 0 ? 'Asignar' : student.tutorings.length === 1 ? '1 tutoría' : `${student.tutorings.length} tutorías`}
+          <AdminSectionHeader
+            title={assignStudent.name}
+            description={studentCycleText(assignStudent)}
+            actions={
+              <div className="flex items-center gap-2">
+                <StatusBadge active={assignStudent.is_active} />
+                <Button type="button" variant="secondary" onClick={() => openCycleModal(assignStudent)}>
+                  <ArrowRightLeftIcon data-icon="inline-start" />
+                  {assignStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
                 </Button>
-              </RowActions>
-            ),
-          },
-          { label: 'Estado', render: (student) => <span className={cn('text-sm', !student.is_active && 'text-muted-foreground')}>{student.is_active ? 'Activo' : 'Inactivo'}</span> },
-          {
-            label: 'Acciones',
-            render: (student) => (
-              <RowActions>
-                <IconAction
-                  label={student.cycle_id ? `Cambiar ciclo de ${student.name}` : `Asignar ciclo a ${student.name}`}
-                  icon={ArrowRightLeftIcon}
-                  onClick={() => openCycleModal(student)}
+              </div>
+            }
+          />
+
+          <Tabs defaultValue="tutorings">
+            <TabsList aria-label="Secciones del estudiante">
+              <TabsTrigger value="tutorings">Tutorías</TabsTrigger>
+              <TabsTrigger value="data">Datos</TabsTrigger>
+            </TabsList>
+            <TabsContent value="tutorings" className="flex flex-col gap-4">
+              {(assignStudent.pending_subjects ?? []).length > 0 && (
+                <p className="text-sm text-warning">
+                  Arrastra: {(assignStudent.pending_subjects ?? []).map((subject) => formatSubjectName(subject.name)).join(', ')}. No se le inscribe en las asignaturas que las continúan hasta que las apruebe.
+                </p>
+              )}
+              {loadingAvailable ? (
+                <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Spinner />
+                  Cargando tutorías disponibles…
+                </p>
+              ) : availableTutorings.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay más tutorías disponibles para inscribir a este estudiante.</p>
+              ) : (
+                <form onSubmit={handleAssignSubmit} aria-label="Inscribir en una tutoría" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <SelectField
+                    id="assign-tutoring-select"
+                    label="Inscribir en una tutoría"
+                    className="sm:max-w-xl sm:flex-1"
+                    value={selectedTutoringId}
+                    onValueChange={setSelectedTutoringId}
+                    disabled={operation.pending}
+                    placeholder="Elige una tutoría disponible"
+                    options={filteredAvailableTutorings.map((tutoring) => ({
+                      value: String(tutoring.id),
+                      label: `${tutoring.subject_name} (${tutoring.cycle_name}${tutoring.section_name ? ` - ${tutoring.section_name}` : ''})${tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}`,
+                    }))}
+                  />
+                  <Button type="submit" disabled={!selectedTutoringId || operation.pending}>
+                    {operation.pending ? <Spinner data-icon="inline-start" /> : <UserPlusIcon data-icon="inline-start" />}
+                    Inscribir en tutoría
+                  </Button>
+                </form>
+              )}
+              <RecordTable
+                rows={assignStudent.tutorings.map((tutoring) => ({ ...tutoring, id: tutoring.enrollment_id }))}
+                loading={false}
+                empty="Aún no está inscrito en ninguna tutoría."
+                columns={[
+                  { label: 'Asignatura', render: (tutoring) => <span className="font-medium text-foreground">{formatSubjectName(tutoring.subject_name)}</span> },
+                  { label: 'Ciclo', render: (tutoring) => tutoring.cycle_name },
+                  { label: 'Paralelo', render: (tutoring) => tutoring.section_name ?? '—' },
+                  { label: 'Período', render: (tutoring) => tutoring.period_name },
+                  {
+                    label: 'Acciones',
+                    render: (tutoring) => (
+                      <RowActionsMenu
+                        name={tutoring.subject_name}
+                        disabled={operation.pending}
+                        actions={[{ label: 'Desvincular', icon: UserMinusIcon, tone: 'destructive', onSelect: () => setUnlinking({ student: assignStudent, tutoring }) }]}
+                      />
+                    ),
+                  },
+                ]}
+              />
+            </TabsContent>
+            <TabsContent value="data">
+              <dl className="grid max-w-2xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+                <StudentDatum label="Cédula o pasaporte" value={assignStudent.identification} />
+                <StudentDatum label="Correo institucional" value={assignStudent.email} />
+                <StudentDatum label="Teléfono" value={assignStudent.phone || 'Sin teléfono'} />
+                <StudentDatum label="Ciclo" value={studentCycleText(assignStudent)} />
+              </dl>
+            </TabsContent>
+          </Tabs>
+        </div>
+      ) : (
+        <>
+          <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
+          <ModuleHeader
+            title={careerName}
+            description={
+              isDegreeTab
+                ? 'Matricula en titulación a los estudiantes del último ciclo para el período vigente.'
+                : tabLevel
+                  ? 'Registra a los estudiantes y ubícalos en su ciclo. Haz clic en uno para ver sus tutorías.'
+                  : 'Estudiantes sin ciclo asignado: haz clic en uno para asignarle el ciclo que cursa.'
+            }
+            createLabel="Nuevo estudiante"
+            onCreate={openCreateModal}
+            extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
+          />
+
+          {!isDegreeTab && (
+            <>
+              <FilterBar
+                id="tutoring-students-filter"
+                leading={cycleSelect}
+                search={list.searchInput}
+                onSearch={list.setSearchInput}
+                searchLabel="Buscar estudiante"
+                searchPlaceholder="Busca por nombre, cédula o correo…"
+                filters={[
+                  { id: 'tutoring-status', label: 'Tutorías', value: tutoringStatus, onChange: (value) => setTutoringStatus(value as '' | 'with' | 'without'), allLabel: 'Con y sin tutorías', options: [{ value: 'with', label: 'Con tutorías' }, { value: 'without', label: 'Sin tutorías' }] },
+                ]}
+                onClear={() => { list.setSearchInput(''); setTutoringStatus('') }}
+              />
+
+              <ErrorNotice message={list.error} retry={list.reload} />
+
+              <RecordTable<CoordinatorStudent>
+                rows={list.data}
+                numberFrom={list.meta?.from}
+                loading={list.isFetching || list.isInitialLoading}
+                onRowClick={openAssignModal}
+                rowTitle={(student) => `Abrir a ${student.name}`}
+                empty={
+                  hasStudentFilters
+                    ? 'No hay estudiantes con estos filtros.'
+                    : activeTab === WITHOUT_CYCLE
+                      ? 'Todos los estudiantes de la carrera tienen un ciclo asignado.'
+                      : 'Aún no hay estudiantes en este ciclo. Regístralos con «Nuevo estudiante».'
+                }
+                columns={[
+                  {
+                    label: 'Estudiante',
+                    render: (student) => (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-foreground">{student.name}</span>
+                        <span className="text-xs text-muted-foreground">{student.email}</span>
+                        {(student.pending_subjects ?? []).length > 0 && (
+                          <span className="text-xs text-warning">
+                            Arrastra: {(student.pending_subjects ?? []).map((subject) => formatSubjectName(subject.name)).join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    ),
+                  },
+                  {
+                    label: 'Cédula / Teléfono',
+                    render: (student) => (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-mono text-sm">{student.identification}</span>
+                        <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
+                      </div>
+                    ),
+                  },
+                  {
+                    label: 'Tutorías',
+                    render: (student) => (
+                      <span className={cn('text-sm', student.tutorings.length === 0 && 'text-muted-foreground')}>
+                        {student.tutorings.length === 0 ? 'Sin tutorías' : student.tutorings.length === 1 ? '1 tutoría' : `${student.tutorings.length} tutorías`}
+                      </span>
+                    ),
+                  },
+                  { label: 'Estado', render: (student) => <span className={cn('text-sm', !student.is_active && 'text-muted-foreground')}>{student.is_active ? 'Activo' : 'Inactivo'}</span> },
+                ]}
+              />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'estudiante' : 'estudiantes'}
+                </p>
+                <CatalogPagination
+                  label="estudiantes"
+                  page={list.page}
+                  lastPage={list.meta?.last_page ?? 1}
+                  disabled={list.isFetching}
+                  onChange={list.setPage}
                 />
-              </RowActions>
-            ),
-          },
-        ]}
-      />
+              </div>
+            </>
+          )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'estudiante' : 'estudiantes'}
-        </p>
-        <CatalogPagination
-          label="estudiantes"
-          page={list.page}
-          lastPage={list.meta?.last_page ?? 1}
-          disabled={list.isFetching}
-          onChange={list.setPage}
-        />
-      </div>
+          {isDegreeTab && (
+            <>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">Matrícula en Titulación</h2>
+              <FilterBar
+                id="degree-students-filter"
+                leading={cycleSelect}
+                search={degreeList.searchInput}
+                onSearch={degreeList.setSearchInput}
+                searchLabel="Buscar estudiante"
+                searchPlaceholder="Busca por nombre, cédula o correo…"
+                filters={[
+                  {
+                    id: 'enrollment-status',
+                    label: 'Estado de matrícula',
+                    value: degreeFilter,
+                    onChange: (val) => setDegreeFilter(val as '' | 'enrolled' | 'not_enrolled'),
+                    allLabel: 'Todos los estudiantes',
+                    options: [
+                      { label: 'Matriculados en Titulación', value: 'enrolled' },
+                      { label: 'Sin matrícula en Titulación', value: 'not_enrolled' },
+                    ],
+                  },
+                ]}
+                onClear={() => {
+                  degreeList.setSearchInput('')
+                  setDegreeFilter('')
+                }}
+              />
 
-      </div>
+              <ErrorNotice message={degreeList.error} retry={degreeList.reload} />
+
+              <RecordTable<DegreeStudent>
+                numberFrom={degreeList.meta?.from}
+                rows={degreeList.data}
+                loading={degreeList.isFetching || degreeList.isInitialLoading}
+                empty={
+                  degreeList.searchInput || degreeFilter !== ''
+                    ? 'No hay estudiantes con estos filtros.'
+                    : 'Aún no hay estudiantes en el ciclo de titulación. Regístralos o cámbialos de ciclo.'
+                }
+                columns={[
+                  {
+                    label: 'Estudiante',
+                    render: (student) => (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-foreground">{student.name}</span>
+                        <span className="text-xs text-muted-foreground">{student.email}</span>
+                      </div>
+                    ),
+                  },
+                  {
+                    label: 'Cédula / Teléfono',
+                    render: (student) => (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-mono text-sm">{student.identification}</span>
+                        <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
+                      </div>
+                    ),
+                  },
+                  {
+                    label: 'Ciclo',
+                    render: (student) => (
+                      <span className="text-sm text-muted-foreground">
+                        {student.cycle_number ? `Ciclo ${student.cycle_number}${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}` : 'Sin registrar'}
+                      </span>
+                    ),
+                  },
+                  {
+                    label: 'Estado en Titulación',
+                    render: (student) =>
+                      student.is_degree_enrolled
+                        ? <Badge variant="success">Matriculado{student.enrolled_at ? ` · ${student.enrolled_at}` : ''}</Badge>
+                        : <Badge variant="inactive">No matriculado</Badge>,
+                  },
+                  {
+                    label: 'Acciones',
+                    render: (student) => (
+                      // Solo se matriculan en titulación los estudiantes del último ciclo de la carrera.
+                      <RowActionsMenu
+                        name={student.name}
+                        disabled={degreeOperation.pending}
+                        actions={[
+                          { label: 'Matricular en titulación', icon: GraduationCapIcon, onSelect: () => setEnrollTarget(student), visible: !student.is_degree_enrolled, disabled: student.academic_stage !== 'titulacion' },
+                          { label: 'Cambiar ciclo', icon: ArrowRightLeftIcon, onSelect: () => openCycleModal({ id: student.student_id, name: student.name, cycle_id: student.cycle_id }) },
+                          { label: 'Dar de baja de titulación', icon: UserMinusIcon, tone: 'destructive', onSelect: () => setUnenrollTarget(student), visible: student.is_degree_enrolled },
+                        ]}
+                      />
+                    ),
+                  },
+                ]}
+              />
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {degreeList.data.length} de {degreeList.meta?.total ?? degreeList.data.length} {(degreeList.meta?.total ?? degreeList.data.length) === 1 ? 'estudiante' : 'estudiantes'}
+                </p>
+                <CatalogPagination
+                  label="estudiantes de titulación"
+                  page={degreeList.page}
+                  lastPage={degreeList.meta?.last_page ?? 1}
+                  disabled={degreeList.isFetching}
+                  onChange={degreeList.setPage}
+                />
+              </div>
+            </>
+          )}
+        </>
       )}
 
-      {/* Modal: Registrar Nuevo Estudiante */}
       <FormDialog
         open={createOpen}
-        title="Registrar Nuevo Estudiante"
-        description="Ingresa los datos personales del estudiante y, opcionalmente, asígnalo a una tutoría inicial."
+        title="Registrar estudiante"
+        description="Ingresa sus datos y, si quieres, inscríbelo en una tutoría de su ciclo."
         pending={operation.pending}
         error={operation.error}
         dirty={isFormDirty}
@@ -520,7 +705,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           />
         </FormField>
 
-        <FormField id="new-student-name" label="Nombres y Apellidos" tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
+        <FormField id="new-student-name" label="Nombres y apellidos" tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
           <Input
             id="new-student-name"
             required
@@ -533,7 +718,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
         <FormField
           id="new-student-email"
-          label="Correo Institucional"
+          label="Correo institucional"
           tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`}
           counter={{ current: form.email.length, max: 150 }}
           error={form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null}
@@ -604,270 +789,16 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         />
       </FormDialog>
 
-      {/* Modal: Gestionar y Asignar Tutorías del Estudiante */}
-      {assignStudent && (
-        <Dialog
-          open={Boolean(assignStudent)}
-          title={`Tutorías de ${assignStudent.name}`}
-          description={`Cédula: ${assignStudent.identification} | Correo: ${assignStudent.email}`}
-          onClose={() => setAssignStudent(null)}
-          maxWidth="max-w-2xl"
-        >
-          <div className="flex flex-col gap-6 p-1 max-h-[75vh] overflow-y-auto">
-            {/* Lista de tutorías actualmente inscritas */}
-            <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold text-foreground">
-                Tutorías actualmente inscritas ({assignStudent.tutorings.length})
-              </h3>
-              {assignStudent.tutorings.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic bg-muted/40 p-3 rounded-lg border border-dashed">
-                  Este estudiante no se encuentra inscrito en ninguna tutoría actualmente.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {assignStudent.tutorings.map((tutoring) => (
-                    <Card
-                      key={tutoring.enrollment_id}
-                      className="flex items-center justify-between gap-3 p-3 shadow-xs"
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {tutoring.subject_name}
-                        </span>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{tutoring.cycle_name}</span>
-                          {tutoring.section_name && <span>• Paralelo {tutoring.section_name}</span>}
-                          <span>• {tutoring.period_name}</span>
-                        </div>
-                      </div>
-                      <IconAction
-                        label={`Desvincular ${tutoring.subject_name}`}
-                        icon={Trash2Icon}
-                        tone="destructive"
-                        disabled={operation.pending}
-                        onClick={() => setUnlinking({ student: assignStudent, tutoring })}
-                      />
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <hr className="border-border" />
-
-            {/* Asignar a nueva tutoría */}
-            <form onSubmit={handleAssignSubmit} className="flex flex-col gap-4">
-              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <UserPlusIcon className="size-4 text-primary" />
-                Asignar a una nueva tutoría
-              </h3>
-
-              {loadingAvailable ? (
-                <div className="flex items-center justify-center p-6 text-sm text-muted-foreground gap-2">
-                  <Spinner className="size-4" />
-                  Cargando tutorías disponibles…
-                </div>
-              ) : availableTutorings.length === 0 ? (
-                <div className="p-4 rounded-lg bg-muted/40 border border-dashed text-xs text-muted-foreground text-center">
-                  No hay más tutorías disponibles para inscribir a este estudiante.
-                </div>
-              ) : (
-                <FieldGroup>
-                  <SelectField
-                    id="assign-tutoring-select"
-                    label="Seleccionar tutoría disponible"
-                    tip="Tutorías disponibles de la carrera para inscribir al estudiante."
-                    value={selectedTutoringId}
-                    onValueChange={setSelectedTutoringId}
-                    disabled={operation.pending}
-                    placeholder="Elige una tutoría"
-                    options={filteredAvailableTutorings.map((tutoring) => ({
-                      value: String(tutoring.id),
-                      label: `${tutoring.subject_name} (${tutoring.cycle_name}${tutoring.section_name ? ` - ${tutoring.section_name}` : ''})${tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}`,
-                    }))}
-                  />
-
-                  <ErrorNotice message={operation.error} />
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <DialogCancelButton disabled={operation.pending}>Cerrar</DialogCancelButton>
-                    <Button
-                      type="submit"
-                      disabled={!selectedTutoringId || operation.pending}
-                    >
-                      {operation.pending ? <Spinner data-icon="inline-start" /> : <UserPlusIcon data-icon="inline-start" />}
-                      Inscribir en tutoría
-                    </Button>
-                  </div>
-                </FieldGroup>
-              )}
-            </form>
-          </div>
-        </Dialog>
-      )}
-
-      {/* Modal Confirmación Desvinculación de Tutoría */}
       <ConfirmModal
         open={Boolean(unlinking)}
         title="¿Desvincular tutoría del estudiante?"
-        description={`¿Estás seguro de que deseas retirar a ${unlinking?.student.name} de la tutoría de "${unlinking?.tutoring.subject_name}"? El estudiante perderá el acceso a las sesiones de esta tutoría.`}
-        confirmLabel="Sí, desvincular"
+        description={`${unlinking?.student.name ?? 'El estudiante'} dejará la tutoría de «${unlinking?.tutoring.subject_name ?? ''}» y perderá el acceso a sus sesiones.`}
+        confirmLabel="Desvincular tutoría"
         pending={operation.pending}
         onClose={() => setUnlinking(null)}
         onConfirm={handleUnenroll}
       />
-      {isDegreeTab && (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">Matrícula en Titulación</h2>
-            <p className="text-sm text-muted-foreground">
-              En el último ciclo de la carrera los estudiantes acceden al módulo de titulación cuando están matriculados en el período vigente.
-            </p>
-          </div>
 
-          <div className="flex flex-col gap-3">
-            <FilterBar
-              id="degree-students-filter"
-              leading={cycleSelect}
-              search={degreeList.searchInput}
-              onSearch={degreeList.setSearchInput}
-              searchLabel="Buscar estudiante"
-              searchPlaceholder="Busca por nombre, cédula o correo…"
-              filters={[
-                {
-                  id: 'enrollment-status',
-                  label: 'Estado de matrícula',
-                  value: degreeFilter,
-                  onChange: (val) => setDegreeFilter(val as '' | 'enrolled' | 'not_enrolled'),
-                  allLabel: 'Todos los estudiantes',
-                  options: [
-                    { label: 'Matriculados en Titulación', value: 'enrolled' },
-                    { label: 'Sin matrícula en Titulación', value: 'not_enrolled' },
-                  ],
-                },
-              ]}
-              onClear={() => {
-                degreeList.setSearchInput('')
-                setDegreeFilter('')
-              }}
-            />
-          </div>
-
-          <ErrorNotice message={degreeList.error} retry={degreeList.reload} />
-
-          <RecordTable<DegreeStudent>
-            numberFrom={degreeList.meta?.from}
-            rows={degreeList.data}
-            loading={degreeList.isFetching || degreeList.isInitialLoading}
-            empty={
-              <Empty className="border-none py-12">
-                <EmptyMedia>
-                </EmptyMedia>
-                <EmptyTitle>No se encontraron estudiantes</EmptyTitle>
-                <EmptyDescription>
-                  {degreeList.searchInput || degreeFilter !== ''
-                    ? 'No hay estudiantes que coincidan con los filtros aplicados. Intenta con otros términos.'
-                    : 'Aún no hay estudiantes en el ciclo de titulación. Registra estudiantes o cámbialos de ciclo.'}
-                </EmptyDescription>
-              </Empty>
-            }
-            columns={[
-              {
-                label: 'Estudiante',
-                render: (student) => (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium text-foreground">{student.name}</span>
-                    <span className="text-xs text-muted-foreground">{student.email}</span>
-                  </div>
-                ),
-              },
-              {
-                label: 'Cédula / Teléfono',
-                render: (student) => (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-mono text-sm">{student.identification}</span>
-                    <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
-                  </div>
-                ),
-              },
-              {
-                label: 'Ciclo',
-                render: (student) => (
-                  <span className="text-sm text-muted-foreground">
-                    {student.cycle_number ? `Ciclo ${student.cycle_number}${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}` : 'Sin registrar'}
-                  </span>
-                ),
-              },
-              {
-                label: 'Estado en Titulación',
-                render: (student) =>
-                  student.is_degree_enrolled ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 gap-1.5 font-medium text-xs py-1 px-2.5"
-                    >
-                      <CheckCircle2Icon className="size-3.5 text-emerald-600" />
-                      Matriculado{student.enrolled_at ? ` · ${student.enrolled_at}` : ''}
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-border text-muted-foreground gap-1.5 text-xs py-1 px-2.5"
-                    >
-                      <XCircleIcon className="size-3.5 text-muted-foreground" />
-                      No matriculado
-                    </Badge>
-                  ),
-              },
-              {
-                label: 'Acciones',
-                render: (student) => (
-                  <RowActions>
-                    {student.is_degree_enrolled ? (
-                      <IconAction
-                        label={`Dar de baja a ${student.name} de titulación`}
-                        icon={UserMinusIcon}
-                        tone="destructive"
-                        onClick={() => setUnenrollTarget(student)}
-                        disabled={degreeOperation.pending}
-                      />
-                    ) : (
-                      <span title={student.academic_stage !== 'titulacion' ? 'Solo se matriculan en titulación los estudiantes que estén en el último ciclo de la carrera.' : undefined}>
-                        <IconAction
-                          label={`Matricular a ${student.name} en titulación`}
-                          icon={GraduationCapIcon}
-                          onClick={() => setEnrollTarget(student)}
-                          disabled={degreeOperation.pending || student.academic_stage !== 'titulacion'}
-                        />
-                      </span>
-                    )}
-                    <IconAction
-                      label={`Cambiar ciclo de ${student.name}`}
-                      icon={ArrowRightLeftIcon}
-                      onClick={() => openCycleModal({ id: student.student_id, name: student.name, cycle_id: student.cycle_id })}
-                    />
-                  </RowActions>
-                ),
-              },
-            ]}
-          />
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {degreeList.data.length} de {degreeList.meta?.total ?? degreeList.data.length} {(degreeList.meta?.total ?? degreeList.data.length) === 1 ? 'estudiante' : 'estudiantes'}
-            </p>
-            <CatalogPagination
-              label="estudiantes de titulación"
-              page={degreeList.page}
-              lastPage={degreeList.meta?.last_page ?? 1}
-              disabled={degreeList.isFetching}
-              onChange={degreeList.setPage}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Cambiar ciclo del estudiante */}
       <FormDialog
         open={Boolean(cycleTarget)}
         title={cycleTarget?.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
@@ -883,7 +814,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         <SelectField
           id="student-cycle"
           label="Ciclo que cursa"
-          tip="El estudiante pasa a la pestaña de ese ciclo y a su paralelo. Sus tutorías actuales se conservan."
+          tip="Pasa a ese ciclo y a su paralelo. Sus tutorías actuales se conservan."
           value={targetCycleId}
           onValueChange={setTargetCycleId}
           placeholder="Selecciona un ciclo"
@@ -894,27 +825,34 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         />
       </FormDialog>
 
-      {/* Modal Confirmación Matrícula Titulación */}
       <ConfirmModal
         open={Boolean(enrollTarget)}
-        title={`¿Matricular a ${enrollTarget?.name} en Titulación?`}
-        description={`El estudiante quedará matriculado en titulación. Se le habilitará inmediatamente la pestaña de titulación para presentar sus propuestas de grado.`}
-        confirmLabel="Confirmar matrícula"
+        title={`¿Matricular a ${enrollTarget?.name} en titulación?`}
+        description="Quedará matriculado en titulación en el período vigente y se le habilitará el módulo de titulación para presentar sus propuestas."
+        confirmLabel="Matricular en titulación"
         pending={degreeOperation.pending}
         onClose={() => setEnrollTarget(null)}
         onConfirm={handleEnrollConfirm}
       />
 
-      {/* Modal Confirmación Dar de Baja Titulación */}
       <ConfirmModal
         open={Boolean(unenrollTarget)}
-        title={`¿Dar de baja a ${unenrollTarget?.name} de Titulación?`}
-        description={`¿Estás seguro de que deseas retirar la matrícula de titulación a ${unenrollTarget?.name}? Se le deshabilitará el acceso a la pestaña de titulación para el período actual.`}
-        confirmLabel="Sí, dar de baja"
+        title={`¿Dar de baja a ${unenrollTarget?.name} de titulación?`}
+        description={`${unenrollTarget?.name ?? 'El estudiante'} perderá su matrícula y el acceso al módulo de titulación en el período vigente.`}
+        confirmLabel="Dar de baja de titulación"
         pending={degreeOperation.pending}
         onClose={() => setUnenrollTarget(null)}
         onConfirm={handleUnenrollConfirm}
       />
+    </div>
+  )
+}
+
+function StudentDatum({ label, value }: Readonly<{ label: string; value: string }>) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-medium text-foreground [overflow-wrap:anywhere]">{value}</dd>
     </div>
   )
 }

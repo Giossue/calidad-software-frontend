@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CheckIcon, LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
+import { LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -12,6 +12,7 @@ import { FieldLabel } from '@/components/ui/field'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
+import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
@@ -20,10 +21,8 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { maxCycleNumber } from '@/lib/academic-stage'
 import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
-import { cn } from '@/lib/utils'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
-import { RowActions } from './row-actions'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
@@ -307,6 +306,15 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     ? []
     : catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId) && cycle.number === Number(activeCycle)).map((cycle) => cycle.id)
 
+  function openParallels(subject: Subject) {
+    operation.clearError()
+    setParallelId('')
+    setIsAddingParallelInModal(false)
+    setNewModalParallelName('')
+    setModalParallelError(null)
+    setAssigning(subject)
+  }
+
   const renderSubjectColumns = () => [
     { label: 'Código', render: (subject: Subject) => subject.code ? <Badge variant="secondary">{subject.code}</Badge> : <span className="text-muted-foreground">—</span> },
     {
@@ -345,17 +353,19 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     { label: 'Estado', render: (subject: Subject) => <StatusBadge active={subject.is_active} activeLabel="Activa" inactiveLabel="Inactiva" /> },
     {
       label: 'Acciones',
+      // La fila abre la edición; lo demás va escrito en el menú "⋯" (sin íconos sueltos).
       render: (subject: Subject) => subject.is_active ? (
-        <RowActions>
-          <IconAction label={`Gestionar paralelos de ${formatSubjectName(subject.name)}`} icon={LayersIcon} disabled={operation.pending} onClick={() => { operation.clearError(); setParallelId(''); setIsAddingParallelInModal(false); setNewModalParallelName(''); setModalParallelError(null); setAssigning(subject) }} />
-        </RowActions>
+        <RowActionsMenu name={formatSubjectName(subject.name)} disabled={operation.pending} actions={[
+          { label: 'Gestionar paralelos', icon: LayersIcon, onSelect: () => openParallels(subject) },
+          { label: 'Desactivar', icon: PowerOffIcon, tone: 'destructive', onSelect: () => { operation.clearError(); setDeactivating(subject) } },
+        ]} />
       ) : <span className="text-muted-foreground">—</span>,
     },
   ]
 
   return <section className="flex flex-col gap-6">
     <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-    <ModuleHeader title={currentCareerName} createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title={currentCareerName} description="Registra las asignaturas de cada ciclo y sus paralelos. Haz clic en una para editarla." createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
     <FilterBar
       id="subjects"
       leading={cycleLevels.length > 0 ? <CycleSelect id="subjects-cycle" levels={cycleLevels} value={activeCycle} onChange={setCycleSelection} degreeCycleNumber={careerMaxCycle} /> : undefined}
@@ -372,7 +382,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     <RecordTable
       rows={list.data}
       loading={list.isFetching || list.isInitialLoading}
-      empty={activeCycle === ALL_CYCLES ? 'No se encontraron asignaturas para esta carrera.' : 'No hay asignaturas en este ciclo para la búsqueda actual.'}
+      empty={list.searchInput || statusFilter ? 'No hay asignaturas con estos filtros.' : activeCycle === ALL_CYCLES ? 'Aún no hay asignaturas registradas en esta carrera.' : 'Aún no hay asignaturas en este ciclo.'}
       columns={renderSubjectColumns()}
       onRowClick={(subject) => { if (subject.is_active && !operation.pending) edit(subject) }}
       rowTitle={(subject) => subject.is_active ? `Editar ${formatSubjectName(subject.name)}` : ''}
@@ -409,12 +419,10 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 value={currentPeriod ? currentPeriod.name : 'Sin período académico activo'}
                 disabled
                 readOnly
-                className="bg-muted pr-24 text-foreground cursor-not-allowed select-none"
+                className="pr-24"
                 aria-readonly="true"
               />
-              <Badge variant="outline" className="absolute right-2 text-xs text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
-                PAO actual
-              </Badge>
+              <Badge variant="secondary" className="absolute right-2">PAO actual</Badge>
             </div>
           </FormField>
           <SelectField
@@ -468,37 +476,16 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
               </div>
             ) : (
               <div id="subject-parallels" className="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Paralelos">
-                {allParallels.map((parallel) => {
-                  const isChecked = form.parallel_ids.includes(String(parallel.id))
-                  return (
-                    <label
-                      key={parallel.id}
-                      className={cn(
-                        'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium cursor-pointer transition-colors select-none',
-                        isChecked
-                          ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20'
-                          : 'bg-background hover:bg-accent text-foreground border-input',
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleParallel(String(parallel.id))}
-                        className="sr-only"
-                        aria-label={`Paralelo ${parallel.name}`}
-                      />
-                      <span
-                        className={cn(
-                          'size-4 rounded border flex items-center justify-center transition-colors',
-                          isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-input bg-background',
-                        )}
-                      >
-                        {isChecked && <CheckIcon className="size-3 stroke-[3]" />}
-                      </span>
-                      <span>{parallel.name.startsWith('Paralelo') ? parallel.name : `Paralelo ${parallel.name}`}</span>
-                    </label>
-                  )
-                })}
+                {allParallels.map((parallel) => (
+                  <label key={parallel.id} htmlFor={`subject-parallel-${parallel.id}`} className="inline-flex cursor-pointer items-center gap-2 pr-2 text-sm">
+                    <Checkbox
+                      id={`subject-parallel-${parallel.id}`}
+                      checked={form.parallel_ids.includes(String(parallel.id))}
+                      onCheckedChange={() => toggleParallel(String(parallel.id))}
+                    />
+                    {parallel.name.startsWith('Paralelo') ? parallel.name : `Paralelo ${parallel.name}`}
+                  </label>
+                ))}
                 {allParallels.length === 0 && (
                   <p className="text-xs text-muted-foreground">No hay paralelos activos registrados aún.</p>
                 )}
@@ -568,13 +555,13 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       onSubmit={addParallel}
     >
       {assignedParallels.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <FieldLabel>Paralelos asignados actualmente</FieldLabel>
-          <ul className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
+          <FieldLabel>Paralelos asignados</FieldLabel>
+          <ul className="flex flex-col divide-y divide-border">
             {assignedParallels.map((item) => (
               <li
                 key={item.key}
-                className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm bg-card"
+                className="flex items-center justify-between gap-2 py-1.5 text-sm"
               >
                 <span className="text-foreground">{item.label}</span>
                 <IconAction
@@ -592,7 +579,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         <p className="text-sm text-muted-foreground">Esta asignatura no tiene paralelos asignados en su ciclo.</p>
       )}
 
-      <div className="flex flex-col gap-3 pt-2 border-t">
+      <div className="flex flex-col gap-3">
         {isAddingParallelInModal ? (
           <FormField id="new-modal-parallel-name" label="Nuevo paralelo" error={modalParallelError}>
             <div className="flex items-center gap-2">
@@ -639,7 +626,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             />
             {availableParallelsForModal.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Todos los paralelos registrados ya están asignados a esta asignatura. Puedes crear uno nuevo si lo requieres.
+                Todos los paralelos ya están asignados. Puedes crear uno nuevo.
               </p>
             )}
             <Button
@@ -699,7 +686,7 @@ function NextSubjectsField({ subject, options, cycleNumber, value, onChange, dis
         ) : candidates.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay asignaturas de ciclos posteriores en esta carrera.</p>
         ) : (
-          <div role="group" aria-label="Asignaturas que continúan" className="flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border p-3">
+          <div role="group" aria-label="Asignaturas que continúan" className="flex max-h-56 flex-col gap-2 overflow-y-auto py-1">
             {candidates.map((item) => {
               const id = String(item.id)
               const level = levelOf(item)
