@@ -29,7 +29,7 @@ Objective: redo the whole interface (look, layout, navigation, feedback) copying
 | T8 | S2-S5,S8 | Docente screens | delegated (parallel writer) | done | 8145153 |
 | T9 | S2-S5,S8 | Estudiante screens | delegated (parallel writer) | done | b99b0e1 |
 | T10 | S5,S6 | Tours + `docs/frontend/ui-conventions.md` + `AGENTS.md` pointer | inline | done | 50fa490, f8bc1e5, a49dcde, 8145153 |
-| T11 | S10,S4,S5 | Full-screen loading skeletons on every screen: T11a admin, T11b career coordination, T11c degree coordination, T11d teacher+student | delegated (4 parallel writers, trigger a) | done | pending commit |
+| T11 | S10,S4,S5 | Full-screen loading skeletons on every screen: T11a admin, T11b career coordination, T11c degree coordination, T11d teacher+student | delegated (4 parallel writers, trigger a) | done | 789f573 |
 
 T5-T9 are independent units with disjoint edit surfaces once T1-T4 land; they may run as parallel writers (Writer trigger a).
 
