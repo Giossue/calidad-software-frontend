@@ -36,9 +36,10 @@ type FilterBarProps = Readonly<{
 }>
 
 // Buscador con los filtros como selects en la misma fila (se acomodan en varias líneas
-// en pantallas angostas). "Limpiar" aparece solo cuando hay algún filtro activo.
+// en pantallas angostas). "Limpiar" aparece cuando hay algún filtro o búsqueda activa.
 export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel = 'Buscar', disabled = false, filters, onClear, leading }: FilterBarProps) {
-  const hasActive = filters.some((filter) => filter.value !== '')
+  // «Limpiar» aparece con cualquier filtro o búsqueda activa y vacía también la búsqueda.
+  const hasActive = search.trim() !== '' || filters.some((filter) => filter.value !== '')
 
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3" data-tour="page-filters">
@@ -80,7 +81,7 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
         )
       })}
       {hasActive && (
-        <Button type="button" variant="tertiary" disabled={disabled} className="shrink-0" onClick={onClear}>
+        <Button type="button" variant="tertiary" disabled={disabled} className="shrink-0" onClick={() => { onSearch(''); onClear() }}>
           <FilterXIcon data-icon="inline-start" />
           Limpiar
         </Button>

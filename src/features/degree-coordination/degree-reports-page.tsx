@@ -7,7 +7,7 @@ import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeReport } from '@/lib/degree-coordination-api'
-import { formatDegreeDate } from './degree-format'
+import { formatDegreeDate, roundPercent } from './degree-format'
 import { useDegreeResource, useDegreeSearch } from './degree-hooks'
 
 export function DegreeReportsPage() {
@@ -58,9 +58,9 @@ export function DegreeReportsPage() {
           {
             label: 'Tema',
             render: (report) => (
-              <div className="flex flex-col gap-1 max-w-sm">
-                <span className="text-foreground">{report.topic_title}</span>
-                <span className="text-xs text-muted-foreground">{report.period_name || 'Período vigente'}</span>
+              <div className="flex max-w-sm flex-col gap-1">
+                <span>{report.topic_title}</span>
+                <span>{report.period_name || 'Período vigente'}</span>
               </div>
             ),
           },
@@ -68,30 +68,24 @@ export function DegreeReportsPage() {
             label: 'Estudiante',
             render: (report) => (
               <div className="flex flex-col gap-0.5">
-                <span className="text-foreground">{report.student_name}</span>
-                <span className="text-xs text-muted-foreground">{report.student_identification}</span>
+                <span>{report.student_name}</span>
+                <span>{report.student_identification}</span>
               </div>
             ),
           },
           {
             label: 'Fecha de emisión',
-            render: (report) => (
-              <span className="text-xs text-muted-foreground">
-                {report.generated_at ? formatDegreeDate(report.generated_at) : 'Reciente'}
-              </span>
-            ),
+            render: (report) => report.generated_at ? formatDegreeDate(report.generated_at) : 'Reciente',
           },
           {
             label: 'Avance registrado',
             render: (report) => (
-              <span className="tabular-nums">{report.progress_percentage}%</span>
+              <span className="tabular-nums">{roundPercent(report.progress_percentage)}%</span>
             ),
           },
           {
             label: 'Coordinador',
-            render: (report) => (
-              <span className="text-xs text-muted-foreground">{report.coordinator_name || 'Coordinación'}</span>
-            ),
+            render: (report) => report.coordinator_name || 'Coordinación',
           },
         ]}
       />
@@ -114,7 +108,7 @@ export function DegreeReportsPage() {
           <div className="flex flex-col gap-5">
             <dl className="grid gap-4 text-sm sm:grid-cols-2">
               <ReportItem label="Estudiante" value={`${selectedReport.student_name} (${selectedReport.student_identification})`} />
-              <ReportItem label="Avance registrado" value={`${selectedReport.progress_percentage}%`} />
+              <ReportItem label="Avance registrado" value={`${roundPercent(selectedReport.progress_percentage)}%`} />
               <ReportItem label="Emitido" value={formatDegreeDate(selectedReport.generated_at)} />
               <ReportItem label="Generado por" value={selectedReport.coordinator_name || 'Coordinación'} />
             </dl>

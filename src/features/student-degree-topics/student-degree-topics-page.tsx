@@ -12,20 +12,13 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { degreeTopicStatusLabel } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { degreeCoordinationApi, type DegreeTopic } from '@/lib/degree-coordination-api'
 import { studentApi } from '@/lib/student-api'
 import { DegreeTopicsSkeleton } from '@/features/student/student-skeletons'
 import { Initials } from '@/features/student/student-ui'
-
-// El backend también devuelve «descartado» cuando el estudiante reemplaza una propuesta pendiente.
-const STATUS_LABELS: Record<string, string> = {
-  pendiente: 'Pendiente de revisión',
-  aprobado: 'Aprobada',
-  rechazado: 'Rechazada',
-  descartado: 'Reemplazada',
-}
 
 type ProposalMode = { kind: 'create' } | { kind: 'replace' } | { kind: 'edit'; topic: DegreeTopic }
 
@@ -63,7 +56,7 @@ function TopicCard({ topic, onEdit }: Readonly<{ topic: DegreeTopic; onEdit?: (t
     <CardContent className="flex flex-col gap-6 pt-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-3"><h3 className="break-words text-xl font-semibold tracking-tight">{topic.title}</h3><Badge variant={badge}>{STATUS_LABELS[topic.status] ?? topic.status}</Badge></div>
+          <div className="flex flex-wrap items-center gap-3"><h3 className="break-words text-xl font-semibold tracking-tight">{topic.title}</h3><Badge variant={badge}>{degreeTopicStatusLabel(topic.status)}</Badge></div>
           <p className="text-sm text-muted-foreground">{context}</p>
         </div>
         {onEdit && <Button type="button" variant="secondary" onClick={() => onEdit(topic)}><PencilIcon data-icon="inline-start" />Cambiar propuesta</Button>}

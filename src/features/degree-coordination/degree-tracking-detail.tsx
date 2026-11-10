@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react'
 import { ArrowLeftIcon, FileTextIcon, PlusIcon, SaveIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -16,8 +15,9 @@ import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { HeadedTableSkeleton, HeaderSkeleton } from '@/features/tutoring/tutoring-skeletons'
 import { degreeCoordinationApi, type DegreeActivity } from '@/lib/degree-coordination-api'
-import { formatDegreeDate } from './degree-format'
+import { formatDegreeDate, roundPercent } from './degree-format'
 import { useDegreeResource } from './degree-hooks'
+import { DegreeTrackingStatusBadge } from './degree-shared'
 
 type DialogKind = 'activity' | 'report'
 
@@ -38,7 +38,7 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
   const tracking = topic?.tracking
   const activities = tracking?.activities ?? []
   const completed = activities.filter((activity) => activity.is_completed).length
-  const progress = Math.min(Math.max(tracking?.progress_percentage ?? 0, 0), 100)
+  const progress = roundPercent(tracking?.progress_percentage)
   const tutor = topic?.assignments.find((assignment) => assignment.role === 'tutor')?.teacher
 
   const activityBlockReason = activityText.trim() ? null : 'Describe la actividad o entregable.'
@@ -102,20 +102,18 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
       {resource.loading && <TrackingDetailSkeleton />}
       <ErrorNotice message={resource.error} retry={resource.reload} />
       {topic && <>
-        <AdminSectionHeader
-          title={topic.title}
-          description={context}
-          actions={
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => openDialog('report')}>
-                <FileTextIcon data-icon="inline-start" />Generar Informe
-              </Button>
-              <Button type="button" disabled={operation.pending} onClick={() => openDialog('activity')}>
-                <PlusIcon data-icon="inline-start" />Nueva actividad
-              </Button>
-            </div>
-          }
-        />
+        {/* Las acciones llevan texto: van en su propia fila para que el título conserve su ancho. */}
+        <div className="flex flex-col gap-4">
+          <AdminSectionHeader title={topic.title} description={context} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" disabled={operation.pending} onClick={() => openDialog('activity')}>
+              <PlusIcon data-icon="inline-start" />Nueva actividad
+            </Button>
+            <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => openDialog('report')}>
+              <FileTextIcon data-icon="inline-start" />Generar informe
+            </Button>
+          </div>
+        </div>
 
         <Card><CardContent className="grid gap-6 pt-6 sm:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
           <div className="flex flex-col gap-2">
@@ -126,7 +124,7 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
           </div>
           <SummaryItem label="Actividades completadas" value={`${completed} de ${activities.length}`} />
           <SummaryItem label="Ficha abierta" value={tracking?.opened_at ? formatDegreeDate(tracking.opened_at) : 'En apertura'} />
-          <div className="flex flex-col gap-0.5 text-sm"><span className="text-muted-foreground">Estado de la ficha</span><span><Badge variant="outline" className="capitalize">{tracking?.status || 'En progreso'}</Badge></span></div>
+          <div className="flex flex-col gap-0.5 text-sm"><span className="text-muted-foreground">Estado de la ficha</span><span><DegreeTrackingStatusBadge status={tracking?.status} /></span></div>
         </CardContent></Card>
 
         <RecordTable
@@ -147,10 +145,10 @@ export function DegreeTrackingDetail({ topicId, onBack, onChanged }: Readonly<{ 
             },
             {
               label: 'Actividad',
-              render: (activity) => <span className={activity.is_completed ? 'text-muted-foreground line-through' : undefined}>{activity.description}</span>,
+              render: (activity) => <span className={activity.is_completed ? 'line-through' : undefined}>{activity.description}</span>,
             },
-            { label: 'Registrada', render: (activity) => <span className="text-sm text-muted-foreground">{activity.registered_at ? formatDegreeDate(activity.registered_at) : 'Reciente'}</span> },
-            { label: 'Docente', render: (activity) => <span className="text-sm text-muted-foreground">{activity.teacher?.name ?? 'Coordinación'}</span> },
+            { label: 'Registrada', render: (activity) => activity.registered_at ? formatDegreeDate(activity.registered_at) : 'Reciente' },
+            { label: 'Docente', render: (activity) => activity.teacher?.name ?? 'Coordinación' },
           ]}
         />
       </>}
@@ -198,10 +196,11 @@ function SummaryItem({ label, value }: Readonly<{ label: string; value: string }
   return <div className="flex flex-col gap-0.5 text-sm"><span className="text-muted-foreground">{label}</span><span className="font-medium">{value}</span></div>
 }
 
-/** Encabezado con sus dos acciones, la tarjeta de avance y la tabla de actividades. */
+/** Encabezado, la fila con sus dos acciones, la tarjeta de avance y la tabla de actividades. */
 function TrackingDetailSkeleton() {
   return <div role="status" aria-label="Cargando ficha de seguimiento" className="flex flex-col gap-6">
-    <HeaderSkeleton actions={2} />
+    <HeaderSkeleton />
+    <div className="flex flex-wrap gap-2" aria-hidden="true"><Skeleton className="h-9 w-40" /><Skeleton className="h-9 w-40" /></div>
     <Card><CardContent className="grid gap-6 pt-6 sm:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]" aria-hidden="true">
       <div className="flex flex-col gap-2">
         <div className="flex justify-between"><Skeleton className="h-4 w-14" /><Skeleton className="h-4 w-10" /></div>

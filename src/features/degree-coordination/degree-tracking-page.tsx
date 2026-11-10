@@ -3,6 +3,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi } from '@/lib/degree-coordination-api'
+import { roundPercent } from './degree-format'
 import { useDegreePeriod, useDegreeResource, useDegreeSearch, useDetailParam } from './degree-hooks'
 import { DegreePeriodNotice } from './degree-shared'
 import { DegreeTrackingDetail } from './degree-tracking-detail'
@@ -54,8 +55,8 @@ export function DegreeTrackingPage() {
             label: 'Tema de titulación',
             render: (topic) => (
               <div className="flex max-w-md flex-col gap-1">
-                <span className="text-foreground">{topic.title}</span>
-                <span className="line-clamp-2 text-xs text-muted-foreground">{topic.description || 'Sin descripción'}</span>
+                <span>{topic.title}</span>
+                <span className="line-clamp-2">{topic.description || 'Sin descripción'}</span>
               </div>
             ),
           },
@@ -63,8 +64,8 @@ export function DegreeTrackingPage() {
             label: 'Estudiante',
             render: (topic) => (
               <div className="flex flex-col gap-0.5">
-                <span className="text-foreground">{topic.student?.name}</span>
-                <span className="text-xs text-muted-foreground">{topic.student?.identification}</span>
+                <span>{topic.student?.name}</span>
+                <span>{topic.student?.identification}</span>
               </div>
             ),
           },
@@ -72,25 +73,26 @@ export function DegreeTrackingPage() {
             label: 'Tutor',
             render: (topic) => {
               const tutor = topic.assignments.find((assignment) => assignment.role === 'tutor')?.teacher
-              return tutor ? <span className="text-sm">{tutor.name}</span> : <span className="text-sm text-muted-foreground">Por asignar</span>
+              return tutor ? tutor.name : 'Por asignar'
             },
           },
           {
             label: 'Avance',
             render: (topic) => {
-              const progress = Math.min(Math.max(topic.tracking?.progress_percentage ?? 0, 0), 100)
+              const progress = roundPercent(topic.tracking?.progress_percentage)
               return (
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
                     <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
                   </div>
-                  <span className="text-xs tabular-nums">{progress}%</span>
+                  <span className="tabular-nums">{progress}%</span>
                 </div>
               )
             },
           },
         ]}
       />
+      {!topicsResource.loading && !topicsResource.error && rows.length > 0 && <p className="text-sm text-muted-foreground">Mostrando {rows.length} de {rows.length} {rows.length === 1 ? 'tema' : 'temas'}</p>}
     </section>
   )
 }

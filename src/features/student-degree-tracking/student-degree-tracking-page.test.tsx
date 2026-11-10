@@ -73,7 +73,10 @@ describe('StudentDegreeTrackingPage con pestañas', () => {
 
     // 1. Estado de la Ficha is active by default
     expect(screen.getByText('Sistema de Gestión de Calidad')).toBeInTheDocument()
-    expect(screen.getByText('Propuesta aprobada')).toBeInTheDocument()
+    // Mismo nombre de estado que ve coordinación, y el estado de la ficha legible.
+    expect(screen.getByText('Aprobada')).toBeInTheDocument()
+    expect(screen.getByText('En progreso')).toBeInTheDocument()
+    expect(screen.queryByText(/en[_ ]progreso/)).not.toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
     expect(screen.getByText('En ficha de seguimiento')).toBeInTheDocument()
 
@@ -112,6 +115,13 @@ describe('StudentDegreeTrackingPage con pestañas', () => {
     await user.click(screen.getByRole('option', { name: 'Tutor' }))
     expect(screen.getByText('Revisión del capítulo 1')).toBeInTheDocument()
     expect(screen.queryByText('Correcciones metodológicas')).not.toBeInTheDocument()
+  })
+
+  it('redondea el avance a un porcentaje entero', async () => {
+    vi.mocked(degreeCoordinationApi.studentTopics).mockResolvedValue([{ ...mockApprovedTopic, tracking: { ...mockApprovedTopic.tracking!, progress_percentage: 66.67 } }])
+    render(<StudentDegreeTrackingPage />)
+    expect(await screen.findByText('67%')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Avance de titulación' })).toHaveAttribute('aria-valuenow', '67')
   })
 
   it('elige entre varios temas aprobados con un desplegable', async () => {

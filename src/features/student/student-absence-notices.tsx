@@ -41,10 +41,13 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
   const options = (dates.data ?? []).slice(0, MAX_DATES)
   const [date, setDate] = useState('')
   const [reason, setReason] = useState('')
+  // El error del motivo se muestra bajo el campo una vez que el estudiante sale de él.
+  const [reasonTouched, setReasonTouched] = useState(false)
 
   async function openDialog() {
     setDate('')
     setReason('')
+    setReasonTouched(false)
     operation.clearError()
     setOpen(true)
     await dates.reload()
@@ -65,6 +68,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
     )
   }
 
+  const reasonError = reason.trim().length < 5 ? 'El motivo debe tener al menos 5 caracteres.' : null
   const items = notices.data ?? []
   // Hasta la primera respuesta no se sabe cuántos avisos hay: no se afirma que no existen.
   const noticesPending = notices.loading && !notices.data
@@ -112,7 +116,7 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
         pending={operation.pending}
         error={operation.error}
         dirty={reason.trim() !== ''}
-        blockReason={!selectedDate ? 'No hay próximas clases para avisar.' : reason.trim().length < 5 ? 'El motivo debe tener al menos 5 caracteres.' : null}
+        blockReason={!selectedDate ? 'No hay próximas clases para avisar.' : reasonError}
         onClose={() => setOpen(false)}
         onSubmit={submit}
         submitLabel="Enviar aviso"
@@ -132,8 +136,8 @@ export function AbsenceNotices({ tutoringId, canNotify }: Readonly<{ tutoringId:
                 options={options.map((item) => ({ value: item.date, label: classLabel(item) }))}
               />}
         </FormField>
-        <FormField id="absence-reason" label="Motivo" required counter={{ current: reason.length, max: 500 }}>
-          <Textarea id="absence-reason" value={reason} onChange={(event) => setReason(event.target.value.slice(0, 500))} maxLength={500} rows={3} required placeholder="Ej. Cita médica programada" />
+        <FormField id="absence-reason" label="Motivo" required counter={{ current: reason.length, max: 500 }} error={reasonTouched ? reasonError : null}>
+          <Textarea id="absence-reason" value={reason} onChange={(event) => setReason(event.target.value.slice(0, 500))} onBlur={() => setReasonTouched(true)} maxLength={500} rows={3} required placeholder="Ej. Cita médica programada" aria-invalid={reasonTouched && Boolean(reasonError)} />
         </FormField>
       </FormDialog>
     </Card>

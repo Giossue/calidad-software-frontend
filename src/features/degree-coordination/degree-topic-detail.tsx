@@ -35,10 +35,14 @@ function describeCareers(teacher: PickedTeacher): string {
     : 'Sin carrera registrada'
 }
 
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 function describePeer(teacher: PickedTeacher): string {
   return [
     describeCareers(teacher),
-    teacher.active_peer_reviews_count === undefined ? '' : `${teacher.active_peer_reviews_count} revisiones asignadas`,
+    teacher.active_peer_reviews_count === undefined ? '' : countLabel(teacher.active_peer_reviews_count, 'revisión asignada', 'revisiones asignadas'),
   ].filter(Boolean).join(' · ')
 }
 
@@ -72,14 +76,13 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
   const tutor = assignments.find((assignment) => assignment.role === 'tutor')?.teacher
   const peers = assignments.filter((assignment) => assignment.role === 'par_academico')
   const selectedTutor = draft.tutorId ? picked[Number(draft.tutorId)] ?? null : null
-  // Los pares elegidos se mantienen visibles aunque la búsqueda ya no los incluya.
-  const selectedPeers = draft.peerIds.flatMap((id) => {
-    const teacher = peerResults.data?.find((item) => item.id === id) ?? picked[id]
-    return teacher ? [teacher] : []
-  })
+  // Los pares elegidos se mantienen visibles aunque la búsqueda ya no los incluya (van primero).
+  // Los que sí aparecen en la búsqueda conservan su lugar: marcar o desmarcar no reordena la lista.
+  const resultIds = new Set((peerResults.data ?? []).map((teacher) => teacher.id))
+  const selectedOutsideResults = draft.peerIds.flatMap((id) => !resultIds.has(id) && picked[id] ? [picked[id]] : [])
   const peerOptions: readonly PickedTeacher[] = [
-    ...selectedPeers,
-    ...(peerResults.data ?? []).filter((teacher) => teacher.is_active && !draft.peerIds.includes(teacher.id)),
+    ...selectedOutsideResults,
+    ...(peerResults.data ?? []).filter((teacher) => teacher.is_active || draft.peerIds.includes(teacher.id)),
   ].filter((teacher) => teacher.id !== Number(draft.tutorId))
   const selectedPeersValid = draft.peerIds.length > 0 && !draft.peerIds.includes(Number(draft.tutorId))
   const approvalPossible = !teachers.loading && !teachers.error && activeTeachers.length >= 2
@@ -144,7 +147,7 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
   }
 
   const tutorField = (
-    <FormField id="degree-tutor" label="Docente tutor" required tip="Incluye docentes de todas las carreras y facultades.">
+    <FormField id="degree-tutor" label="Docente tutor" required>
       <SearchSelect
         id="degree-tutor"
         query={tutorSearch.input}
@@ -155,7 +158,7 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
         options={(tutorResults.data ?? []).filter((teacher) => teacher.is_active).map((teacher) => ({
           value: String(teacher.id),
           label: teacher.name,
-          description: [describeCareers(teacher), `${teacher.active_tutorships_count} tutorías asignadas`].filter(Boolean).join(' · '),
+          description: [describeCareers(teacher), countLabel(teacher.active_tutorships_count, 'tutoría asignada', 'tutorías asignadas')].filter(Boolean).join(' · '),
         }))}
         selected={selectedTutor ? { value: String(selectedTutor.id), label: selectedTutor.name } : null}
         onSelect={(option) => {
@@ -171,7 +174,7 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
     <>
       {action === 'peers' && <p className="text-sm text-muted-foreground">Tutor actual: {tutor?.name ?? 'Sin tutor asignado'}.</p>}
       {action === 'peers' && hasUnavailablePeers && <p className="text-sm text-warning">Los pares que ya no están activos deben reemplazarse. Selecciona los docentes que mantendrán la asignación.</p>}
-      <FormField id="degree-peer-search" label="Pares académicos" required tip="Selecciona al menos un docente diferente del tutor. Puedes buscar en todas las carreras y facultades.">
+      <FormField id="degree-peer-search" label="Pares académicos" required>
         <SearchInput id="degree-peer-search" placeholder="Buscar por nombre, cédula, carrera o facultad" value={peerSearch.input} onValueChange={peerSearch.setInput} loading={peerResults.loading} />
       </FormField>
       <ErrorNotice message={peerResults.error} retry={peerResults.reload} />
@@ -194,12 +197,15 @@ export function DegreeTopicDetail({ topicId, onBack, onChanged }: Readonly<{ top
     {resource.loading && <TopicDetailSkeleton />}
     <ErrorNotice message={resource.error} retry={resource.reload} />
     {topic && <>
-      <AdminSectionHeader title={topic.title} description={context} actions={<div className="flex flex-wrap items-center gap-2">
-        <DegreeStatusBadge status={topic.status} />
-        {topic.status === 'pendiente' && <><Button type="button" tone="destructive" variant="secondary" disabled={operation.pending} onClick={() => openAction('reject')}><XIcon data-icon="inline-start" />Rechazar propuesta</Button><Button type="button" disabled={operation.pending || !approvalPossible} onClick={() => openAction('approve')}><CheckIcon data-icon="inline-start" />Aprobar propuesta</Button></>}
-        {topic.status === 'aprobado' && <Button type="button" variant="secondary" disabled={operation.pending || !peerChangePossible} onClick={() => openAction('peers')}><UsersIcon data-icon="inline-start" />Gestionar pares académicos</Button>}
-        <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => openAction('observe')}><MessageSquareIcon data-icon="inline-start" />Registrar observación</Button>
-      </div>} />
+      {/* Las acciones del flujo llevan texto: van en su propia fila para que el título conserve su ancho. */}
+      <div className="flex flex-col gap-4">
+        <AdminSectionHeader title={topic.title} description={context} actions={<DegreeStatusBadge status={topic.status} />} />
+        <div className="flex flex-wrap items-center gap-2">
+          {topic.status === 'pendiente' && <><Button type="button" disabled={operation.pending || !approvalPossible} onClick={() => openAction('approve')}><CheckIcon data-icon="inline-start" />Aprobar propuesta</Button><Button type="button" tone="destructive" variant="secondary" disabled={operation.pending} onClick={() => openAction('reject')}><XIcon data-icon="inline-start" />Rechazar propuesta</Button></>}
+          {topic.status === 'aprobado' && <Button type="button" variant="secondary" disabled={operation.pending || !peerChangePossible} onClick={() => openAction('peers')}><UsersIcon data-icon="inline-start" />Gestionar pares académicos</Button>}
+          <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => openAction('observe')}><MessageSquareIcon data-icon="inline-start" />Registrar observación</Button>
+        </div>
+      </div>
       {(topic.status === 'pendiente' || topic.status === 'aprobado') && <ErrorNotice message={teachers.error} retry={teachers.reload} />}
       {topic.status === 'pendiente' && !teachers.loading && !teachers.error && !approvalPossible && <Alert><AlertDescription>Se necesitan al menos dos docentes activos: uno como tutor y otro como par académico. Registra o activa docentes antes de aprobar la propuesta.</AlertDescription></Alert>}
       {topic.status === 'aprobado' && !teachers.loading && !teachers.error && !peerChangePossible && <Alert><AlertDescription>No hay docentes activos disponibles diferentes del tutor. Activa o registra otro docente para gestionar los pares académicos.</AlertDescription></Alert>}
@@ -257,10 +263,16 @@ function PeerLine({ assignment }: Readonly<{ assignment: DegreeAssignment }>) {
   return <TeacherLine name={assignment.teacher?.name ?? 'Docente no disponible'} email={assignment.teacher?.email} extra={`Desde ${formatDegreeDate(assignment.assigned_at)}`} />
 }
 
-/** Encabezado con estado y acciones, pestañas y la tarjeta de la propuesta (descripción y datos). */
+/** Fila de acciones bajo el encabezado de un detalle. */
+function ActionsRowSkeleton({ count }: Readonly<{ count: number }>) {
+  return <div className="flex flex-wrap gap-2" aria-hidden="true">{Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-9 w-40" />)}</div>
+}
+
+/** Encabezado con estado, fila de acciones, pestañas y la tarjeta de la propuesta (descripción y datos). */
 function TopicDetailSkeleton() {
   return <div role="status" aria-label="Cargando propuesta" className="flex flex-col gap-6">
-    <HeaderSkeleton badge actions={2} />
+    <HeaderSkeleton badge />
+    <ActionsRowSkeleton count={3} />
     <TabsSkeleton tabs={3} />
     <Card><CardContent className="flex flex-col gap-6 pt-6" aria-hidden="true">
       <div className="flex flex-col gap-2">

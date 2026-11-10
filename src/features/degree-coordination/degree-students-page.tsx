@@ -114,25 +114,25 @@ export function DegreeStudentsPage() {
             label: 'Estudiante',
             render: (student) => (
               <div className="flex flex-col gap-0.5">
-                <span className="text-foreground">{student.name}</span>
-                <span className="text-xs text-muted-foreground">{student.email}</span>
+                <span>{student.name}</span>
+                <span>{student.email}</span>
               </div>
             ),
           },
           {
             label: 'Cédula',
-            render: (student) => <span className="font-mono text-sm">{student.identification}</span>,
+            render: (student) => <span>{student.identification}</span>,
           },
           {
             label: 'Teléfono',
             render: (student) => (
-              <span className="text-sm text-muted-foreground">{student.phone || '—'}</span>
+              <span>{student.phone || '—'}</span>
             ),
           },
           {
             label: 'Ciclo',
             render: (student) => (
-              <span className="text-sm text-muted-foreground">
+              <span>
                 {student.cycle_number ? `${student.cycle_number}° ciclo${student.section_name ? ` · ${student.section_name}` : ''}` : '—'}
               </span>
             ),
@@ -144,7 +144,7 @@ export function DegreeStudentsPage() {
           {
             label: 'Fecha de matrícula',
             render: (student) => (
-              <span className="text-sm text-muted-foreground">{student.enrolled_at || '—'}</span>
+              <span>{student.enrolled_at || '—'}</span>
             ),
           },
         ]}

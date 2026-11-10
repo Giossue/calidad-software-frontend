@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import type { DegreeTopicStatus } from '@/lib/degree-coordination-api'
-import { DEGREE_STATUS_LABELS, formatDegreeDate } from './degree-format'
+import { DEGREE_STATUS_LABELS, formatDegreeDate, isTrackingFinished, trackingStatusLabel } from './degree-format'
 import type { useDegreePeriod } from './degree-hooks'
 
 const STATUS_ICONS = { aprobado: CheckCircle2Icon, rechazado: XCircleIcon, pendiente: ClockIcon } as const
@@ -20,6 +20,11 @@ const STATUS_ICONS = { aprobado: CheckCircle2Icon, rechazado: XCircleIcon, pendi
 export function DegreeStatusBadge({ status }: Readonly<{ status: DegreeTopicStatus }>) {
   const Icon = STATUS_ICONS[status]
   return <Badge variant={status === 'aprobado' ? 'success' : status === 'rechazado' ? 'danger' : 'secondary'} className="gap-1.5 px-3 py-1"><Icon aria-hidden="true" />{DEGREE_STATUS_LABELS[status]}</Badge>
+}
+
+/** Estado de la ficha de seguimiento con su nombre legible («En progreso», «Finalizado»…). */
+export function DegreeTrackingStatusBadge({ status }: Readonly<{ status?: string | null }>) {
+  return <Badge variant={isTrackingFinished(status) ? 'success' : 'secondary'} className="w-fit">{trackingStatusLabel(status)}</Badge>
 }
 
 type IconType = ComponentType<{ className?: string }>

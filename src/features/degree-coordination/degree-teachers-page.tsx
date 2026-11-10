@@ -14,12 +14,12 @@ export function DegreeTeachersPage() {
     <FilterBar id="degree-teachers" search={search.input} onSearch={search.setInput} searchLabel="Buscar docente" searchPlaceholder="Buscar por nombre, cédula, correo, carrera o facultad" onClear={() => search.setInput('')} filters={[]} />
     <ErrorNotice message={resource.error} retry={resource.reload} />
     <RecordTable rows={resource.data ?? []} loading={resource.loading} empty="No se encontraron docentes activos con estos criterios." columns={[
-      { label: 'Docente', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.name}</span><span className="text-xs text-muted-foreground">{teacher.identification}</span></div> },
-      { label: 'Contacto', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono registrado'}</span></div> },
+      { label: 'Docente', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.name}</span><span>{teacher.identification}</span></div> },
+      { label: 'Contacto', render: (teacher) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span>{teacher.phone || 'Sin teléfono registrado'}</span></div> },
       {
         label: 'Carrera / Facultad',
         render: (teacher) => (
-          <span className="text-xs text-muted-foreground">
+          <span>
             {teacher.careers && teacher.careers.length > 0
               ? teacher.careers.map((c) => c.faculty_name ? `${c.name} (${c.faculty_name})` : c.name).join(', ')
               : 'Sin carrera asignada'}

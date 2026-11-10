@@ -58,11 +58,11 @@ function TutoringsList({ onOpen }: Readonly<{ onOpen: (id: number) => void }>) {
           loading={resource.loading}
           onRowClick={(item) => item.subject && onOpen(item.subject.id)}
           rowTitle={(item) => `Abrir ${item.subject?.name ?? ''}`}
-          empty="No hay tutorías que coincidan con tu búsqueda."
+          empty={term ? 'No hay tutorías que coincidan con tu búsqueda.' : 'No hay tutorías con estos filtros.'}
           columns={[
-            { label: 'Asignatura', render: (item) => <div className="flex flex-col gap-0.5"><span className="text-foreground">{formatSubjectName(item.subject?.name ?? '')}</span>{item.subject?.modality && <span className="text-xs text-muted-foreground">{item.subject.modality.name}</span>}</div> },
+            { label: 'Asignatura', render: (item) => <div className="flex flex-col gap-0.5"><span>{formatSubjectName(item.subject?.name ?? '')}</span>{item.subject?.modality && <span>{item.subject.modality.name}</span>}</div> },
             { label: 'Ciclo', render: (item) => <span>{item.subject?.cycle?.name ?? 'Sin ciclo'}{item.subject?.section ? ` · ${item.subject.section.name}` : ''}</span> },
-            { label: 'Docente', render: (item) => item.subject?.teacher?.name ?? <span className="text-muted-foreground">Sin docente</span> },
+            { label: 'Docente', render: (item) => item.subject?.teacher?.name ?? 'Sin docente' },
             { label: 'Estado', render: (item) => <StatusBadge active={isActive(item)} activeLabel="En curso" inactiveLabel="Finalizada" /> },
           ]}
         />

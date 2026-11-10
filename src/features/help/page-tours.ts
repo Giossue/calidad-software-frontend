@@ -226,7 +226,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
   'degree-tracking/detail': [
     back('Volver a seguimiento', 'Regresa a la lista de temas.'),
-    step({ button: 'Generar Informe' }, 'Generar informe', 'Registra las observaciones y el dictamen sobre la evolución del tema.'),
+    step({ button: 'Generar informe' }, 'Generar informe', 'Registra las observaciones y el dictamen sobre la evolución del tema.'),
     step({ button: 'Nueva actividad' }, 'Nueva actividad', 'Define un hito o entregable para la ficha de seguimiento.'),
     step('[aria-label="Avance del tema"]', 'Avance', 'Porcentaje de actividades completadas del tema.'),
     table('Cronograma de actividades. Marca «Completada» cuando el estudiante cumpla una actividad.'),

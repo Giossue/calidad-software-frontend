@@ -59,6 +59,12 @@ describe('Módulo Estudiante', () => {
     await user.type(screen.getByRole('searchbox', { name: 'Buscar tutoría' }), 'zzz')
     expect(screen.getByText('No hay tutorías que coincidan con tu búsqueda.')).toBeInTheDocument()
     await user.clear(screen.getByRole('searchbox', { name: 'Buscar tutoría' }))
+    // Sin búsqueda escrita, el mensaje vacío habla de los filtros.
+    await user.click(screen.getByRole('combobox', { name: 'Filtrar por Estado' }))
+    await user.click(screen.getByRole('option', { name: 'Finalizadas' }))
+    expect(screen.getByText('No hay tutorías con estos filtros.')).toBeInTheDocument()
+    expect(screen.queryByText(/tu búsqueda/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
     await user.click(await screen.findByTitle('Abrir Calidad de software'))
     expect(await screen.findByRole('heading', { name: /calidad de software/i })).toBeInTheDocument()
     expect(await screen.findByText((_, element) => element?.tagName === 'P' && element.textContent === '50 % · 1 de 2 temas completados')).toBeInTheDocument()
@@ -93,16 +99,22 @@ describe('Módulo Estudiante', () => {
     expect(screen.getByText('Introducción')).toBeInTheDocument()
     expect(screen.getByText('Taller')).toBeInTheDocument()
     expect(screen.getByText('Trabajo en parejas')).toBeInTheDocument()
-    const status = screen.getByRole('combobox', { name: 'Filtrar temas' })
-    expect(status).toHaveTextContent('Todos (2)')
+    const status = screen.getByRole('combobox', { name: 'Filtrar por estado' })
+    expect(status).toHaveTextContent('Todos los temas (2)')
     expect(screen.queryByRole('button', { name: 'Pendientes (1)' })).not.toBeInTheDocument()
+    // "Limpiar" solo aparece con un filtro activo, como en las demás listas.
+    expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument()
     await user.click(status)
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Todos (2)', 'Completados (1)', 'Pendientes (1)'])
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Todos los temas (2)', 'Completados (1)', 'Pendientes (1)'])
     await user.click(screen.getByRole('option', { name: 'Pendientes (1)' }))
     expect(screen.queryByText('Pruebas unitarias')).not.toBeInTheDocument()
     expect(screen.getByText('Integración')).toBeInTheDocument()
     await user.type(screen.getByRole('searchbox', { name: 'Buscar temas' }), 'zzz')
     expect(screen.getByText('Ningún tema coincide con tu búsqueda.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
+    expect(screen.getByRole('combobox', { name: 'Filtrar por estado' })).toHaveTextContent('Todos los temas (2)')
+    expect(screen.getByRole('searchbox', { name: 'Buscar temas' })).toHaveValue('')
+    expect(screen.getByText('Pruebas unitarias')).toBeInTheDocument()
   })
 
   it('descarga los recursos que adjuntó el docente a un tema', async () => {
@@ -201,7 +213,15 @@ describe('Módulo Estudiante', () => {
     await user.click(screen.getByRole('option', { name: 'Martes 1 dic 2026 · 08:00 – 10:00' }))
     expect(within(dialog).getByText('Clase').closest('label')).toHaveTextContent('(obligatorio)')
     expect((within(dialog).getByLabelText(/^Motivo/) as HTMLTextAreaElement).labels?.[0]).toHaveTextContent('(obligatorio)')
+    // El error del motivo aparece bajo el campo al salir de él, no solo en el tooltip del botón.
+    await user.type(within(dialog).getByLabelText(/^Motivo/), 'Cita')
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    await user.tab()
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('El motivo debe tener al menos 5 caracteres.')
+    expect(within(dialog).getByLabelText(/^Motivo/)).toHaveAttribute('aria-invalid', 'true')
+    await user.clear(within(dialog).getByLabelText(/^Motivo/))
     await user.type(within(dialog).getByLabelText(/^Motivo/), 'Cita médica programada')
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Enviar aviso' }))
 
     await waitFor(() => expect(studentApi.createAbsenceNotice).toHaveBeenCalledWith(tutoring.subject!.id, { date: '2026-12-01', reason: 'Cita médica programada' }))
@@ -267,6 +287,9 @@ describe('Módulo Estudiante', () => {
     const row = screen.getByText('Lunes').closest('tr') as HTMLElement
     expect(within(row).getByText('08:00 – 10:00')).toBeInTheDocument()
     expect(within(row).getByText('Laboratorio 1')).toBeInTheDocument()
+    // El texto de las celdas va en el color normal, nunca en gris.
+    expect(row.querySelectorAll('.text-muted-foreground')).toHaveLength(0)
+    expect(row).not.toHaveClass('text-muted-foreground')
     // Modalidad y duración, una sola vez y juntas.
     expect(screen.getByText('Presencial · 2 h por sesión')).toBeInTheDocument()
     expect(screen.getAllByText(/Presencial/)).toHaveLength(1)

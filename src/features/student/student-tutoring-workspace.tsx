@@ -109,9 +109,9 @@ function SchedulesPanel({ enrollment }: Readonly<{ enrollment: StudentTutoring }
           {schedules.length === 0
             ? <TableRow className="hover:bg-transparent"><TableCell colSpan={3} className="py-8 text-center whitespace-normal text-muted-foreground">Aún no hay horarios registrados.</TableCell></TableRow>
             : schedules.map((item) => <TableRow key={item.id}>
-              <TableCell className="text-foreground">{DAY_LABELS[item.day_of_week] ?? item.day_of_week}</TableCell>
+              <TableCell>{DAY_LABELS[item.day_of_week] ?? item.day_of_week}</TableCell>
               <TableCell>{item.start_time.slice(0, 5)} – {item.end_time.slice(0, 5)}</TableCell>
-              <TableCell className="text-muted-foreground">{item.room || '—'}</TableCell>
+              <TableCell>{item.room || '—'}</TableCell>
             </TableRow>)}
         </TableBody>
       </Table>

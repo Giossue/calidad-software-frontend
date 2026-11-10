@@ -6,8 +6,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { SelectInput } from '@/components/ui/select-field'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
+import { DEGREE_STATUS_LABELS, formatDegreeDate, roundPercent } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
+import { DegreeTrackingStatusBadge } from '@/features/degree-coordination/degree-shared'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { degreeCoordinationApi, type DegreeActivity, type DegreeTopic } from '@/lib/degree-coordination-api'
@@ -54,7 +55,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
 
   const tracking = topic.tracking
   const activities = useMemo(() => tracking?.activities ?? [], [tracking?.activities])
-  const progressPercentage = tracking?.progress_percentage ?? 0
+  const progressPercentage = roundPercent(tracking?.progress_percentage)
 
   const tutor = topic.assignments.find((a) => a.role === 'tutor')?.teacher
   const peers = topic.assignments.filter((a) => a.role === 'par_academico')
@@ -103,13 +104,13 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
                 <h3 className="break-words text-xl font-semibold tracking-tight">{topic.title}</h3>
                 {context && <p className="text-sm text-muted-foreground">{context}</p>}
               </div>
-              <Badge variant="success">Propuesta aprobada</Badge>
+              <Badge variant="success">{DEGREE_STATUS_LABELS.aprobado}</Badge>
             </div>
 
             <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="flex flex-col gap-1">
                 <dt className="text-sm text-muted-foreground">Avance general</dt>
-                <dd className="text-2xl font-semibold tabular-nums text-foreground">{Math.round(progressPercentage)}%</dd>
+                <dd className="text-2xl font-semibold tabular-nums text-foreground">{progressPercentage}%</dd>
                 <dd><RedProgress value={progressPercentage} label="Avance de titulación" className="mt-1" /></dd>
               </div>
               <Stat label="Tareas asignadas" value={totalTasks} hint="En ficha de seguimiento" />
@@ -125,7 +126,7 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
                 </div>
                 <div className="flex flex-col gap-1">
                   <dt className="text-sm text-muted-foreground">Estado de la ficha</dt>
-                  <dd><Badge variant="outline" className="w-fit first-letter:uppercase">{tracking.status ? tracking.status.replaceAll('_', ' ') : 'En progreso'}</Badge></dd>
+                  <dd><DegreeTrackingStatusBadge status={tracking.status} /></dd>
                 </div>
               </dl>
             )}
@@ -178,11 +179,11 @@ function TopicTrackingView({ topic }: Readonly<{ topic: DegreeTopic }>) {
             ? 'Aún no hay tareas registradas. Tu docente tutor y pares académicos las registrarán aquí.'
             : 'Ninguna tarea coincide con los filtros.'}
           columns={[
-            { label: 'Tarea', render: (activity) => <span className="break-words text-foreground">{activity.description}</span> },
+            { label: 'Tarea', render: (activity) => <span className="break-words">{activity.description}</span> },
             { label: 'Asignada por', render: (activity) => activity.teacher
-              ? <div className="flex min-w-0 flex-col"><span>{activity.teacher.name}</span><span className="text-xs text-muted-foreground">{roleLabel(teacherRole(activity))}</span></div>
-              : <span className="text-muted-foreground">Sin docente</span> },
-            { label: 'Fecha', render: (activity) => activity.registered_at ? formatDegreeDate(activity.registered_at) : <span className="text-muted-foreground">Sin fecha</span> },
+              ? <div className="flex min-w-0 flex-col"><span>{activity.teacher.name}</span><span>{roleLabel(teacherRole(activity))}</span></div>
+              : 'Sin docente' },
+            { label: 'Fecha', render: (activity) => activity.registered_at ? formatDegreeDate(activity.registered_at) : 'Sin fecha' },
             { label: 'Estado', render: (activity) => <Badge variant={activity.is_completed ? 'success' : 'warning'}>{activity.is_completed ? 'Completada' : 'Pendiente'}</Badge> },
           ]}
         />

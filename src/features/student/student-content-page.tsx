@@ -4,18 +4,18 @@ import { ChevronDownIcon } from 'lucide-react'
 import { TopicFileList } from '@/components/topic-file-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { SelectInput } from '@/components/ui/select-field'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
+import { FilterBar } from '@/features/tutoring/filter-bar'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { studentApi, type StudentClassSession, type StudentContent, type StudentTopic } from '@/lib/student-api'
 import { StudentEmpty } from './student-shared'
-import { ListFooter, RedProgress, SearchField } from './student-ui'
+import { ListFooter, RedProgress } from './student-ui'
 import { usePagedList } from './student-hooks'
 import { ContentSkeleton } from './student-skeletons'
 
-type TopicFilter = 'all' | 'covered' | 'pending'
+type TopicFilter = '' | 'covered' | 'pending'
 
 function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: number }>) {
   const [open, setOpen] = useState(false)
@@ -55,7 +55,7 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
   // De la más reciente a la primera; la primera clase de la tutoría es la Sesión 1.
   const sessions = [...(content.sessions ?? [])].sort((a, b) => b.date.localeCompare(a.date))
   const [selectedDate, setSelectedDate] = useState<string>('all')
-  const [filter, setFilter] = useState<TopicFilter>('all')
+  const [filter, setFilter] = useState<TopicFilter>('')
   const [search, setSearch] = useState('')
 
   const activeSession = selectedDate !== 'all' ? sessions.find((s) => s.date === selectedDate) : null
@@ -72,9 +72,10 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
 
   const needle = search.trim().toLowerCase()
   const matches = currentTopics.filter((topic) => !needle || `${topic.name} ${topic.description ?? ''}`.toLowerCase().includes(needle))
-  const visible = matches.filter((topic) => filter === 'all' || (filter === 'covered') === topic.is_covered)
+  const visible = matches.filter((topic) => !filter || (filter === 'covered') === topic.is_covered)
   const pager = usePagedList(visible)
   const choose = (next: TopicFilter) => { setFilter(next); pager.setPage(1) }
+  const clearFilters = () => { setSearch(''); setFilter(''); chooseSession('all') }
 
   return <div className="flex flex-col gap-6">
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
@@ -83,38 +84,21 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
     </div>
 
     {(currentTopics.length > 0 || activeSession) && (
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchField
-          id="student-topic-search"
-          label="Buscar temas"
-          placeholder="Buscar temas…"
-          value={search}
-          onChange={(value) => { setSearch(value); pager.setPage(1) }}
-        />
-        {sessions.length > 0 && (
-          <SelectInput
-            id="student-topic-session"
-            ariaLabel="Filtrar por clase"
-            className="w-full sm:w-72 sm:shrink-0"
-            value={selectedDate === 'all' ? '' : selectedDate}
-            onValueChange={(value) => chooseSession(value || 'all')}
-            emptyLabel="Todas las clases"
-            options={sessions.map((s) => ({ value: s.date, label: `${sessionLabel(s)} · ${topicCount(s)}` }))}
-          />
-        )}
-        <SelectInput
-          id="student-topic-status"
-          ariaLabel="Filtrar temas"
-          className="w-full sm:w-52 sm:shrink-0"
-          value={filter}
-          onValueChange={(value) => choose(value as TopicFilter)}
-          options={[
-            { value: 'all', label: `Todos (${matches.length})` },
+      <FilterBar
+        id="student-topic"
+        search={search}
+        onSearch={(value) => { setSearch(value); pager.setPage(1) }}
+        searchLabel="Buscar temas"
+        searchPlaceholder="Buscar temas…"
+        onClear={clearFilters}
+        filters={[
+          ...(sessions.length > 0 ? [{ id: 'session', label: 'clase', value: selectedDate === 'all' ? '' : selectedDate, onChange: (value: string) => chooseSession(value || 'all'), allLabel: 'Todas las clases', options: sessions.map((s) => ({ value: s.date, label: `${sessionLabel(s)} · ${topicCount(s)}` })) }] : []),
+          { id: 'status', label: 'estado', value: filter, onChange: (value: string) => choose(value as TopicFilter), allLabel: `Todos los temas (${matches.length})`, options: [
             { value: 'covered', label: `Completados (${matches.filter((t) => t.is_covered).length})` },
             { value: 'pending', label: `Pendientes (${matches.filter((t) => !t.is_covered).length})` },
-          ]}
-        />
-      </div>
+          ] },
+        ]}
+      />
     )}
 
     {activeSession && (
@@ -141,7 +125,7 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
     ) : (
       <>
         {visible.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Ningún tema coincide con tu búsqueda.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">{needle ? 'Ningún tema coincide con tu búsqueda.' : 'No hay temas con estos filtros.'}</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {pager.rows.map((topic) => (

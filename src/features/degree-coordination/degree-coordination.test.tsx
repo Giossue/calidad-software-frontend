@@ -81,8 +81,10 @@ describe('Coordinación de titulación', () => {
     vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [approved], meta: { academic_period: period, filter_section_id: null } })
     routed(<DegreeTopicsPage />)
     await screen.findByText('Plataforma de seguimiento')
-    expect(within(screen.getByRole('table')).getByText('Aprobado')).toBeInTheDocument()
-    await pick(user, screen.getByLabelText('Filtrar por Estado'), 'aprobado', 'Aprobado')
+    expect(within(screen.getByRole('table')).getByText('Aprobada')).toBeInTheDocument()
+    // Pie de lista con el mismo formato que el resto del sistema.
+    expect(screen.getByText('Mostrando 1 de 1 propuesta')).toBeInTheDocument()
+    await pick(user, screen.getByLabelText('Filtrar por Estado'), 'aprobado', 'Aprobada')
     await pick(user, screen.getByLabelText('Filtrar por Paralelo'), '20', 'A')
     await user.type(screen.getByLabelText('Buscar propuesta'), 'Carlos')
     await waitFor(() => expect(degreeCoordinationApi.topics).toHaveBeenLastCalledWith({ status: 'aprobado', section_id: 20, search: 'Carlos' }))
@@ -99,7 +101,7 @@ describe('Coordinación de titulación', () => {
     expect(screen.queryByText('Estudiantes únicos')).not.toBeInTheDocument()
 
     expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument()
-    await pick(user, screen.getByLabelText('Filtrar por Estado'), 'aprobado', 'Aprobado')
+    await pick(user, screen.getByLabelText('Filtrar por Estado'), 'aprobado', 'Aprobada')
     await user.click(await screen.findByRole('button', { name: 'Limpiar' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument())
   })
@@ -166,9 +168,44 @@ describe('Coordinación de titulación', () => {
     await user.click(screen.getByRole('checkbox', { name: /María Rojas/ }))
     await user.click(submit)
     await waitFor(() => expect(degreeCoordinationApi.approve).toHaveBeenCalledWith(30, { tutor_id: 2, peer_ids: [3] }))
-    expect(await screen.findByText('Aprobado')).toBeInTheDocument()
+    expect(await screen.findByText('Aprobada')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Aprobar propuesta' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gestionar pares académicos' })).toBeInTheDocument()
+  })
+
+  it('deja el título con todo su ancho: las acciones de revisión van en su propia fila bajo el encabezado', async () => {
+    render(<DegreeTopicDetail topicId={30} onBack={vi.fn()} />)
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Plataforma de seguimiento' })
+    const header = heading.closest('[data-tour="page-header"]') as HTMLElement
+    expect(within(header).getByText('Pendiente')).toBeInTheDocument()
+    for (const name of ['Rechazar propuesta', 'Aprobar propuesta', 'Registrar observación']) {
+      const button = screen.getByRole('button', { name })
+      expect(header).not.toContainElement(button)
+    }
+  })
+
+  it('describe la carga de cada docente en singular o plural, sin ayudas redundantes, y no reordena los pares al marcarlos', async () => {
+    const user = userEvent.setup()
+    render(<DegreeTopicDetail topicId={30} onBack={vi.fn()} />)
+    const approveButton = await screen.findByRole('button', { name: 'Aprobar propuesta' })
+    await waitFor(() => expect(approveButton).toBeEnabled())
+    await user.click(approveButton)
+    expect(screen.queryByText('Incluye docentes de todas las carreras y facultades.')).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText(/^Docente tutor/))
+    expect(await screen.findByRole('option', { name: /Luis Pérez/ })).toHaveTextContent('1 tutoría asignada')
+    expect(screen.getByRole('option', { name: /Ana Torres/ })).toHaveTextContent('2 tutorías asignadas')
+    await user.click(screen.getByRole('option', { name: /María Rojas/ }))
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(await screen.findByText('1 revisión asignada')).toBeInTheDocument()
+    expect(screen.getByText('2 revisiones asignadas')).toBeInTheDocument()
+    expect(screen.queryByText(/Selecciona al menos un docente diferente del tutor/)).not.toBeInTheDocument()
+    const order = () => screen.getAllByRole('checkbox').map((box) => box.id)
+    expect(order()).toEqual(['degree-peer-1', 'degree-peer-2'])
+    await user.click(screen.getByRole('checkbox', { name: /Luis Pérez/ }))
+    expect(order()).toEqual(['degree-peer-1', 'degree-peer-2'])
+    await user.click(screen.getByRole('checkbox', { name: /Ana Torres/ }))
+    await user.click(screen.getByRole('checkbox', { name: /Luis Pérez/ }))
+    expect(order()).toEqual(['degree-peer-1', 'degree-peer-2'])
   })
 
   it('busca docentes de todas las facultades en tiempo real para tutor y pares', async () => {
@@ -209,7 +246,7 @@ describe('Coordinación de titulación', () => {
     expect(degreeCoordinationApi.reject).not.toHaveBeenCalled()
     await user.click(within(screen.getByRole('form', { name: 'Rechazar propuesta' })).getByRole('button', { name: 'Rechazar propuesta' }))
     await waitFor(() => expect(degreeCoordinationApi.reject).toHaveBeenCalledWith(30, 'Delimitar el alcance del proyecto.'))
-    expect(await screen.findByText('Rechazado')).toBeInTheDocument()
+    expect(await screen.findByText('Rechazada')).toBeInTheDocument()
   })
 
   it('conserva la observación si la API la rechaza y evita duplicar el envío pendiente', async () => {
@@ -297,6 +334,24 @@ describe('Coordinación de titulación', () => {
     expect(screen.queryByText(/registrada exitosamente/)).not.toBeInTheDocument()
   })
 
+  it('muestra el estado de la ficha con su nombre, el avance redondeado y las acciones bajo el encabezado', async () => {
+    const tracked: DegreeTopic = { ...approved, tracking: { id: 70, opened_at: '2026-09-28', progress_percentage: 66.67, status: 'en_progreso', activities: [] } }
+    vi.mocked(degreeCoordinationApi.topics).mockResolvedValue({ data: [tracked], meta: { academic_period: period, filter_section_id: null } })
+    vi.mocked(degreeCoordinationApi.topic).mockResolvedValue(tracked)
+    const user = userEvent.setup()
+    routed(<DegreeTrackingPage />)
+    expect(await screen.findByText('Mostrando 1 de 1 tema')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('67%')).toBeInTheDocument()
+    await user.click(screen.getByTitle('Ver evolución de Plataforma de seguimiento'))
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Plataforma de seguimiento' })
+    const header = heading.closest('[data-tour="page-header"]') as HTMLElement
+    for (const name of ['Generar informe', 'Nueva actividad']) expect(header).not.toContainElement(screen.getByRole('button', { name }))
+    expect(screen.getByText('En progreso')).toBeInTheDocument()
+    expect(screen.queryByText(/en_progreso/i)).not.toBeInTheDocument()
+    expect(screen.getByText('67%')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Avance del tema' })).toHaveAttribute('aria-valuenow', '67')
+  })
+
   it('marca una actividad como completada una sola vez mientras se guarda', async () => {
     const user = userEvent.setup()
     const withActivity: DegreeTopic = { ...approved, tracking: { id: 70, opened_at: '2026-09-28', progress_percentage: 0, status: 'abierta', activities: [
@@ -359,6 +414,8 @@ describe('Coordinación de titulación', () => {
     await user.click(await screen.findByTitle('Ver informe de Carlos Salas'))
     const dialog = await screen.findByRole('dialog', { name: 'Informe de titulación' })
     expect(within(dialog).getByText('Cumple con los objetivos planteados.')).toBeInTheDocument()
+    // Todas las celdas con el mismo tamaño y color de texto.
+    expect(document.querySelector('table')!.querySelectorAll('tbody .text-xs, tbody .text-muted-foreground')).toHaveLength(0)
     await user.click(within(dialog).getAllByRole('button', { name: 'Cerrar' }).at(-1)!)
     await user.type(screen.getByLabelText('Buscar reporte'), 'zzz')
     expect(await screen.findByText('No hay informes con esta búsqueda.')).toBeInTheDocument()

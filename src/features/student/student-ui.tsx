@@ -1,5 +1,4 @@
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { SearchInput } from '@/components/ui/search-input'
 import { getInitials } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -9,16 +8,10 @@ export function Initials({ name, className }: Readonly<{ name: string; className
 }
 
 export function RedProgress({ value, label, className }: Readonly<{ value: number; label: string; className?: string }>) {
-  const width = Math.max(0, Math.min(100, value))
-  return <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} className={cn('h-2.5 w-full overflow-hidden rounded-full bg-muted', className)}>
+  // Avance entero (66.67 → 67), igual que el número que se muestra junto a la barra.
+  const width = Math.round(Math.max(0, Math.min(100, value)))
+  return <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={width} className={cn('h-2.5 w-full overflow-hidden rounded-full bg-muted', className)}>
     <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${width}%` }} />
-  </div>
-}
-
-export function SearchField({ id, label, value, onChange, placeholder }: Readonly<{ id: string; label: string; value: string; onChange: (value: string) => void; placeholder: string }>) {
-  return <div className="relative w-full lg:max-w-md">
-    <label htmlFor={id} className="sr-only">{label}</label>
-    <SearchInput id={id} icon placeholder={placeholder} value={value} onValueChange={onChange} />
   </div>
 }
 
