@@ -54,7 +54,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect 
       rowTitle={rowTitle}
       empty="No se encontraron carreras para esta búsqueda."
       columns={[
-        { label: 'Carrera', render: (career) => <div className="flex flex-col gap-0.5"><span className="font-medium text-foreground">{career.name}</span>{career.modality_name && <span className="text-xs text-muted-foreground">{career.modality_name}</span>}</div> },
+        { label: 'Carrera', render: (career) => <div className="flex flex-col gap-0.5"><span>{career.name}</span>{career.modality_name && <span className="text-xs text-muted-foreground">{career.modality_name}</span>}</div> },
         { label: 'Facultad', render: (career) => career.faculty_name ?? '—' },
         { label: 'Ciclos', render: (career) => career.cycle_levels > 0 ? `${career.cycle_levels} ciclos` : '—' },
         { label: 'Estado', render: (career) => <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },

@@ -101,7 +101,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
             label: 'Asignatura / Tutoría',
             render: (report: TutoringReport) => (
               <div className="flex flex-col gap-1 items-start">
-                <span className="font-medium text-foreground">
+                <span className="text-foreground">
                   {report.subject_name || `Tutoría #${report.tutoring_id ?? report.id}`}
                 </span>
                 <span className="text-xs text-muted-foreground">

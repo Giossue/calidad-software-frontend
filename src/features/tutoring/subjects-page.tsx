@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { LayersIcon, PlusIcon, PowerOffIcon, SaveIcon, XIcon } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { GitBranchIcon, PlusIcon, SaveIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -7,11 +7,8 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
-import { FieldLabel } from '@/components/ui/field'
-import { FormDialog } from '@/components/ui/form-dialog'
+import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
-import { IconAction } from '@/components/ui/icon-action'
-import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
@@ -23,11 +20,16 @@ import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
 import { ErrorNotice } from '@/components/ui/error-notice'
+import { SubjectDetail } from './subject-detail'
+import { useDetailParam } from '@/hooks/use-detail-param'
 import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const ALL_CYCLES = 'all'
 const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '', next_subject_ids: [] as string[] }
+
+/** Formulario abierto: registrar, editar los datos o editar la secuencia en la malla. */
+type FormMode = 'create' | 'edit' | 'sequence'
 
 export function TutoringSubjectsPage() {
   const catalogs = useTutoringCatalogs()
@@ -65,25 +67,44 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     `${activeCareerId}|${activeCycle}|${statusFilter}`,
   )
   const operation = useOperation()
-  const [open, setOpen] = useState(false)
+  // La asignatura abierta vive en la URL (?asignatura=<id>) para que "Atrás" vuelva a la lista.
+  const detail = useDetailParam('asignatura')
+  const [openedSubject, setOpenedSubject] = useState<Subject | null>(null)
+  const [mode, setMode] = useState<FormMode | null>(null)
   const [editing, setEditing] = useState<Subject | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  // Asignaturas de la carrera, para elegir cuáles continúan a la que se edita.
+  // Asignaturas de la carrera: para elegir cuáles continúan a la abierta (y para abrirla desde la URL).
   const [careerSubjects, setCareerSubjects] = useState<readonly Subject[] | null>(null)
   const [initialForm, setInitialForm] = useState(EMPTY_FORM)
   const [deactivating, setDeactivating] = useState<Subject | null>(null)
-  const [assigning, setAssigning] = useState<Subject | null>(null)
-  const [parallelId, setParallelId] = useState('')
-  const [isAddingParallelInModal, setIsAddingParallelInModal] = useState(false)
-  const [newModalParallelName, setNewModalParallelName] = useState('')
-  const [modalParallelError, setModalParallelError] = useState<string | null>(null)
 
   const [isAddingSection, setIsAddingSection] = useState(false)
   const [newSectionName, setNewSectionName] = useState('')
   const [creatingSection, setCreatingSection] = useState(false)
   const [sectionError, setSectionError] = useState<string | null>(null)
 
-  function edit(subject: Subject | null, preselectedCycleId?: number | string) {
+  useEffect(() => {
+    if (detail.id === null) return
+    let cancelled = false
+    tutoringApi.subjects({ career_id: careerId, per_page: 100 })
+      .then((response) => { if (!cancelled) setCareerSubjects(response.data) })
+      .catch(() => { if (!cancelled) setCareerSubjects([]) })
+    return () => { cancelled = true }
+  }, [detail.id, careerId])
+
+  const detailSubject = detail.id === null
+    ? null
+    : (openedSubject?.id === detail.id ? openedSubject : null)
+      ?? list.data.find((item) => item.id === detail.id)
+      ?? careerSubjects?.find((item) => item.id === detail.id)
+      ?? null
+
+  function openSubject(subject: Subject) {
+    setOpenedSubject(subject)
+    detail.open(subject.id)
+  }
+
+  function openForm(nextMode: FormMode, subject: Subject | null, preselectedCycleId?: number | string) {
     const defaultCareerId = (activeCareerId && catalogs.careers.some((c) => String(c.id) === activeCareerId))
       ? activeCareerId
       : (catalogs.careers[0] ? String(catalogs.careers[0].id) : '')
@@ -94,17 +115,11 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     setEditing(subject)
     setForm(next)
     setInitialForm(next)
-    setCareerSubjects(null)
-    if (subject) {
-      tutoringApi.subjects({ career_id: subject.career_id, per_page: 100 })
-        .then((response) => setCareerSubjects(response.data))
-        .catch(() => setCareerSubjects([]))
-    }
     setIsAddingSection(false)
     setNewSectionName('')
     setSectionError(null)
     operation.clearError()
-    setOpen(true)
+    setMode(nextMode)
   }
 
   function toggleParallel(id: string) {
@@ -157,27 +172,33 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
 
     const currentPeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
     const periodId = Number(form.period_id || currentPeriod?.id) || undefined
+    let updated: Subject | null = null
 
     void operation.run(
-      () => editing
-        ? tutoringApi.updateSubject(editing.id, {
+      async () => {
+        if (editing) {
+          updated = await tutoringApi.updateSubject(editing.id, {
             code: trimmedCode ? trimmedCode : null,
             name: form.name.trim(),
             ...(form.modality_id ? { modality_id: Number(form.modality_id) } : {}),
             next_subject_ids: form.next_subject_ids.map(Number),
           })
-        : tutoringApi.createSubject({
-            ...input,
-            career_id: careerId,
-            ...(chosenCycleId ? { cycle_id: chosenCycleId } : {}),
-            ...(selectedParallelIds.length > 0 ? { parallel_ids: selectedParallelIds } : {}),
-            ...(newParallel ? { new_parallel_name: newParallel } : {}),
-            ...(form.modality_id ? { modality_id: Number(form.modality_id) } : {}),
-            ...(periodId ? { period_id: periodId } : {}),
-          }),
+          return
+        }
+        await tutoringApi.createSubject({
+          ...input,
+          career_id: careerId,
+          ...(chosenCycleId ? { cycle_id: chosenCycleId } : {}),
+          ...(selectedParallelIds.length > 0 ? { parallel_ids: selectedParallelIds } : {}),
+          ...(newParallel ? { new_parallel_name: newParallel } : {}),
+          ...(form.modality_id ? { modality_id: Number(form.modality_id) } : {}),
+          ...(periodId ? { period_id: periodId } : {}),
+        })
+      },
       editing ? 'Asignatura actualizada.' : 'Asignatura registrada.',
       async () => {
-        setOpen(false)
+        setMode(null)
+        if (updated) setOpenedSubject(updated)
         await list.reload()
         catalogs.reload()
       },
@@ -208,111 +229,11 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         ).values(),
       )
 
-  const assignedCycle = assigning
-    ? catalogs.cycles.find((c) => assigning.cycle_ids.includes(c.id))
-    : null
-  const assignedCycleName = assignedCycle?.name
-
-  const assignedParallels = assigning
-    ? assigning.cycle_ids.map((id) => {
-        const c = catalogs.cycles.find((item) => item.id === id)
-        const parallelName = c?.paralelo_name || (c?.paralelo_id ? `Paralelo #${c.paralelo_id}` : null)
-        const label = parallelName
-          ? (parallelName.startsWith('Paralelo') ? parallelName : `Paralelo ${parallelName}`)
-          : (c ? `${c.name} (General)` : `Ciclo #${id}`)
-        return {
-          key: id,
-          cycleId: id,
-          parallelId: c?.paralelo_id ?? null,
-          label,
-        }
-      })
-    : []
-
-  const assignedParallelIds = new Set(
-    assignedParallels.map((p) => p.parallelId).filter((id): id is number => id !== null),
-  )
-  const assignedParallelNames = new Set(
-    assignedParallels.map((p) => p.label.replace(/^Paralelo\s+/, '').trim().toLowerCase()),
-  )
-  const availableParallelsForModal = allParallels.filter(
-    (p) =>
-      !assignedParallelIds.has(p.id) &&
-      !assignedParallelNames.has(p.name.replace(/^Paralelo\s+/, '').trim().toLowerCase()),
-  )
-
-  function addParallel(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!assigning) return
-    const subjectId = assigning.id
-    const newName = isAddingParallelInModal ? newModalParallelName.trim() : ''
-    const chosenParallelId = parallelId ? Number(parallelId) : undefined
-
-    if (!newName && !chosenParallelId) return
-
-    const subjectCycle = catalogs.cycles.find((c) => assigning.cycle_ids.includes(c.id))
-
-    void operation.run(
-      async () => {
-        let updated: Subject
-        if (tutoringApi.assignSubjectParallel) {
-          updated = await tutoringApi.assignSubjectParallel(subjectId, {
-            parallel_id: chosenParallelId,
-            new_parallel_name: newName || undefined,
-            cycle_id: subjectCycle?.id,
-          })
-        } else {
-          updated = await tutoringApi.assignSubjectCycle(subjectId, chosenParallelId ?? 0)
-        }
-        setAssigning(updated)
-        setParallelId('')
-        setNewModalParallelName('')
-        setIsAddingParallelInModal(false)
-        setModalParallelError(null)
-      },
-      'Paralelo asignado.',
-      async () => {
-        await list.reload()
-        catalogs.reload()
-      },
-    )
-  }
-
-  function removeParallel(targetCycleId: number, targetParallelId?: number | null) {
-    if (!assigning) return
-    const subjectId = assigning.id
-    void operation.run(
-      async () => {
-        let updated: Subject
-        if (targetParallelId && tutoringApi.unassignSubjectParallel) {
-          updated = await tutoringApi.unassignSubjectParallel(subjectId, targetParallelId)
-        } else {
-          updated = await tutoringApi.unassignSubjectCycle(subjectId, targetCycleId)
-        }
-        setAssigning(updated)
-      },
-      'Paralelo desasignado.',
-      async () => {
-        await list.reload()
-        catalogs.reload()
-      },
-    )
-  }
-
   const currentCareerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Asignaturas'
   const selectedLevel = cycleLevels.find((level) => String(level.number) === activeCycle)
   const selectedCycleIds = activeCycle === ALL_CYCLES
     ? []
     : catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId) && cycle.number === Number(activeCycle)).map((cycle) => cycle.id)
-
-  function openParallels(subject: Subject) {
-    operation.clearError()
-    setParallelId('')
-    setIsAddingParallelInModal(false)
-    setNewModalParallelName('')
-    setModalParallelError(null)
-    setAssigning(subject)
-  }
 
   const renderSubjectColumns = () => [
     { label: 'Código', render: (subject: Subject) => subject.code ?? <span className="text-muted-foreground">—</span> },
@@ -320,7 +241,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       label: 'Asignatura',
       render: (subject: Subject) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-medium text-foreground">{formatSubjectName(subject.name)}</span>
+          <span>{formatSubjectName(subject.name)}</span>
           {subject.modality_name && (
             <span className="text-xs text-muted-foreground">{subject.modality_name}</span>
           )}
@@ -350,162 +271,19 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       },
     },
     { label: 'Estado', render: (subject: Subject) => <StatusBadge active={subject.is_active} activeLabel="Activa" inactiveLabel="Inactiva" /> },
-    {
-      label: 'Acciones',
-      // La fila abre la edición; lo demás va escrito en el menú "⋯" (sin íconos sueltos).
-      render: (subject: Subject) => subject.is_active ? (
-        <RowActionsMenu name={formatSubjectName(subject.name)} disabled={operation.pending} actions={[
-          { label: 'Gestionar paralelos', icon: LayersIcon, onSelect: () => openParallels(subject) },
-          { label: 'Desactivar', icon: PowerOffIcon, tone: 'destructive', onSelect: () => { operation.clearError(); setDeactivating(subject) } },
-        ]} />
-      ) : <span className="text-muted-foreground">—</span>,
-    },
   ]
 
-  return <section className="flex flex-col gap-6">
-    <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-    <ModuleHeader title={currentCareerName} description="Registra las asignaturas de cada ciclo y sus paralelos. Haz clic en una para editarla." createLabel="Registrar asignatura" onCreate={() => edit(null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
-    <FilterBar
-      id="subjects"
-      leading={cycleLevels.length > 0 ? <CycleSelect id="subjects-cycle" levels={cycleLevels} value={activeCycle} onChange={setCycleSelection} degreeCycleNumber={careerMaxCycle} /> : undefined}
-      search={list.searchInput}
-      onSearch={list.setSearchInput}
-      searchPlaceholder="Busca por nombre o código…"
-      onClear={clearFilters}
-      filters={[
-        { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
-      ]}
-    />
-    <ErrorNotice message={list.error} retry={list.reload} />
+  const nameReason = form.name.trim() ? null : 'El nombre de la asignatura es obligatorio.'
 
-    <RecordTable
-      rows={list.data}
-      loading={list.isFetching || list.isInitialLoading}
-      empty={list.searchInput || statusFilter ? 'No hay asignaturas con estos filtros.' : activeCycle === ALL_CYCLES ? 'Aún no hay asignaturas registradas en esta carrera.' : 'Aún no hay asignaturas en este ciclo.'}
-      columns={renderSubjectColumns()}
-      onRowClick={(subject) => { if (subject.is_active && !operation.pending) edit(subject) }}
-      rowTitle={(subject) => subject.is_active ? `Editar ${formatSubjectName(subject.name)}` : ''}
-    />
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-muted-foreground">
-        Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === ALL_CYCLES ? '' : ` del ${selectedLevel?.name ?? 'ciclo seleccionado'}`}
-      </p>
-      <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
-    </div>
-    <FormDialog
-      open={open}
-      title={editing ? 'Editar asignatura' : 'Registrar asignatura'}
-      description={
-        editing
-          ? `Modifica los datos de ${formatSubjectName(editing.name)}.`
-          : currentCareer ? `Carrera: ${currentCareer.name}` : undefined
-      }
-      pending={operation.pending}
-      error={operation.error}
-      dirty={JSON.stringify(form) !== JSON.stringify(initialForm) || Boolean(newSectionName)}
-      blockReason={form.name.trim() ? null : 'El nombre de la asignatura es obligatorio.'}
-      headerActions={editing ? <IconAction label="Desactivar asignatura" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} /> : undefined}
-      onClose={() => setOpen(false)}
-      onSubmit={submit}
-      submitIcon={editing ? SaveIcon : PlusIcon} submitLabel={editing ? 'Guardar cambios' : 'Registrar asignatura'}
-    >
-      {!editing && (
-        <>
-          <FormField id="subject-period" label="Período académico" tip={`Todas las asignaturas corresponden automáticamente al período académico vigente (${currentPeriod?.name ?? 'sin período'}).`}>
-            <div className="relative flex items-center">
-              <Input
-                id="subject-period"
-                value={currentPeriod ? currentPeriod.name : 'Sin período académico activo'}
-                disabled
-                readOnly
-                className="pr-24"
-                aria-readonly="true"
-              />
-              <span className="absolute right-2 text-xs text-muted-foreground">PAO actual</span>
-            </div>
-          </FormField>
-          <SelectField
-            id="subject-new-cycle"
-            label="Ciclo"
-            optional
-            value={form.cycle_id}
-            onValueChange={(value) => setForm({ ...form, cycle_id: value })}
-            emptyLabel="Sin ciclo"
-            placeholder="Selecciona un ciclo"
-            options={uniqueCycleLevels.map((cycle) => ({ value: String(cycle.id), label: cycle.name }))}
-          />
-          <FormField id="subject-parallels" label="Paralelo(s)" tip="Puedes seleccionar varios paralelos." error={sectionError}>
-            {isAddingSection ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  id="new-parallel-name"
-                  aria-label="Nombre del nuevo paralelo"
-                  value={newSectionName}
-                  onChange={(e) => {
-                    setNewSectionName(sanitizeLetters(e.target.value, 50))
-                    setSectionError(null)
-                  }}
-                  placeholder="Ej. B"
-                  maxLength={50}
-                  disabled={creatingSection}
-                  autoFocus
-                />
-                <Button
-                  type="button"
-                  onClick={() => void handleCreateSection()}
-                  disabled={creatingSection || !newSectionName.trim()}
-                  className="shrink-0"
-                >
-                  {creatingSection ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
-                  Guardar
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setIsAddingSection(false)
-                    setNewSectionName('')
-                    setSectionError(null)
-                  }}
-                  disabled={creatingSection}
-                  className="shrink-0"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            ) : (
-              <div id="subject-parallels" className="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Paralelos">
-                {allParallels.map((parallel) => (
-                  <label key={parallel.id} htmlFor={`subject-parallel-${parallel.id}`} className="inline-flex cursor-pointer items-center gap-2 pr-2 text-sm">
-                    <Checkbox
-                      id={`subject-parallel-${parallel.id}`}
-                      checked={form.parallel_ids.includes(String(parallel.id))}
-                      onCheckedChange={() => toggleParallel(String(parallel.id))}
-                    />
-                    {parallel.name.startsWith('Paralelo') ? parallel.name : `Paralelo ${parallel.name}`}
-                  </label>
-                ))}
-                {allParallels.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No hay paralelos activos registrados aún.</p>
-                )}
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  size="sm"
-                  onClick={() => {
-                    setIsAddingSection(true)
-                    setNewSectionName('')
-                    setSectionError(null)
-                  }}
-                  disabled={operation.pending}
-                >
-                  <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
-                </Button>
-              </div>
-            )}
-          </FormField>
-        </>
-      )}
+  // Lo que identifica a la asignatura va primero; el ciclo y los paralelos, después.
+  const dataFields = (
+    <>
+      <FormField id="subject-name" label="Nombre" required counter={{ current: form.name.length, max: 150 }}>
+        <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150).toLocaleUpperCase('es') })} required maxLength={150} placeholder="Ej. ALGORITMOS Y LÓGICA DE PROGRAMACIÓN" />
+      </FormField>
+      <FormField id="subject-code" label="Código" optional counter={form.code.length > 0 ? { current: form.code.length, max: 30 } : undefined}>
+        <Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} maxLength={30} placeholder="Ej. SW-B1-001" />
+      </FormField>
       <SelectField
         id="subject-modality"
         label="Modalidad"
@@ -518,13 +296,192 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           .filter((modality) => modality.is_active || String(modality.id) === form.modality_id)
           .map((modality) => ({ value: String(modality.id), label: `${modality.name}${modality.is_active ? '' : ' (inactiva)'}` }))}
       />
-      <FormField id="subject-code" label="Código" optional counter={form.code.length > 0 ? { current: form.code.length, max: 30 } : undefined}>
-        <Input id="subject-code" value={form.code} onChange={(event) => setForm({ ...form, code: sanitizeCode(event.target.value, 30) })} maxLength={30} placeholder="Ej. SW-B1-001" />
+    </>
+  )
+
+  const placementFields = (
+    <>
+      <FormField id="subject-period" label="Período académico" tip={`Todas las asignaturas corresponden automáticamente al período académico vigente (${currentPeriod?.name ?? 'sin período'}).`}>
+        <div className="relative flex items-center">
+          <Input
+            id="subject-period"
+            value={currentPeriod ? currentPeriod.name : 'Sin período académico activo'}
+            disabled
+            readOnly
+            className="pr-24"
+            aria-readonly="true"
+          />
+          <span className="absolute right-2 text-xs text-muted-foreground">PAO actual</span>
+        </div>
       </FormField>
-      <FormField id="subject-name" label="Nombre" counter={{ current: form.name.length, max: 150 }}>
-        <Input id="subject-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150).toLocaleUpperCase('es') })} required maxLength={150} placeholder="Ej. ALGORITMOS Y LÓGICA DE PROGRAMACIÓN" />
+      <SelectField
+        id="subject-new-cycle"
+        label="Ciclo"
+        optional
+        value={form.cycle_id}
+        onValueChange={(value) => setForm({ ...form, cycle_id: value })}
+        emptyLabel="Sin ciclo"
+        placeholder="Selecciona un ciclo"
+        options={uniqueCycleLevels.map((cycle) => ({ value: String(cycle.id), label: cycle.name }))}
+      />
+      <FormField id="subject-parallels" label="Paralelo(s)" optional tip="Puedes seleccionar varios paralelos." error={sectionError}>
+        {isAddingSection ? (
+          <div className="flex items-center gap-2">
+            <Input
+              id="new-parallel-name"
+              aria-label="Nombre del nuevo paralelo"
+              value={newSectionName}
+              onChange={(e) => {
+                setNewSectionName(sanitizeLetters(e.target.value, 50))
+                setSectionError(null)
+              }}
+              placeholder="Ej. B"
+              maxLength={50}
+              disabled={creatingSection}
+              autoFocus
+            />
+            <Button
+              type="button"
+              onClick={() => void handleCreateSection()}
+              disabled={creatingSection || !newSectionName.trim()}
+              className="shrink-0"
+            >
+              {creatingSection ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
+              Guardar
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsAddingSection(false)
+                setNewSectionName('')
+                setSectionError(null)
+              }}
+              disabled={creatingSection}
+              className="shrink-0"
+            >
+              Cancelar
+            </Button>
+          </div>
+        ) : (
+          <div id="subject-parallels" className="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Paralelos">
+            {allParallels.map((parallel) => (
+              <label key={parallel.id} htmlFor={`subject-parallel-${parallel.id}`} className="inline-flex cursor-pointer items-center gap-2 pr-2 text-sm">
+                <Checkbox
+                  id={`subject-parallel-${parallel.id}`}
+                  checked={form.parallel_ids.includes(String(parallel.id))}
+                  onCheckedChange={() => toggleParallel(String(parallel.id))}
+                />
+                {parallel.name.startsWith('Paralelo') ? parallel.name : `Paralelo ${parallel.name}`}
+              </label>
+            ))}
+            {allParallels.length === 0 && (
+              <p className="text-xs text-muted-foreground">No hay paralelos activos registrados aún.</p>
+            )}
+            <Button
+              type="button"
+              variant="tertiary"
+              size="sm"
+              onClick={() => {
+                setIsAddingSection(true)
+                setNewSectionName('')
+                setSectionError(null)
+              }}
+              disabled={operation.pending}
+            >
+              <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
+            </Button>
+          </div>
+        )}
       </FormField>
-      {editing && (
+    </>
+  )
+
+  const createSteps: readonly FormStep[] = [
+    { title: 'Datos de la asignatura', description: 'Nombre, código y modalidad.', blockReason: nameReason, content: dataFields },
+    { title: 'Ciclo y paralelos', description: 'Dónde se dicta en el período vigente.', content: placementFields },
+  ]
+
+  const formTitle = mode === 'sequence' ? 'Secuencia en la malla' : editing ? 'Editar asignatura' : 'Registrar asignatura'
+  const formDescription = editing
+    ? (mode === 'sequence' ? formatSubjectName(editing.name) : `Modifica los datos de ${formatSubjectName(editing.name)}.`)
+    : currentCareer ? `Carrera: ${currentCareer.name}` : undefined
+
+  const subjectNotFound = detail.id !== null && !detailSubject && careerSubjects !== null && !list.isFetching && !list.isInitialLoading
+
+  return <section className="flex flex-col gap-6">
+    {detailSubject ? (
+      <SubjectDetail
+        subject={detailSubject}
+        cycles={catalogs.cycles}
+        parallels={allParallels}
+        operation={operation}
+        onBack={detail.close}
+        onEdit={() => openForm('edit', detailSubject)}
+        onEditSequence={() => openForm('sequence', detailSubject)}
+        onDeactivate={() => { operation.clearError(); setDeactivating(detailSubject) }}
+        onChanged={async (updated) => {
+          setOpenedSubject(updated)
+          await list.reload()
+          catalogs.reload()
+        }}
+      />
+    ) : subjectNotFound ? (
+      <div className="flex flex-col items-start gap-4">
+        <p className="text-sm text-muted-foreground">No encontramos esta asignatura en la carrera.</p>
+        <Button type="button" variant="secondary" onClick={detail.close}>Volver a asignaturas</Button>
+      </div>
+    ) : detail.id !== null ? (
+      <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Spinner />Cargando asignatura…</p>
+    ) : (
+      <>
+        <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
+        <ModuleHeader title={currentCareerName} description="Registra las asignaturas de cada ciclo y sus paralelos. Haz clic en una para abrirla." createLabel="Registrar asignatura" onCreate={() => openForm('create', null, selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+        <FilterBar
+          id="subjects"
+          leading={cycleLevels.length > 0 ? <CycleSelect id="subjects-cycle" levels={cycleLevels} value={activeCycle} onChange={setCycleSelection} degreeCycleNumber={careerMaxCycle} /> : undefined}
+          search={list.searchInput}
+          onSearch={list.setSearchInput}
+          searchPlaceholder="Busca por nombre o código…"
+          onClear={clearFilters}
+          filters={[
+            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
+          ]}
+        />
+        <ErrorNotice message={list.error} retry={list.reload} />
+
+        <RecordTable
+          rows={list.data}
+          loading={list.isFetching || list.isInitialLoading}
+          empty={list.searchInput || statusFilter ? 'No hay asignaturas con estos filtros.' : activeCycle === ALL_CYCLES ? 'Aún no hay asignaturas registradas en esta carrera.' : 'Aún no hay asignaturas en este ciclo.'}
+          columns={renderSubjectColumns()}
+          onRowClick={openSubject}
+          rowTitle={(subject) => `Abrir ${formatSubjectName(subject.name)}`}
+        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === ALL_CYCLES ? '' : ` del ${selectedLevel?.name ?? 'ciclo seleccionado'}`}
+          </p>
+          <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
+        </div>
+      </>
+    )}
+    <FormDialog
+      open={mode !== null}
+      title={formTitle}
+      description={formDescription}
+      pending={operation.pending}
+      error={operation.error}
+      dirty={JSON.stringify(form) !== JSON.stringify(initialForm) || Boolean(newSectionName)}
+      blockReason={nameReason}
+      onClose={() => setMode(null)}
+      onSubmit={submit}
+      submitIcon={mode === 'create' ? PlusIcon : mode === 'sequence' ? GitBranchIcon : SaveIcon}
+      submitLabel={mode === 'create' ? 'Registrar asignatura' : mode === 'sequence' ? 'Guardar secuencia' : 'Guardar cambios'}
+      steps={mode === 'create' ? createSteps : undefined}
+    >
+      {mode === 'edit' && dataFields}
+      {mode === 'sequence' && editing && (
         <NextSubjectsField
           subject={editing}
           options={careerSubjects?.filter((subject) => subject.curriculum_id === editing.curriculum_id) ?? null}
@@ -535,118 +492,28 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         />
       )}
     </FormDialog>
-    <FormDialog
-      open={Boolean(assigning)}
-      title="Paralelos de la asignatura"
-      description={assigning ? `${formatSubjectName(assigning.name)}${assignedCycleName ? ` · ${assignedCycleName}` : ''}` : ''}
+    <ConfirmModal
+      open={Boolean(deactivating)}
+      title="¿Desactivar asignatura?"
+      description={`La asignatura «${deactivating?.name ?? ''}» dejará de estar disponible para nuevas tutorías. Sus tutorías existentes se conservarán.`}
+      confirmLabel="Desactivar asignatura"
       pending={operation.pending}
-      error={operation.error}
-      dirty={Boolean(parallelId || newModalParallelName.trim())}
-      noChangesReason="Selecciona o crea un paralelo para agregarlo."
-      onClose={() => {
-        setAssigning(null)
-        setParallelId('')
-        setIsAddingParallelInModal(false)
-        setNewModalParallelName('')
-        setModalParallelError(null)
+      onClose={() => { if (!operation.pending) setDeactivating(null) }}
+      onConfirm={() => {
+        if (!deactivating) return
+        let updated: Subject | null = null
+        void operation.run(
+          async () => { updated = await tutoringApi.deactivateSubject(deactivating.id) },
+          'Asignatura desactivada.',
+          async () => {
+            setDeactivating(null)
+            setMode(null)
+            if (updated) setOpenedSubject(updated)
+            await list.reload()
+          },
+        )
       }}
-      submitIcon={PlusIcon} submitLabel="Agregar paralelo"
-      onSubmit={addParallel}
-    >
-      {assignedParallels.length > 0 ? (
-        <div className="flex flex-col gap-1">
-          <FieldLabel>Paralelos asignados</FieldLabel>
-          <ul className="flex flex-col divide-y divide-border">
-            {assignedParallels.map((item) => (
-              <li
-                key={item.key}
-                className="flex items-center justify-between gap-2 py-1.5 text-sm"
-              >
-                <span className="text-foreground">{item.label}</span>
-                <IconAction
-                  label={`Quitar ${item.label}`}
-                  icon={XIcon}
-                  tone="destructive"
-                  disabled={operation.pending}
-                  onClick={() => removeParallel(item.cycleId, item.parallelId)}
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">Esta asignatura no tiene paralelos asignados en su ciclo.</p>
-      )}
-
-      <div className="flex flex-col gap-3">
-        {isAddingParallelInModal ? (
-          <FormField id="new-modal-parallel-name" label="Nuevo paralelo" error={modalParallelError}>
-            <div className="flex items-center gap-2">
-              <Input
-                id="new-modal-parallel-name"
-                value={newModalParallelName}
-                onChange={(e) => {
-                  setNewModalParallelName(sanitizeLetters(e.target.value, 50))
-                  setModalParallelError(null)
-                }}
-                placeholder="Ej. C"
-                maxLength={50}
-                disabled={operation.pending}
-                autoFocus
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setIsAddingParallelInModal(false)
-                  setNewModalParallelName('')
-                  setModalParallelError(null)
-                }}
-                disabled={operation.pending}
-                className="shrink-0"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </FormField>
-        ) : (
-          <>
-            <SelectField
-              id="subject-parallel-select"
-              label="Agregar un paralelo"
-              value={parallelId}
-              onValueChange={(v) => {
-                setParallelId(v)
-                setModalParallelError(null)
-              }}
-              placeholder="Selecciona un paralelo"
-              error={modalParallelError}
-              options={availableParallelsForModal.map((p) => ({ value: String(p.id), label: p.name.startsWith('Paralelo') ? p.name : `Paralelo ${p.name}` }))}
-            />
-            {availableParallelsForModal.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                Todos los paralelos ya están asignados. Puedes crear uno nuevo.
-              </p>
-            )}
-            <Button
-              type="button"
-              variant="tertiary"
-              size="sm"
-              className="self-start"
-              onClick={() => {
-                setIsAddingParallelInModal(true)
-                setNewModalParallelName('')
-                setModalParallelError(null)
-              }}
-              disabled={operation.pending}
-            >
-              <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
-            </Button>
-          </>
-        )}
-      </div>
-    </FormDialog>
-    <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar asignatura?" description={`La asignatura «${deactivating?.name ?? ''}» dejará de estar disponible para nuevas tutorías. Sus tutorías existentes se conservarán.`} confirmLabel="Desactivar asignatura" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => tutoringApi.deactivateSubject(deactivating.id), 'Asignatura desactivada.', async () => { setDeactivating(null); setOpen(false); await list.reload() }) }} />
+    />
   </section>
 }
 

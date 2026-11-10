@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeftIcon, CalendarClockIcon, PencilIcon, UsersIcon } from 'lucide-react'
+import { ArrowLeftIcon, CalendarClockIcon, PencilIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -138,10 +138,7 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <UsersIcon className="size-5" />
-          Supervisión de asistencias
-        </CardTitle>
+        <CardTitle className="text-xl">Supervisión de asistencias</CardTitle>
         <CardDescription>Cada vez que se imparte la tutoría es una sesión. Abre una para ver su lista.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -163,7 +160,7 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
                 </Empty>
               }
               columns={[
-                { label: 'Sesión', render: (session) => <span className="font-medium">Sesión {session.number}</span> },
+                { label: 'Sesión', render: (session) => `Sesión ${session.number}` },
                 { label: 'Fecha', render: (session) => formatDate(session.date) },
                 { label: 'Temas tratados', render: (session) => <span className="text-muted-foreground" title={session.topics.map((topic) => topic.name).join(', ') || undefined}>{firstTopic(session.topics) ?? (session.topics_covered ? 'Sin temas registrados' : 'Sin temas vistos')}</span> },
                 { label: 'Asistencia', render: (session) => `${session.present_count} de ${session.present_count + session.absent_count} presentes` },

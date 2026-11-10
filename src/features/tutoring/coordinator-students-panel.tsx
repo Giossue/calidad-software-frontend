@@ -133,7 +133,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
           ? 'No hay estudiantes con estos filtros.'
           : 'Aún no hay estudiantes inscritos en esta tutoría.'}
         columns={[
-          { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span className="font-medium">{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
+          { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
           { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
           { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
         ]}
@@ -176,7 +176,7 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         )}
         {!editing && mode === 'existing' && (
           <>
-            <FormField id="coord-student-search" label="Estudiante" tip={`Se listan los estudiantes del paralelo ${tutoring.section_name ?? ''} que aún no están inscritos en esta tutoría (hasta 100).`}>
+            <FormField id="coord-student-search" label="Estudiante" required tip={`Se listan los estudiantes del paralelo ${tutoring.section_name ?? ''} que aún no están inscritos en esta tutoría (hasta 100).`}>
               <SearchSelect
                 id="coord-student-search"
                 query={search.input}
@@ -194,13 +194,13 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
         )}
         {(editing || mode === 'new') && (
           <>
-            <FormField id="coord-student-identification" label="Cédula o pasaporte" counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shown.identification} tip={!editing ? `Se creará la cuenta del estudiante, se lo asignará al paralelo ${tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.` : undefined}>
-              <Input id="coord-student-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} pattern="[0-9]{10}|[A-Z0-9]{6,9}" maxLength={10} required disabled={Boolean(editing)} aria-invalid={Boolean(shown.identification)} placeholder="Cédula (10 dígitos) o pasaporte" />
-            </FormField>
-            <FormField id="coord-student-name" label="Nombre completo" counter={{ current: form.name.length, max: 150 }} error={shown.name}>
+            <FormField id="coord-student-name" label="Nombre completo" required={canEditFields} counter={{ current: form.name.length, max: 150 }} error={shown.name}>
               <Input id="coord-student-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} maxLength={150} required disabled={!canEditFields} aria-invalid={Boolean(shown.name)} placeholder="Apellidos y nombres" />
             </FormField>
-            <FormField id="coord-student-email" label="Correo institucional" counter={{ current: form.email.length, max: 150 }} error={shown.email}>
+            <FormField id="coord-student-identification" label="Cédula o pasaporte" required={!editing} counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shown.identification} tip={!editing ? `Se creará la cuenta del estudiante, se lo asignará al paralelo ${tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.` : undefined}>
+              <Input id="coord-student-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} pattern="[0-9]{10}|[A-Z0-9]{6,9}" maxLength={10} required disabled={Boolean(editing)} aria-invalid={Boolean(shown.identification)} placeholder="Cédula (10 dígitos) o pasaporte" />
+            </FormField>
+            <FormField id="coord-student-email" label="Correo institucional" required={!editing} counter={{ current: form.email.length, max: 150 }} error={shown.email}>
               <Input id="coord-student-email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} maxLength={150} required disabled={Boolean(editing)} aria-invalid={Boolean(shown.email)} placeholder="estudiante@ueb.edu.ec" />
             </FormField>
             <FormField id="coord-student-phone" label="Teléfono" optional counter={{ current: form.phone.length, max: 10 }} error={shown.phone}>

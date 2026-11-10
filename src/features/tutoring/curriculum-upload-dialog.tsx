@@ -146,12 +146,46 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
         open={open}
         onClose={close}
         title="Subir nueva malla curricular"
-        description={`${careerName}. Sube el archivo, elige desde qué PAO rige y a qué ciclos se aplica.`}
+        description={`${careerName}. Ponle nombre, elige desde qué PAO rige y a qué ciclos se aplica, y sube el archivo.`}
         confirmClose={dirty}
         maxWidth="max-w-4xl"
       >
         {rows === null ? (
           <form onSubmit={review} aria-label="Subir nueva malla curricular" className="flex flex-col gap-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField id="curriculum-name" label="Nombre de la malla" required counter={{ current: name.length, max: 150 }}>
+                <Input id="curriculum-name" value={name} maxLength={150} onChange={(event) => setName(event.target.value)} placeholder="Ej. Malla 2027" required />
+              </FormField>
+              <SelectField
+                id="curriculum-period"
+                label="¿Desde qué PAO rige?"
+                required
+                value={periodId}
+                onValueChange={(value) => {
+                  setPeriodId(value)
+                  const chosen = periods.find((item) => String(item.id) === value)
+                  if (chosen && !name.trim()) setName(`Malla ${chosen.name}`)
+                }}
+                placeholder={periods.length > 0 ? 'Selecciona el PAO' : 'Registra primero el PAO'}
+                options={periods.map((item) => ({ value: String(item.id), label: item.name }))}
+                disabled={periods.length === 0}
+              />
+            </div>
+            <SelectField
+              id="curriculum-cycle"
+              label="¿A qué ciclos se aplica esta nueva malla?"
+              required
+              tip="Se aplica a quienes hoy están en ese ciclo o en uno anterior, y a quienes ingresen después. Los siguen con ella al avanzar."
+              value={upToCycle}
+              onValueChange={setUpToCycle}
+              placeholder="Selecciona el ciclo"
+              options={cycleOptions.map((number) => ({ value: String(number), label: number === 1 ? 'Solo 1.º ciclo' : `De 1.º a ${number}.º ciclo` }))}
+            />
+            {period && cycle > 0 && (
+              <p className="text-sm text-muted-foreground" aria-live="polite">
+                Desde <strong>{period.name}</strong>, los estudiantes que hoy están de 1.º a {cycle}.º ciclo seguirán la nueva malla. Los de {cycle + 1}.º ciclo en adelante seguirán con <strong>{current?.name ?? 'la malla anterior'}</strong> hasta terminar.
+              </p>
+            )}
             <FileDropzone
               id="curriculum-file"
               label="Archivo de la malla"
@@ -169,38 +203,6 @@ export function CurriculumUploadButton({ careerId, careerName, info, maxCycle, o
             <Button type="button" variant="tertiary" size="sm" className="self-start" onClick={downloadTemplate}>
               <DownloadIcon data-icon="inline-start" />Descargar plantilla
             </Button>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField id="curriculum-name" label="Nombre de la malla" counter={{ current: name.length, max: 150 }}>
-                <Input id="curriculum-name" value={name} maxLength={150} onChange={(event) => setName(event.target.value)} placeholder="Ej. Malla 2027" required />
-              </FormField>
-              <SelectField
-                id="curriculum-period"
-                label="¿Desde qué PAO rige?"
-                value={periodId}
-                onValueChange={(value) => {
-                  setPeriodId(value)
-                  const chosen = periods.find((item) => String(item.id) === value)
-                  if (chosen && !name.trim()) setName(`Malla ${chosen.name}`)
-                }}
-                placeholder={periods.length > 0 ? 'Selecciona el PAO' : 'Registra primero el PAO'}
-                options={periods.map((item) => ({ value: String(item.id), label: item.name }))}
-                disabled={periods.length === 0}
-              />
-            </div>
-            <SelectField
-              id="curriculum-cycle"
-              label="¿A qué ciclos se aplica esta nueva malla?"
-              tip="Se aplica a quienes hoy están en ese ciclo o en uno anterior, y a quienes ingresen después. Los siguen con ella al avanzar."
-              value={upToCycle}
-              onValueChange={setUpToCycle}
-              placeholder="Selecciona el ciclo"
-              options={cycleOptions.map((number) => ({ value: String(number), label: number === 1 ? 'Solo 1.º ciclo' : `De 1.º a ${number}.º ciclo` }))}
-            />
-            {period && cycle > 0 && (
-              <p className="text-sm text-muted-foreground" aria-live="polite">
-                Desde <strong>{period.name}</strong>, los estudiantes que hoy están de 1.º a {cycle}.º ciclo seguirán la nueva malla. Los de {cycle + 1}.º ciclo en adelante seguirán con <strong>{current?.name ?? 'la malla anterior'}</strong> hasta terminar.
-              </p>
-            )}
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-wrap justify-end gap-3">
               <Button type="button" variant="secondary" onClick={close} disabled={pending}>Cancelar</Button>

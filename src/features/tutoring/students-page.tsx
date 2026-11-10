@@ -276,11 +276,12 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   const isEmailValid = isInstitutionalEmail(form.email)
 
   // Primer error de validación: bloquea "Registrar estudiante" y se muestra en su tooltip.
-  const createBlockReason =
-    (!form.identification ? 'La cédula o pasaporte es obligatoria.' : !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null) ??
+  // En el orden de los campos: nombre, cédula y correo.
+  const dataBlockReason =
     (!form.name.trim() ? 'El nombre es obligatorio.' : null) ??
-    (!form.email ? 'El correo institucional es obligatorio.' : !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null) ??
-    (!form.cycle_id ? 'Selecciona el ciclo que cursa el estudiante.' : null)
+    (!form.identification ? 'La cédula o pasaporte es obligatoria.' : !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null) ??
+    (!form.email ? 'El correo institucional es obligatorio.' : !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null)
+  const createBlockReason = dataBlockReason ?? (!form.cycle_id ? 'Selecciona el ciclo que cursa el estudiante.' : null)
 
   function handleCycleChange(cycleId: string) {
     setForm((prev) => ({
@@ -441,7 +442,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 loading={false}
                 empty="Aún no está inscrito en ninguna tutoría."
                 columns={[
-                  { label: 'Asignatura', render: (tutoring) => <span className="font-medium text-foreground">{formatSubjectName(tutoring.subject_name)}</span> },
+                  { label: 'Asignatura', render: (tutoring) => formatSubjectName(tutoring.subject_name) },
                   { label: 'Ciclo', render: (tutoring) => tutoring.cycle_name },
                   { label: 'Paralelo', render: (tutoring) => tutoring.section_name ?? '—' },
                   { label: 'Período', render: (tutoring) => tutoring.period_name },
@@ -520,7 +521,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     label: 'Estudiante',
                     render: (student) => (
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-medium text-foreground">{student.name}</span>
+                        <span>{student.name}</span>
                         <span className="text-xs text-muted-foreground">{student.email}</span>
                         {(student.pending_subjects ?? []).length > 0 && (
                           <span className="text-xs text-warning">
@@ -611,7 +612,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                     label: 'Estudiante',
                     render: (student) => (
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-medium text-foreground">{student.name}</span>
+                        <span>{student.name}</span>
                         <span className="text-xs text-muted-foreground">{student.email}</span>
                       </div>
                     ),
@@ -687,106 +688,129 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         onSubmit={handleCreateSubmit}
         submitIcon={UserPlusIcon}
         submitLabel="Registrar estudiante"
+        steps={[
+          {
+            title: 'Datos del estudiante',
+            description: 'Su nombre, identificación y contacto.',
+            blockReason: dataBlockReason,
+            content: (
+              <>
+                <FormField id="new-student-name" label="Nombres y apellidos" required tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
+                  <Input
+                    id="new-student-name"
+                    required
+                    maxLength={150}
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: sanitizeLetters(e.target.value, 150) })}
+                    placeholder="Juan Carlos Pérez Rodríguez"
+                  />
+                </FormField>
+
+                <FormField
+                  id="new-student-cedula"
+                  label="Cédula o pasaporte"
+                  required
+                  tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres."
+                  counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }}
+                  error={shouldShowIdentificationStatus(form.identification) && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null}
+                >
+                  <Input
+                    id="new-student-cedula"
+                    required
+                    maxLength={10}
+                    value={form.identification}
+                    onChange={(e) => setForm({ ...form, identification: sanitizeIdentification(e.target.value) })}
+                    placeholder="0201234567 o AB1234567"
+                  />
+                </FormField>
+
+                <FormField
+                  id="new-student-email"
+                  label="Correo institucional"
+                  required
+                  tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`}
+                  counter={{ current: form.email.length, max: 150 }}
+                  error={form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null}
+                >
+                  <Input
+                    id="new-student-email"
+                    type="email"
+                    required
+                    maxLength={150}
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value.trim() })}
+                    placeholder="jperez@ueb.edu.ec"
+                  />
+                </FormField>
+
+                <FormField id="new-student-phone" label="Teléfono" optional counter={{ current: form.phone.length, max: 10 }}>
+                  <Input
+                    id="new-student-phone"
+                    maxLength={10}
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: sanitizeDigits(e.target.value, 10) })}
+                    placeholder="0991234567"
+                  />
+                </FormField>
+
+              </>
+            ),
+          },
+          {
+            title: 'Ciclo y tutoría',
+            description: 'El ciclo que cursa y, si quieres, una tutoría de ese ciclo.',
+            content: (
+              <>
+                <SelectField
+                  id="new-student-cycle"
+                  label="Ciclo"
+                  required
+                  tip="Ciclo que cursa el estudiante. El último ciclo de la carrera es de titulación; los anteriores, de tutorías."
+                  value={form.cycle_id}
+                  onValueChange={handleCycleChange}
+                  disabled={loadingCycles}
+                  placeholder="Selecciona un ciclo"
+                  options={cycles.filter((cycle) => tabCycleNumber === undefined || cycle.number === tabCycleNumber).map((cycle) => ({
+                    value: String(cycle.id),
+                    label: `${cycle.name}${cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}${isLastCycle(cycle) ? ' · Titulación' : ''}`,
+                  }))}
+                />
+
+                <SelectField
+                  id="new-student-tutoring"
+                  label="Tutoría"
+                  optional
+                  tip={
+                    isDegreeCycle
+                      ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.'
+                      : form.cycle_id
+                        ? 'Puedes inscribir al estudiante en una tutoría de este ciclo de inmediato o hacerlo después.'
+                        : 'Selecciona primero un ciclo para habilitar las tutorías.'
+                  }
+                  value={form.tutoring_id}
+                  onValueChange={(value) => setForm({ ...form, tutoring_id: value })}
+                  disabled={!form.cycle_id || isDegreeCycle || loadingTutorings}
+                  emptyLabel={form.cycle_id && !isDegreeCycle && availableTutoringsForCycle.length > 0 ? 'No asignar tutoría por ahora' : undefined}
+                  placeholder={
+                    !form.cycle_id
+                      ? 'Primero selecciona un ciclo'
+                      : isDegreeCycle
+                        ? 'Ciclo de titulación: sin tutorías'
+                        : availableTutoringsForCycle.length === 0
+                          ? 'No hay tutorías activas en este ciclo'
+                          : 'No asignar tutoría por ahora'
+                  }
+                  options={availableTutoringsForCycle.map((tutoring) => ({
+                    value: String(tutoring.id),
+                    label: `${tutoring.subject_name}${tutoring.section_name ? ` (Paralelo ${tutoring.section_name})` : ''}${tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}`,
+                  }))}
+                />
+              </>
+            ),
+          },
+        ]}
       >
-        <FormField
-          id="new-student-cedula"
-          label="Cédula o pasaporte"
-          tip="Cédula ecuatoriana de 10 dígitos o pasaporte de 6 a 9 caracteres."
-          counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }}
-          error={shouldShowIdentificationStatus(form.identification) && !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null}
-        >
-          <Input
-            id="new-student-cedula"
-            required
-            maxLength={10}
-            value={form.identification}
-            onChange={(e) => setForm({ ...form, identification: sanitizeIdentification(e.target.value) })}
-            placeholder="0201234567 o AB1234567"
-          />
-        </FormField>
-
-        <FormField id="new-student-name" label="Nombres y apellidos" tip="Nombre completo del estudiante (solo letras y espacios)." counter={{ current: form.name.length, max: 150 }}>
-          <Input
-            id="new-student-name"
-            required
-            maxLength={150}
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: sanitizeLetters(e.target.value, 150) })}
-            placeholder="Juan Carlos Pérez Rodríguez"
-          />
-        </FormField>
-
-        <FormField
-          id="new-student-email"
-          label="Correo institucional"
-          tip={`Debe pertenecer al dominio institucional (${institutionalEmailDomainsLabel}).`}
-          counter={{ current: form.email.length, max: 150 }}
-          error={form.email && !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null}
-        >
-          <Input
-            id="new-student-email"
-            type="email"
-            required
-            maxLength={150}
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value.trim() })}
-            placeholder="jperez@ueb.edu.ec"
-          />
-        </FormField>
-
-        <FormField id="new-student-phone" label="Teléfono" optional counter={{ current: form.phone.length, max: 10 }}>
-          <Input
-            id="new-student-phone"
-            maxLength={10}
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: sanitizeDigits(e.target.value, 10) })}
-            placeholder="0991234567"
-          />
-        </FormField>
-
-        <SelectField
-          id="new-student-cycle"
-          label="Ciclo"
-          tip="Ciclo que cursa el estudiante. El último ciclo de la carrera es de titulación; los anteriores, de tutorías."
-          value={form.cycle_id}
-          onValueChange={handleCycleChange}
-          disabled={loadingCycles}
-          placeholder="Selecciona un ciclo"
-          options={cycles.filter((cycle) => tabCycleNumber === undefined || cycle.number === tabCycleNumber).map((cycle) => ({
-            value: String(cycle.id),
-            label: `${cycle.name}${cycle.paralelo_name ? ` - Paralelo ${cycle.paralelo_name}` : ''}${isLastCycle(cycle) ? ' · Titulación' : ''}`,
-          }))}
-        />
-
-        <SelectField
-          id="new-student-tutoring"
-          label="Tutoría"
-          optional
-          tip={
-            isDegreeCycle
-              ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.'
-              : form.cycle_id
-                ? 'Puedes inscribir al estudiante en una tutoría de este ciclo de inmediato o hacerlo después.'
-                : 'Selecciona primero un ciclo para habilitar las tutorías.'
-          }
-          value={form.tutoring_id}
-          onValueChange={(value) => setForm({ ...form, tutoring_id: value })}
-          disabled={!form.cycle_id || isDegreeCycle || loadingTutorings}
-          emptyLabel={form.cycle_id && !isDegreeCycle && availableTutoringsForCycle.length > 0 ? 'No asignar tutoría por ahora' : undefined}
-          placeholder={
-            !form.cycle_id
-              ? 'Primero selecciona un ciclo'
-              : isDegreeCycle
-                ? 'Ciclo de titulación: sin tutorías'
-                : availableTutoringsForCycle.length === 0
-                  ? 'No hay tutorías activas en este ciclo'
-                  : 'No asignar tutoría por ahora'
-          }
-          options={availableTutoringsForCycle.map((tutoring) => ({
-            value: String(tutoring.id),
-            label: `${tutoring.subject_name}${tutoring.section_name ? ` (Paralelo ${tutoring.section_name})` : ''}${tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}`,
-          }))}
-        />
+        {null}
       </FormDialog>
 
       <ConfirmModal

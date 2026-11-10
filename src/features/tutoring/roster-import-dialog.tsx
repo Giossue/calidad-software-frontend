@@ -149,11 +149,11 @@ export function RosterImportButton({ careerId, onFinished }: Readonly<{ careerId
                     <tr key={student.email} className="border-t align-top">
                       <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{student.number}</td>
                       <td className="px-3 py-2">
-                        <span className="block font-medium">{student.name}</span>
+                        <span className="block">{student.name}</span>
                         <span className="block text-xs text-muted-foreground">{student.email}</span>
                       </td>
                       <td className="px-3 py-2">
-                        <span className={cn('block font-medium', STATUS[student.status].className)}>
+                        <span className={cn('block', STATUS[student.status].className)}>
                           {report.applied ? STATUS[student.status].done : STATUS[student.status].preview}
                         </span>
                         {student.message && <span className="block text-xs text-muted-foreground">{student.message}</span>}

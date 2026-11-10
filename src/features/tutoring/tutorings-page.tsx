@@ -589,7 +589,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       label: 'Asignatura',
       render: (item: TutoringRowItem) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-medium text-foreground">{item.subject_name}</span>
+          <span>{item.subject_name}</span>
           <span className="text-xs text-muted-foreground">{item.modality_name || 'Presencial'}</span>
         </div>
       ),
@@ -613,7 +613,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         <div className="flex flex-col gap-1 items-start">
           {item.teacher_name ? (
             <>
-              <span className="font-medium text-foreground">{item.teacher_name}</span>
+              <span>{item.teacher_name}</span>
               {item.teacher_id && !item.teacher_is_active && (
                 <span className="text-xs text-destructive">Docente inactivo: requiere reasignación</span>
               )}
@@ -713,6 +713,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           <SelectField
             id="create-tutoring-cycle"
             label="Ciclo"
+            required
             value={chooserCycle}
             onValueChange={(value) => { setChooserCycle(value); setChooserSubjectId('') }}
             placeholder="Selecciona un ciclo"
@@ -721,6 +722,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           <SelectField
             id="create-tutoring-subject"
             label="Asignatura"
+            required
             value={chooserSubjectId}
             onValueChange={setChooserSubjectId}
             disabled={!chooserCycle}
@@ -868,6 +870,7 @@ function TeacherSection({ prefix, teachers, loading, error, value, onChange, con
       <SelectField
         id={`${prefix}-tutoring-teacher`}
         label="Docente"
+        required
         value={value}
         onValueChange={onChange}
         disabled={loading || disabled}
@@ -911,7 +914,7 @@ function ScheduleSection({ prefix, days, times, onChange, disabled = false }: Re
   const orderedDays = WEEK_DAYS.filter((day) => days.includes(day))
 
   return (
-    <FormField id={`${prefix}-schedule-days`} label="Horario" tip="Marca los días de la tutoría y elige la hora de cada uno.">
+    <FormField id={`${prefix}-schedule-days`} label="Horario" required tip="Marca los días de la tutoría y elige la hora de cada uno.">
       <div id={`${prefix}-schedule-days`} className="flex flex-wrap gap-x-4 gap-y-2" role="group" aria-label="Días de la semana">
         {WEEK_DAYS.map((day) => (
           <label key={day} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
@@ -999,6 +1002,8 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
     <FormField
       id={`${prefix}-tutoring-parallels`}
       label="Paralelo"
+      // Igual que la validación: al crear siempre; al editar, si la asignatura tiene paralelos.
+      required={prefix === 'create' || parallels.length > 0}
       tip="Cada paralelo es una tutoría con su propio docente."
       error={parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null}
     >
