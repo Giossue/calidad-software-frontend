@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { GraduationCapIcon, PlusIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
+import { PlusIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Badge } from '@/components/ui/badge'
@@ -8,8 +8,8 @@ import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FieldDescription } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
-import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
+import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SearchSelect } from '@/components/ui/search-select'
 import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -43,6 +43,12 @@ function groupFor(value: string, settings: GradeSettings): string | null {
 
 const FINAL_RESULT_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', failed: 'Reprobó' }
 const FINAL_RESULT_OPTIONS = [{ value: 'approved', label: 'Aprobó' }, { value: 'failed', label: 'Reprobó' }]
+
+/** Grupo de conocimiento con un color semántico (alto, medio, bajo). */
+function knowledgeVariant(group: string): 'success' | 'warning' | 'danger' {
+  const key = group.toLowerCase()
+  return key.includes('alto') ? 'success' : key.includes('medio') ? 'warning' : 'danger'
+}
 
 export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
@@ -84,6 +90,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       async () => { setOpen(false); await list.reload() }
     )
   }
+
+  // La fila abre las notas solo de una inscripción activa en una tutoría en curso.
+  const canGrade = (student: Enrollment) => tutoring.can_manage && student.is_active && !operation.pending
 
   function openGrades(student: Enrollment) {
     const current = {
@@ -144,26 +153,18 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       <Button className="shrink-0" disabled={!tutoring.can_manage || operation.pending} onClick={() => openForm()}><PlusIcon data-icon="inline-start" />Registrar estudiante</Button>
     </div>
     <ErrorNotice message={list.error} retry={list.reload} />{!open && !gradingStudent && <ErrorNotice message={operation.error} />}
-    <RecordTable rows={list.data} numberFrom={list.meta?.from} loading={list.isFetching || list.isInitialLoading} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
+    <RecordTable rows={list.data} numberFrom={list.meta?.from} loading={list.isFetching || list.isInitialLoading} onRowClick={(student) => { if (canGrade(student)) openGrades(student) }} rowTitle={(student) => (canGrade(student) ? `Añadir notas de ${student.name}` : '')} empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />} columns={[
       { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span className="font-medium">{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
       { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
-      { label: 'Grupo de Conocimiento', render: (student) => {
-        if (!student.knowledge_group) {
-          return <span className="text-xs text-muted-foreground">Sin diagnóstico</span>
-        }
-        const key = student.knowledge_group.toLowerCase()
-        const colorClass = key.includes('alto')
-          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-          : key.includes('medio')
-          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-          : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
-        return <Badge className={`${colorClass}`}>{student.knowledge_group}</Badge>
-      } },
+      { label: 'Grupo de Conocimiento', render: (student) => student.knowledge_group
+        ? <Badge variant={knowledgeVariant(student.knowledge_group)}>{student.knowledge_group}</Badge>
+        : <span className="text-xs text-muted-foreground">Sin diagnóstico</span> },
       { label: 'Calificaciones', render: (student) => <div className="flex flex-col gap-0.5 text-xs tabular-nums">
         <span>Diag: {student.diagnostic_grade ?? '—'}</span>
         <span className="text-muted-foreground">P1: {student.partial_grade ?? '—'} · P2: {student.second_partial_grade ?? '—'}</span>
       </div> },
-      { label: 'Resultado final', render: (student) => <div className="flex min-w-36 flex-col gap-1">
+      // El desplegable vive dentro de una fila que abre las notas: sus clics no deben llegar a la fila.
+      { label: 'Resultado final', render: (student) => <div className="flex min-w-36 flex-col gap-1" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
         <SelectInput
           ariaLabel={`Resultado final de ${student.name}`}
           value={student.final_result ?? ''}
@@ -175,12 +176,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
         {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
       </div> },
       { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
-      { label: 'Acciones', render: (student) => <div className="flex items-center gap-1">
-        {student.is_active && <IconAction label={`Añadir notas de ${student.name}`} icon={GraduationCapIcon} disabled={!tutoring.can_manage || operation.pending} onClick={() => openGrades(student)} />}
-        {student.is_active
-          ? <IconAction label={`Deshabilitar a ${student.name}`} icon={PowerOffIcon} tone="destructive" disabled={!tutoring.can_manage || operation.pending} onClick={() => { operation.clearError(); setDeactivating(student) }} />
-          : <IconAction label={`Reinscribir a ${student.name}`} icon={RotateCcwIcon} disabled={!tutoring.can_manage || !student.student_is_active || operation.pending} onClick={() => void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: student.student_id }), 'Estudiante inscrito nuevamente.', list.reload)} />}
-      </div> },
+      { label: 'Acciones', render: (student) => <RowActionsMenu name={student.name} disabled={!tutoring.can_manage || operation.pending} actions={[
+        { label: 'Reinscribir', icon: RotateCcwIcon, visible: !student.is_active, disabled: !student.student_is_active, onSelect: () => void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: student.student_id }), 'Estudiante inscrito nuevamente.', list.reload) },
+        { label: 'Deshabilitar inscripción', icon: PowerOffIcon, tone: 'destructive', visible: student.is_active, onSelect: () => { operation.clearError(); setDeactivating(student) } },
+      ]} /> },
     ]} />
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
 
@@ -270,7 +269,6 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       blockReason={gradesBlockReason}
     >
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-muted-foreground">Ingresa o actualiza las calificaciones correspondientes a cada etapa.</p>
         <div className="grid gap-4 sm:grid-cols-3">
           <FormField id="teacher-grade-diagnostic" label="Diagnóstico" tip={`Hasta ${settings.maximum}.00`}>
             <Input

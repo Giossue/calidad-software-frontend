@@ -39,7 +39,7 @@ export function buildTeacherGuideSteps(): DriveStep[] {
     ),
     step(
       'Paso 1 · Ver tus tutorías asignadas',
-      'Entra a «Mis tutorías» en el menú. Ahí están las tutorías que coordinación te asignó; busca por asignatura si tienes varias. Haz clic en una para abrirla: dentro tienes las pestañas Asistencia, Contenido, Horarios y Estudiantes y Calificaciones.',
+      'Entra a «Mis tutorías» en el menú. Ahí están las tutorías que coordinación te asignó; busca por asignatura si tienes varias. Haz clic en una para abrirla: dentro tienes las pestañas Asistencia, Contenido, Horarios, Estudiantes y Calificaciones.',
       menu,
     ),
     step(
@@ -54,7 +54,7 @@ export function buildTeacherGuideSteps(): DriveStep[] {
     ),
     step(
       'Paso 4 · Calificaciones y horarios',
-      'En «Estudiantes y Calificaciones» abre «Calificaciones», elige la etapa, escribe las notas (de 0 a la nota máxima, con hasta dos decimales) y guarda. En «Horarios» revisa los días y horas de la clase y pulsa «Editar horarios» para configurarlos: sin horario no se puede tomar asistencia.',
+      'En «Calificaciones», elige la etapa, escribe las notas (de 0 a la nota máxima, con hasta dos decimales) y guarda. En «Horarios» revisa los días y horas de la clase y pulsa «Editar horarios» para configurarlos: sin horario no se puede tomar asistencia.',
       sections,
     ),
     step(

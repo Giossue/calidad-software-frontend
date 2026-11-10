@@ -131,7 +131,7 @@ export function DiagnosticReportDialog({
       {preview && !hasGrades && (
         <Alert>
           <AlertDescription>
-            Aún no hay calificaciones diagnósticas registradas. Regístralas en la pestaña Notas antes de enviar el reporte.
+            Aún no hay calificaciones diagnósticas registradas. Regístralas en la pestaña Calificaciones antes de enviar el reporte.
           </AlertDescription>
         </Alert>
       )}

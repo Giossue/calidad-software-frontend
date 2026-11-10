@@ -1,17 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import {
-  ArrowLeftIcon,
-  CalendarDaysIcon,
-  CheckCheckIcon,
-  CheckCircle2Icon,
-  ClipboardListIcon,
-  MailWarningIcon,
-  PencilIcon,
-  PlusIcon,
-  SaveIcon,
-  UserCheckIcon,
-} from 'lucide-react'
+import { ArrowLeftIcon, CheckCheckIcon, PencilIcon, PlusIcon, SaveIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -23,7 +12,6 @@ import { DataTable } from '@/components/ui/data-table'
 import { IconAction } from '@/components/ui/icon-action'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -85,10 +73,7 @@ function clearDraft(tutoringId: number, date: string) {
   try { sessionStorage.removeItem(draftKey(tutoringId, date)) } catch { /* nada que limpiar */ }
 }
 
-// Pestañas internas como control segmentado: sin subrayado, para no repetir el separador de las pestañas principales.
-const SECTION_TRIGGER = 'mb-0 rounded-lg border-b-0 px-3 py-2 data-[state=active]:border-transparent data-[state=active]:bg-card data-[state=active]:shadow-sm'
-
-// --- Panel: dos secciones (Registrar asistencia y Consultar asistencia) ---
+// --- Panel: la lista de sesiones; desde ella se toma la lista de hoy o se consulta una sesión ---
 
 export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [params, setParams] = useSearchParams()
@@ -112,18 +97,6 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
     if (sessionDate && DATE_PATTERN.test(sessionDate)) setSection('register')
   }, [sessionDate])
 
-  function handleSectionChange(newSection: string) {
-    if (newSection === 'register' || newSection === 'consult') {
-      setSection(newSection)
-      setConsultingSession(null)
-      if (newSection === 'consult') {
-        const next = new URLSearchParams(params)
-        next.delete(SESSION_PARAM)
-        setParams(next, { replace: true })
-      }
-    }
-  }
-
   function openRegisterForDate(date: string) {
     setSection('register')
     setConsultingSession(null)
@@ -140,57 +113,34 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
     setParams(next, { replace: true })
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <Tabs value={section} onValueChange={handleSectionChange}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList aria-label="Secciones de asistencia" className="w-fit gap-1 rounded-lg bg-muted p-1 shadow-none">
-            <TabsTrigger value="consult" className={SECTION_TRIGGER}>
-              <ClipboardListIcon data-icon="inline-start" />
-              Consultar asistencia
-            </TabsTrigger>
-            <TabsTrigger value="register" className={SECTION_TRIGGER}>
-              <UserCheckIcon data-icon="inline-start" />
-              Registrar asistencia
-            </TabsTrigger>
-          </TabsList>
-
-          {activeScheduleDays.length > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CalendarDaysIcon className="size-3.5 text-primary" />
-              <span>Días programados:</span>
-              <span className="font-medium text-foreground">
-                {activeScheduleDays.map((d) => DAY_LABELS[d] ?? d).join(', ')}
-              </span>
-            </div>
-          )}
+  if (section === 'register') {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <IconAction label="Volver a las sesiones" icon={ArrowLeftIcon} onClick={handleCloseRegister} />
+          <h3 className="text-xl font-semibold tracking-tight">Registrar asistencia</h3>
         </div>
+        <SessionFlow
+          key={`${tutoring.id}:${targetDate}`}
+          tutoring={tutoring}
+          date={targetDate}
+          onClose={handleCloseRegister}
+        />
+      </div>
+    )
+  }
 
-        <TabsContent value="register" className="pt-2">
-          <SessionFlow
-            key={`${tutoring.id}:${targetDate}`}
-            tutoring={tutoring}
-            date={targetDate}
-            onClose={handleCloseRegister}
-          />
-        </TabsContent>
+  if (consultingSession) {
+    return <SessionConsult session={consultingSession} onClose={() => setConsultingSession(null)} />
+  }
 
-        <TabsContent value="consult" className="pt-2">
-          {consultingSession ? (
-            <SessionConsult
-              session={consultingSession}
-              onClose={() => setConsultingSession(null)}
-            />
-          ) : (
-            <SessionsList
-              tutoring={tutoring}
-              onOpenConsult={(session) => setConsultingSession(session)}
-              onOpenRegister={(date) => openRegisterForDate(date)}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+  return (
+    <SessionsList
+      tutoring={tutoring}
+      scheduleDays={activeScheduleDays.map((day) => DAY_LABELS[day] ?? day)}
+      onOpenConsult={(session) => setConsultingSession(session)}
+      onOpenRegister={(date) => openRegisterForDate(date)}
+    />
   )
 }
 
@@ -201,10 +151,13 @@ function attendanceSummary(session: TutoringSession): string {
 
 function SessionsList({
   tutoring,
+  scheduleDays,
   onOpenConsult,
   onOpenRegister,
 }: Readonly<{
   tutoring: TeacherTutoring
+  /** Días de clase de la tutoría, ya con su nombre. */
+  scheduleDays: readonly string[]
   onOpenConsult: (session: TutoringSession) => void
   onOpenRegister: (date: string) => void
 }>) {
@@ -223,25 +176,27 @@ function SessionsList({
   return (
     <div className="flex flex-col gap-5">
       {taken ? (
-        <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <CheckCircle2Icon className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
-            <div className="flex flex-col">
-              <p>La lista de hoy ya se tomó</p>
-              <p className="text-sm text-muted-foreground">{attendanceSummary(taken)}. Puedes modificarla solo durante el horario de la clase.</p>
-            </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col">
+            <p className="text-sm font-medium">La lista de hoy ya se tomó</p>
+            <p className="text-sm text-muted-foreground">{attendanceSummary(taken)}. Puedes modificarla solo durante el horario de la clase.</p>
           </div>
           {tutoring.can_manage && (
-            <Button variant="secondary" className="shrink-0" disabled={closed !== null} title={closed ?? undefined} onClick={() => onOpenRegister(today)}>
-              <PencilIcon data-icon="inline-start" />Modificar lista de hoy
-            </Button>
+            <BlockedReason reason={closed}>
+              <Button variant="secondary" className="shrink-0" disabled={closed !== null} onClick={() => onOpenRegister(today)}>
+                <PencilIcon data-icon="inline-start" />Modificar lista de hoy
+              </Button>
+            </BlockedReason>
           )}
         </div>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {closed ?? `Clase en curso (${classTime.current ? hoursLabel(classTime.current) : ''}): registra la asistencia de hoy.`}
-          </p>
+          <div className="flex flex-col">
+            <p className="text-sm text-muted-foreground">
+              {closed ?? `Clase en curso (${classTime.current ? hoursLabel(classTime.current) : ''}): registra la asistencia de hoy.`}
+            </p>
+            {scheduleDays.length > 0 && <p className="text-sm text-muted-foreground">Días de clase: <span className="text-foreground">{scheduleDays.join(', ')}</span></p>}
+          </div>
           <Button
             className="shrink-0"
             disabled={!tutoring.can_manage || todaySession.loading || closed !== null}
@@ -262,7 +217,7 @@ function SessionsList({
         empty={
           <TeacherEmpty
             title="Aún no hay sesiones registradas"
-            description="Registra la asistencia de la primera sesión de esta tutoría en la sección 'Registrar asistencia'."
+            description="Pulsa «Registrar asistencia» durante la clase para crear la primera sesión."
           />
         }
         columns={[
@@ -308,12 +263,7 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
       return (
         <div className="flex flex-col gap-1">
           <span className="font-medium">{row.original.name}</span>
-          {notice && (
-            <span className="flex items-start gap-1.5 whitespace-normal text-xs text-amber-700 dark:text-amber-300">
-              <MailWarningIcon className="mt-px size-3.5 shrink-0" aria-hidden="true" />
-              <span>Avisó que no asistirá: {notice.reason}</span>
-            </span>
-          )}
+          {notice && <span className="whitespace-normal text-xs text-warning">Avisó que no asistirá: {notice.reason}</span>}
         </div>
       )
     },
@@ -346,7 +296,7 @@ const CONSULT_COLUMNS: ColumnDef<TutoringSession['attendance'][number]>[] = [
     header: () => <div className="text-center">Asistencia</div>,
     cell: ({ row }) => (
       <div className="flex justify-center">
-        <Badge variant={row.original.present ? 'default' : 'secondary'}>
+        <Badge variant={row.original.present ? 'success' : 'danger'}>
           {row.original.present ? 'Presente' : 'Ausente'}
         </Badge>
       </div>
@@ -416,7 +366,7 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
           <IconAction label="Volver a las sesiones" icon={ArrowLeftIcon} onClick={onClose} />
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <h3 className="font-display text-xl font-semibold leading-tight">
+              <h3 className="text-xl font-semibold tracking-tight">
                 {session.number ? `Sesión ${session.number} · ` : 'Sesión del '}{formatDate(session.date)}
               </h3>
               {dayLabel && (
@@ -428,7 +378,7 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
             <p className="text-sm text-muted-foreground">Registro histórico · {attendanceSummary(session)}</p>
           </div>
         </div>
-        <Badge variant="secondary">Solo consulta</Badge>
+        <Badge variant="neutral">Solo consulta</Badge>
       </div>
       <DataTable
         dense
@@ -568,15 +518,12 @@ function SessionForm({
       )}
 
       {noticedStudents.length > 0 && (
-        <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200">
-          <MailWarningIcon />
-          <AlertDescription>
-            {noticedStudents.length === 1
-              ? `${noticedStudents[0].name} avisó que no asistirá en esta fecha.`
-              : `${noticedStudents.length} estudiantes avisaron que no asistirán en esta fecha.`}{' '}
-            Revisa el motivo y marca si asistió o no.
-          </AlertDescription>
-        </Alert>
+        <div role="alert" className="rounded-md border border-notice-border bg-notice px-4 py-3 text-sm text-notice-foreground">
+          {noticedStudents.length === 1
+            ? `${noticedStudents[0].name} avisó que no asistirá en esta fecha.`
+            : `${noticedStudents.length} estudiantes avisaron que no asistirán en esta fecha.`}{' '}
+          Revisa el motivo y marca si asistió o no.
+        </div>
       )}
 
       <div className="flex flex-col gap-3">
@@ -622,19 +569,27 @@ function SessionForm({
         <ErrorNotice message={operation.error} />
 
         <div className="flex items-center justify-end">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={saveBlockReason ? 0 : -1}>
-                <Button type="submit" disabled={saveBlockReason !== null || operation.pending}>
-                  {operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
-                  {operation.pending ? 'Guardando…' : 'Guardar asistencia'}
-                </Button>
-              </span>
-            </TooltipTrigger>
-            {saveBlockReason && !operation.pending && <TooltipContent>{saveBlockReason}</TooltipContent>}
-          </Tooltip>
+          <BlockedReason reason={operation.pending ? null : saveBlockReason}>
+            <Button type="submit" disabled={saveBlockReason !== null || operation.pending}>
+              {operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
+              {operation.pending ? 'Guardando…' : 'Guardar asistencia'}
+            </Button>
+          </BlockedReason>
         </div>
       </div>
     </form>
+  )
+}
+
+/** Botón bloqueado con su motivo en un tooltip (nunca con el atributo `title`). */
+function BlockedReason({ reason, children }: Readonly<{ reason: string | null; children: ReactNode }>) {
+  if (!reason) return children
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span tabIndex={0} className="shrink-0">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent>{reason}</TooltipContent>
+    </Tooltip>
   )
 }

@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
-import { ArrowLeftIcon, BookOpenIcon, CalendarDaysIcon, CheckCircle2Icon, CheckIcon, ClockIcon, ListChecksIcon, PaperclipIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
+import { ArrowLeftIcon, BookOpenIcon, CheckCircle2Icon, ListChecksIcon, PaperclipIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { TopicFileList } from '@/components/topic-file-list'
@@ -10,6 +10,8 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -22,7 +24,6 @@ import { formatDate } from '@/lib/format'
 import { TOPIC_FILE_ACCEPT, TOPIC_FILES_PER_TOPIC, topicFileError, type TopicFile } from '@/lib/topic-files'
 import { teacherApi, type Activity, type Methodology, type TeacherTutoring, type TutoringSession, type TutoringTopic } from '@/lib/teacher-api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
-import { cn } from '@/lib/utils'
 import { TeacherEmpty } from './teacher-shared'
 
 type Kind = 'topic' | 'activity' | 'methodology'
@@ -242,9 +243,20 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const assignDirty = selectedTopicIds.length !== assignedIds.length || selectedTopicIds.some((id) => !assignedIds.includes(id))
   const dialogTitle = editing ? `${editing.record ? 'Editar' : 'Registrar'} ${LABELS[editing.kind]}` : ''
 
+  const sessionOptions = sessions.map((item) => ({
+    value: item.date,
+    label: `${sessionLabel(item)} · ${formatDate(item.date)} · ${item.topics.length === 0 ? 'sin temas' : `${item.topics.length} ${item.topics.length === 1 ? 'tema' : 'temas'}`}`,
+  }))
+  const registerButton = (
+    <Button className="shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
+      <PlusIcon data-icon="inline-start" />
+      Registrar {LABELS[kind]}
+    </Button>
+  )
+
   return <div className="flex flex-col gap-5">
     {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => { setTopicId(null); setActivityId(null) }}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => setActivityId(null)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
-    
+
     {!topic && !activity && (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="flex-1">
@@ -254,6 +266,19 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             onSearch={list.setSearchInput}
             searchPlaceholder="Busca por tema…"
             onClear={() => setStatus('')}
+            leading={sessions.length > 0 ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <Label htmlFor="teacher-content-session" className="text-muted-foreground">Sesión</Label>
+                <SelectInput
+                  id="teacher-content-session"
+                  value={selectedSessionDate === 'all' ? '' : selectedSessionDate}
+                  onValueChange={(value) => setSelectedSessionDate(value || 'all')}
+                  emptyLabel="Todas las sesiones"
+                  options={sessionOptions}
+                  className="w-72"
+                />
+              </div>
+            ) : undefined}
             filters={[
               {
                 id: 'status',
@@ -269,106 +294,29 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             ]}
           />
         </div>
-        <Button className="shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
-          <PlusIcon data-icon="inline-start" />
-          Registrar {LABELS[kind]}
-        </Button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {activeSession && canManage && (
+            <Button variant="secondary" disabled={operation.pending} onClick={() => openAssignModal(activeSession)}>
+              <CheckCircle2Icon data-icon="inline-start" />
+              Asignar temas a esta sesión
+            </Button>
+          )}
+          {registerButton}
+        </div>
       </div>
     )}
 
     {topic && (
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="flex-1">
-          <h3 className="flex h-10 items-center font-display text-lg font-semibold">{title}</h3>
-        </div>
-        <Button className="shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
-          <PlusIcon data-icon="inline-start" />
-          Registrar {LABELS[kind]}
-        </Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
+        {registerButton}
       </div>
     )}
 
     {!topic && !activity && !sessionsRes.loading && sessions.length === 0 && (
-      <p className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
-        <CalendarDaysIcon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+      <p className="text-sm text-muted-foreground">
         Las sesiones se habilitan al tomar asistencia. Luego podrás ver aquí el contenido de cada una.
       </p>
-    )}
-
-    {!topic && !activity && sessions.length > 0 && (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-2.5" role="group" aria-label="Sesiones">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CalendarDaysIcon className="size-3.5 text-primary" />
-            <span>Sesión:</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant={selectedSessionDate === 'all' ? 'primary' : 'secondary'}
-              aria-pressed={selectedSessionDate === 'all'}
-              onClick={() => setSelectedSessionDate('all')}
-            >
-              {selectedSessionDate === 'all' && <CheckIcon data-icon="inline-start" />}
-              Todas
-            </Button>
-            {sessions.map((s) => {
-              const isSelected = selectedSessionDate === s.date
-              return (
-                <Button
-                  key={s.id}
-                  type="button"
-                  size="sm"
-                  variant={isSelected ? 'primary' : 'secondary'}
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedSessionDate(s.date)}
-                >
-                  {isSelected && <CheckIcon data-icon="inline-start" />}
-                  <span>{sessionLabel(s)} · {formatDate(s.date)}</span>
-                  <span
-                    className={cn(
-                      'text-[10px] px-1.5 py-0.2 rounded-full font-medium',
-                      isSelected
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
-                    )}
-                  >
-                    {s.topics.length === 0 ? 'sin temas' : `${s.topics.length} ${s.topics.length === 1 ? 'tema' : 'temas'}`}
-                  </span>
-                </Button>
-              )
-            })}
-          </div>
-        </div>
-        {selectedSessionDate !== 'all' && activeSession && canManage && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => openAssignModal(activeSession)}
-          >
-            <CheckCircle2Icon data-icon="inline-start" />
-            <span>Asignar temas a esta sesión</span>
-          </Button>
-        )}
-      </div>
-    )}
-
-    {!topic && !activity && selectedSessionDate !== 'all' && activeSession && (
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-primary/5 border border-primary/20 px-3.5 py-2 text-xs">
-        <div className="flex items-center gap-2">
-          <CalendarDaysIcon className="size-4 text-primary shrink-0" />
-          <span>Contenido de la <strong>{sessionLabel(activeSession)}</strong> · {formatDate(activeSession.date)}</span>
-        </div>
-        <Button
-          type="button"
-          variant="tertiary"
-          size="sm"
-          onClick={() => setSelectedSessionDate('all')}
-        >
-          Ver todas las sesiones
-        </Button>
-      </div>
     )}
 
     <ErrorNotice message={list.error} retry={list.reload} />
@@ -399,7 +347,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
           {
             label: 'Acciones',
-            render: (item) => stopRow(<IconAction label={`Metodologías de ${item.name}`} icon={ListChecksIcon} disabled={operation.pending} onClick={() => setActivityId(item.id)} />),
+            render: (item) => <RowActionsMenu name={item.name} disabled={operation.pending} actions={[
+              { label: 'Ver metodologías', icon: ListChecksIcon, onSelect: () => setActivityId(item.id) },
+            ]} />,
           },
         ]}
       />
@@ -416,16 +366,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           rowTitle={rowTitle}
           empty={
             selectedSessionDate !== 'all' && activeSession ? (
-              <div className="py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
-                <p className="text-foreground">La {sessionLabel(activeSession)} ({formatDate(activeSession.date)}) aún no tiene temas.</p>
-                <p className="max-w-md">Asocia los temas que trataste en esta sesión.</p>
-                {canManage && (
-                  <Button size="sm" onClick={() => openAssignModal(activeSession)}>
-                    <PlusIcon data-icon="inline-start" />
-                    Asignar temas a esta sesión
-                  </Button>
-                )}
-              </div>
+              <TeacherEmpty
+                title={`La ${sessionLabel(activeSession)} aún no tiene temas`}
+                description={canManage ? 'Pulsa «Asignar temas a esta sesión» para asociar los temas que trataste.' : undefined}
+              />
             ) : (
               <TeacherEmpty
                 title="Aún no hay temas en esta tutoría"
@@ -447,37 +391,27 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             {
               label: 'Recursos',
               render: (item) => (item.files?.length ?? 0) > 0
-                ? <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground" title={item.files?.map((file) => file.name).join('\n')}><PaperclipIcon className="size-3.5" aria-hidden="true" />{item.files?.length === 1 ? '1 archivo' : `${item.files?.length} archivos`}</span>
+                ? <span className="text-sm text-muted-foreground">{item.files?.length === 1 ? '1 archivo' : `${item.files?.length} archivos`}</span>
                 : <span className="text-sm text-muted-foreground">—</span>,
             },
             {
-              label: 'Estado',
+              label: 'Completado',
               render: (item) => stopRow(
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={item.is_covered ? 'primary' : 'secondary'}
+                <Checkbox
+                  className="size-5"
+                  aria-label={`Completado: ${item.name}`}
+                  checked={item.is_covered}
                   disabled={!canManage || !item.is_active || operation.pending}
-                  onClick={() => toggleTopicCoverage(item)}
-                  title={canManage && item.is_active ? (item.is_covered ? 'Tema completado. Clic para cambiar a Pendiente' : 'Tema pendiente. Clic para marcar como Completado') : undefined}
-                >
-                  {item.is_covered ? <CheckCircle2Icon data-icon="inline-start" /> : <ClockIcon data-icon="inline-start" />}
-                  <span>{item.is_covered ? 'Completado' : 'Pendiente'}</span>
-                </Button>
+                  onCheckedChange={() => toggleTopicCoverage(item)}
+                />,
               ),
             },
             { label: 'Habilitado', render: (item) => <StatusBadge active={item.is_active} /> },
             {
               label: 'Acciones',
-              render: (item) => stopRow(<>
-                <IconAction
-                  label={item.is_covered ? 'Marcar pendiente' : 'Marcar completado'}
-                  icon={item.is_covered ? ClockIcon : CheckCircle2Icon}
-                  disabled={!canManage || !item.is_active || operation.pending}
-                  onClick={() => toggleTopicCoverage(item)}
-                />
-                <IconAction label={`Actividades de ${item.name}`} icon={BookOpenIcon} disabled={operation.pending} onClick={() => setTopicId(item.id)} />
-              </>),
+              render: (item) => <RowActionsMenu name={item.name} disabled={operation.pending} actions={[
+                { label: 'Ver actividades', icon: BookOpenIcon, onSelect: () => setTopicId(item.id) },
+              ]} />,
             },
           ]}
         />
@@ -559,34 +493,6 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                 />
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-xs text-muted-foreground mr-1">Rápido:</span>
-              {[
-                { label: '15m', h: 0, m: 15 },
-                { label: '30m', h: 0, m: 30 },
-                { label: '45m', h: 0, m: 45 },
-                { label: '1h', h: 1, m: 0 },
-                { label: '1h 30m', h: 1, m: 30 },
-                { label: '2h', h: 2, m: 0 },
-              ].map((preset) => (
-                <Button
-                  key={preset.label}
-                  type="button"
-                  size="sm"
-                  variant={timerHours === preset.h && timerMinutes === preset.m ? 'primary' : 'secondary'}
-                  aria-pressed={timerHours === preset.h && timerMinutes === preset.m}
-                  onClick={() => updateTimer(preset.h, preset.m)}
-                >
-                  {timerHours === preset.h && timerMinutes === preset.m && <CheckIcon data-icon="inline-start" />}
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-            {form.duration && (
-              <p className="text-xs text-primary mt-1">
-                ⏱ Duración seleccionada: {form.duration}
-              </p>
-            )}
           </div>
         </FormField>
       )}
@@ -606,7 +512,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     <FormDialog
       open={Boolean(assigningSession)}
       title={assigningSession ? `Asignar temas a la ${sessionLabel(assigningSession)} · ${formatDate(assigningSession.date)}` : 'Asignar temas'}
-      description="Selecciona los temas que fueron abordados en esta sesión de tutoría. Los temas seleccionados se marcarán automáticamente como completados."
+      description="Marca los temas que trataste en esta sesión. Se marcarán como completados."
       pending={operation.pending}
       error={operation.error}
       dirty={assignDirty}
@@ -614,32 +520,25 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       onSubmit={saveAssignedTopics}
       submitLabel="Guardar temas de la sesión"
     >
-      <div className="flex flex-col gap-2.5 py-2 max-h-80 overflow-y-auto pr-1">
+      <div className="flex max-h-80 flex-col gap-3 overflow-y-auto pr-1">
         {list.data.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aún no hay temas registrados en esta tutoría.</p>
         ) : (
           list.data
             .filter((t) => t.is_active)
             .map((t) => (
-              <label
-                key={t.id}
-                className={cn(
-                  'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                  selectedTopicIds.includes(t.id) ? 'bg-primary/5 border-primary/40' : 'hover:bg-muted/50 border-border'
-                )}
-              >
+              <label key={t.id} className="flex cursor-pointer items-start gap-3 text-sm">
                 <Checkbox
                   checked={selectedTopicIds.includes(t.id)}
                   onCheckedChange={() => toggleTopicSelection(t.id)}
                   className="mt-0.5"
                 />
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium text-foreground">{t.name}</span>
-                  {t.description && <span className="text-xs text-muted-foreground">{t.description}</span>}
-                  <span className="text-xs text-primary mt-1">
+                <span className="flex flex-col gap-0.5">
+                  <span className="font-medium">{t.name}</span>
+                  <span className="text-xs text-muted-foreground">
                     {t.activities.length} {t.activities.length === 1 ? 'actividad planificada' : 'actividades planificadas'}
                   </span>
-                </div>
+                </span>
               </label>
             ))
         )}

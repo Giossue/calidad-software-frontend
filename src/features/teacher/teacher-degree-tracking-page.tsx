@@ -1,24 +1,14 @@
-import { useState, type ComponentType, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import {
-  ActivityIcon,
-  ArrowLeftIcon,
-  CalendarIcon,
-  CheckCircle2Icon,
-  ClockIcon,
-  ListTodoIcon,
-  PlusIcon,
-  SparklesIcon,
-  UsersIcon,
-} from 'lucide-react'
+import { ArrowLeftIcon, PlusIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -27,7 +17,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
 import { formatDegreeDate } from '@/features/degree-coordination/degree-format'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { InitialsAvatar, SectionCard } from '@/features/degree-coordination/degree-shared'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { describeError } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
@@ -57,15 +46,17 @@ type StatusFilter = '' | 'pending' | 'completed'
 // Semáforo del avance: rojo hasta 33%, naranja hasta 65%, verde de 66% a 100%.
 function progressTone(pct: number): string {
   if (pct < 34) return 'bg-destructive'
-  if (pct < 66) return 'bg-amber-500'
-  return 'bg-emerald-500'
+  if (pct < 66) return 'bg-warning'
+  return 'bg-success'
 }
 
 function progressTextTone(pct: number): string {
   if (pct < 34) return 'text-destructive'
-  if (pct < 66) return 'text-amber-600 dark:text-amber-400'
-  return 'text-emerald-600 dark:text-emerald-400'
+  if (pct < 66) return 'text-warning'
+  return 'text-success'
 }
+
+const ROLE_LABELS: Readonly<Record<string, string>> = { tutor: 'Docente Tutor', par_academico: 'Par Académico' }
 
 export function TeacherDegreeTrackingPage() {
   const [params, setParams] = useSearchParams()
@@ -291,16 +282,16 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
           Volver a mis temas
         </Button>
 
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3" data-tour="page-header">
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="break-words font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{topic.title}</h1>
+            <h1 className="break-words text-2xl font-semibold tracking-tight">{topic.title}</h1>
             <p className="text-sm text-muted-foreground">
               Estudiante: <span className="font-medium text-foreground">{topic.student?.name}</span>
             </p>
           </div>
           {myAssignment && (
-            <Badge variant="secondary" className="shrink-0 px-3 py-1 text-xs">
-              {myAssignment.role === 'tutor' ? 'Docente Tutor' : 'Par Académico'}
+            <Badge variant="secondary" className="shrink-0">
+              {ROLE_LABELS[myAssignment.role] ?? 'Docente'}
             </Badge>
           )}
         </div>
@@ -332,7 +323,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
       <FormDialog
         open={activityDialogOpen}
         title="Asignar nueva tarea de seguimiento"
-        description={`Tema: ${topic.title}`}
+        description={topic.student?.name ? `Para ${topic.student.name}` : undefined}
         pending={activitySubmitting}
         error={null}
         dirty={newActivityDesc.trim() !== ''}
@@ -346,7 +337,7 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
           <Textarea
             id="activity-desc"
             maxLength={1000}
-            placeholder="Ejemplo: Presentar avances del capítulo 2 y correcciones del marco metodológico..."
+            placeholder="Ej. Presentar avances del capítulo 2 y correcciones del marco metodológico"
             value={newActivityDesc}
             onChange={(e) => setNewActivityDesc(e.target.value)}
             rows={4}
@@ -357,78 +348,54 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
   )
 }
 
-const STAT_TILE_TONES = {
-  blue: 'bg-blue-100 text-blue-700 dark:bg-primary/15 dark:text-blue-300',
-  gray: 'bg-muted text-foreground',
-  emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-  amber: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
-} as const
-
-// Cada dato con su propia tarjeta e ícono: evita que queden "sueltos" dentro de
-// un único bloque de texto plano, y reutiliza la paleta de SectionCard/InitialsAvatar.
-function StatTile({
-  icon: Icon,
-  tone,
-  label,
-  value,
-}: Readonly<{ icon: ComponentType<{ className?: string }>; tone: keyof typeof STAT_TILE_TONES; label: string; value: ReactNode }>) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3.5 pt-6">
-        <span aria-hidden="true" className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', STAT_TILE_TONES[tone])}>
-          <Icon className="size-5" />
-        </span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-xs text-muted-foreground">{label}</span>
-          <span className="truncate text-sm font-medium text-foreground">{value}</span>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 function EstadoFichaPanel({
   tracking,
   activities,
   progress,
 }: Readonly<{ tracking: DegreeTopic['tracking']; activities: readonly DegreeActivity[]; progress: number }>) {
   const completed = activities.filter((a) => a.is_completed).length
+  const facts = [
+    { label: 'Ficha abierta', value: tracking?.opened_at ? formatDegreeDate(tracking.opened_at) : 'En progreso' },
+    { label: 'Estado de la ficha', value: <span className="capitalize">{tracking?.status || 'En progreso'}</span> },
+    { label: 'Tareas completadas', value: `${completed} de ${activities.length}` },
+    { label: 'Tareas pendientes', value: activities.length - completed },
+  ]
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionCard
-        icon={SparklesIcon}
-        title="Estado de la Ficha de Seguimiento"
-        description="Resumen del avance acumulado del tema y estado general"
-        tone="red"
-      >
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Progreso general</span>
-            <span className={cn('text-lg font-semibold tabular-nums', progressTextTone(progress))}>{progress}%</span>
-          </div>
-          <div className="h-3.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className={cn('h-full transition-all duration-300', progressTone(progress))} style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-      </SectionCard>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile
-          icon={CalendarIcon}
-          tone="blue"
-          label="Ficha abierta"
-          value={tracking?.opened_at ? formatDegreeDate(tracking.opened_at) : 'En progreso'}
-        />
-        <StatTile
-          icon={ActivityIcon}
-          tone="gray"
-          label="Estado de la ficha"
-          value={<Badge variant="outline" className="w-fit capitalize text-xs">{tracking?.status || 'En progreso'}</Badge>}
-        />
-        <StatTile icon={CheckCircle2Icon} tone="emerald" label="Tareas completadas" value={`${completed} de ${activities.length}`} />
-        <StatTile icon={ClockIcon} tone="amber" label="Tareas pendientes" value={activities.length - completed} />
+    <Card className="flex flex-col gap-5 p-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-xl font-semibold tracking-tight">Estado de la Ficha de Seguimiento</h2>
+        <p className="text-sm text-muted-foreground">Avance acumulado del tema y su estado general.</p>
       </div>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Progreso general</span>
+          <span className={cn('text-lg font-semibold tabular-nums', progressTextTone(progress))}>{progress}%</span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Progreso general" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+          <div className={cn('h-full transition-all duration-300', progressTone(progress))} style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+      <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        {facts.map((fact) => (
+          <div key={fact.label} className="flex flex-col gap-0.5">
+            <dt className="text-muted-foreground">{fact.label}</dt>
+            <dd className="font-medium">{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
+  )
+}
+
+function TeamMember({ role, name, detail }: Readonly<{ role: string; name: string; detail: string }>) {
+  return (
+    <div className="flex flex-col gap-0.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:gap-4">
+      <span className="text-muted-foreground sm:w-40 sm:shrink-0">{role}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate font-medium">{name}</span>
+        <span className="truncate text-xs text-muted-foreground">{detail}</span>
+      </span>
     </div>
   )
 }
@@ -439,57 +406,23 @@ function EquipoTitulacionPanel({
   peerAssignments,
 }: Readonly<{ topic: DegreeTopic; tutorAssignment?: DegreeAssignment; peerAssignments: readonly DegreeAssignment[] }>) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <UsersIcon className="size-5 text-primary" /> Equipo de Titulación
-        </CardTitle>
-        <CardDescription>Estudiante y docentes evaluadores designados para esta titulación</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">Estudiante</span>
-          <Card className="flex items-center gap-3.5 bg-muted/15 p-4 shadow-none">
-            <InitialsAvatar name={topic.student?.name ?? 'Estudiante'} tone="gray" />
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-medium text-foreground">{topic.student?.name}</span>
-              <span className="text-xs text-muted-foreground">
-                Cédula: {topic.student?.identification} &bull; {topic.student?.email}
-              </span>
-            </div>
-          </Card>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">Docentes Evaluadores</span>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Card className="flex items-center gap-3.5 p-4 shadow-none">
-              <InitialsAvatar name={tutorAssignment?.teacher?.name ?? 'Sin tutor'} tone="red" />
-              <div className="flex min-w-0 flex-col">
-                <Badge variant="outline" className="mb-1 w-fit text-[10px]">
-                  Docente Tutor
-                </Badge>
-                <span className="truncate text-sm font-medium">{tutorAssignment?.teacher?.name ?? 'Sin tutor asignado'}</span>
-                <span className="truncate text-xs text-muted-foreground">{tutorAssignment?.teacher?.email ?? '---'}</span>
-              </div>
-            </Card>
-
-            {peerAssignments.map((peer, idx) => (
-              <Card key={peer.id} className="flex items-center gap-3.5 p-4 shadow-none">
-                <InitialsAvatar name={peer.teacher?.name ?? `Par ${idx + 1}`} tone="blue" />
-                <div className="flex min-w-0 flex-col">
-                  <Badge variant="outline" className="mb-1 w-fit text-[10px]">
-                    Par Académico {idx + 1}
-                  </Badge>
-                  <span className="truncate text-sm font-medium">{peer.teacher?.name ?? 'Docente'}</span>
-                  <span className="truncate text-xs text-muted-foreground">{peer.teacher?.email ?? '---'}</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <section className="flex flex-col gap-3" aria-label="Equipo de Titulación">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-xl font-semibold tracking-tight">Equipo de Titulación</h2>
+        <p className="text-sm text-muted-foreground">Estudiante y docentes evaluadores designados para esta titulación.</p>
+      </div>
+      <Card className="divide-y divide-border">
+        <TeamMember
+          role="Estudiante"
+          name={topic.student?.name ?? 'Estudiante'}
+          detail={[topic.student?.identification && `Cédula: ${topic.student.identification}`, topic.student?.email].filter(Boolean).join(' · ')}
+        />
+        <TeamMember role="Docente Tutor" name={tutorAssignment?.teacher?.name ?? 'Sin tutor asignado'} detail={tutorAssignment?.teacher?.email ?? '—'} />
+        {peerAssignments.map((peer, idx) => (
+          <TeamMember key={peer.id} role={`Par Académico ${idx + 1}`} name={peer.teacher?.name ?? 'Docente'} detail={peer.teacher?.email ?? '—'} />
+        ))}
+      </Card>
+    </section>
   )
 }
 
@@ -516,8 +449,8 @@ function TareasPanel({
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-base font-semibold text-foreground">Tareas y Actividades de Avance</h2>
-          <p className="text-xs text-muted-foreground">Cada docente marca como completada solo la tarea que registró.</p>
+          <h2 className="text-xl font-semibold tracking-tight">Tareas y Actividades de Avance</h2>
+          <p className="text-sm text-muted-foreground">Cada docente marca como completada solo la tarea que registró.</p>
         </div>
 
         <Button onClick={onAddActivity}>
@@ -530,7 +463,7 @@ function TareasPanel({
         search={taskSearch}
         onSearch={setTaskSearch}
         searchLabel="Buscar tarea o docente"
-        searchPlaceholder="Buscar tarea o docente..."
+        searchPlaceholder="Busca por tarea o docente…"
         onClear={() => setTaskStatusFilter('')}
         filters={[
           {
@@ -551,11 +484,10 @@ function TareasPanel({
         rows={filteredActivities}
         loading={false}
         empty={
-          <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-            <ListTodoIcon className="size-10 mb-2 opacity-40" />
-            <p>No hay tareas o actividades registradas con estos criterios.</p>
-            <p className="text-xs mt-1">Usa el botón "Asignar tarea" para añadir entregas al estudiante.</p>
-          </div>
+          <TeacherEmpty
+            title={taskSearch.trim() || taskStatusFilter ? 'No hay tareas con estos filtros' : 'Aún no hay tareas registradas'}
+            description="Pulsa «Asignar tarea» para añadir entregas al estudiante."
+          />
         }
         columns={[
           {
@@ -578,16 +510,11 @@ function TareasPanel({
               const isMyTask = act.teacher?.id === currentUserId
 
               return act.teacher ? (
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <InitialsAvatar name={act.teacher.name} tone={isTutor ? 'red' : isPeer ? 'blue' : 'gray'} className="size-8 shrink-0 text-xs" />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-xs text-foreground">
-                      {act.teacher.name} {isMyTask && <span className="font-medium text-primary">(Tú)</span>}
-                    </span>
-                    <Badge variant="outline" className="mt-0.5 w-fit px-1.5 py-0 text-[10px]">
-                      {isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}
-                    </Badge>
-                  </div>
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate">
+                    {act.teacher.name} {isMyTask && <span className="font-medium text-primary">(Tú)</span>}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{isTutor ? 'Docente Tutor' : isPeer ? 'Par Académico' : 'Docente'}</span>
                 </div>
               ) : (
                 <span className="text-xs text-muted-foreground">Sin docente asignado</span>
@@ -607,7 +534,7 @@ function TareasPanel({
                       onCheckedChange={() => onToggle(act)}
                       aria-label={act.is_completed ? 'Marcar como pendiente' : 'Marcar como completada'}
                     />
-                    <span className={cn('text-xs', act.is_completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
+                    <span className={cn('text-sm', act.is_completed ? 'text-success' : 'text-muted-foreground')}>
                       {act.is_completed ? 'Completada' : 'Pendiente'}
                     </span>
                   </label>
@@ -615,8 +542,7 @@ function TareasPanel({
               }
 
               return (
-                <Badge variant={act.is_completed ? 'success' : 'secondary'} className="gap-1.5">
-                  {act.is_completed ? <CheckCircle2Icon className="size-3.5" /> : <ClockIcon className="size-3.5" />}
+                <Badge variant={act.is_completed ? 'success' : 'neutral'}>
                   {act.is_completed ? 'Completada' : 'Pendiente'}
                 </Badge>
               )

@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { CheckIcon, ClipboardCheckIcon, MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react'
+import { MinusIcon, SaveIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/data-table'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { SelectInput } from '@/components/ui/select-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -179,7 +181,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => focusNextRow(event, type)}
         />
         {type === 'diagnostic' && value && groupFor(value, meta.settings) && (
-          <span className="text-[10px] font-medium text-success uppercase tracking-wider">{groupFor(value, meta.settings)}</span>
+          <span className="text-xs font-medium text-success">{groupFor(value, meta.settings)}</span>
         )}
       </div>
     },
@@ -194,52 +196,19 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
       const p1Str = meta.grid[row.original.id]?.partial ?? ''
       const evo = computeEvolution(diagStr, p2Str, p1Str)
 
-      if (evo.status === 'up') {
-        return (
-          <div className="flex justify-center">
-            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 tabular-nums" title={evo.title}>
-              <TrendingUpIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              <span>{evo.label}</span>
-            </Badge>
-          </div>
-        )
-      }
-
-      if (evo.status === 'down') {
-        return (
-          <div className="flex justify-center">
-            <Badge className="bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 gap-1 tabular-nums" title={evo.title}>
-              <TrendingDownIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              <span>{evo.label}</span>
-            </Badge>
-          </div>
-        )
-      }
-
-      if (evo.status === 'same') {
-        return (
-          <div className="flex justify-center">
-            <Badge variant="outline" className="text-muted-foreground gap-1 tabular-nums" title={evo.title}>
-              <MinusIcon className="size-3.5 shrink-0" aria-hidden="true" />
-              <span>{evo.label}</span>
-            </Badge>
-          </div>
-        )
-      }
-
-      if (evo.status === 'partial_one') {
-        return (
-          <div className="flex justify-center">
-            <Badge variant="secondary" className="text-xs font-normal tabular-nums text-muted-foreground" title={evo.title}>
-              {evo.label}
-            </Badge>
-          </div>
-        )
-      }
-
+      const icon = evo.status === 'up' ? <TrendingUpIcon aria-hidden="true" /> : evo.status === 'down' ? <TrendingDownIcon aria-hidden="true" /> : evo.status === 'same' ? <MinusIcon aria-hidden="true" /> : null
+      const variant = evo.status === 'up' ? 'success' : evo.status === 'down' ? 'danger' : 'neutral'
+      // El detalle del cálculo se lee en un tooltip; la celda muestra solo la diferencia.
       return (
-        <div className="text-center text-xs text-muted-foreground" title={evo.title}>
-          {evo.label}
+        <div className="flex justify-center">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {evo.status === 'pending' || evo.status === 'no_diag'
+                ? <span tabIndex={0} className="text-xs text-muted-foreground">{evo.label}</span>
+                : <Badge tabIndex={0} variant={variant} className="tabular-nums">{icon}<span>{evo.label}</span></Badge>}
+            </TooltipTrigger>
+            <TooltipContent>{evo.title}</TooltipContent>
+          </Tooltip>
         </div>
       )
     },
@@ -323,6 +292,20 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
     })
   }
 
+  // Cada etapa indica en el desplegable si ya tiene todas sus notas guardadas.
+  const stageOptions = GRADE_FIELDS.map(({ type, label: name }) => ({
+    value: type,
+    label: `${name} · ${active.every((student) => saved[student.id]?.[type]) ? 'Completo' : 'Pendiente'}`,
+  }))
+  // Volver a «Todas las etapas» con notas sin guardar pide confirmación; cambiar de etapa conserva el borrador.
+  function chooseStage(value: string) {
+    if (value === '') {
+      if (stage) { if (changed) setConfirmCancel(true); else leaveStage() }
+      return
+    }
+    setStage(value as GradeType)
+  }
+
   const tableMeta: GradesTableMeta = { grid, stage, settings, disabled: readOnly || operation.pending, onChange: setValue }
   const saveBlocked = readOnly || !complete || hasInvalid || !changed
   const missing = total - filled
@@ -333,18 +316,18 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
   return <>
   <form onSubmit={submit} aria-label="Calificaciones" className="flex flex-col gap-4">
     {readOnly && <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>}
-    {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
-      <span className="mr-1 inline-flex items-center gap-1.5 text-sm font-medium text-foreground"><ClipboardCheckIcon className="size-4 text-muted-foreground" aria-hidden="true" />Etapa:</span>
-      <Button type="button" size="sm" variant={stage === null ? 'primary' : 'secondary'} aria-pressed={stage === null} disabled={operation.pending} onClick={() => { if (stage) { if (changed) setConfirmCancel(true); else leaveStage() } }}>{stage === null && <CheckIcon data-icon="inline-start" />}Todas las etapas</Button>
-      {GRADE_FIELDS.map(({ type, label: name }) => {
-        const done = active.every((student) => saved[student.id]?.[type])
-        const selected = stage === type
-        return <Button key={type} type="button" size="sm" variant={selected ? 'primary' : 'secondary'} aria-pressed={selected} disabled={operation.pending} onClick={() => setStage(type)}>
-          {selected && <CheckIcon data-icon="inline-start" />}
-          {name}{' '}
-          <span className={`rounded-full px-1.5 text-[11px] font-medium ${selected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{done ? 'Completo' : 'Pendiente'}</span>
-        </Button>
-      })}
+    {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2">
+      <Label htmlFor={`grades-stage-${tutoring.id}`} className="text-muted-foreground">Etapa</Label>
+      <SelectInput
+        id={`grades-stage-${tutoring.id}`}
+        value={stage ?? ''}
+        onValueChange={chooseStage}
+        emptyLabel="Todas las etapas"
+        options={stageOptions}
+        disabled={operation.pending}
+        className="w-56"
+      />
+      {!stage && <span className="text-sm text-muted-foreground">Elige una etapa para ingresar sus notas.</span>}
     </div>}
     <JointNotice groups={joint.map((item) => item.group)} include={includeJoint} onIncludeChange={setIncludeJoint} action="calificar" />
     {groups.map(({ group, active: groupStudents }) => (
@@ -354,7 +337,7 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
       </section>
     ))}
     <ErrorNotice message={operation.error} />
-    {stage && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 py-3 backdrop-blur">
+    {stage && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background py-3">
       <div className="flex flex-col">
         <p className="text-sm" aria-live="polite">{filled} de {total} notas de {label} ingresadas</p>
         <p className="text-xs text-muted-foreground"><span>{hint}</span> <span>Escala de 0 a {settings.maximum}, hasta dos decimales (ej. 9.42).</span></p>

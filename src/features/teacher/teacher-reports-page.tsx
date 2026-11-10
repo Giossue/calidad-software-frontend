@@ -1,17 +1,11 @@
 import { useState } from 'react'
 import {
   ArrowLeftIcon,
-  BookOpenIcon,
-  CalendarCheckIcon,
-  CheckCircle2Icon,
   ChevronDownIcon,
   ClipboardListIcon,
-  ClockIcon,
   FileCheck2Icon,
-  FileTextIcon,
   SheetIcon,
   TrendingUpIcon,
-  UsersIcon,
 } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -49,21 +43,15 @@ export function ReportsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     <div className="flex flex-col gap-5">
       <Tabs value={tab} onValueChange={(val) => setTab(val as 'reports' | 'activities')}>
         <TabsList aria-label="Secciones de informes">
-          <TabsTrigger value="reports">
-            <FileTextIcon data-icon="inline-start" />
-            Informes enviados
-          </TabsTrigger>
-          <TabsTrigger value="activities">
-            <CalendarCheckIcon data-icon="inline-start" />
-            Revisión de actividades
-          </TabsTrigger>
+          <TabsTrigger value="reports">Informes enviados</TabsTrigger>
+          <TabsTrigger value="activities">Revisión de actividades</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="reports" className="pt-4">
+        <TabsContent value="reports">
           <ReportsListSection tutoring={tutoring} />
         </TabsContent>
 
-        <TabsContent value="activities" className="pt-4">
+        <TabsContent value="activities">
           <ActivitiesReviewSection tutoring={tutoring} />
         </TabsContent>
       </Tabs>
@@ -83,7 +71,7 @@ function ReportsListSection({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">Los reportes oficiales siguen el formato institucional.</p>
+        <p className="text-sm text-muted-foreground">Los reportes oficiales siguen el formato institucional.</p>
         <div className="flex shrink-0 flex-wrap gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -190,8 +178,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
 
     return (
       <div className="flex flex-col gap-6" aria-label="Detalle de revisión de actividades">
-        {/* Cabecera de la sesión seleccionada */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
           <Button
             type="button"
             variant="tertiary"
@@ -202,152 +189,64 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
             <ArrowLeftIcon data-icon="inline-start" />
             Volver a las fechas de tutoría
           </Button>
-
-          <Card className="flex flex-wrap items-center justify-between gap-4 p-4">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-display text-xl font-semibold tracking-[-0.02em]">
-                  Tutoría del {formatDate(selectedSession.date)}
-                </h3>
-                {dayLabel && (
-                  <Badge variant="outline">
-                    {dayLabel}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Revisión de temas, actividades realizadas y asistencia de los estudiantes en esta fecha.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success">
-                <UsersIcon className="size-3.5" />
-                {presentStudents.length} {presentStudents.length === 1 ? 'estudiante presente' : 'estudiantes presentes'}
-              </Badge>
-              <Badge variant="secondary" className="gap-1">
-                <BookOpenIcon className="size-3.5" />
-                {activities.length} {activities.length === 1 ? 'actividad realizada' : 'actividades realizadas'}
-              </Badge>
-            </div>
-          </Card>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xl font-semibold tracking-tight">Tutoría del {formatDate(selectedSession.date)}</h3>
+            {dayLabel && <Badge variant="outline">{dayLabel}</Badge>}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {presentStudents.length} {presentStudents.length === 1 ? 'estudiante presente' : 'estudiantes presentes'} · {activities.length} {activities.length === 1 ? 'actividad realizada' : 'actividades realizadas'}
+          </p>
         </div>
 
-        {/* Dos bloques: Actividades realizadas y Estudiantes que asistieron */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Bloque 1: Actividades realizadas */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpenIcon className="size-5 text-primary" />
-                <h4 className="font-display text-base font-semibold">
-                  Actividades realizadas ({activities.length})
-                </h4>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Actividades registradas en el contenido de la tutoría para esta fecha.
-            </p>
-
+          <section aria-label="Actividades realizadas" className="flex flex-col gap-3">
+            <h4 className="font-semibold">Actividades realizadas ({activities.length})</h4>
             {activities.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No se registraron actividades en el contenido para esta fecha.
-              </div>
+              <p className="text-sm text-muted-foreground">No se registraron actividades en el contenido para esta fecha.</p>
             ) : (
-              <ul className="flex flex-col gap-3">
+              <Card className="divide-y divide-border">
                 {activities.map((act) => (
-                  <li
-                    key={act.id}
-                    className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-xs transition-colors hover:border-primary/30"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-medium text-foreground text-sm">{act.name}</span>
-                      {act.topic_name && (
-                        <Badge variant="secondary" className="text-xs">
-                          Tema: {act.topic_name}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      {act.duration && (
-                        <span className="flex items-center gap-1 text-foreground">
-                          <ClockIcon className="size-3.5 text-primary" />
-                          {act.duration}
-                        </span>
-                      )}
-                      {act.methodologies.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className="text-muted-foreground">Metodología:</span>
-                          {act.methodologies.map((m, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
-                              {m}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Bloque 2: Estudiantes que asistieron */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UsersIcon className="size-5 text-success" />
-                <h4 className="font-display text-base font-semibold">
-                  Estudiantes que asistieron ({presentStudents.length})
-                </h4>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Estudiantes registrados con asistencia confirmada (presente) en esta tutoría.
-            </p>
-
-            {presentStudents.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                Ningún estudiante fue marcado como presente en esta fecha.
-              </div>
-            ) : (
-              <Card className="overflow-hidden">
-                <div className="max-h-[500px] overflow-y-auto divide-y divide-border">
-                  {presentStudents.map((st, idx) => (
-                    <div
-                      key={st.id || st.enrollment_id}
-                      className="flex items-center justify-between gap-3 p-3.5 transition-colors hover:bg-muted/40"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="size-6 shrink-0 flex items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                          {idx + 1}
-                        </span>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-medium truncate text-foreground">
-                            {st.student_name}
-                          </span>
-                          {(st.student_identification || st.student_email) && (
-                            <span className="text-xs text-muted-foreground truncate">
-                              {[st.student_identification, st.student_email].filter(Boolean).join(' · ')}
-                            </span>
-                          )}
-                        </div>
+                  <div key={act.id} className="flex flex-col gap-1 px-4 py-3 text-sm">
+                    <span className="font-medium">{act.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {act.topic_name && <span>Tema: {act.topic_name}</span>}
+                      {act.topic_name && act.duration && ' · '}
+                      {act.duration && <span>{act.duration}</span>}
+                    </span>
+                    {act.methodologies.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                        <span>Metodología:</span>
+                        {act.methodologies.map((m, idx) => <Badge key={idx} variant="outline">{m}</Badge>)}
                       </div>
-
-                      <Badge
-                        variant="default"
-                        className="shrink-0 bg-success/15 text-success border-success/30 gap-1 text-xs"
-                      >
-                        <CheckCircle2Icon className="size-3" />
-                        Presente
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </div>
+                ))}
               </Card>
             )}
-          </div>
+          </section>
+
+          <section aria-label="Estudiantes que asistieron" className="flex flex-col gap-3">
+            <h4 className="font-semibold">Estudiantes que asistieron ({presentStudents.length})</h4>
+            {presentStudents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Ningún estudiante fue marcado como presente en esta fecha.</p>
+            ) : (
+              <Card className="divide-y divide-border">
+                {presentStudents.map((st, idx) => (
+                  <div key={st.id || st.enrollment_id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                    <span className="w-6 shrink-0 text-right tabular-nums text-muted-foreground">{idx + 1}</span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium">{st.student_name}</span>
+                      {(st.student_identification || st.student_email) && (
+                        <span className="truncate text-xs text-muted-foreground">
+                          {[st.student_identification, st.student_email].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            )}
+          </section>
         </div>
       </div>
     )
@@ -357,11 +256,9 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h3 className="font-display text-lg font-semibold tracking-[-0.02em]">
-          Fechas de tutorías con asistencia registrada
-        </h3>
+        <h3 className="text-xl font-semibold tracking-tight">Fechas de tutorías con asistencia registrada</h3>
         <p className="text-sm text-muted-foreground">
-          Selecciona una fecha para revisar las actividades realizadas y los estudiantes que asistieron a la sesión.
+          Elige una fecha para revisar las actividades realizadas y los estudiantes que asistieron.
         </p>
       </div>
 
@@ -399,27 +296,14 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
             label: 'Asistencia',
             render: (session) => {
               const present = session.attendance.filter((r) => r.present).length
-              return (
-                <Badge
-                  variant="outline"
-                  className="gap-1 border-success/30 bg-success/5 text-success"
-                >
-                  <UsersIcon className="size-3" />
-                  {present} de {session.attendance.length} presentes
-                </Badge>
-              )
+              return `${present} de ${session.attendance.length} presentes`
             },
           },
           {
             label: 'Actividades',
             render: (session) => {
               const count = (session.activities ?? []).length
-              return (
-                <Badge variant="secondary" className="gap-1 font-normal">
-                  <BookOpenIcon className="size-3" />
-                  {count} {count === 1 ? 'actividad' : 'actividades'}
-                </Badge>
-              )
+              return `${count} ${count === 1 ? 'actividad' : 'actividades'}`
             },
           },
         ]}

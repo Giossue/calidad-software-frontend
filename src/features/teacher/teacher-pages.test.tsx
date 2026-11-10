@@ -36,6 +36,11 @@ async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLEle
   await user.click(trigger)
   await user.click(await screen.findByRole('option', { name: option }))
 }
+// Etapa de calificación: un desplegable que indica si cada etapa está completa o pendiente.
+async function pickStage(user: ReturnType<typeof userEvent.setup>, stage: RegExp | string) {
+  await user.click(await screen.findByRole('combobox', { name: 'Etapa' }))
+  await user.click(await screen.findByRole('option', { name: stage }))
+}
 function show(component: React.ReactNode, path = '/panel/teacher-tutorings?tutoring=40&tab=students') {
   return render(<MemoryRouter initialEntries={[path]}>{component}</MemoryRouter>)
 }
@@ -100,15 +105,18 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(teacherApi.tutorings).toHaveBeenLastCalledWith({ page: 2, search: '', status: undefined }))
     await user.click(screen.getByText('Calidad de software'))
     expect(await screen.findByRole('heading', { name: 'Calidad de software' })).toBeInTheDocument()
-    // Abre en Asistencia; las pestañas van en el orden de trabajo del docente.
+    // Abre en Asistencia; las pestañas van en el orden de trabajo del docente, en un solo nivel.
     const sections = screen.getByRole('tablist', { name: 'Secciones de la tutoría' })
-    expect(within(sections).getAllByRole('tab').map((item) => item.textContent)).toEqual(['Asistencia', 'Contenido', 'Horarios', 'Estudiantes y Calificaciones'])
+    expect(within(sections).getAllByRole('tab').map((item) => item.textContent)).toEqual(['Asistencia', 'Contenido', 'Horarios', 'Estudiantes', 'Calificaciones'])
     expect(within(sections).getByRole('tab', { name: 'Asistencia' })).toHaveAttribute('aria-selected', 'true')
-    await user.click(within(sections).getByRole('tab', { name: 'Estudiantes y Calificaciones' }))
+    expect(screen.getAllByRole('tablist')).toHaveLength(1)
+    await user.click(within(sections).getByRole('tab', { name: 'Estudiantes' }))
     expect(await screen.findByText('Ana Pérez')).toBeInTheDocument()
     expect(teacherApi.students).toHaveBeenLastCalledWith(40, { page: 1, search: '', status: undefined })
-    await user.click(within(screen.getByRole('tablist', { name: 'Estudiantes o calificaciones' })).getByRole('tab', { name: 'Calificaciones' }))
+    expect(screen.getAllByRole('tablist')).toHaveLength(1)
+    await user.click(within(sections).getByRole('tab', { name: 'Calificaciones' }))
     expect(await screen.findByRole('tab', { name: 'Calificaciones', selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole('combobox', { name: 'Etapa' })).toBeInTheDocument()
   })
 
   it('registra el resultado final de un estudiante con la sugerencia según los parciales', async () => {
@@ -120,6 +128,8 @@ describe('Módulo Docente', () => {
     expect(screen.getByText('Sugerido: Aprobó')).toBeInTheDocument()
     await choose(user, screen.getByLabelText('Resultado final de Ana Pérez'), 'Aprobó')
     await waitFor(() => expect(teacherApi.setFinalResult).toHaveBeenCalledWith(40, student.id, 'approved'))
+    // Elegir el resultado no abre las notas del estudiante (clic de fila).
+    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
   })
 
   it('cambia de sección dentro de la misma tutoría sin volver a elegirla', async () => {
@@ -129,7 +139,7 @@ describe('Módulo Docente', () => {
     expect(screen.getAllByRole('columnheader')[0]).toHaveTextContent('#')
     await user.click(screen.getByRole('tab', { name: 'Calificaciones' }))
     expect(await screen.findByRole('columnheader', { name: '#' })).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: /^Diagnóstico/ })).toBeInTheDocument()
+    expect(await screen.findByRole('combobox', { name: 'Etapa' })).toBeInTheDocument()
     expect(teacherApi.allStudents).toHaveBeenLastCalledWith(40)
     await user.click(screen.getByRole('tab', { name: 'Horarios' }))
     expect(await screen.findByText('Sin horarios registrados')).toBeInTheDocument()
@@ -224,7 +234,8 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.saveGrades).mockResolvedValue([student])
     workspace('students')
     expect(screen.queryByRole('button', { name: /Editar datos de/i })).not.toBeInTheDocument()
-    await user.click(await screen.findByRole('button', { name: 'Añadir notas de Ana Pérez' }))
+    // La fila abre las notas del estudiante: no hay columna de íconos sueltos.
+    await user.click(await screen.findByText('Ana Pérez'))
     const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
     await user.type(within(form).getByLabelText('Diagnóstico de Ana Pérez'), '8.5')
     await user.click(within(form).getByRole('button', { name: 'Guardar calificaciones' }))
@@ -235,7 +246,8 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.deactivateStudent).mockResolvedValue({ ...student, is_active: false })
     workspace('students')
-    await user.click(await screen.findByRole('button', { name: 'Deshabilitar a Ana Pérez' }))
+    await user.click(await screen.findByRole('button', { name: 'Acciones para Ana Pérez' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Deshabilitar inscripción' }))
     expect(teacherApi.deactivateStudent).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Deshabilitar inscripción' }))
     await waitFor(() => expect(teacherApi.deactivateStudent).toHaveBeenCalledWith(40, 70))
@@ -247,7 +259,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.allStudents).mockResolvedValue([student, second])
     vi.mocked(teacherApi.saveGrades).mockResolvedValue([student, second])
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     const first = await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })
     const other = screen.getByRole('textbox', { name: 'Diagnóstico de Luis Mora' })
     const save = screen.getByRole('button', { name: 'Guardar Diagnóstico' })
@@ -272,22 +284,23 @@ describe('Módulo Docente', () => {
     expect(JSON.parse(sessionStorage.getItem('grades-draft:40') ?? '{}')[70]?.diagnostic).toBeUndefined()
   })
 
-  it('abre en "Todas las etapas", indica el estado de cada etapa en su botón y deja volver a la consulta', async () => {
+  it('abre en "Todas las etapas", indica el estado de cada etapa en el desplegable y deja volver a la consulta', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '8.00' }])
     workspace('grades')
     expect(await screen.findByText('8.00')).toBeInTheDocument()
     expect(screen.queryByText(/modo consulta/)).not.toBeInTheDocument()
     expect(screen.queryByText('Cargar notas de:')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Todas las etapas' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('combobox', { name: 'Etapa' })).toHaveTextContent('Todas las etapas')
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Guardar/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Diagnóstico Completo' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Parcial 1 Pendiente' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /^Parcial 1/ }))
+    await user.click(screen.getByRole('combobox', { name: 'Etapa' }))
+    expect(await screen.findByRole('option', { name: 'Diagnóstico · Completo' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Parcial 1 · Pendiente' })).toBeInTheDocument()
+    await user.click(screen.getByRole('option', { name: /^Parcial 1/ }))
     expect(screen.getByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Parcial 1/ })).toHaveAttribute('aria-pressed', 'true')
-    await user.click(screen.getByRole('button', { name: 'Todas las etapas' }))
+    expect(screen.getByRole('combobox', { name: 'Etapa' })).toHaveTextContent(/^Parcial 1/)
+    await pickStage(user, 'Todas las etapas')
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
@@ -306,11 +319,11 @@ describe('Módulo Docente', () => {
   it('cancela la carga de una etapa y vuelve a modo consulta, descartando lo no guardado tras confirmar', async () => {
     const user = userEvent.setup()
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '7.5')
     await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     await user.click(await screen.findByRole('button', { name: 'Seguir editando' }))
@@ -319,18 +332,18 @@ describe('Módulo Docente', () => {
     await user.click(screen.getByRole('button', { name: 'Cancelar' }))
     await user.click(await screen.findByRole('button', { name: 'Sí, descartar' }))
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     expect(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('')
   })
 
   it('conserva las notas escritas como borrador si el docente sale de la página', async () => {
     const user = userEvent.setup()
     const view = workspace('grades')
-    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '7.5')
     view.unmount()
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     expect(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('7.5')
   })
 
@@ -338,7 +351,7 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.saveGrades).mockRejectedValue(new ApiError(422, { message: 'La nota supera la escala.' }))
     workspace('grades')
-    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '8.5')
     await user.click(screen.getByRole('button', { name: 'Guardar Diagnóstico' }))
     expect(await screen.findByText('La nota supera la escala.')).toBeInTheDocument()
@@ -416,7 +429,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.saveGrades).mockResolvedValue([])
     workspace('grades')
 
-    await user.click(await screen.findByRole('button', { name: /^Diagnóstico/ }))
+    await pickStage(user, /^Diagnóstico/)
     await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '9')
     await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Bruno Vera' }), '7')
     await user.click(screen.getByRole('button', { name: 'Guardar Diagnóstico' }))
@@ -514,6 +527,9 @@ describe('Módulo Docente', () => {
     await user.click(screen.getByRole('button', { name: 'Modificar lista de hoy' }))
     expect(await screen.findByRole('form', { name: 'Registrar asistencia' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Presente: Ana Pérez' })).toBeChecked()
+    // Desde la toma de lista se vuelve a las sesiones sin una segunda fila de pestañas.
+    await user.click(screen.getByRole('button', { name: 'Volver a las sesiones' }))
+    expect(await screen.findByText('La lista de hoy ya se tomó')).toBeInTheDocument()
   })
 
   it('ofrece registrar la asistencia cuando hoy todavía no se ha tomado lista', async () => {
@@ -525,8 +541,7 @@ describe('Módulo Docente', () => {
     expect(screen.queryByText('La lista de hoy ya se tomó')).not.toBeInTheDocument()
   })
 
-  it('muestra las dos secciones de asistencia y solo permite tomarla durante el horario de la clase', async () => {
-    const user = userEvent.setup()
+  it('muestra las sesiones sin pestañas internas y solo permite tomar asistencia durante el horario de la clase', async () => {
     const savedMonday = {
       id: 101,
       tutoring_id: 40,
@@ -548,10 +563,11 @@ describe('Módulo Docente', () => {
     // Hoy todavía no hay lista; el historial tiene la del lunes.
     vi.mocked(teacherApi.sessions).mockImplementation(async (_id, params) => paginated(params?.date ? [] : [savedMonday]))
 
-    workspace('attendance')
+    const view = workspace('attendance')
 
-    expect(await screen.findByRole('tab', { name: /Consultar asistencia/i })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Registrar asistencia/i })).toBeInTheDocument()
+    // Un solo nivel de pestañas: las sesiones y, arriba, la acción de registrar.
+    await screen.findByRole('table')
+    expect(screen.queryByRole('tab', { name: /Consultar asistencia|Registrar asistencia/i })).not.toBeInTheDocument()
 
     // En consultar asistencia: muestra el día (Lunes), la fecha y el resumen
     const table = await screen.findByRole('table')
@@ -563,8 +579,9 @@ describe('Módulo Docente', () => {
     expect(screen.getByText(/Hoy no hay clase de esta tutoría/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar asistencia' })).toBeDisabled())
 
-    // Ni desde la sección de registro: la lista queda bloqueada
-    await user.click(screen.getByRole('tab', { name: /Registrar asistencia/i }))
+    // Ni abriendo la toma de lista por enlace: la lista queda bloqueada
+    view.unmount()
+    show(<TeacherTutoringsPage />, `/panel/teacher-tutorings?tutoring=40&tab=attendance&session=${today}`)
     const form = await screen.findByRole('form', { name: 'Registrar asistencia' })
     expect(within(form).getByText(/Hoy no hay clase de esta tutoría/)).toBeInTheDocument()
     expect(within(form).getByRole('button', { name: 'Guardar asistencia' })).toBeDisabled()
@@ -582,16 +599,20 @@ describe('Módulo Docente', () => {
     ])
     workspace('content')
 
-    const sessions = await screen.findByRole('group', { name: 'Sesiones' })
-    const chips = within(sessions).getAllByRole('button').map((button) => button.textContent)
-    expect(chips[1]).toMatch(/^Sesión 1 · .*1 tema$/)
-    expect(chips[2]).toMatch(/^Sesión 2 · /)
+    // La sesión se elige con un desplegable, no con una fila de botones.
+    const sessionSelect = await screen.findByRole('combobox', { name: 'Sesión' })
+    expect(sessionSelect).toHaveTextContent('Todas las sesiones')
     expect(screen.getByRole('columnheader', { name: 'Sesión' })).toBeInTheDocument()
     expect(within(screen.getByRole('row', { name: /Despliegue/ })).getByText('Sin sesión')).toBeInTheDocument()
     expect(within(screen.getByRole('row', { name: /Integración/ })).getByText('Sesión 2')).toBeInTheDocument()
 
-    await user.click(within(sessions).getByRole('button', { name: /^Sesión 2/ }))
-    expect(screen.getByText(/Contenido de la/)).toHaveTextContent('Contenido de la Sesión 2')
+    await user.click(sessionSelect)
+    const options = (await screen.findAllByRole('option')).map((option) => option.textContent)
+    expect(options[1]).toMatch(/^Sesión 1 · .*1 tema$/)
+    expect(options[2]).toMatch(/^Sesión 2 · /)
+    await user.click(screen.getByRole('option', { name: /^Sesión 2/ }))
+    expect(screen.getByRole('combobox', { name: 'Sesión' })).toHaveTextContent(/^Sesión 2/)
+    expect(screen.getByRole('button', { name: 'Asignar temas a esta sesión' })).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /Integración/ })).toBeInTheDocument()
     expect(screen.queryByRole('row', { name: /Pruebas/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('row', { name: /Despliegue/ })).not.toBeInTheDocument()
@@ -671,13 +692,16 @@ describe('Módulo Docente', () => {
     })
     workspace('content')
     await screen.findByText('Pruebas')
-    expect(screen.getByRole('button', { name: /Marcar completado/i })).toBeInTheDocument()
-    expect(screen.getByText('Pendiente')).toBeInTheDocument()
+    // Una sola casilla por tema, sin un ícono repetido en "Acciones".
+    const done = screen.getByRole('checkbox', { name: 'Completado: Pruebas' })
+    expect(done).not.toBeChecked()
+    expect(screen.queryByRole('button', { name: /Marcar completado/i })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Marcar completado/i }))
+    await user.click(done)
     await waitFor(() => expect(teacherApi.toggleTopicCovered).toHaveBeenCalledWith(40, 90, true))
-    expect(await screen.findByRole('button', { name: /Marcar pendiente/i })).toBeInTheDocument()
-    expect(await screen.findByText('Completado')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Completado: Pruebas' })).toBeChecked())
+    // Marcar la casilla no abre el modal de edición del tema.
+    expect(screen.queryByRole('form', { name: 'Editar tema' })).not.toBeInTheDocument()
   })
 
   it('edita un tema con clic en la fila y lo deshabilita desde la cabecera del modal', async () => {
@@ -716,12 +740,15 @@ describe('Módulo Docente', () => {
       return method
     })
     workspace('content')
-    await user.click(await screen.findByRole('button', { name: 'Actividades de Pruebas' }))
+    await user.click(await screen.findByRole('button', { name: 'Acciones para Pruebas' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Ver actividades' }))
     await user.click(screen.getByRole('button', { name: 'Registrar actividad' }))
     await user.type(screen.getByLabelText('Nombre'), 'Diseñar casos')
-    await user.click(screen.getByRole('button', { name: '30m' }))
+    expect(screen.queryByRole('button', { name: '30m' })).not.toBeInTheDocument()
     await user.click(within(screen.getByRole('form', { name: 'Registrar actividad' })).getByRole('button', { name: 'Registrar actividad' }))
-    await user.click(await screen.findByRole('button', { name: 'Metodologías de Diseñar casos' }))
+    await waitFor(() => expect(teacherApi.createActivity).toHaveBeenCalledWith(40, 90, { name: 'Diseñar casos', duration: '30 minutos' }))
+    await user.click(await screen.findByRole('button', { name: 'Acciones para Diseñar casos' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Ver metodologías' }))
     await user.click(screen.getByRole('button', { name: 'Registrar metodología' }))
     await user.type(screen.getByLabelText('Descripción'), 'Trabajo colaborativo')
     await user.click(within(screen.getByRole('form', { name: 'Registrar metodología' })).getByRole('button', { name: 'Registrar metodología' }))
@@ -733,7 +760,7 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.reports).mockResolvedValue(paginated([{ id: 110, type: 'Informe de tutorías', author_id: 5, author_name: 'María López', generated_at: '2026-09-29T12:00:00Z', content: 'Estudiantes inscritos: 1', summary: null }]))
     show(<TeacherReportsStandalonePage />)
-    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     expect(await screen.findByRole('button', { name: 'Reportes oficiales' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enviar informe' })).not.toBeInTheDocument()
     await user.click(await screen.findByRole('row', { name: /María López/ }))
@@ -762,7 +789,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.sendDiagnosticReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
     show(<TeacherReportsStandalonePage />)
-    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Reporte de Evaluación Diagnóstica' }))
 
@@ -794,7 +821,7 @@ describe('Módulo Docente', () => {
     })
 
     show(<TeacherReportsStandalonePage />)
-    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Reporte de Evaluación Diagnóstica' }))
 
@@ -817,7 +844,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.sendDiagnosticGrades).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
     show(<TeacherReportsStandalonePage />)
-    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
       'Reporte de Evaluación Diagnóstica', 'Calificaciones Diagnósticas', 'Seguimiento de Tutorías', 'Informe Final PAO',
@@ -856,7 +883,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.sendFollowUpReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
     show(<TeacherReportsStandalonePage />)
-    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Seguimiento de Tutorías' }))
 
@@ -904,7 +931,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.sendFinalPaoReport).mockImplementation(async () => { vi.mocked(teacherApi.reports).mockResolvedValue(paginated([report])); return report })
 
     show(<TeacherReportsStandalonePage />)
-    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
     await user.click(screen.getByRole('button', { name: 'Reportes oficiales' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Informe Final PAO' }))
 
@@ -972,7 +999,7 @@ describe('Módulo Docente', () => {
     }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([session]))
     show(<TeacherReportsStandalonePage />)
-    await user.click(await screen.findByRole('button', { name: /Ver informes de Calidad de software/i }))
+    await user.click(await screen.findByRole('row', { name: /Calidad de software/ }))
 
     // Cambiar a la pestaña de Revisión de actividades
     await user.click(screen.getByRole('tab', { name: /Revisión de actividades/i }))

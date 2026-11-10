@@ -219,11 +219,10 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     pagination,
   ],
   'teacher-tutorings/students': [
-    step('[aria-label="Estudiantes o calificaciones"]', 'Estudiantes y calificaciones', 'Cambia entre la lista de estudiantes y el registro de sus calificaciones.'),
     filters('Busca por nombre, cédula o correo y filtra por estado.'),
     step({ button: 'Registrar estudiante' }, 'Registrar estudiante', 'Inscribe a un estudiante de tu paralelo o registra uno nuevo; si es nuevo, recibe una contraseña provisional por correo.'),
     table('Estudiantes inscritos en la tutoría. Al cerrar el ciclo, registra en «Resultado final» si aprobó o reprobó: quien aprueba pasa a la tutoría de la asignatura siguiente.'),
-    rowActions('Añade notas sobre el estudiante, deshabilita su inscripción o reinscríbelo.'),
+    rowActions('Haz clic en un estudiante para añadir sus notas; en «⋯» deshabilitas su inscripción o lo reinscribes.'),
     pagination,
   ],
   'teacher-tutorings/content': [
@@ -233,13 +232,11 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     rowActions('Entra a las actividades del tema; dentro de cada actividad están sus metodologías.'),
   ],
   'teacher-tutorings/attendance': [
-    step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre asistencia, contenido, horarios y estudiantes y calificaciones. Cada pestaña tiene su propia guía.'),
-    step('[aria-label="Secciones de asistencia"]', 'Consultar o registrar', '«Consultar» muestra las sesiones ya registradas; «Registrar» abre la toma de asistencia.'),
+    step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre asistencia, contenido, horarios, estudiantes y calificaciones. Cada pestaña tiene su propia guía.'),
     step({ button: 'Registrar asistencia' }, 'Registrar asistencia', 'Toma lista de una sesión y marca los temas que se trabajaron.'),
     table('Sesiones registradas con su fecha y asistentes. Los avisos de inasistencia de los estudiantes aparecen al tomar lista.'),
   ],
   'teacher-tutorings/grades': [
-    step('[aria-label="Estudiantes o calificaciones"]', 'Estudiantes y calificaciones', 'Vuelve a la lista de estudiantes desde aquí.'),
     step('[aria-label="Etapa de calificación"]', 'Etapa de calificación', 'Elige qué nota vas a ingresar. Cada etapa indica si está completa o pendiente.'),
     table('Escribe las notas en la tabla, de 0 a la nota máxima y con hasta dos decimales.'),
   ],
@@ -249,7 +246,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
   'teacher-reports': [
     step(HEADER, 'Informes', 'Aquí preparas los informes de tus tutorías.'),
-    step('ul button[aria-label^="Ver informes de"]', 'Elige una tutoría', 'Entra a la tutoría para ver o enviar sus informes.'),
+    table('Haz clic en una tutoría para ver o enviar sus informes.'),
   ],
   'teacher-reports/tutoring': [
     step({ button: 'Elegir otra tutoría' }, 'Cambiar de tutoría', 'Vuelve a la lista de tutorías.'),

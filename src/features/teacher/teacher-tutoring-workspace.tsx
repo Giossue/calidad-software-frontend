@@ -1,4 +1,3 @@
-import { ClipboardCheckIcon, UsersIcon } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -18,27 +17,23 @@ const TABS = [
   { id: 'attendance', label: 'Asistencia' },
   { id: 'content', label: 'Contenido' },
   { id: 'schedules', label: 'Horarios' },
-  { id: 'students', label: 'Estudiantes y Calificaciones' },
+  { id: 'students', label: 'Estudiantes' },
+  { id: 'grades', label: 'Calificaciones' },
 ] as const
 type TabId = typeof TABS[number]['id']
-// `tab=grades` abre la sección Calificaciones dentro de «Estudiantes y Calificaciones».
-type TabParam = TabId | 'grades'
 
-const SECTION_TRIGGER = 'mb-0 rounded-lg border-b-0 px-3 py-2 data-[state=active]:border-transparent data-[state=active]:bg-card data-[state=active]:shadow-sm'
-
-function isTabParam(value: string | null): value is TabParam {
-  return value === 'grades' || TABS.some((tab) => tab.id === value)
+function isTabId(value: string | null): value is TabId {
+  return TABS.some((tab) => tab.id === value)
 }
 
 // Espacio de trabajo de una tutoría: todo lo que el docente gestiona de ella
-// (asistencia, contenido, horarios, estudiantes y notas) en un solo lugar,
-// sin volver a elegir la tutoría en cada sección.
+// (asistencia, contenido, horarios, estudiantes y notas) en un solo nivel de
+// pestañas, sin volver a elegir la tutoría en cada sección.
 export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: number }>) {
   const [params, setParams] = useSearchParams()
   const resource = useDegreeResource(() => teacherApi.allTutorings())
   const requestedTab = params.get('tab')
-  const tabParam: TabParam = isTabParam(requestedTab) ? requestedTab : 'attendance'
-  const tab: TabId = tabParam === 'grades' ? 'students' : tabParam
+  const tab: TabId = isTabId(requestedTab) ? requestedTab : 'attendance'
   const tutoring = resource.data?.find((item) => item.id === tutoringId)
 
   function selectTab(value: string) {
@@ -62,16 +57,8 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
           <TabsContent value="attendance" key={`attendance-${tutoring.id}`}><AttendancePanel tutoring={tutoring} /></TabsContent>
           <TabsContent value="content" key={`content-${tutoring.id}`}><ContentPanel tutoring={tutoring} /></TabsContent>
           <TabsContent value="schedules" key={`schedules-${tutoring.id}`}><SchedulesPanel tutoring={tutoring} onReload={resource.reload} /></TabsContent>
-          <TabsContent value="students" key={`students-${tutoring.id}`}>
-            <Tabs value={tabParam === 'grades' ? 'grades' : 'students'} onValueChange={selectTab} className="flex flex-col gap-4">
-              <TabsList aria-label="Estudiantes o calificaciones" className="w-fit gap-1 rounded-lg bg-muted p-1 shadow-none">
-                <TabsTrigger value="students" className={SECTION_TRIGGER}><UsersIcon data-icon="inline-start" />Estudiantes</TabsTrigger>
-                <TabsTrigger value="grades" className={SECTION_TRIGGER}><ClipboardCheckIcon data-icon="inline-start" />Calificaciones</TabsTrigger>
-              </TabsList>
-              <TabsContent value="students"><StudentsPanel tutoring={tutoring} /></TabsContent>
-              <TabsContent value="grades"><GradesPanel tutoring={tutoring} /></TabsContent>
-            </Tabs>
-          </TabsContent>
+          <TabsContent value="students" key={`students-${tutoring.id}`}><StudentsPanel tutoring={tutoring} /></TabsContent>
+          <TabsContent value="grades" key={`grades-${tutoring.id}`}><GradesPanel tutoring={tutoring} /></TabsContent>
         </Tabs>
       </>}
   </section>
@@ -80,7 +67,7 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
 function TutoringHeader({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   return <header className="flex flex-col gap-2">
     <div className="flex flex-wrap items-center gap-3">
-      <h2 className="font-display text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{tutoring.subject_name}</h2>
+      <h2 className="text-2xl font-semibold tracking-tight">{tutoring.subject_name}</h2>
       <StatusBadge active={tutoring.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" />
     </div>
     <p className="text-sm text-muted-foreground">
