@@ -790,7 +790,7 @@ describe('Coordinación de tutorías', () => {
   it('muestra una sola tabla con el ciclo de cada tutoría y el contador, sin acordeones por ciclo', async () => {
     render(<TutoringsPage />)
     await screen.findByText('Matemática')
-    expect(screen.getByRole('heading', { level: 2, name: 'Software' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Software' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 3, name: 'Segundo' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Expandir todos/ })).not.toBeInTheDocument()
     expect(screen.getByText('2°')).toBeInTheDocument()
@@ -956,7 +956,7 @@ describe('Coordinación de tutorías', () => {
     ]))
 
     render(<TutoringReportsPage />)
-    expect(await screen.findByRole('heading', { level: 2, name: 'Software' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Software' })).toBeInTheDocument()
     expect(screen.queryByText('Asistencias registradas')).not.toBeInTheDocument()
     expect(screen.getByText('Mostrando 2 de 2 informes')).toBeInTheDocument()
     expect(tutoringApi.allReports).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined })
@@ -1028,7 +1028,7 @@ describe('Coordinación de tutorías', () => {
 
     render(<TutoringStudentsPage />)
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Software' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Software' })).toBeInTheDocument()
     // Una pestaña por ciclo; el último es titulación. Se abre el primero y la lista se pide por ciclo.
     expect(await screen.findByRole('tab', { name: '2° ciclo', selected: true })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '6° ciclo · Titulación' })).toBeInTheDocument()

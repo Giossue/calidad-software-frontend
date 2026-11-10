@@ -18,7 +18,7 @@ describe('buildTourSteps', () => {
     const steps = titles(['home'])
 
     expect(steps).toEqual([
-      '¡Bienvenido!', 'Menú principal', '¿Dónde estoy?', 'Notificaciones', 'Modo claro u oscuro',
+      '¡Bienvenido!', 'Menú principal', 'Notificaciones', 'Modo claro u oscuro',
       'Tu cuenta', 'Accesibilidad', 'Instala la aplicación', '¿Necesitas ayuda?',
     ])
   })

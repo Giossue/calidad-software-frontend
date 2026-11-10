@@ -11,6 +11,7 @@ las reglas de negocio viven en `calidad-software-backend`.
   y nombres internos se escriben en inglés.
 - Usa React 19, TypeScript, Vite, Tailwind CSS 4 y componentes shadcn/ui.
 - Reutiliza primero `src/components/ui`; compón componentes pequeños y accesibles.
+- La interfaz copia el sistema de sílabos de la UEB: sigue `docs/frontend/ui-conventions.md`.
 - Las páginas no contienen reglas de negocio ni secretos.
 - Solo las variables `VITE_*` pueden estar disponibles en el navegador.
 - La URL de la API proviene de `VITE_API_URL`; no disperses URLs absolutas.

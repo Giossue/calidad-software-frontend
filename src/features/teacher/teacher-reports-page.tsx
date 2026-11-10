@@ -221,7 +221,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success-foreground">
+              <Badge variant="outline" className="gap-1 border-success/30 bg-success/10 text-success">
                 <UsersIcon className="size-3.5" />
                 {presentStudents.length} {presentStudents.length === 1 ? 'estudiante presente' : 'estudiantes presentes'}
               </Badge>
@@ -337,7 +337,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
 
                       <Badge
                         variant="default"
-                        className="shrink-0 bg-success/15 text-success-foreground border-success/30 gap-1 text-xs"
+                        className="shrink-0 bg-success/15 text-success border-success/30 gap-1 text-xs"
                       >
                         <CheckCircle2Icon className="size-3" />
                         Presente
@@ -402,7 +402,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
               return (
                 <Badge
                   variant="outline"
-                  className="gap-1 border-success/30 bg-success/5 text-success-foreground"
+                  className="gap-1 border-success/30 bg-success/5 text-success"
                 >
                   <UsersIcon className="size-3" />
                   {present} de {session.attendance.length} presentes

@@ -52,13 +52,13 @@ export function LoginPage() {
     <AuthShell title="Ingresa a tu cuenta" description="Usa tus credenciales institucionales para acceder al sistema de tutorías y titulación.">
       <form onSubmit={submit} noValidate className="flex flex-col gap-6">
         <FieldGroup>
-          <FormField id="email" label="Correo electrónico">
+          <FormField id="email" label="Correo institucional">
             <Input
               id="email"
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="nombre@ueb.edu.ec"
+              placeholder="Ej. nombre@ueb.edu.ec"
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value)

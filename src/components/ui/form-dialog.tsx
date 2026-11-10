@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode } from 'react'
-import { SaveIcon, type LucideIcon } from 'lucide-react'
+import { CheckIcon, type LucideIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
@@ -33,7 +33,7 @@ export function FormDialog({
   children,
   submitLabel = 'Guardar cambios',
   submitDisabled = false,
-  submitIcon: SubmitIcon = SaveIcon,
+  submitIcon: SubmitIcon = CheckIcon,
   maxWidth = 'max-w-xl',
 }: Readonly<{
   open: boolean
@@ -81,9 +81,9 @@ export function FormDialog({
             {children}
             <ErrorNotice title={errorModal?.title} message={error} />
           </FieldGroup>
-          <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-2 border-t border-border bg-card px-4 py-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6">
+          <div className="sticky -bottom-6 z-10 -mx-6 -mb-6 flex flex-col-reverse gap-2 border-t bg-card p-4 sm:flex-row sm:items-center sm:justify-end">
             {blockReason && !pending && (
-              <p className="mr-auto text-sm text-muted-foreground">{blockReason}</p>
+              <p className="text-sm text-muted-foreground sm:mr-auto">{blockReason}</p>
             )}
             <DialogCancelButton disabled={pending}>Cancelar</DialogCancelButton>
             <Button type="submit" disabled={blocked}>

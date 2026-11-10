@@ -36,13 +36,13 @@ export function ForgotPasswordPage() {
       <form onSubmit={submit} noValidate className="flex flex-col gap-6">
         <FieldGroup>
           <AuthFeedback error={error} success={success} />
-          <FormField id="email" label="Correo electrónico">
+          <FormField id="email" label="Correo institucional">
             <Input
               id="email"
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="nombre@ueb.edu.ec"
+              placeholder="Ej. nombre@ueb.edu.ec"
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value)

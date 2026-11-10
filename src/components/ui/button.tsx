@@ -9,15 +9,13 @@ import { Tooltip, TooltipContent, TooltipTrigger, useInsideTooltip } from "@/com
 // izquierda), secondary (acción alternativa) y tertiary (baja énfasis, enlaces
 // e iconos). `tone="destructive"` solo tiñe la acción de peligro.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all outline-hidden disabled:cursor-not-allowed disabled:opacity-50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary:
-          "border bg-background shadow-control hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-        tertiary:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        primary: "bg-button-primary text-button-primary-foreground hover:bg-button-primary/90",
+        secondary: "border border-border bg-field shadow-control hover:bg-accent hover:text-accent-foreground",
+        tertiary: "hover:bg-accent hover:text-accent-foreground",
       },
       tone: {
         default: "",
@@ -33,7 +31,7 @@ const buttonVariants = cva(
       },
     },
     compoundVariants: [
-      { variant: "primary", tone: "destructive", className: "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40" },
+      { variant: "primary", tone: "destructive", className: "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/30" },
       { variant: ["secondary", "tertiary"], tone: "destructive", className: "text-destructive hover:bg-destructive/10 hover:text-destructive" },
     ],
     defaultVariants: {

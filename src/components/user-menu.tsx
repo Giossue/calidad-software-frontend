@@ -1,4 +1,7 @@
-import { ChevronsUpDownIcon, LogOutIcon } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDownIcon, LogOutIcon } from 'lucide-react'
+
+import { ConfirmModal } from '@/components/ui/confirm-modal'
 
 import {
   DropdownMenu,
@@ -19,43 +22,55 @@ interface UserMenuProps {
   readonly signingOut: boolean
 }
 
-/**
- * Cuenta en sesión, al pie del menú lateral: iniciales, nombre y rol. Al pulsarla se
- * muestran el correo y el cierre de sesión. Con el menú contraído quedan solo las iniciales.
- */
+/** Cuenta en sesión, en la cabecera: iniciales y nombre; el menú muestra correo, rol y cerrar sesión. */
 export function UserMenu({ name, email, roleLabel, initials, onSignOut, signingOut }: UserMenuProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Menú de ${name}`}
-          data-tour="user-menu"
-          className="flex w-full min-w-0 items-center gap-2 rounded-md p-2 text-left text-sm text-sidebar-foreground outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-xs font-medium text-sidebar-accent-foreground">
-            {initials}
-          </span>
-          <span className="grid min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="truncate font-medium">{name}</span>
-            <span className="truncate text-xs text-muted-foreground">{roleLabel}</span>
-          </span>
-          <ChevronsUpDownIcon className="ml-auto size-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" aria-hidden="true" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="w-(--radix-dropdown-menu-trigger-width) min-w-56">
-        <UserMenuContent {...{ name, email, onSignOut, signingOut }} />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Menú de ${name}`}
+            data-tour="user-menu"
+            className="inline-flex h-11 items-center gap-2 rounded-md px-2 text-left outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium text-muted-foreground">
+              {initials}
+            </span>
+            <span className="hidden max-w-48 truncate text-sm font-medium sm:block">{name}</span>
+            <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" sideOffset={4} className="w-72">
+          <UserMenuContent {...{ name, email, roleLabel, signingOut }} onSignOut={() => setConfirmOpen(true)} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false)
+          onSignOut()
+        }}
+        title="¿Cerrar sesión?"
+        description="Tendrás que ingresar de nuevo con tu correo y contraseña."
+        confirmLabel="Cerrar sesión"
+        confirmIcon={LogOutIcon}
+        pending={signingOut}
+      />
+    </>
   )
 }
 
-function UserMenuContent({ name, email, onSignOut, signingOut }: Omit<UserMenuProps, 'initials' | 'roleLabel'>) {
+function UserMenuContent({ name, email, roleLabel, onSignOut, signingOut }: Omit<UserMenuProps, 'initials'>) {
   return (
     <>
       <DropdownMenuLabel className="flex flex-col gap-0.5">
         <span className="truncate text-sm font-medium text-foreground">{name}</span>
         <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>
+        <span className="text-xs font-normal text-muted-foreground">{roleLabel}</span>
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={onSignOut} disabled={signingOut} variant="destructive">

@@ -115,57 +115,42 @@ export function Dialog({
   return (
     <DialogContext.Provider value={{ requestClose: handleAttemptClose }}>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-        {/* Fondo oscuro, igual que en sílabos */}
-        <div
-          className="fixed inset-0 bg-black/80 transition-opacity animate-in fade-in"
-          onClick={handleAttemptClose}
-        />
+        {/* Fondo negro casi opaco, igual que en sílabos. Clic fuera no cierra. */}
+        <div className="fixed inset-0 bg-overlay/95 animate-in fade-in-0 duration-200" />
 
-        {/* Contenedor Modal */}
         <div
           role="dialog"
           aria-modal="true"
           aria-label={title}
           className={cn(
-            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-lg border bg-card text-card-foreground shadow-modal animate-in fade-in-0 zoom-in-95 duration-200',
+            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-md bg-card text-card-foreground shadow-modal ring-1 ring-surface-ring animate-in fade-in-0 zoom-in-95 duration-200',
             maxWidth,
           )}
-          onClick={(e) => e.stopPropagation()}
         >
-          {/* Header del Modal */}
-          <div className="flex shrink-0 items-start justify-between border-b border-border px-4 py-4 sm:px-6">
-            <div className="flex flex-col gap-1 pr-6">
-              <h2 className="text-lg font-semibold leading-tight text-foreground">
-                {title}
-              </h2>
-              {description && (
-                <p className="text-sm text-muted-foreground">
-                  {description}
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
+          <div className="relative flex shrink-0 flex-col gap-2 px-6 pt-6 pb-4 text-center">
+            <h2 className="px-8 text-lg leading-none font-semibold">{title}</h2>
+            {description && <p className="text-sm text-muted-foreground">{description}</p>}
+            <div className="absolute top-4 right-4 flex items-center gap-1">
               {headerActions}
               {dismissible && (
-                <Button type="button" variant="tertiary" size="icon" onClick={handleAttemptClose} aria-label="Cerrar modal">
+                <Button type="button" variant="tertiary" size="icon-sm" tooltip="Cerrar" onClick={handleAttemptClose} aria-label="Cerrar modal" className="text-muted-foreground hover:text-foreground">
                   <XIcon />
                 </Button>
               )}
             </div>
           </div>
 
-          {/* Cuerpo del Modal */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-6">{children}</div>
 
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (
             <div
-              className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-black/80 p-6 animate-in fade-in duration-150"
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-md bg-overlay/95 p-6 animate-in fade-in duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex w-full max-w-md flex-col gap-5 rounded-lg border bg-card p-6 shadow-modal animate-in zoom-in-95 duration-150">
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="text-base font-semibold text-foreground">
+              <div className="flex w-full max-w-md flex-col gap-4 rounded-md bg-card p-6 text-center shadow-modal ring-1 ring-surface-ring animate-in zoom-in-95 duration-150">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-lg leading-none font-semibold text-foreground">
                     {confirmCloseTitle}
                   </h3>
                   <p className="text-sm text-muted-foreground">
@@ -173,7 +158,7 @@ export function Dialog({
                   </p>
                 </div>
 
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <div className="-mx-6 flex flex-col-reverse gap-2 border-t px-6 pt-4 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
                     variant="secondary"

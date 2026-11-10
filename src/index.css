@@ -1,19 +1,18 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-/* Instrument Sans empaquetada: sin descargas en el navegador. */
-@import '@fontsource/instrument-sans/400.css';
-@import '@fontsource/instrument-sans/500.css';
-@import '@fontsource/instrument-sans/600.css';
+/* Inter (variable) empaquetada, la misma fuente del sistema de sílabos. */
+@import '@fontsource-variable/inter';
 
 @custom-variant dark (&:is(.dark *));
 
 /*
-  Sistema visual compartido con el sistema de sílabos: escala de grises neutra, un solo
-  azul institucional y sombras semánticas. Sin degradados ni colores decorativos.
+  Sistema visual del sistema de sílabos de la UEB (proyecto-grado-silabos-frontend,
+  src/styles.css): azul institucional #122c41, sombras azuladas y menú lateral azul.
+  Los valores se copian tal cual; si cambian allá, se copian aquí.
 */
 @theme {
-  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --color-brand-red: var(--brand-red);
   --color-brand-red-contrast: var(--brand-red-contrast);
   --color-brand-blue: var(--brand-blue);
@@ -39,6 +38,15 @@
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-notice: var(--notice);
+  --color-notice-border: var(--notice-border);
+  --color-notice-foreground: var(--notice-foreground);
+  --color-field: var(--field);
+  --color-overlay: var(--overlay);
+  --color-primary-readable: var(--primary-readable);
+  --color-button-primary: var(--button-primary);
+  --color-button-primary-foreground: var(--button-primary-foreground);
   --color-table-header: var(--table-header);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -53,90 +61,105 @@
 }
 
 :root {
-  /* Azul institucional #002341, aclarado para que el botón se lea como azul. */
-  --brand-blue: hsl(207.7 100% 30%);
-  --brand-red: hsl(0 84.2% 48%);
-  --brand-red-contrast: hsl(0 84.2% 48%);
-  --background: hsl(0 0% 98%);
-  --foreground: hsl(0 0% 3.9%);
+  --brand-blue: #122c41;
+  --brand-red: #ac231e;
+  --brand-red-contrast: #ac231e;
+  --background: #f5f6f8;
+  --field: #f6f8fb;
+  --foreground: #121c28;
   --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 3.9%);
+  --card-foreground: #121c28;
   --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 3.9%);
-  --primary: hsl(207.7 100% 30%);
+  --popover-foreground: #121c28;
+  --primary: var(--brand-blue);
   --primary-foreground: hsl(0 0% 98%);
-  --secondary: hsl(0 0% 92.1%);
-  --secondary-foreground: hsl(0 0% 9%);
-  --muted: hsl(0 0% 96.1%);
-  --muted-foreground: hsl(0 0% 44%);
-  --accent: hsl(0 0% 96.1%);
-  --accent-foreground: hsl(0 0% 9%);
-  --destructive: hsl(0 84.2% 48%);
+  --primary-readable: var(--brand-blue);
+  --button-primary: var(--brand-blue);
+  --button-primary-foreground: hsl(0 0% 98%);
+  --secondary: #e6edf5;
+  --secondary-foreground: var(--brand-blue);
+  --muted: #edf2f8;
+  --muted-foreground: #5b6b7f;
+  --accent: #e6edf5;
+  --accent-foreground: var(--brand-blue);
+  --destructive: #b91c1c;
   --destructive-foreground: hsl(0 0% 98%);
-  --success: hsl(142 72% 26%);
-  --success-foreground: hsl(142 72% 24%);
-  --warning: hsl(32 95% 34%);
-  --table-header: hsl(0 0% 96.1%);
-  --border: hsl(0 0% 92%);
-  --input: hsl(0 0% 84%);
-  --ring: hsl(0 0% 3.9%);
+  --overlay: hsl(0 0% 0%);
+  --success: #13733b;
+  --success-foreground: hsl(0 0% 98%);
+  --warning: #8a4f00;
+  --warning-foreground: hsl(0 0% 98%);
+  --notice: #fdf6e7;
+  --notice-border: #f1dfb6;
+  --notice-foreground: #5c3b00;
+  --table-header: var(--muted);
+  --border: #dbe3ec;
+  --input: #7c8c9f;
+  --ring: #4a78a8;
   --radius: 0.5rem;
-  --surface-ring: rgb(0 0 0 / 0.06);
+  /* En claro las sombras son azuladas, no negras. */
+  --shadow-tint: 30 58 95;
+  --surface-ring: rgb(var(--shadow-tint) / 0.08);
   --shadow-control-value: 0 0 #0000;
-  --shadow-surface-value: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-menu-value: 0px 4px 10px rgb(0 0 0 / 0.18);
-  --shadow-modal-value: 0px 10px 28px rgb(0 0 0 / 0.22);
-  --sidebar: hsl(0 0% 94%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(0 0% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(0 0% 90%);
-  --sidebar-accent-foreground: hsl(0 0% 30%);
-  --sidebar-border: hsl(0 0% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --shadow-surface-value: 0 1px 3px 0 rgb(var(--shadow-tint) / 0.12), 0 1px 2px -1px rgb(var(--shadow-tint) / 0.12);
+  --shadow-menu-value: 0px 4px 10px rgb(var(--shadow-tint) / 0.2);
+  --shadow-modal-value: 0px 10px 28px rgb(var(--shadow-tint) / 0.24);
+  --sidebar: var(--brand-blue);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: var(--brand-blue);
+  --sidebar-accent: rgb(255 255 255 / 0.09);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.16);
+  --sidebar-ring: #cfe0f3;
 }
 
 .dark {
-  --brand-blue: hsl(207.7 100% 35%);
-  --brand-red: hsl(0 84% 48%);
-  --brand-red-contrast: hsl(0 84% 48%);
-  --background: hsl(0 0% 3.9%);
-  --foreground: hsl(0 0% 98%);
-  --card: hsl(0 0% 9%);
-  --card-foreground: hsl(0 0% 98%);
-  --popover: hsl(0 0% 11%);
-  --popover-foreground: hsl(0 0% 98%);
-  --primary: hsl(207.7 100% 35%);
-  --primary-foreground: hsl(0 0% 98%);
-  --secondary: hsl(0 0% 14.9%);
-  --secondary-foreground: hsl(0 0% 98%);
-  --muted: hsl(0 0% 16.08%);
-  --muted-foreground: hsl(0 0% 63.9%);
-  --accent: hsl(0 0% 14.9%);
-  --accent-foreground: hsl(0 0% 98%);
-  --destructive: hsl(0 84% 48%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --success: hsl(142 69% 58%);
-  --success-foreground: hsl(142 69% 70%);
-  --warning: hsl(38 92% 60%);
-  --table-header: hsl(0 0% 16.08%);
-  --border: hsl(0 0% 16%);
-  --input: hsl(0 0% 24%);
-  --ring: hsl(0 0% 83.1%);
-  /* En oscuro no se usan sombras de menú ni de modal: separan el color y el contorno. */
+  --background: #17191c;
+  --field: #1e2125;
+  --foreground: #f1f2f3;
+  --card: #272a2f;
+  --card-foreground: #f1f2f3;
+  --popover: #2b2e33;
+  --popover-foreground: #f1f2f3;
+  --primary: #5274a8;
+  --primary-foreground: #ffffff;
+  --primary-readable: #a9c1e2;
+  --button-primary: #5274a8;
+  --button-primary-foreground: #ffffff;
+  --secondary: #31353b;
+  --secondary-foreground: #f1f2f3;
+  --muted: #2e3136;
+  --muted-foreground: #c0c5cb;
+  --accent: #2d3239;
+  --accent-foreground: #e8ebef;
+  --destructive: #f87171;
+  --destructive-foreground: #3b0a0a;
+  --overlay: hsl(0 0% 0%);
+  --success: #4ade80;
+  --success-foreground: #052e16;
+  --warning: #fbbf24;
+  --warning-foreground: #422006;
+  --notice: rgb(251 191 36 / 0.1);
+  --notice-border: rgb(251 191 36 / 0.3);
+  --notice-foreground: #f1f2f3;
+  --table-header: var(--muted);
+  --border: #464a50;
+  --input: #7a8087;
+  --ring: #a8b2c0;
   --surface-ring: rgb(255 255 255 / 0.1);
   --shadow-control-value: 0 0 #0000;
   --shadow-surface-value: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-menu-value: 0 0 #0000;
-  --shadow-modal-value: 0 0 #0000;
-  --sidebar: hsl(0 0% 9%);
-  --sidebar-foreground: hsl(0 0% 95.9%);
-  --sidebar-primary: hsl(0 0% 98%);
-  --sidebar-primary-foreground: hsl(0 0% 9%);
-  --sidebar-accent: hsl(0 0% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(0 0% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --shadow-menu-value: 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-modal-value: 0 16px 40px rgb(0 0 0 / 0.5);
+  --sidebar: #2d4358;
+  --sidebar-foreground: #f4f6f8;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #2d4358;
+  --sidebar-accent: #354f68;
+  --sidebar-accent-foreground: #f4f6f8;
+  --sidebar-border: #435e76;
+  --sidebar-ring: #9eb5e8;
 }
 
 @layer base {
@@ -180,6 +203,29 @@
   button:disabled,
   [aria-disabled='true'] {
     cursor: not-allowed;
+  }
+}
+
+/* Esqueleto de carga con brillo, como en sílabos. */
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background-image: linear-gradient(100deg, transparent 30%, color-mix(in oklab, var(--color-card, white) 70%, transparent) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='skeleton'] {
+    animation: none !important;
   }
 }
 

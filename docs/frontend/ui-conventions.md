@@ -7,30 +7,37 @@ no se improvisa en la pantalla.
 
 ## Sistema visual
 
-- **Colores.** Escala de grises neutra y un solo azul institucional (`primary`). Usa
-  siempre tokens (`bg-muted`, `text-muted-foreground`, `text-destructive`,
-  `text-success`, `text-warning`, `border-border`); nunca colores crudos de Tailwind
-  (`amber-*`, `emerald-*`, `blue-*`, `slate-*`, `red-*`…).
-- **Sin decoración.** Nada de degradados, brillos, desenfoques, cuadrículas de fondo,
-  puntos parpadeantes, emoji ni iconos dentro de círculos o recuadros de color.
-- **Tipografía.** Instrument Sans con pesos 400, 500 y 600. Títulos de pantalla
-  `text-xl font-semibold tracking-tight`; texto secundario `text-sm text-muted-foreground`.
-  No uses tamaños arbitrarios (`text-[11px]`); usa `text-xs` como mínimo.
-- **Superficies.** `Card` ya trae `rounded-xl ring-1 ring-surface-ring shadow-surface`.
-  No agregues `border` ni `shadow-*` propios. Menús: `shadow-menu`; modales: `shadow-modal`.
-- **Tokens.** Los valores de `src/index.css` son los de
-  `proyecto-grado-silabos/resources/css/app.css`; si cambian allá, se copian aquí.
-- **Iconos.** Solo lucide, `size-4`, con `aria-hidden` y el nombre en el control.
-- **Todo control de solo icono lleva tooltip.** `Button` con `size="icon"` y `aria-label`
-  ya lo muestra solo; un botón propio sin texto debe usar `Tooltip` + `TooltipContent`.
-  Nunca el atributo HTML `title`.
-- **Radio y bordes.** Botones, campos y menús `rounded-md`; tarjetas `rounded-xl`;
-  modales `rounded-lg border shadow-modal`. Campos con `border-input shadow-control`.
+Referencia: `proyecto-grado-silabos-backend/proyecto-grado-silabos-frontend`
+(`src/styles.css` y `src/components/ui`). Los valores se copian tal cual; si cambian
+allá, se copian aquí.
+
+- **Colores.** Azul institucional `#122c41` (`primary`, `button-primary`, menú lateral),
+  fondo `#f5f6f8`, campos `bg-field`, bordes `#dbe3ec`. Usa siempre tokens
+  (`bg-muted`, `text-muted-foreground`, `text-destructive`, `text-success`,
+  `text-warning`, `border-border`); nunca colores crudos de Tailwind.
+- **Tipografía.** Una sola fuente: Inter (variable). Título de pantalla
+  `text-2xl font-semibold tracking-tight`; descripción `text-muted-foreground`;
+  títulos de sección `text-xl font-semibold tracking-tight`.
+- **Radio, bordes y sombras.** Botones, campos, tarjetas, tablas, menús y modales
+  `rounded-md`. Las superficies usan `ring-1 ring-surface-ring` (no `border`) con
+  `shadow-surface` (tarjetas, tablas), `shadow-menu` (menús, selects) o `shadow-modal`.
+  Los campos llevan `border-border bg-field shadow-control`. Las sombras son azuladas.
+- **Menú lateral.** Azul `#122c41` con texto blanco y el logo horizontal de la UEB
+  (`src/assets/logo-ueb-horizontal.webp`; contraído, `logo-ueb-sidebar.png`).
+- **Cabecera.** Blanca (`bg-card`), 4rem (3rem con el menú contraído): botón del menú a
+  la izquierda; ayuda, notificaciones, tema, accesibilidad y la cuenta a la derecha.
+- **Iconos.** Solo lucide, `size-4`, con el nombre en el control.
+- **Todo control de solo icono lleva tooltip.** `Button` con `size="icon*"` y
+  `aria-label` ya lo muestra solo; un botón propio sin texto usa `Tooltip` +
+  `TooltipContent`. Nunca el atributo HTML `title`.
+- **Sin decoración.** Nada de degradados (salvo el desvanecido de scroll de las tablas),
+  brillos, desenfoques ni emoji.
 
 ## Estructura de una pantalla
 
-1. `AdminSectionHeader` (o `ModuleHeader`): título, una descripción práctica de una
-   línea (qué se hace aquí y la consecuencia importante) y las acciones a la derecha.
+1. `AdminSectionHeader` (o `ModuleHeader`): ícono de la sección en un recuadro
+   (`size-11 rounded-md bg-accent`), título `h1`, una descripción práctica de una línea
+   y las acciones a la derecha.
    La acción principal lleva icono; las secundarias son `variant="secondary"`.
 2. Filtros: búsqueda primero, luego filtros, y un botón terciario "Quitar filtros"
    que solo aparece con filtros activos. Un filtro nunca dice solo "Todos": su opción
@@ -39,7 +46,10 @@ no se improvisa en la pantalla.
 
 ## Tablas
 
-- Encabezado `bg-muted`, filas alternas; en móvil las tablas `stacked` pasan a tarjetas.
+- Contenedor `rounded-md ring-1 ring-surface-ring shadow-surface`, encabezado `bg-field`,
+  divisiones verticales entre columnas y filas alternas; en móvil las tablas `stacked`
+  pasan a tarjetas.
+- Paginación siempre visible bajo la tabla: "1–15 de 42" a la izquierda y páginas a la derecha.
 - **Acciones de fila: siempre `RowActionsMenu`** (un botón "⋯" con cada acción escrita;
   las destructivas al final). No pongas columnas de iconos sueltos.
 - Fila vacía: `EmptyState` con una frase concreta que cambia con los filtros
@@ -49,9 +59,11 @@ no se improvisa en la pantalla.
 
 ## Formularios
 
-- Crear y editar desde una lista: `FormDialog` (modal centrado con pie fijo
-  "Cancelar" + acción, fondo `bg-black/80`). No se usan paneles laterales (sheets).
-  Flujos complejos: pantalla completa.
+- Crear y editar desde una lista: `FormDialog` (modal centrado, título centrado, X con
+  tooltip "Cerrar", pie con "Cancelar" + acción con ícono de visto). Fondo `bg-overlay/95`
+  (negro). Clic fuera no cierra. No se usan paneles laterales (sheets).
+- Confirmaciones: el mismo modal, título en pregunta ("¿Cerrar sesión?") y botón
+  destructivo con ícono y verbo.
 - La ayuda de un campo va visible bajo el campo (`FormField tip`), no en un tooltip.
 - El error de cada campo va en línea bajo el campo; el error del servidor una sola vez,
   dentro del panel. El motivo por el que "Guardar" está bloqueado se lee junto al botón.
@@ -62,14 +74,15 @@ no se improvisa en la pantalla.
 
 - **Pendiente:** el botón se deshabilita y un `Spinner` reemplaza su icono
   ("Guardando…"). Nunca doble envío (`useOperation` ya lo evita).
-- **Éxito:** un solo toast, arriba al centro, frase en participio ("Tutoría creada").
+- **Éxito:** un solo toast, arriba al centro, con colores invertidos, frase en participio
+  ("Tutoría creada").
   No muestres toast por acciones que no cambian nada (p. ej. "Actualizar").
 - **Error:** en un formulario abierto, en línea; fuera de un formulario, toast con
   título y detalle. No apiles modal de error encima.
 - **Destructivo:** `ConfirmModal` cuya descripción dice exactamente qué pasará y cuyo
   botón es verbo + consecuencia ("Desactivar docente").
-- **Carga:** esqueletos con la forma del contenido o `Spinner` con texto
-  ("Cargando…"); nunca una pantalla en blanco.
+- **Carga:** esqueletos con brillo (`Skeleton`) con la forma del contenido o `Spinner`
+  con texto ("Cargando…"); nunca una pantalla en blanco.
 - **Fallo al cargar:** `ErrorNotice` con "Reintentar".
 
 ## Texto

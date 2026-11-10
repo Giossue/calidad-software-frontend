@@ -141,15 +141,6 @@ export function buildTourSteps(moduleIds: readonly string[], userName?: string):
       popover: { ...MODULE_HELP[id], side: 'right', align: 'start' },
     })),
     {
-      element: tour('breadcrumb'),
-      popover: {
-        title: '¿Dónde estoy?',
-        description: 'Aquí ves el módulo en el que te encuentras.',
-        side: 'bottom',
-        align: 'start',
-      },
-    },
-    {
       element: tour('notifications'),
       popover: {
         title: 'Notificaciones',
@@ -172,7 +163,7 @@ export function buildTourSteps(moduleIds: readonly string[], userName?: string):
       popover: {
         title: 'Tu cuenta',
         description: 'Aquí ves tu nombre, correo y rol, y cierras sesión.',
-        side: 'right',
+        side: 'bottom',
         align: 'end',
       },
     },

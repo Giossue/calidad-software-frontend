@@ -179,7 +179,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => focusNextRow(event, type)}
         />
         {type === 'diagnostic' && value && groupFor(value, meta.settings) && (
-          <span className="text-[10px] font-medium text-success-foreground uppercase tracking-wider">{groupFor(value, meta.settings)}</span>
+          <span className="text-[10px] font-medium text-success uppercase tracking-wider">{groupFor(value, meta.settings)}</span>
         )}
       </div>
     },

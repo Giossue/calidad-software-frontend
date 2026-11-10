@@ -38,7 +38,7 @@ export function RowActionsMenu({ name, actions, disabled = false }: Readonly<{ n
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="tertiary" size="icon" aria-label={`Acciones para ${name}`} disabled={disabled || busy} onClick={(event) => event.stopPropagation()}>
+        <Button type="button" variant="tertiary" size="icon-sm" aria-label={`Acciones para ${name}`} disabled={disabled || busy} onClick={(event) => event.stopPropagation()}>
           {busy ? <Spinner aria-hidden="true" /> : <MoreHorizontalIcon aria-hidden="true" />}
         </Button>
       </DropdownMenuTrigger>

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -19,7 +19,7 @@ function renderMenu(overrides: Partial<Parameters<typeof UserMenu>[0]> = {}) {
 }
 
 describe('UserMenu', () => {
-  it('muestra los datos del usuario y cierra sesión', async () => {
+  it('muestra los datos del usuario y cierra sesión tras confirmar', async () => {
     const user = userEvent.setup()
     const props = renderMenu()
     const trigger = screen.getByRole('button', { name: 'Menú de Administrador Prueba' })
@@ -28,6 +28,11 @@ describe('UserMenu', () => {
     expect(screen.getByText('Administrador del Sistema')).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Accesibilidad' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }))
+    expect(props.onSignOut).not.toHaveBeenCalled()
+
+    // Cerrar sesión pide confirmación, como en sílabos.
+    const dialog = screen.getByRole('dialog', { name: '¿Cerrar sesión?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar sesión' }))
     expect(props.onSignOut).toHaveBeenCalledTimes(1)
   })
 })

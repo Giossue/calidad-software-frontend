@@ -14,6 +14,9 @@ import {
   UsersIcon,
 } from 'lucide-react'
 
+import logoHorizontal from '@/assets/logo-ueb-horizontal.webp'
+import logoSidebar from '@/assets/logo-ueb-sidebar.png'
+import { PageIconContext } from '@/components/admin/page-icon-context'
 import { HelpButton } from '@/components/help-button'
 import { NotificationBell } from '@/components/notification-bell'
 import { PwaInstallDialog } from '@/components/pwa-install-dialog'
@@ -250,7 +253,7 @@ export function DashboardPage() {
   ]
 
   const activeGroup = navGroups.find((group) => group.items.some((item) => item.id === activeSection))
-  const sectionLabel = activeGroup?.items.find((item) => item.id === activeSection)?.label
+  const activeItem = activeGroup?.items.find((item) => item.id === activeSection)
   const moduleIds = navGroups.flatMap((group) => group.items.map((item) => item.id))
 
   // Los estudiantes sin ciclo esperan a saber si están en titulación para tener el menú completo.
@@ -295,20 +298,15 @@ export function DashboardPage() {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
-          <div className="flex items-center gap-2 rounded-md p-1">
-            <img src="/ueb-logo.png" alt="" className="size-8 shrink-0 object-contain" width="32" height="32" />
-            <div className="grid min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
-              <span className="truncate text-sm font-semibold">Tutorías y Titulación</span>
-              <span className="truncate text-xs text-muted-foreground">Universidad Estatal de Bolívar</span>
-            </div>
-          </div>
+      <Sidebar collapsible="icon" variant="sidebar" className="border-sidebar">
+        <SidebarHeader className="flex min-h-16 items-center justify-center p-2 group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:min-h-12 group-data-[collapsible=icon]:p-0">
+          <img src={logoHorizontal} alt="Universidad Estatal de Bolívar" className="h-auto w-full group-data-[collapsible=icon]:hidden" width="600" height="164" />
+          <img src={logoSidebar} alt="Universidad Estatal de Bolívar" className="hidden size-7 object-contain group-data-[collapsible=icon]:block" />
         </SidebarHeader>
 
         <SidebarContent>
-          {navGroups.map((group) => <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          {navGroups.map((group) => <SidebarGroup key={group.label} className="px-2 py-0 [&+&]:mt-4">
+            {navGroups.length > 1 && <SidebarGroupLabel className="text-sidebar-foreground/70">{group.label}</SidebarGroupLabel>}
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
@@ -346,50 +344,43 @@ export function DashboardPage() {
         </SidebarContent>
 
         <SidebarFooter>
+          {/* Como en sílabos: instalar la aplicación se ofrece en el celular. */}
           <SidebarMenu>
-            <SidebarMenuItem>
+            <SidebarMenuItem className="md:hidden">
               <SidebarMenuButton
-                tooltip="Instalar App"
+                tooltip="Instalar aplicación"
                 data-tour="install-app"
                 onClick={() => setPwaInstallOpen(true)}
               >
                 <MonitorDownIcon />
-                <span>Instalar App</span>
+                <span>Instalar aplicación</span>
               </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <UserMenu
-                name={user?.name ?? 'Usuario'}
-                email={user?.email ?? ''}
-                roleLabel={userRoleText}
-                initials={initials}
-                onSignOut={() => void signOut()}
-                signingOut={pending}
-              />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 sm:px-4 md:rounded-t-xl">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <SidebarTrigger className="-ml-1 shrink-0" data-tour="menu-trigger" />
-            <nav aria-label="Ubicación" className="min-w-0 truncate text-sm text-muted-foreground" data-tour="breadcrumb">
-              {activeGroup && <span className="max-md:sr-only">{activeGroup.label} <span aria-hidden="true">›</span> </span>}
-              {sectionLabel && <span aria-current="page" className="truncate font-medium text-foreground">{sectionLabel}</span>}
-            </nav>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border bg-card px-4 transition-[height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <SidebarTrigger className="-ml-1" data-tour="menu-trigger" />
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <HelpButton onPageTour={openPageTour} onGeneralTour={openGeneralTour} onTeacherGuide={user?.role === 'docente' ? openTeacherGuide : undefined} />
-            <AccessibilityButton onClick={() => setAccessibilityOpen(true)} />
-            <ThemeToggle />
             <NotificationBell />
+            <ThemeToggle />
+            <AccessibilityButton onClick={() => setAccessibilityOpen(true)} />
+            <UserMenu
+              name={user?.name ?? 'Usuario'}
+              email={user?.email ?? ''}
+              roleLabel={userRoleText}
+              initials={initials}
+              onSignOut={() => void signOut()}
+              signingOut={pending}
+            />
           </div>
         </header>
 
-        <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col p-4 sm:p-6">
+        <PageIconContext.Provider value={activeItem?.icon ?? null}>
+        <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 overflow-x-clip p-4 sm:p-6">
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (
@@ -440,6 +431,7 @@ export function DashboardPage() {
             </Card>
           )}
         </div>
+        </PageIconContext.Provider>
       </SidebarInset>
 
       <AccessibilityModal open={accessibilityOpen} onClose={() => setAccessibilityOpen(false)} />
