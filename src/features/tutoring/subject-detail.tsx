@@ -67,10 +67,10 @@ export function SubjectDetail({
             <StatusBadge active={subject.is_active} activeLabel="Activa" inactiveLabel="Inactiva" />
             {subject.is_active && (
               <>
-                <Button type="button" variant="secondary" size="icon" aria-label="Editar asignatura" disabled={operation.pending} onClick={onEdit}>
+                <Button type="button" variant="tertiary" size="icon" aria-label="Editar asignatura" disabled={operation.pending} onClick={onEdit}>
                   <PencilIcon />
                 </Button>
-                <Button type="button" variant="secondary" size="icon" tone="destructive" aria-label="Desactivar asignatura" disabled={operation.pending} onClick={onDeactivate}>
+                <Button type="button" variant="tertiary" size="icon" tone="destructive" aria-label="Desactivar asignatura" disabled={operation.pending} onClick={onDeactivate}>
                   <PowerOffIcon />
                 </Button>
               </>

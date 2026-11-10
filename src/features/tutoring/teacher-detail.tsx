@@ -53,10 +53,10 @@ export function TeacherDetail({
             <StatusBadge active={teacher.is_active} />
             {manageable && (
               <>
-                <Button type="button" variant="secondary" size="icon" aria-label="Editar docente" disabled={pending} onClick={onEdit}>
+                <Button type="button" variant="tertiary" size="icon" aria-label="Editar docente" disabled={pending} onClick={onEdit}>
                   <PencilIcon />
                 </Button>
-                <Button type="button" variant="secondary" size="icon" tone="destructive" aria-label="Desactivar docente" disabled={pending} onClick={onDeactivate}>
+                <Button type="button" variant="tertiary" size="icon" tone="destructive" aria-label="Desactivar docente" disabled={pending} onClick={onDeactivate}>
                   <PowerOffIcon />
                 </Button>
               </>

@@ -400,8 +400,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   )
 
   const createSteps: readonly FormStep[] = [
-    { title: 'Datos de la asignatura', blockReason: nameReason, content: dataFields },
-    { title: 'Ciclo y paralelos', content: placementFields },
+    { title: 'Datos de la asignatura', blockReason: nameReason, fields: ['name', 'code', 'modality_id'], content: dataFields },
+    { title: 'Ciclo y paralelos', fields: ['cycle_ids', 'section_ids'], content: placementFields },
   ]
 
   const formTitle = mode === 'sequence' ? 'Secuencia en la malla' : editing ? 'Editar asignatura' : 'Registrar asignatura'
@@ -474,6 +474,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       description={formDescription}
       pending={operation.pending}
       error={operation.error}
+      errorModal={operation.errorModal}
       dirty={JSON.stringify(form) !== JSON.stringify(initialForm) || Boolean(newSectionName)}
       blockReason={nameReason}
       onClose={() => setMode(null)}

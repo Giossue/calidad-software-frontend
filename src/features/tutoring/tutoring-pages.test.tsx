@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -126,6 +127,7 @@ describe('Coordinación de tutorías', () => {
 
   it('conserva el formulario ante un rechazo y evita crear dos veces mientras guarda', async () => {
     const user = userEvent.setup()
+    const toastError = vi.spyOn(toast, 'error')
     let reject: (error: unknown) => void = () => undefined
     vi.mocked(tutoringApi.createSubject).mockImplementationOnce(() => new Promise((_resolve, rejectPromise) => { reject = rejectPromise }))
     await openSubjects()
@@ -137,10 +139,13 @@ describe('Coordinación de tutorías', () => {
     expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', cycle_id: 20, period_id: 50 })
     expect(within(form).getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     await act(async () => reject(new ApiError(422, { message: 'No se pudo guardar.', errors: { code: ['El código ya existe.'] } })))
-    expect(await screen.findByText('El código ya existe.')).toBeInTheDocument()
+    // El error es del código (paso 1): el formulario vuelve a ese paso, con el error dentro y sin toast.
+    expect(await within(form).findByText('El código ya existe.')).toBeInTheDocument()
+    expect(within(form).getByLabelText(/^Nombre/)).toHaveValue('PROGRAMACIÓN')
+    expect(within(form).getByRole('button', { name: 'Siguiente' })).toBeEnabled()
+    expect(toastError).not.toHaveBeenCalled()
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     expect(within(form).getByRole('button', { name: 'Registrar asignatura' })).toBeEnabled()
-    await user.click(within(form).getByRole('button', { name: 'Atrás' }))
-    expect(screen.getByLabelText(/^Nombre/)).toHaveValue('PROGRAMACIÓN')
   })
 
   it('propone el ciclo de la pestaña abierta al registrar una asignatura y permite cambiarlo, con código opcional', async () => {

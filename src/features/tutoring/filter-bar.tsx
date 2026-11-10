@@ -31,7 +31,7 @@ type FilterBarProps = Readonly<{
   disabled?: boolean
   filters: readonly FilterDefinition[]
   onClear: () => void
-  /** Control que va antes del buscador (p. ej. el ciclo, que no es un filtro opcional). */
+  /** Desplegable obligatorio (p. ej. el ciclo): va justo después del buscador, antes de los filtros. */
   leading?: ReactNode
 }>
 
@@ -42,7 +42,6 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
 
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3" data-tour="page-filters">
-      {leading}
       <SearchInput
         id={`${id}-search`}
         icon
@@ -53,6 +52,7 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
         onValueChange={onSearch}
         className="min-w-56 basis-full flex-1 sm:basis-0"
       />
+      {leading}
       {filters.map((filter) => {
         const select = (
           <SelectInput

@@ -637,8 +637,8 @@ export function UsersPage() {
   // "Siguiente" se bloquea con el primer error de los campos de cada paso (las mismas reglas de validación).
   const firstErrorOf = (fields: readonly (keyof UserForm)[]) => fields.map((field) => formErrors[field]).find(Boolean) ?? null
   const userFormSteps: FormStep[] = [
-    { title: 'Datos personales', blockReason: firstErrorOf(PERSONAL_FIELDS), content: personalFields },
-    { title: 'Rol y carrera', blockReason: firstErrorOf(ROLE_FIELDS), content: roleFields },
+    { title: 'Datos personales', blockReason: firstErrorOf(PERSONAL_FIELDS), fields: ['name', 'identification', 'phone', 'email'], content: personalFields },
+    { title: 'Rol y carrera', blockReason: firstErrorOf(ROLE_FIELDS), fields: ['role', 'faculty_id', 'career_id', 'cycle_number'], content: roleFields },
     ...(editingUser ? [{ title: 'Contraseña', description: 'Déjala en blanco para conservar la actual.', content: passwordFields }] : []),
   ]
 

@@ -391,7 +391,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
             actions={
               <div className="flex items-center gap-2">
                 <StatusBadge active={assignStudent.is_active} />
-                <Button type="button" variant="secondary" size="icon" aria-label={assignStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'} onClick={() => openCycleModal(assignStudent)}>
+                <Button type="button" variant="tertiary" size="icon" aria-label={assignStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'} onClick={() => openCycleModal(assignStudent)}>
                   <ArrowRightLeftIcon />
                 </Button>
               </div>
@@ -685,6 +685,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         description="Ingresa sus datos y, si quieres, inscríbelo en una tutoría de su ciclo."
         pending={operation.pending}
         error={operation.error}
+        errorModal={operation.errorModal}
         dirty={isFormDirty}
         blockReason={createBlockReason}
         onClose={() => setCreateOpen(false)}
@@ -695,6 +696,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           {
             title: 'Datos del estudiante',
             blockReason: dataBlockReason,
+            fields: ['name', 'identification', 'email', 'phone'],
             content: (
               <>
                 <FormField id="new-student-name" label="Nombres y apellidos" required counter={{ current: form.name.length, max: 150 }}>
@@ -760,6 +762,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           },
           {
             title: 'Ciclo y tutoría',
+            fields: ['cycle_id', 'tutoring_id'],
             content: (
               <>
                 <SelectField

@@ -269,7 +269,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const parentKind: Kind = activity ? 'activity' : 'topic'
   const parentRecord = activity ?? topic
   const editParentButton = parentRecord && (
-    <Button variant="secondary" size="icon" className="shrink-0" aria-label={`Editar ${LABELS[parentKind]}`} disabled={!canManage || operation.pending} onClick={() => openForm(parentKind, parentRecord)}>
+    <Button variant="tertiary" size="icon" className="shrink-0" aria-label={`Editar ${LABELS[parentKind]}`} disabled={!canManage || operation.pending} onClick={() => openForm(parentKind, parentRecord)}>
       <PencilIcon />
     </Button>
   )

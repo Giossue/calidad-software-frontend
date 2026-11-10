@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { FieldGroup } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
 import { EmptyState } from '@/components/ui/empty-state'
-import { FilterBarSkeleton, TableRowsSkeleton, TableSkeleton } from '@/components/ui/loading-skeletons'
+import { TableRowsSkeleton } from '@/components/ui/loading-skeletons'
 import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SearchInput } from '@/components/ui/search-input'
 import { SelectInput } from '@/components/ui/select-field'
@@ -19,7 +19,8 @@ import type { TutoringCatalogs } from './tutoring-hooks'
 
 export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs }>) {
   if (catalogs.error) return <ErrorNotice message={catalogs.error} retry={catalogs.reload} />
-  if (catalogs.loading) return <div className="flex flex-col gap-6"><span role="status" aria-label="Cargando carreras y catálogos" className="sr-only">Cargando carreras y catálogos</span><FilterBarSkeleton /><TableSkeleton /></div>
+  // La pantalla de abajo ya muestra su propio esqueleto: aquí solo se anuncia la carga.
+  if (catalogs.loading) return <span role="status" aria-label="Cargando carreras y catálogos" className="sr-only">Cargando carreras y catálogos</span>
   if (catalogs.careers.length === 0) return <Alert><AlertDescription>No tienes carreras disponibles para coordinar. Solicita al administrador que asigne una carrera activa a tu cuenta.</AlertDescription></Alert>
   return null
 }

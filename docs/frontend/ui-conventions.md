@@ -39,7 +39,8 @@ Cada pantalla se piensa para que la tarea habitual tome el menor esfuerzo, sin c
 las reglas de negocio que ya aplica el sistema.
 
 - **Acciones del encabezado de una página de detalle**: editar, desactivar o cambiar
-  van como botones de solo ícono (con su tooltip y nombre accesible). Las acciones del
+  van como botones de solo ícono, sin fondo ni borde (`variant="tertiary"`), con su
+  tooltip y nombre accesible. Las acciones del
   flujo de trabajo (aprobar, rechazar, registrar) llevan texto.
 - **La fila abre el registro.** Si un registro tiene más de una cosa que ver o hacer
   (horario, supervisión, estudiantes…), la fila completa abre su pantalla con la
@@ -73,8 +74,9 @@ las reglas de negocio que ya aplica el sistema.
    aparece con filtros activos. Un filtro nunca dice solo "Todos": su opción vacía
    nombra lo que agrupa ("Todos los ciclos", "Todos los estados"). Los desplegables
    de la fila de filtros no llevan una etiqueta visible al lado: su valor lo dice todo
-   (la etiqueta va para lectores de pantalla). Un valor obligatorio, como el ciclo, va
-   primero en la fila (`FilterBar leading`).
+   (la etiqueta va para lectores de pantalla). Siempre va primero el buscador de texto
+   libre y después los desplegables; un valor obligatorio, como el ciclo, es el primer
+   desplegable (`FilterBar leading`).
 3. La tabla (`RecordTable`, `DataTable` o `Table` dentro de `Card`), y debajo la paginación.
 
 ## Tablas
@@ -133,12 +135,15 @@ las reglas de negocio que ya aplica el sistema.
 - **Éxito:** un solo toast, arriba al centro, con colores invertidos, frase en participio
   ("Tutoría creada").
   No muestres toast por acciones que no cambian nada (p. ej. "Actualizar").
-- **Error:** en un formulario abierto, en línea; fuera de un formulario, toast con
-  título y detalle. No apiles modal de error encima.
+- **Error:** en un formulario abierto, dentro del modal y nunca en un toast (que
+  desaparece). En un formulario por pasos, si el servidor rechaza un campo de otro paso,
+  el formulario vuelve a ese paso (`FormStep.fields` + `errorModal`). Fuera de un
+  formulario, toast con título y detalle. No apiles modal de error encima.
 - **Destructivo:** `ConfirmModal` cuya descripción dice exactamente qué pasará y cuyo
   botón es verbo + consecuencia ("Desactivar docente").
-- **Carga:** esqueletos con brillo (`Skeleton`) con la forma del contenido o `Spinner`
-  con texto ("Cargando…"); nunca una pantalla en blanco.
+- **Carga:** esqueletos con brillo con la forma del contenido
+  (`src/components/ui/loading-skeletons.tsx`); nunca una pantalla en blanco ni un
+  ícono girando a pantalla completa, y nunca dos esqueletos para lo mismo.
 - **Fallo al cargar:** `ErrorNotice` con "Reintentar".
 
 ## Texto

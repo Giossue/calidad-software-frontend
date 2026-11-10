@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
+import { isFormDialogOpen } from '@/components/ui/form-dialog'
 import { type AcademicPeriod, type Career, type Cycle, type Modality, type Section } from '@/lib/api'
 import { tutoringApi } from '@/lib/tutoring-api'
 
@@ -30,7 +31,7 @@ export function useOperation() {
       const friendly = getFriendlyError(caught)
       setError(friendly.description)
       setErrorModal(friendly)
-      toast.error(friendly.title, { description: friendly.description })
+      if (!isFormDialogOpen()) toast.error(friendly.title, { description: friendly.description })
     } finally {
       busy.current = false
       setPending(false)

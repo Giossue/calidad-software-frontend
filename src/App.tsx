@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { Toaster } from '@/components/ui/sonner'
-import { Spinner } from '@/components/ui/spinner'
+import { ListPageSkeleton } from '@/components/ui/loading-skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
 import { CompleteProfileModal } from '@/features/auth/complete-profile-modal'
@@ -14,12 +15,27 @@ import { VerifyEmailPage } from '@/features/auth/verify-email-page'
 import { applyAccessibilitySettings, getStoredAccessibility } from '@/lib/accessibility'
 import { DashboardPage } from '@/pages/dashboard-page'
 
-// Mientras se comprueba la sesión: indicador centrado en vez de una pantalla en blanco.
+// Mientras se comprueba la sesión: la forma del sistema (menú, cabecera y pantalla), sin
+// pantalla en blanco ni un ícono girando.
 function SessionLoading() {
   return (
-    <div className="flex min-h-svh items-center justify-center gap-2 text-sm text-muted-foreground">
-      <Spinner aria-hidden="true" />
-      <span role="status">Cargando…</span>
+    <div className="flex min-h-svh bg-background">
+      <div className="hidden w-64 shrink-0 flex-col gap-3 bg-sidebar p-3 md:flex" aria-hidden="true">
+        <Skeleton className="mb-3 h-14 w-full bg-white/15" />
+        {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-8 w-full bg-white/15" />)}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col" aria-hidden="true">
+        <div className="flex h-16 items-center justify-between border-b border-border bg-card px-4">
+          <Skeleton className="size-7" />
+          <div className="flex items-center gap-2">
+            {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="size-8" />)}
+            <Skeleton className="h-8 w-40" />
+          </div>
+        </div>
+        <div className="mx-auto w-full max-w-6xl p-4 sm:p-6">
+          <ListPageSkeleton />
+        </div>
+      </div>
     </div>
   )
 }

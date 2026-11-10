@@ -9,6 +9,14 @@ import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from '@/component
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
+// Formularios abiertos: mientras haya uno, los errores se muestran dentro de él y no en un
+// toast (que desaparece y deja al usuario sin saber qué corregir).
+let openFormDialogs = 0
+
+export function isFormDialogOpen() {
+  return openFormDialogs > 0
+}
+
 /** Un paso de un formulario largo: su título, una línea de ayuda, qué falta para seguir y sus campos. */
 export interface FormStep {
   readonly title: string
@@ -16,6 +24,8 @@ export interface FormStep {
   readonly description?: string
   /** Si hay algo pendiente en este paso, "Siguiente" queda bloqueado (motivo en su tooltip). */
   readonly blockReason?: string | null
+  /** Nombres de los campos del paso (como los devuelve la API): si el servidor rechaza uno, se vuelve a este paso. */
+  readonly fields?: readonly string[]
   readonly content: ReactNode
 }
 
@@ -82,6 +92,20 @@ export function FormDialog({
   useEffect(() => {
     if (open) setStepIndex(0)
   }, [open])
+  useEffect(() => {
+    if (!open) return
+    openFormDialogs += 1
+    return () => {
+      openFormDialogs -= 1
+    }
+  }, [open])
+  // Si el servidor rechaza un campo de otro paso, se vuelve a ese paso para corregirlo ahí.
+  const errorField = errorModal?.field
+  useEffect(() => {
+    if (!steps || !errorField || !error) return
+    const target = steps.findIndex((item) => item.fields?.includes(errorField))
+    if (target >= 0) setStepIndex(target)
+  }, [error, errorField, steps])
   const step = steps?.[Math.min(stepIndex, steps.length - 1)]
   const isLastStep = !steps || stepIndex >= steps.length - 1
   const stepReason = step && !isLastStep ? (step.blockReason ?? null) : null

@@ -11,7 +11,7 @@ import { RefreshButton } from '@/components/ui/refresh-button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { FormDialog } from '@/components/ui/form-dialog'
+import { FormDialog, isFormDialogOpen } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
@@ -407,7 +407,7 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
       setCareerToToggle(null)
       // Fuera de un formulario, el error va en un toast.
       const friendly = getFriendlyError(error)
-      toast.error(friendly.title, { description: friendly.description })
+      if (!isFormDialogOpen()) toast.error(friendly.title, { description: friendly.description })
     } finally {
       setPending(false)
     }
@@ -432,7 +432,7 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
             <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" />
             <Button
               type="button"
-              variant="secondary" size="icon" aria-label="Editar carrera"
+              variant="tertiary" size="icon" aria-label="Editar carrera"
               disabled={pending}
               onClick={() => {
                 setCareerFormKey((key) => key + 1)
@@ -442,11 +442,11 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
               <PencilIcon />
             </Button>
             {career.status ? (
-              <Button type="button" variant="secondary" size="icon" tone="destructive" aria-label="Desactivar carrera" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'deactivate' })}>
+              <Button type="button" variant="tertiary" size="icon" tone="destructive" aria-label="Desactivar carrera" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'deactivate' })}>
                 <PowerOffIcon />
               </Button>
             ) : (
-              <Button type="button" variant="secondary" size="icon" aria-label="Habilitar carrera" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'activate' })}>
+              <Button type="button" variant="tertiary" size="icon" aria-label="Habilitar carrera" disabled={pending} onClick={() => setCareerToToggle({ career, action: 'activate' })}>
                 <PowerIcon />
               </Button>
             )}
