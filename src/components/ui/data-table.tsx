@@ -1,7 +1,7 @@
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef, type TableMeta } from '@tanstack/react-table'
 
 import { cn } from '@/lib/utils'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableRowsSkeleton } from '@/components/ui/loading-skeletons'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 type DataTableProps<TData, TValue> = Readonly<{
@@ -40,13 +40,7 @@ export function DataTable<TData, TValue>({ columns, data, getRowId, emptyMessage
         </TableHeader>
         <TableBody>
           {loading ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <TableRow key={index} className="hover:bg-transparent">
-                {columns.map((_, column) => (
-                  <TableCell key={column} className={cn(dense && 'py-2')}><Skeleton className="h-4 w-full max-w-32" /></TableCell>
-                ))}
-              </TableRow>
-            ))
+            <TableRowsSkeleton columns={columns.length} rows={4} />
           ) : table.getRowModel().rows.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow

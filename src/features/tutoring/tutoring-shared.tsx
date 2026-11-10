@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button'
 import { FieldGroup } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
 import { EmptyState } from '@/components/ui/empty-state'
+import { FilterBarSkeleton, TableRowsSkeleton, TableSkeleton } from '@/components/ui/loading-skeletons'
 import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SearchInput } from '@/components/ui/search-input'
 import { SelectInput } from '@/components/ui/select-field'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Career } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -19,7 +19,7 @@ import type { TutoringCatalogs } from './tutoring-hooks'
 
 export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs }>) {
   if (catalogs.error) return <ErrorNotice message={catalogs.error} retry={catalogs.reload} />
-  if (catalogs.loading) return <div role="status" aria-label="Cargando carreras y catálogos" className="flex flex-col gap-2"><Skeleton className="h-5 w-64" /><Skeleton className="h-5 w-40" /></div>
+  if (catalogs.loading) return <div className="flex flex-col gap-6"><span role="status" aria-label="Cargando carreras y catálogos" className="sr-only">Cargando carreras y catálogos</span><FilterBarSkeleton /><TableSkeleton /></div>
   if (catalogs.careers.length === 0) return <Alert><AlertDescription>No tienes carreras disponibles para coordinar. Solicita al administrador que asigne una carrera activa a tu cuenta.</AlertDescription></Alert>
   return null
 }
@@ -35,9 +35,6 @@ export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }
   </FieldGroup>
 }
 
-function LoadingRows({ columns }: Readonly<{ columns: number }>) {
-  return <TableRow><TableCell colSpan={columns} className="whitespace-normal"><div role="status" aria-label="Cargando" className="flex flex-col gap-3 py-2"><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-4/5" /><Skeleton className="h-5 w-3/5" /></div></TableCell></TableRow>
-}
 
 /**
  * Una columna puede agrupar filas con `span` (p. ej. un docente con varias asignaturas).
@@ -61,7 +58,7 @@ export function RecordTable<T extends { readonly id: number | string }>({ rows, 
   })
   return <div aria-busy={loading} data-tour="page-table">
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody {...(numbered ? { 'data-numbered': '', style: { counterReset: `row-number ${(numberFrom ?? 1) - 1}` } } : {})}>
-      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow className="hover:bg-transparent"><TableCell colSpan={columns.length} className="whitespace-normal p-0">{typeof empty === 'string' ? <EmptyState>{empty}</EmptyState> : <div className="flex min-h-40 flex-col items-center justify-center px-4 py-8 text-center">{empty}</div>}</TableCell></TableRow> : rows.map((row, rowIndex) => <TableRow key={row.id} data-group={grouped ? (groupIndex[rowIndex] % 2 === 0 ? 'odd' : 'even') : undefined} data-hovered={grouped && hoveredGroup === groupIndex[rowIndex] ? '' : undefined} onMouseEnter={grouped ? () => setHoveredGroup(groupIndex[rowIndex]) : undefined} onMouseLeave={grouped ? () => setHoveredGroup(null) : undefined} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {
+      {loading ? <TableRowsSkeleton columns={columns.length} /> : rows.length === 0 ? <TableRow className="hover:bg-transparent"><TableCell colSpan={columns.length} className="whitespace-normal p-0">{typeof empty === 'string' ? <EmptyState>{empty}</EmptyState> : <div className="flex min-h-40 flex-col items-center justify-center px-4 py-8 text-center">{empty}</div>}</TableCell></TableRow> : rows.map((row, rowIndex) => <TableRow key={row.id} data-group={grouped ? (groupIndex[rowIndex] % 2 === 0 ? 'odd' : 'even') : undefined} data-hovered={grouped && hoveredGroup === groupIndex[rowIndex] ? '' : undefined} onMouseEnter={grouped ? () => setHoveredGroup(groupIndex[rowIndex]) : undefined} onMouseLeave={grouped ? () => setHoveredGroup(null) : undefined} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {
         // `span` agrupa filas: 0 omite la celda (la cubre la de arriba) y n > 1 la extiende n filas.
         // En las filas de un grupo la primera celda del DOM no es la primera columna: conserva su borde izquierdo.
         const span = column.span?.(row) ?? 1
