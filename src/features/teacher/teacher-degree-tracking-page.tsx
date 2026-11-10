@@ -149,9 +149,7 @@ function TrackingTopicsList({ onOpen }: Readonly<{ onOpen: (id: number) => void 
             render: (topic) => {
               const myRole = topic.assignments.find((a) => a.teacher?.id === user?.id)?.role
               return (
-                <Badge variant={myRole === 'tutor' ? 'default' : 'secondary'}>
-                  {myRole === 'tutor' ? 'Docente Tutor' : myRole === 'par_academico' ? 'Par Académico' : 'Asignado'}
-                </Badge>
+                <span>{myRole === 'tutor' ? 'Docente tutor' : myRole === 'par_academico' ? 'Par académico' : 'Asignado'}</span>
               )
             },
           },
@@ -290,9 +288,9 @@ function TrackingTopicDetail({ topicId, onBack }: Readonly<{ topicId: number; on
             </p>
           </div>
           {myAssignment && (
-            <Badge variant="secondary" className="shrink-0">
+            <span className="shrink-0 text-sm text-muted-foreground">
               {ROLE_LABELS[myAssignment.role] ?? 'Docente'}
-            </Badge>
+            </span>
           )}
         </div>
       </div>

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 
-import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { InfoTip } from '@/components/ui/info-tip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -34,7 +33,7 @@ export function GradesPanel({ tutoringId }: Readonly<{ tutoringId: number }>) {
       <div className="grid gap-4 sm:grid-cols-3">
         <GradeTile label="Diagnóstico" entry={item.grades.diagnostic} maximum={item.scale_settings.maximum}>
           {metric && <div className="flex items-center gap-1.5">
-            <Badge variant="secondary">Grupo {metric.group}</Badge>
+            <span className="text-sm text-muted-foreground">Grupo {metric.group}</span>
             <InfoTip label="Qué es el grupo de conocimiento">Tu nota diagnóstica te ubica en el grupo {metric.group} ({metric.min_score} – {metric.max_score} sobre {item.scale_settings.maximum}).</InfoTip>
           </div>}
         </GradeTile>

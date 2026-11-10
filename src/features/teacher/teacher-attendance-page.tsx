@@ -227,9 +227,7 @@ function SessionsList({
             render: (session) => {
               const day = getDayOfWeekFromDate(session.date)
               return (
-                <Badge variant="outline">
-                  {DAY_LABELS[day] ?? day}
-                </Badge>
+                <span>{DAY_LABELS[day] ?? day}</span>
               )
             },
           },
@@ -370,15 +368,13 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
                 {session.number ? `Sesión ${session.number} · ` : 'Sesión del '}{formatDate(session.date)}
               </h3>
               {dayLabel && (
-                <Badge variant="outline">
-                  {dayLabel}
-                </Badge>
+                <span className="text-sm text-muted-foreground">{dayLabel}</span>
               )}
             </div>
             <p className="text-sm text-muted-foreground">Registro histórico · {attendanceSummary(session)}</p>
           </div>
         </div>
-        <Badge variant="neutral">Solo consulta</Badge>
+        <span className="text-sm text-muted-foreground">Solo consulta</span>
       </div>
       <DataTable
         dense

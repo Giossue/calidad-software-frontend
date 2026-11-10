@@ -408,8 +408,9 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([{ ...subject, cycle_ids: [20, 21] }]))
     await openSubjects()
     const row = (await screen.findByText('Matemática')).closest('tr') as HTMLElement
-    expect(within(row).getByTitle('Paralelo A')).toHaveTextContent('A')
-    expect(within(row).getByTitle('Paralelo B')).toHaveTextContent('B')
+    // Los paralelos van como texto simple (solo los estados llevan badge).
+    expect(within(row).getByText('A, B')).toBeInTheDocument()
+    expect([...row.querySelectorAll('[data-slot="badge"]')].map((badge) => badge.textContent)).toEqual(['Activa'])
     expect(screen.queryByRole('button', { name: /Ver paralelos de/i })).not.toBeInTheDocument()
   })
 
@@ -678,10 +679,11 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByRole('option', { name: 'Álgebra Lineal' })).not.toBeInTheDocument()
   })
 
-  it('muestra los paralelos de cada tutoría como badges en la tabla', async () => {
+  it('muestra los paralelos de cada tutoría como texto en la tabla', async () => {
     render(<TutoringsPage />)
     const row = (await screen.findByText('Matemática')).closest('tr') as HTMLElement
-    expect(within(row).getByTitle('Paralelo A')).toHaveTextContent('A')
+    expect(within(row).getByText('A')).toBeInTheDocument()
+    expect(within(row).queryByTitle('Paralelo A')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ver paralelos de/i })).not.toBeInTheDocument()
   })
 

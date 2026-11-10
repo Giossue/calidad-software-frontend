@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -316,7 +315,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   }
 
   const renderSubjectColumns = () => [
-    { label: 'Código', render: (subject: Subject) => subject.code ? <Badge variant="secondary">{subject.code}</Badge> : <span className="text-muted-foreground">—</span> },
+    { label: 'Código', render: (subject: Subject) => subject.code ?? <span className="text-muted-foreground">—</span> },
     {
       label: 'Asignatura',
       render: (subject: Subject) => (
@@ -332,7 +331,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       label: 'Ciclo',
       render: (subject: Subject) => {
         const level = cycleLevels.find((item) => catalogs.cycles.some((cycle) => cycle.number === item.number && cycle.career_id === item.career_id && subject.cycle_ids.includes(cycle.id)))
-        return level ? <Badge variant="outline">{level.number}°</Badge> : <span className="text-muted-foreground">—</span>
+        return level ? `${level.number}°` : <span className="text-muted-foreground">—</span>
       },
     }] : []),
     {
@@ -346,7 +345,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       render: (subject: Subject) => {
         const names = Array.from(new Set(catalogs.cycles.filter((cycle) => subject.cycle_ids.includes(cycle.id) && cycle.paralelo_name).map((cycle) => cycle.paralelo_name!.replace(/^Paralelo\s+/i, '')))).sort()
         return names.length > 0
-          ? <div className="flex flex-wrap gap-1.5">{names.map((name) => <Badge key={name} variant="outline" title={`Paralelo ${name}`}>{name}</Badge>)}</div>
+          ? names.join(', ')
           : <span className="text-muted-foreground">—</span>
       },
     },
@@ -422,7 +421,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
                 className="pr-24"
                 aria-readonly="true"
               />
-              <Badge variant="secondary" className="absolute right-2">PAO actual</Badge>
+              <span className="absolute right-2 text-xs text-muted-foreground">PAO actual</span>
             </div>
           </FormField>
           <SelectField

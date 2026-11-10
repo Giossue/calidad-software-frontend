@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
@@ -11,7 +11,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SearchInput } from '@/components/ui/search-input'
 import { SelectInput } from '@/components/ui/select-field'
-import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Career } from '@/lib/api'
@@ -51,9 +50,18 @@ export function RecordTable<T extends { readonly id: number | string }>({ rows, 
     { label: '#', render: (row: T) => <span className="text-sm tabular-nums text-muted-foreground">{(numberFrom ?? 1) + rows.indexOf(row)}</span> },
     ...baseColumns,
   ]
+  // Filas agrupadas (una celda con `span` cubre varias): el color alterno va por grupo, no por fila.
+  const grouped = columns.some((column) => column.span)
+  // Al pasar el cursor por una fila de un grupo se resalta el grupo completo.
+  const [hoveredGroup, setHoveredGroup] = useState<number | null>(null)
+  const groupIndex: number[] = []
+  rows.forEach((row, index) => {
+    const startsGroup = index === 0 || !columns.some((column) => column.span?.(row) === 0)
+    groupIndex.push(index === 0 ? 0 : groupIndex[index - 1] + (startsGroup ? 1 : 0))
+  })
   return <div aria-busy={loading} data-tour="page-table">
     <Table stacked cardTitle><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.label}>{column.label}</TableHead>)}</TableRow></TableHeader><TableBody {...(numbered ? { 'data-numbered': '', style: { counterReset: `row-number ${(numberFrom ?? 1) - 1}` } } : {})}>
-      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow className="hover:bg-transparent"><TableCell colSpan={columns.length} className="whitespace-normal p-0"><EmptyState>{empty}</EmptyState></TableCell></TableRow> : rows.map((row) => <TableRow key={row.id} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {
+      {loading ? <LoadingRows columns={columns.length} /> : rows.length === 0 ? <TableRow className="hover:bg-transparent"><TableCell colSpan={columns.length} className="whitespace-normal p-0">{typeof empty === 'string' ? <EmptyState>{empty}</EmptyState> : <div className="flex min-h-40 flex-col items-center justify-center px-4 py-8 text-center">{empty}</div>}</TableCell></TableRow> : rows.map((row, rowIndex) => <TableRow key={row.id} data-group={grouped ? (groupIndex[rowIndex] % 2 === 0 ? 'odd' : 'even') : undefined} data-hovered={grouped && hoveredGroup === groupIndex[rowIndex] ? '' : undefined} onMouseEnter={grouped ? () => setHoveredGroup(groupIndex[rowIndex]) : undefined} onMouseLeave={grouped ? () => setHoveredGroup(null) : undefined} {...(onRowClick ? { tabIndex: 0, title: rowTitle?.(row), 'aria-selected': isRowSelected?.(row), className: cn('cursor-pointer', isRowSelected?.(row) && 'bg-muted/60'), onClick: () => onRowClick(row), onKeyDown: (event: React.KeyboardEvent) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onRowClick(row) } } } : {})}>{columns.map((column, index) => {
         // `span` agrupa filas: 0 omite la celda (la cubre la de arriba) y n > 1 la extiende n filas.
         const span = column.span?.(row) ?? 1
         return span === 0 ? null : <TableCell key={column.label} rowSpan={span > 1 ? span : undefined} className={cn('whitespace-normal', span > 1 && 'align-top')} data-row-number={numbered && index === 0 ? '' : undefined}>{column.render(row)}</TableCell>
@@ -88,8 +96,7 @@ export function CycleSelect({ id, levels, value, onChange, degreeCycleNumber, ex
     ...extraOptions,
   ]
   return (
-    <div role="group" aria-label="Ciclos de la carrera" className="flex shrink-0 items-center gap-2">
-      <Label htmlFor={id} className="text-muted-foreground">Ciclo</Label>
+    <div role="group" aria-label="Ciclos de la carrera" className="shrink-0">
       <SelectInput id={id} ariaLabel="Ciclo" value={value} onValueChange={onChange} options={options} className="w-52" />
     </div>
   )

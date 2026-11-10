@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react'
 import { PlusIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -45,11 +44,6 @@ const FINAL_RESULT_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', 
 const FINAL_RESULT_OPTIONS = [{ value: 'approved', label: 'Aprobó' }, { value: 'failed', label: 'Reprobó' }]
 
 /** Grupo de conocimiento con un color semántico (alto, medio, bajo). */
-function knowledgeVariant(group: string): 'success' | 'warning' | 'danger' {
-  const key = group.toLowerCase()
-  return key.includes('alto') ? 'success' : key.includes('medio') ? 'warning' : 'danger'
-}
-
 export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.students(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
@@ -157,7 +151,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span className="font-medium">{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
       { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
       { label: 'Grupo de Conocimiento', render: (student) => student.knowledge_group
-        ? <Badge variant={knowledgeVariant(student.knowledge_group)}>{student.knowledge_group}</Badge>
+        ? <span>{student.knowledge_group}</span>
         : <span className="text-xs text-muted-foreground">Sin diagnóstico</span> },
       { label: 'Calificaciones', render: (student) => <div className="flex flex-col gap-0.5 text-xs tabular-nums">
         <span>Diag: {student.diagnostic_grade ?? '—'}</span>

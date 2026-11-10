@@ -1,7 +1,6 @@
 import { useState } from 'react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { FilterBar } from '@/features/tutoring/filter-bar'
@@ -85,9 +84,7 @@ export function DegreeReportsPage() {
           {
             label: 'Avance registrado',
             render: (report) => (
-              <Badge variant="outline">
-                {report.progress_percentage}%
-              </Badge>
+              <span className="tabular-nums">{report.progress_percentage}%</span>
             ),
           },
           {

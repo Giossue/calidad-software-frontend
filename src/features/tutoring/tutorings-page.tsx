@@ -7,7 +7,6 @@ import {
 import { toast } from 'sonner'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
@@ -599,13 +598,13 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       label: 'Ciclo',
       render: (item: TutoringRowItem) => {
         const number = catalogs.cycles.find((cycle) => cycle.id === item.cycle_id)?.number
-        return number ? <Badge variant="outline">{number}°</Badge> : <span className="text-muted-foreground">—</span>
+        return number ? `${number}°` : <span className="text-muted-foreground">—</span>
       },
     }] : []),
     {
       label: 'Paralelo(s)',
       render: (item: TutoringRowItem) => item.parallels.length > 0
-        ? <div className="flex flex-wrap gap-1.5">{item.parallels.map((name) => <Badge key={name} variant="outline" title={`Paralelo ${name}`}>{name.replace(/^Paralelo\s+/i, '')}</Badge>)}</div>
+        ? item.parallels.map((name) => name.replace(/^Paralelo\s+/i, '')).join(', ')
         : <span className="text-muted-foreground">—</span>,
     },
     {

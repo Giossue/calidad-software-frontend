@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogCancelButton } from '@/components/ui/dialog'
@@ -191,7 +190,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
           </Button>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-xl font-semibold tracking-tight">Tutoría del {formatDate(selectedSession.date)}</h3>
-            {dayLabel && <Badge variant="outline">{dayLabel}</Badge>}
+            {dayLabel && <span className="text-sm text-muted-foreground">{dayLabel}</span>}
           </div>
           <p className="text-sm text-muted-foreground">
             {presentStudents.length} {presentStudents.length === 1 ? 'estudiante presente' : 'estudiantes presentes'} · {activities.length} {activities.length === 1 ? 'actividad realizada' : 'actividades realizadas'}
@@ -216,7 +215,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
                     {act.methodologies.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                         <span>Metodología:</span>
-                        {act.methodologies.map((m, idx) => <Badge key={idx} variant="outline">{m}</Badge>)}
+                        {act.methodologies.join(' · ')}
                       </div>
                     )}
                   </div>
@@ -282,9 +281,7 @@ function ActivitiesReviewSection({ tutoring }: Readonly<{ tutoring: TeacherTutor
               const day = getDayOfWeekFromDate(session.date)
               const label = DAY_LABELS[day] ?? day
               return (
-                <Badge variant="outline">
-                  {label}
-                </Badge>
+                <span>{label}</span>
               )
             },
           },
