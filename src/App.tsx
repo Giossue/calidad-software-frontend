@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { Toaster } from '@/components/ui/sonner'
+import { Spinner } from '@/components/ui/spinner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/features/auth/auth-context'
 import { CompleteProfileModal } from '@/features/auth/complete-profile-modal'
@@ -13,9 +14,19 @@ import { VerifyEmailPage } from '@/features/auth/verify-email-page'
 import { applyAccessibilitySettings, getStoredAccessibility } from '@/lib/accessibility'
 import { DashboardPage } from '@/pages/dashboard-page'
 
+// Mientras se comprueba la sesión: indicador centrado en vez de una pantalla en blanco.
+function SessionLoading() {
+  return (
+    <div className="flex min-h-svh items-center justify-center gap-2 text-sm text-muted-foreground">
+      <Spinner aria-hidden="true" />
+      <span role="status">Cargando…</span>
+    </div>
+  )
+}
+
 function ProtectedDashboard() {
   const { status, user } = useAuth()
-  if (status === 'loading') return null
+  if (status === 'loading') return <SessionLoading />
   if (status !== 'authenticated') return <Navigate to="/login" replace />
 
   const mustCompleteProfile = Boolean(user?.must_complete_profile)

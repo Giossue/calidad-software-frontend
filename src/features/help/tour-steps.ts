@@ -144,7 +144,7 @@ export function buildTourSteps(moduleIds: readonly string[], userName?: string):
       element: tour('breadcrumb'),
       popover: {
         title: '¿Dónde estoy?',
-        description: 'Aquí ves tu rol y el módulo en el que te encuentras.',
+        description: 'Aquí ves el módulo en el que te encuentras.',
         side: 'bottom',
         align: 'start',
       },
@@ -172,7 +172,7 @@ export function buildTourSteps(moduleIds: readonly string[], userName?: string):
       popover: {
         title: 'Tu cuenta',
         description: 'Aquí ves tu nombre, correo y rol, y cierras sesión.',
-        side: 'bottom',
+        side: 'right',
         align: 'end',
       },
     },
@@ -181,7 +181,7 @@ export function buildTourSteps(moduleIds: readonly string[], userName?: string):
       popover: {
         title: 'Accesibilidad',
         description: 'Agranda el texto, activa el alto contraste o reduce las animaciones para usar el sistema con comodidad.',
-        side: 'left',
+        side: 'bottom',
         align: 'end',
       },
     },

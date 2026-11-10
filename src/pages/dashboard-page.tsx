@@ -14,7 +14,6 @@ import {
   UsersIcon,
 } from 'lucide-react'
 
-import uebLogo from '@/assets/ueb-logo.png'
 import { HelpButton } from '@/components/help-button'
 import { NotificationBell } from '@/components/notification-bell'
 import { PwaInstallDialog } from '@/components/pwa-install-dialog'
@@ -39,7 +38,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
-  SidebarSeparator,
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
@@ -167,6 +165,20 @@ function TeacherTrackingSubNav({ activeTab, onSelect }: Readonly<{ activeTab: st
   )
 }
 
+// Aviso para el estudiante que aún no está matriculado en titulación.
+function DegreeModuleUnavailable({ module }: Readonly<{ module: string }>) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Módulo de Titulación no disponible</CardTitle>
+        <CardDescription>
+          Para acceder al módulo de {module} debes estar matriculado en titulación para el período académico actual. Consulta con tu coordinador de carrera.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  )
+}
+
 function getInitials(name?: string): string {
   if (!name) return 'US'
   const parts = name.trim().split(/\s+/)
@@ -237,7 +249,8 @@ export function DashboardPage() {
       : []),
   ]
 
-  const sectionLabel = navGroups.flatMap((group) => group.items).find((item) => item.id === activeSection)?.label
+  const activeGroup = navGroups.find((group) => group.items.some((item) => item.id === activeSection))
+  const sectionLabel = activeGroup?.items.find((item) => item.id === activeSection)?.label
   const moduleIds = navGroups.flatMap((group) => group.items.map((item) => item.id))
 
   // Los estudiantes sin ciclo esperan a saber si están en titulación para tener el menú completo.
@@ -282,19 +295,16 @@ export function DashboardPage() {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader>
-          <div className="flex items-center gap-2 px-1 py-1">
-            <img
-              src={uebLogo}
-              alt="Universidad Estatal de Bolívar"
-              className="h-7 w-auto shrink-0 group-data-[collapsible=icon]:hidden"
-            />
-            <SidebarTrigger className="ml-auto hidden text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:flex" />
+          <div className="flex items-center gap-2 rounded-md p-1">
+            <img src="/ueb-logo.png" alt="" className="size-8 shrink-0 object-contain" width="32" height="32" />
+            <div className="grid min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
+              <span className="truncate text-sm font-semibold">Tutorías y Titulación</span>
+              <span className="truncate text-xs text-muted-foreground">Universidad Estatal de Bolívar</span>
+            </div>
           </div>
         </SidebarHeader>
-
-        <SidebarSeparator />
 
         <SidebarContent>
           {navGroups.map((group) => <SidebarGroup key={group.label}>
@@ -335,8 +345,6 @@ export function DashboardPage() {
           </SidebarGroup>)}
         </SidebarContent>
 
-        <SidebarSeparator />
-
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -349,37 +357,39 @@ export function DashboardPage() {
                 <span>Instalar App</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <UserMenu
+                name={user?.name ?? 'Usuario'}
+                email={user?.email ?? ''}
+                roleLabel={userRoleText}
+                initials={initials}
+                onSignOut={() => void signOut()}
+                signingOut={pending}
+              />
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-2.5 backdrop-blur-xs sm:gap-3 sm:px-4 sm:py-3 md:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            <SidebarTrigger className="shrink-0 md:hidden" data-tour="menu-trigger" />
-            <span className="min-w-0 truncate text-xs text-muted-foreground md:text-sm" data-tour="breadcrumb">
-              <span className="max-md:sr-only">{userRoleText} &rsaquo; Tutorías y Titulación{sectionLabel && <> &rsaquo; </>}</span>
-              {sectionLabel && <span aria-current="page" className="truncate text-foreground max-md:text-sm">{sectionLabel}</span>}
-            </span>
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3 sm:px-4 md:rounded-t-xl">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <SidebarTrigger className="-ml-1 shrink-0" data-tour="menu-trigger" />
+            <nav aria-label="Ubicación" className="min-w-0 truncate text-sm text-muted-foreground" data-tour="breadcrumb">
+              {activeGroup && <span className="max-md:sr-only">{activeGroup.label} <span aria-hidden="true">›</span> </span>}
+              {sectionLabel && <span aria-current="page" className="truncate font-medium text-foreground">{sectionLabel}</span>}
+            </nav>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
+          <div className="flex shrink-0 items-center gap-1">
             <HelpButton onPageTour={openPageTour} onGeneralTour={openGeneralTour} onTeacherGuide={user?.role === 'docente' ? openTeacherGuide : undefined} />
+            <AccessibilityButton onClick={() => setAccessibilityOpen(true)} />
             <ThemeToggle />
             <NotificationBell />
-
-            <UserMenu
-              name={user?.name ?? 'Usuario'}
-              email={user?.email ?? ''}
-              roleLabel={userRoleText}
-              initials={initials}
-              onSignOut={() => void signOut()}
-              signingOut={pending}
-            />
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-5xl min-w-0 flex-1 p-3 max-md:pb-16 sm:p-4 md:p-6 lg:p-8">
+        <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col p-4 sm:p-6">
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (
@@ -405,42 +415,15 @@ export function DashboardPage() {
           ) : user?.role === 'estudiante' && activeSection === 'student-tutorings' ? (
             <StudentTutoringsPage />
           ) : user?.role === 'estudiante' && activeSection === 'student-degree-topics' ? (
-            studentDegreeEnrolled === false ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Módulo de Titulación no disponible</CardTitle>
-                  <CardDescription>
-                    Para acceder al módulo de propuestas de titulación debes estar matriculado en titulación para el período académico actual. Consulta con tu coordinador de carrera.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ) : (
+            studentDegreeEnrolled === false ? <DegreeModuleUnavailable module="propuestas de titulación" /> : (
               <StudentDegreeTopicsPage />
             )
           ) : user?.role === 'estudiante' && activeSection === 'student-degree-tracking' ? (
-            studentDegreeEnrolled === false ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Módulo de Titulación no disponible</CardTitle>
-                  <CardDescription>
-                    Para acceder al módulo de seguimiento de titulación debes estar matriculado en titulación para el período académico actual. Consulta con tu coordinador de carrera.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ) : (
+            studentDegreeEnrolled === false ? <DegreeModuleUnavailable module="seguimiento de titulación" /> : (
               <StudentDegreeTrackingPage />
             )
           ) : user?.role === 'estudiante' && activeSection === 'student-degree-assignments' ? (
-            studentDegreeEnrolled === false ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Módulo de Titulación no disponible</CardTitle>
-                  <CardDescription>
-                    Para acceder al módulo de tutores y pares debes estar matriculado en titulación para el período académico actual. Consulta con tu coordinador de carrera.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ) : (
+            studentDegreeEnrolled === false ? <DegreeModuleUnavailable module="tutores y pares" /> : (
               <StudentDegreeAssignmentsPage />
             )
           ) : user?.role === 'docente' && activeSection === 'teacher-tutorings' ? (
@@ -459,7 +442,6 @@ export function DashboardPage() {
         </div>
       </SidebarInset>
 
-      <AccessibilityButton onClick={() => setAccessibilityOpen(true)} />
       <AccessibilityModal open={accessibilityOpen} onClose={() => setAccessibilityOpen(false)} />
       <PwaInstallDialog open={pwaInstallOpen} onClose={() => setPwaInstallOpen(false)} />
     </SidebarProvider>

@@ -76,7 +76,7 @@ export function FormDialog({
       }}
       maxWidth={maxWidth}
     >
-      <form onSubmit={onSubmit} aria-label={title} className="flex min-h-full flex-col">
+      <form onSubmit={onSubmit} aria-label={title} className="flex flex-1 flex-col">
         <fieldset disabled={pending} className="flex flex-1 flex-col">
           <FieldGroup className="flex-1 pb-4">
             {children}

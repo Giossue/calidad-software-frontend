@@ -161,7 +161,7 @@ export function Dialog({
           </div>
 
           {/* Cuerpo del Modal */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
+          <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6', layout === 'sheet' && 'flex flex-col')}>{children}</div>
 
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (

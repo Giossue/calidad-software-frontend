@@ -84,7 +84,7 @@ export function NotificationBell() {
             <Button type="button" variant="tertiary" size="icon" aria-label={label} className="relative" data-tour="notifications">
               <BellIcon />
               {unread > 0 && (
-                <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-medium leading-none text-white">
+                <span aria-hidden="true" className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
                   {unread > 99 ? '99+' : unread}
                 </span>
               )}
@@ -115,17 +115,17 @@ export function NotificationBell() {
               <DropdownMenuItem
                 key={notification.id}
                 onSelect={() => void openNotification(notification)}
-                className={cn('mx-1 flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2.5 py-2', !notification.read_at && 'bg-brand-blue/5 dark:bg-primary/10')}
+                className={cn('mx-1 flex cursor-pointer flex-col items-start gap-0.5 rounded-lg px-2.5 py-2', !notification.read_at && 'bg-muted/60')}
               >
                 <span className="flex w-full items-start gap-2">
-                  <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', notification.read_at ? 'bg-transparent' : 'bg-brand-red')} aria-hidden="true" />
+                  <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', notification.read_at ? 'bg-transparent' : 'bg-primary')} aria-hidden="true" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className={cn('text-sm leading-snug', notification.read_at ? 'text-foreground/80' : 'font-medium text-foreground')}>
                       {notification.title}
                       {!notification.read_at && <span className="sr-only"> (sin leer)</span>}
                     </span>
                     <span className="text-xs leading-snug text-muted-foreground [overflow-wrap:anywhere]">{notification.body}</span>
-                    <span className="text-[11px] text-muted-foreground/80">{timeAgo(notification.created_at)}</span>
+                    <span className="text-xs text-muted-foreground">{timeAgo(notification.created_at)}</span>
                   </span>
                 </span>
               </DropdownMenuItem>
