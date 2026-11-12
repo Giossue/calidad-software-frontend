@@ -201,7 +201,7 @@ describe('DashboardPage - Usuarios del coordinador de carrera', () => {
 
     expect(await screen.findByText('Vista Usuarios')).toBeInTheDocument()
     const items = [...document.querySelectorAll('[data-tour^="nav-"]')].map((item) => item.textContent)
-    expect(items).toEqual(['Malla curricular', 'Usuarios', 'Tutorías', 'Informes'])
+    expect(items).toEqual(['Tutorías', 'Usuarios', 'Malla curricular', 'Informes'])
     expect(document.querySelector('[data-tour="nav-tutoring-users"]')).toHaveAttribute('data-active', 'true')
   })
 

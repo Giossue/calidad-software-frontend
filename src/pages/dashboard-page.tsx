@@ -87,9 +87,9 @@ const NAV_ITEMS: readonly NavItem[] = [
 ]
 
 const TUTORING_NAV_ITEMS: readonly NavItem[] = [
-  { id: 'tutoring-curriculum', label: 'Malla curricular', icon: NetworkIcon },
-  { id: 'tutoring-users', label: 'Usuarios', icon: UsersIcon },
   { id: 'tutorings', label: 'Tutorías', icon: GraduationCapIcon },
+  { id: 'tutoring-users', label: 'Usuarios', icon: UsersIcon },
+  { id: 'tutoring-curriculum', label: 'Malla curricular', icon: NetworkIcon },
   { id: 'tutoring-reports', label: 'Informes', icon: FileTextIcon },
 ]
 
