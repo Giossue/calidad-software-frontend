@@ -5,6 +5,7 @@ import { toast } from '@/lib/toast'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
+import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FieldError } from '@/components/ui/field'
@@ -124,6 +125,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [choosingTutoring, setChoosingTutoring] = useState(false)
   const [chooserSubjectId, setChooserSubjectId] = useState('')
   const operation = useOperation()
+  const [deletingTutoring, setDeletingTutoring] = useState<Tutoring | null>(null)
   const [subjects, setSubjects] = useState<readonly Subject[]>([])
   const [subjectsRevision, setSubjectsRevision] = useState(0)
   // Tutoría abierta en la URL (?tutoria=<id>) para que "Atrás" vuelva a la lista. Se busca en
@@ -643,7 +645,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const detailReadOnly = Boolean(detailItem?.tutoring && detailItem.tutoring.period_id !== activePeriod?.id)
 
   return <section className="flex flex-col gap-6">
-    {detailItem?.tutoring ? <TutoringDetail tutoring={detailItem.tutoring} schedules={detailItem.schedules ?? []} onBack={detail.close} onEdit={detailReadOnly ? undefined : () => openEditTutoring(detailItem)} readOnly={detailReadOnly} /> : tutoringNotFound ? (
+    {detailItem?.tutoring ? <TutoringDetail tutoring={detailItem.tutoring} schedules={detailItem.schedules ?? []} onBack={detail.close} onEdit={detailReadOnly ? undefined : () => openEditTutoring(detailItem)} onDelete={detailReadOnly ? undefined : () => setDeletingTutoring(detailItem.tutoring ?? null)} readOnly={detailReadOnly} /> : tutoringNotFound ? (
       <div className="flex flex-col items-start gap-4">
         <p className="text-sm text-muted-foreground">No encontramos esta tutoría en la carrera.</p>
         <Button type="button" variant="secondary" onClick={detail.close}>Volver a tutorías</Button>
@@ -785,6 +787,23 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       )}
     </FormDialog>
 
+    <ConfirmModal
+      open={Boolean(deletingTutoring)}
+      title="¿Eliminar tutoría?"
+      description={`Se eliminará «${deletingTutoring?.subject_name ?? ''}${deletingTutoring?.section_name ? ` · Paralelo ${deletingTutoring.section_name}` : ''}» con sus horarios. Si ya tiene estudiantes o registros no se puede eliminar: desactívala.`}
+      confirmLabel="Eliminar tutoría"
+      pending={operation.pending}
+      onClose={() => { if (!operation.pending) setDeletingTutoring(null) }}
+      onConfirm={() => {
+        const target = deletingTutoring
+        if (!target) return
+        void operation.run(
+          () => tutoringApi.deleteTutoring(target.id),
+          'Tutoría eliminada',
+          async () => { detail.close(); await list.reload() },
+        ).finally(() => setDeletingTutoring(null))
+      }}
+    />
     <ErrorModal open={Boolean(operation.errorModal)} onClose={operation.clearErrorModal} title={operation.errorModal?.title} description={operation.errorModal?.description} />
   </section>
 }

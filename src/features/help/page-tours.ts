@@ -183,6 +183,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     back('Volver a tutorías', 'Regresa a la lista de tutorías.'),
     step(HEADER, 'Tutoría', 'Su ciclo, paralelo, modalidad, período y estado.'),
     step({ button: 'Editar tutoría' }, 'Editar tutoría', 'Cambia el docente, el horario o el paralelo, o activa la tutoría si está inactiva.'),
+    step({ button: 'Eliminar tutoría' }, 'Eliminar tutoría', 'Borra una tutoría creada por error; si ya tiene estudiantes o registros, desactívala.'),
     step('[aria-label="Secciones de la tutoría"]', 'Resumen, supervisión y estudiantes', '«Resumen» muestra el docente y el horario; «Supervisión», las sesiones con su asistencia; «Estudiantes», quiénes están inscritos.'),
   ],
   'tutoring-reports/career-picker': careerPicker('Informes'),

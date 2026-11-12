@@ -761,6 +761,30 @@ describe('Coordinación de tutorías', () => {
     expect(rows.map((row) => within(row).getAllByRole('cell')[3].textContent)).toEqual(['A', 'B'])
   })
 
+  it('elimina una tutoría desde su pantalla tras confirmar y vuelve a la lista', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.deleteTutoring).mockResolvedValue(undefined)
+    render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
+    await user.click(await screen.findByTitle('Abrir la tutoría de Matemática'))
+    await user.click(await screen.findByRole('button', { name: 'Eliminar tutoría' }))
+    const dialog = await screen.findByRole('dialog', { name: '¿Eliminar tutoría?' })
+    expect(tutoringApi.deleteTutoring).not.toHaveBeenCalled()
+    await user.click(within(dialog).getByRole('button', { name: 'Eliminar tutoría' }))
+    await waitFor(() => expect(tutoringApi.deleteTutoring).toHaveBeenCalledWith(40))
+    expect(await screen.findByText(/^Mostrando/)).toBeInTheDocument()
+  })
+
+  it('si la tutoría tiene estudiantes o registros, avisa y no la elimina', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.deleteTutoring).mockRejectedValue(new ApiError(422, { message: 'No se puede eliminar: la tutoría ya tiene estudiantes o registros. Desactívala en su lugar.', errors: { tutoring: ['No se puede eliminar: la tutoría ya tiene estudiantes o registros. Desactívala en su lugar.'] } }))
+    render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
+    await user.click(await screen.findByTitle('Abrir la tutoría de Matemática'))
+    await user.click(await screen.findByRole('button', { name: 'Eliminar tutoría' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '¿Eliminar tutoría?' })).getByRole('button', { name: 'Eliminar tutoría' }))
+    expect(await screen.findByText(/Desactívala en su lugar/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Matemática' })).toBeInTheDocument()
+  })
+
   it('abre la tutoría en la URL: «Atrás» vuelve a la lista y, si no existe, lo dice con un camino de vuelta', async () => {
     const user = userEvent.setup()
     const view = render(<MemoryRouter initialEntries={['/?tutoria=40']}><TutoringsPage /></MemoryRouter>)

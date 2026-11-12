@@ -266,6 +266,8 @@ export const tutoringApi = {
   updateTutoring: (id: number, input: Pick<TutoringInput, 'period_id' | 'modality_id'>) => mutate<Tutoring>(`tutorings/${id}`, 'PATCH', input),
   configureTutoring: (id: number, input: TutoringConfigurationInput) => mutate<Tutoring>(`tutorings/${id}/configuration`, 'PUT', input),
   activateTutoring: (id: number) => mutate<Tutoring>(`tutorings/${id}/activate`, 'PATCH'),
+  /** Solo si la tutoría nunca tuvo estudiantes ni registros; si no, el backend responde 422. */
+  deleteTutoring: (id: number) => request<void>(`${ROOT}/tutorings/${id}`, { method: 'DELETE' }),
   assignTutoringCycle: (id: number, cycleId: number) => mutate<Tutoring>(`tutorings/${id}/cycle`, 'PUT', { cycle_id: cycleId }),
   assignTeacher: (id: number, teacherId: number) => mutate<Tutoring>(`tutorings/${id}/teacher`, 'PUT', { teacher_id: teacherId }),
   schedules: (id: number) => collection<TutoringSchedule>(`tutorings/${id}/schedules`),

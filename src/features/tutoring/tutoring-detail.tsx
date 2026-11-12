@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeftIcon, CalendarClockIcon, PencilIcon } from 'lucide-react'
+import { ArrowLeftIcon, CalendarClockIcon, PencilIcon, Trash2Icon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -29,12 +29,15 @@ export function TutoringDetail({
   schedules = [],
   onBack,
   onEdit,
+  onDelete,
   readOnly = false,
 }: Readonly<{
   tutoring: Tutoring
   schedules?: readonly TutoringSchedule[]
   onBack: () => void
   onEdit?: () => void
+  /** Eliminar la tutoría (creada por error, sin estudiantes ni registros). */
+  onDelete?: () => void
   /** Tutoría de un período pasado: solo se consulta (sin editar ni inscribir). */
   readOnly?: boolean
 }>) {
@@ -60,6 +63,11 @@ export function TutoringDetail({
             {onEdit && !readOnly && (
               <Button type="button" variant="tertiary" size="icon" aria-label="Editar tutoría" onClick={onEdit}>
                 <PencilIcon />
+              </Button>
+            )}
+            {onDelete && !readOnly && (
+              <Button type="button" variant="tertiary" size="icon" tone="destructive" aria-label="Eliminar tutoría" onClick={onDelete}>
+                <Trash2Icon />
               </Button>
             )}
           </div>
