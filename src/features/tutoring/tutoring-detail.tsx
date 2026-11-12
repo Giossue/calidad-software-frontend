@@ -29,11 +29,14 @@ export function TutoringDetail({
   schedules = [],
   onBack,
   onEdit,
+  readOnly = false,
 }: Readonly<{
   tutoring: Tutoring
   schedules?: readonly TutoringSchedule[]
   onBack: () => void
   onEdit?: () => void
+  /** Tutoría de un período pasado: solo se consulta (sin editar ni inscribir). */
+  readOnly?: boolean
 }>) {
   const context = [tutoring.cycle_name, tutoring.section_name ? `Paralelo ${tutoring.section_name}` : null, tutoring.modality_name, tutoring.period_name]
     .filter(Boolean)
@@ -54,7 +57,7 @@ export function TutoringDetail({
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge active={tutoring.is_active} activeLabel="Tutoría activa" inactiveLabel="Tutoría inactiva" />
-            {onEdit && (
+            {onEdit && !readOnly && (
               <Button type="button" variant="tertiary" size="icon" aria-label="Editar tutoría" onClick={onEdit}>
                 <PencilIcon />
               </Button>
@@ -62,6 +65,8 @@ export function TutoringDetail({
           </div>
         }
       />
+
+      {readOnly && <p className="text-sm text-muted-foreground">Período pasado: solo consulta.</p>}
 
       <Tabs defaultValue="summary">
         <TabsList aria-label="Secciones de la tutoría">
@@ -76,7 +81,7 @@ export function TutoringDetail({
           <SupervisionPanel tutoring={tutoring} />
         </TabsContent>
         <TabsContent value="students">
-          <CoordinatorStudentsPanel tutoring={tutoring} />
+          <CoordinatorStudentsPanel tutoring={tutoring} readOnly={readOnly} />
         </TabsContent>
       </Tabs>
     </div>

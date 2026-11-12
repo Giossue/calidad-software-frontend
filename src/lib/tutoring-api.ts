@@ -5,7 +5,13 @@ export type { Cycle }
 const ROOT = '/api/v1/tutoring-coordination'
 type Collection<T> = { readonly data: readonly T[] }
 type Resource<T> = { readonly data: T }
-export type TutoringListParams = { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; status?: 'active' | 'inactive'; per_page?: number }
+export type TutoringListParams = { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; status?: 'active' | 'inactive'; per_page?: number; period_id?: number }
+
+/** Período que muestra la lista de tutorías (el vigente si no se pidió otro); `null` sin período vigente. */
+export type ListedPeriod = { readonly id: number; readonly name: string; readonly is_active: boolean }
+export interface TutoringListMeta extends PaginationMeta {
+  readonly period?: ListedPeriod | null
+}
 
 export interface CoordinatorEnrollment {
   readonly id: number
@@ -33,8 +39,10 @@ export interface Subject {
   readonly period_id?: number | null
   readonly period_name?: string | null
   readonly is_active: boolean
-  readonly cycle_ids: readonly number[]
-  readonly parallel_ids?: readonly number[]
+  /** Ciclo de la malla (solo el número); los paralelos se eligen al crear cada tutoría del período. */
+  readonly cycle_number: number | null
+  /** Derivado por el backend; no se usa para ubicar la asignatura. */
+  readonly cycle_ids?: readonly number[]
   /** Secuencia de la malla: asignaturas que continúan a esta y las que hay que aprobar antes. */
   readonly next_subjects?: readonly SubjectReference[]
   readonly previous_subjects?: readonly SubjectReference[]
@@ -134,23 +142,23 @@ export type SubjectInput = {
   career_id: number
   code?: string | null
   name: string
-  cycle_id?: number
-  parallel_id?: number
-  parallel_ids?: readonly number[]
-  new_parallel_name?: string
+  cycle_number?: number | null
   modality_id?: number
-  period_id?: number
   /** Asignaturas que continúan a esta en la malla. */
   next_subject_ids?: readonly number[]
 }
 export type TeacherInput = { career_id: number; identification: string; name: string; email: string; phone: string }
 export type TutoringInput = {
   subject_id: number
+  /**
+   * Fila de ciclo con paralelo de la carrera, del número de ciclo de la asignatura; o, con
+   * `parallel_id`, la fila base de ese número (el servidor crea la fila del paralelo).
+   */
   cycle_id: number
+  /** Paralelo del catálogo que aún no tiene fila de ciclo en ese número de ciclo. */
+  parallel_id?: number
   period_id?: number
   modality_id?: number
-  parallel_ids?: readonly number[]
-  parallel_id?: number
   teacher_id?: number
   schedules: readonly TutoringScheduleItem[]
 }
@@ -245,19 +253,15 @@ export const tutoringApi = {
   createSection: (name: string) => mutate<Section>('sections', 'POST', { name, nombre: name }),
   subjects: (params?: TutoringListParams) => list<Subject>('subjects', params),
   createSubject: (input: SubjectInput) => mutate<Subject>('subjects', 'POST', input),
-  updateSubject: (id: number, input: Omit<SubjectInput, 'career_id' | 'cycle_id'>) => mutate<Subject>(`subjects/${id}`, 'PATCH', input),
+  updateSubject: (id: number, input: Omit<SubjectInput, 'career_id' | 'cycle_number'>) => mutate<Subject>(`subjects/${id}`, 'PATCH', input),
   deactivateSubject: (id: number) => mutate<Subject>(`subjects/${id}/deactivate`, 'PATCH'),
-  assignSubjectCycle: (id: number, cycleId: number) => mutate<Subject>(`subjects/${id}/cycles/${cycleId}`, 'PUT'),
-  unassignSubjectCycle: (id: number, cycleId: number) => mutate<Subject>(`subjects/${id}/cycles/${cycleId}`, 'DELETE'),
-  assignSubjectParallel: (id: number, input: { parallel_id?: number; new_parallel_name?: string; cycle_id?: number }) => mutate<Subject>(`subjects/${id}/parallels`, 'POST', input),
-  unassignSubjectParallel: (id: number, parallelId: number) => mutate<Subject>(`subjects/${id}/parallels/${parallelId}`, 'DELETE'),
   teachers: (params?: TutoringListParams) => list<Teacher>('teachers', params),
   availableTeachers: (search = '', excludeCareerId?: number, careerId?: number) => collection<AvailableTeacher>(`available-teachers${buildQuery({ search, exclude_career_id: excludeCareerId, career_id: careerId })}`),
   linkTeacherToCareer: (teacherId: number, careerId: number) => mutate<Teacher>(`teachers/${teacherId}/careers`, 'POST', { career_id: careerId }),
   unlinkTeacherFromCareer: (teacherId: number, careerId: number) => mutate<Teacher>(`teachers/${teacherId}/careers/${careerId}`, 'DELETE'),
   createTeacher: (input: TeacherInput) => mutate<Teacher>('teachers', 'POST', input),
   updateTeacher: (id: number, input: Omit<TeacherInput, 'career_id'>) => mutate<Teacher>(`teachers/${id}`, 'PATCH', input),
-  tutorings: (params?: TutoringListParams) => list<Tutoring>('tutorings', params),
+  tutorings: (params?: TutoringListParams) => request<PaginatedResourceCollection<Tutoring, TutoringListMeta>>(`${ROOT}/tutorings${buildQuery(params ?? {})}`),
   createTutoring: (input: TutoringInput) => mutate<Tutoring>('tutorings', 'POST', input),
   updateTutoring: (id: number, input: Pick<TutoringInput, 'period_id' | 'modality_id'>) => mutate<Tutoring>(`tutorings/${id}`, 'PATCH', input),
   configureTutoring: (id: number, input: TutoringConfigurationInput) => mutate<Tutoring>(`tutorings/${id}/configuration`, 'PUT', input),
@@ -326,6 +330,14 @@ export interface DegreePaginationMeta extends PaginationMeta {
   } | null
 }
 
+/** Ciclo que tuvo el estudiante en un período (lo registra el sistema con sus tutorías). */
+export interface StudentCycleHistory {
+  readonly period_id: number
+  readonly period_name: string
+  readonly cycle_number: number
+  readonly cycle_name: string
+}
+
 export interface DegreeStudent {
   readonly id: number
   readonly student_id: number
@@ -344,6 +356,8 @@ export interface DegreeStudent {
   readonly enrolled_at: string | null
   readonly period_id: number | null
   readonly period_name: string | null
+  /** Ciclo por período, del más reciente al más antiguo. */
+  readonly cycle_history?: readonly StudentCycleHistory[]
 }
 
 export interface StudentDegreeEnrollmentStatus {
@@ -379,6 +393,8 @@ export interface CoordinatorStudent {
   readonly pending_subjects?: readonly SubjectReference[]
   readonly tutoring_count: number
   readonly tutorings: readonly CoordinatorStudentTutoring[]
+  /** Ciclo por período, del más reciente al más antiguo. */
+  readonly cycle_history?: readonly StudentCycleHistory[]
 }
 
 

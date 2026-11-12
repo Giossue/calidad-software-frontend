@@ -83,6 +83,24 @@ las reglas de negocio que ya aplica el sistema.
    desplegable (`FilterBar leading`).
 3. La tabla (`RecordTable`, `DataTable` o `Table` dentro de `Card`), y debajo la paginación.
 
+## Pantallas por período académico
+
+El trabajo diario es del único período vigente. Malla, carreras, docentes y paralelos no
+dependen del período; las tutorías sí.
+
+- **Título con el período.** «Tutorías - Período PAO II 2026», con el nombre real del período
+  que se muestra.
+- **Desplegable «Período».** Es un valor obligatorio: va primero tras el buscador
+  (`FilterBar leading`), parte del período vigente y lista los pasados. El elegido va en la
+  URL (`?periodo=`); el vigente no se escribe.
+- **Períodos pasados, solo consulta.** Sin crear, cargar listados, editar, activar ni
+  inscribir. Una sola línea lo dice: «Período pasado: solo consulta.» (en la descripción de la
+  lista y bajo el encabezado de la tutoría abierta).
+- **Sin período vigente**, la lista lo dice en su fila vacía y pide al administrador activar uno.
+- **Ciclo del estudiante.** Lo registra el sistema con sus tutorías de cada período: no hay
+  «Cambiar ciclo». «Asignar ciclo» queda solo para quien aún no tiene uno, y «Datos» muestra el
+  ciclo de cada período, del más reciente al más antiguo.
+
 ## Tablas
 
 - Contenedor `rounded-md ring-1 ring-surface-ring shadow-surface`, encabezado `bg-field`,
@@ -176,6 +194,9 @@ forma de las flechas, los controles de zoom y la leyenda son los de sílabos.
   tiene que ser de un ciclo anterior y la secuencia no puede volver sobre sí misma (el
   rechazo se avisa con un toast, como en sílabos). Pulsar una flecha pide confirmación
   para quitarla.
+- La asignatura es de la malla: su ciclo es solo el número (el formulario pide «Ciclo», sin
+  paralelos ni período). El paralelo se elige al crear cada tutoría del período, entre los
+  paralelos de ese número de ciclo en la carrera.
 - Solo se dibujan los datos que este sistema tiene: código, nombre, ciclo y previas. No
   hay horas, créditos, unidad, modalidad, correquisitos ni orden dentro del ciclo (las
   tarjetas de un ciclo van por código).

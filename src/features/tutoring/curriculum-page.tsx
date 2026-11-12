@@ -18,7 +18,7 @@ import { FilterBar } from './filter-bar'
 import { SubjectDetail } from './subject-detail'
 import { CurriculumCanvas } from './curriculum-canvas/curriculum-canvas'
 import type { CanvasLane } from './curriculum-canvas/layout'
-import { activeParallels, cycleLevelOptions, SubjectFormDialog, type SubjectFormMode } from './subjects-page'
+import { careerCycleNumbers, SubjectFormDialog, type SubjectFormMode } from './subjects-page'
 import { ModuleHeader } from './tutoring-shared'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 import { CurriculumScreenSkeleton } from './tutoring-skeletons'
@@ -66,19 +66,16 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
   // La asignatura abierta vive en la URL (?asignatura=<id>) para que "Atrás" vuelva a la malla.
   const detail = useDetailParam('asignatura')
   const [openedSubject, setOpenedSubject] = useState<Subject | null>(null)
-  const [form, setForm] = useState<{ key: number; mode: SubjectFormMode | null; subject: Subject | null; cycleId: number | null }>({ key: 0, mode: null, subject: null, cycleId: null })
+  const [form, setForm] = useState<{ key: number; mode: SubjectFormMode | null; subject: Subject | null; cycleNumber: number | null }>({ key: 0, mode: null, subject: null, cycleNumber: null })
   const [deactivating, setDeactivating] = useState<Subject | null>(null)
 
   const subjects = resource.data ?? resource.previous ?? []
   const careerCycles = catalogs.cycles.filter((cycle) => cycle.career_id === careerId)
   const maxCycle = maxCycleNumber(careerCycles)
-  // Se dibuja en su primer ciclo (una asignatura puede tener un ciclo por paralelo).
-  const levelOf = useCallback((subject: Subject) => {
-    const numbers = subject.cycle_ids.map((id) => catalogs.cycles.find((cycle) => cycle.id === id && cycle.career_id === careerId)?.number).filter((number): number is number => typeof number === 'number')
-    return numbers.length > 0 ? Math.min(...numbers) : null
-  }, [catalogs.cycles, careerId])
-  // Ciclo que se elige al agregar una asignatura desde un carril.
-  const cycleIdByLevel = new Map(cycleLevelOptions(catalogs.cycles, careerId).map((cycle) => [cycle.number, cycle.id]))
+  // La asignatura se dibuja en el carril de su número de ciclo (la malla no tiene paralelos).
+  const levelOf = useCallback((subject: Subject) => subject.cycle_number ?? null, [])
+  // Ciclos en los que se puede agregar una asignatura desde un carril.
+  const cycleNumbers = new Set(careerCycleNumbers(catalogs, careerId))
 
   const needle = normalize(search)
   // Al editar se ve la malla vigente completa; los filtros son de la vista.
@@ -87,7 +84,10 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
     : subjects
       .filter((subject) => (statusFilter === 'inactive' ? !subject.is_active : subject.is_active))
       .filter((subject) => !needle || normalize(subject.name).includes(needle) || normalize(subject.code ?? '').includes(needle))
-  const levels = Array.from(new Set(careerCycles.map((cycle) => cycle.number))).sort((a, b) => a - b)
+  const levels = Array.from(new Set([
+    ...careerCycles.map((cycle) => cycle.number),
+    ...visible.map(levelOf).filter((number): number is number => number !== null),
+  ])).sort((a, b) => a - b)
   const lanes: CanvasLane[] = [
     ...levels.map((level) => ({ key: String(level), cycle: level, label: `${level}° ciclo`, degree: isDegreeCycleNumber(level, maxCycle) })),
     ...(visible.some((subject) => levelOf(subject) === null) ? [{ key: 'none', cycle: null, label: 'Sin ciclo', degree: false }] : []),
@@ -110,9 +110,9 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
     detail.open(subject.id)
   }
 
-  function openForm(mode: SubjectFormMode, subject: Subject | null, cycleId: number | null = null) {
+  function openForm(mode: SubjectFormMode, subject: Subject | null, cycleNumber: number | null = null) {
     operation.clearError()
-    setForm((current) => ({ key: current.key + 1, mode, subject, cycleId }))
+    setForm((current) => ({ key: current.key + 1, mode, subject, cycleNumber }))
   }
 
   function askDeactivate(subject: Subject) {
@@ -126,12 +126,8 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
     await catalogs.reload()
   }
 
-  const parallels = activeParallels(catalogs)
   // Lo que la carrera ya tiene: la vista previa lo marca y lo acepta como previa.
-  const existing = subjects.map((subject) => {
-    const numbers = subject.cycle_ids.map((id) => careerCycles.find((cycle) => cycle.id === id)?.number).filter((number): number is number => typeof number === 'number')
-    return { code: subject.code, name: subject.name, cycle: numbers.length > 0 ? Math.max(...numbers) : null }
-  })
+  const existing = subjects.map((subject) => ({ code: subject.code, name: subject.name, cycle: subject.cycle_number ?? null }))
   const filtered = needle !== '' || statusFilter !== ''
 
   const canvas = (
@@ -143,10 +139,10 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
       editing={editing}
       fullScreen={editing}
       operation={operation}
-      canAdd={(cycle) => cycleIdByLevel.has(cycle)}
+      canAdd={(cycle) => cycleNumbers.has(cycle)}
       onOpen={openSubject}
       onEdit={(subject) => openForm('edit', subject)}
-      onAdd={(cycle) => openForm('create', null, cycleIdByLevel.get(cycle) ?? null)}
+      onAdd={(cycle) => openForm('create', null, cycle)}
       onDeactivate={askDeactivate}
       onChanged={(updated) => refresh(updated)}
     />
@@ -157,14 +153,11 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
     content = (
       <SubjectDetail
         subject={detailSubject}
-        cycles={catalogs.cycles}
-        parallels={parallels}
         operation={operation}
         onBack={detail.close}
         onEdit={() => openForm('edit', detailSubject)}
         onEditSequence={() => openForm('sequence', detailSubject)}
         onDeactivate={() => askDeactivate(detailSubject)}
-        onChanged={(updated) => refresh(updated)}
       />
     )
   } else if (detail.id !== null && resource.settled) {
@@ -253,7 +246,7 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
         mode={form.mode}
         subject={form.subject}
         careerSubjects={resource.settled ? subjects : null}
-        initialCycleId={form.cycleId}
+        initialCycleNumber={form.cycleNumber}
         operation={operation}
         onClose={() => setForm((current) => ({ ...current, mode: null }))}
         onSaved={async (updated) => {

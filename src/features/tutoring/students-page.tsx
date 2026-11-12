@@ -2,8 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ArrowLeftIcon,
-  ArrowRightLeftIcon,
   GraduationCapIcon,
+  ListPlusIcon,
   UserMinusIcon,
 } from 'lucide-react'
 
@@ -32,6 +32,7 @@ import {
   tutoringApi,
   type CoordinatorStudent,
   type DegreeStudent,
+  type StudentCycleHistory,
   type Tutoring,
 } from '@/lib/tutoring-api'
 import { FilterBar } from './filter-bar'
@@ -110,7 +111,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
   const operation = useOperation()
   const careerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Estudiantes'
 
-  // Modal: Cambiar el ciclo de un estudiante
+  // Modal: asignar el ciclo a un estudiante que aún no tiene uno. Después, su ciclo cambia
+  // solo con sus tutorías de cada período.
   const [cycleTarget, setCycleTarget] = useState<{ id: number; name: string; cycle_id?: number | null } | null>(null)
   const [targetCycleId, setTargetCycleId] = useState('')
 
@@ -370,8 +372,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
   return (
     <div className="flex flex-col gap-6">
       {showDegree && degreeStudent ? (
-        // Pantalla de un estudiante del ciclo de titulación: arriba cambiar ciclo (ícono) y su
-        // matrícula (acción con texto y confirmación); debajo, sus datos.
+        // Pantalla de un estudiante del ciclo de titulación: arriba su matrícula (acción con
+        // texto y confirmación); debajo, sus datos.
         <div className="flex flex-col gap-6" data-tour-view="detail">
           <div>
             <Button type="button" variant="tertiary" onClick={detail.close}>
@@ -386,9 +388,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                 {degreeStudent.is_degree_enrolled
                   ? <Badge variant="success">Matriculado{degreeStudent.enrolled_at ? ` · ${degreeStudent.enrolled_at}` : ''}</Badge>
                   : <Badge variant="inactive">No matriculado</Badge>}
-                <Button type="button" variant="tertiary" size="icon" aria-label={degreeStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'} onClick={() => openCycleModal({ id: degreeStudent.student_id, name: degreeStudent.name, cycle_id: degreeStudent.cycle_id })}>
-                  <ArrowRightLeftIcon />
-                </Button>
+                {!degreeStudent.cycle_id && (
+                  <Button type="button" variant="tertiary" size="icon" aria-label="Asignar ciclo" onClick={() => openCycleModal({ id: degreeStudent.student_id, name: degreeStudent.name, cycle_id: degreeStudent.cycle_id })}>
+                    <ListPlusIcon />
+                  </Button>
+                )}
                 {degreeStudent.is_degree_enrolled ? (
                   <Button type="button" variant="secondary" disabled={degreeOperation.pending} onClick={() => setUnenrollTarget(degreeStudent)}>
                     <UserMinusIcon data-icon="inline-start" />
@@ -423,10 +427,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
             <StudentDatum label="Ciclo" value={degreeCycleText(degreeStudent)} />
             <StudentDatum label="Período de matrícula" value={degreeStudent.period_name ?? 'Sin período vigente'} />
           </dl>
+          <CycleHistory history={degreeStudent.cycle_history ?? []} />
         </div>
       ) : assignStudent ? (
-        // Pantalla del estudiante: se abre al pulsar su fila. Arriba el ciclo y la acción de
-        // cambiarlo; debajo, sus tutorías y sus datos en pestañas.
+        // Pantalla del estudiante: se abre al pulsar su fila. Arriba su estado (y asignar ciclo si
+        // aún no tiene uno); debajo, sus tutorías y sus datos en pestañas.
         <div className="flex flex-col gap-6" data-tour-view="detail">
           <div>
             <Button type="button" variant="tertiary" onClick={detail.close}>
@@ -440,9 +445,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
             actions={
               <div className="flex items-center gap-2">
                 <StatusBadge active={assignStudent.is_active} />
-                <Button type="button" variant="tertiary" size="icon" aria-label={assignStudent.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'} onClick={() => openCycleModal(assignStudent)}>
-                  <ArrowRightLeftIcon />
-                </Button>
+                {!assignStudent.cycle_id && (
+                  <Button type="button" variant="tertiary" size="icon" aria-label="Asignar ciclo" onClick={() => openCycleModal(assignStudent)}>
+                    <ListPlusIcon />
+                  </Button>
+                )}
               </div>
             }
           />
@@ -477,6 +484,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                 <StudentDatum label="Teléfono" value={assignStudent.phone || 'Sin teléfono'} />
                 <StudentDatum label="Ciclo" value={studentCycleText(assignStudent)} />
               </dl>
+              <CycleHistory history={assignStudent.cycle_history ?? []} />
             </TabsContent>
           </Tabs>
         </div>
@@ -603,7 +611,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                 empty={
                   degreeList.searchInput || degreeFilter !== ''
                     ? 'No hay estudiantes con estos filtros.'
-                    : 'Aún no hay estudiantes en el ciclo de titulación. Regístralos o cámbialos de ciclo.'
+                    : 'Aún no hay estudiantes en el ciclo de titulación. Llegan aquí con sus tutorías del período o al registrarlos en este ciclo.'
                 }
                 columns={[
                   {
@@ -777,7 +785,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
 
       <FormDialog
         open={Boolean(cycleTarget)}
-        title={cycleTarget?.cycle_id ? 'Cambiar ciclo' : 'Asignar ciclo'}
+        title="Asignar ciclo"
         description={cycleTarget?.name}
         pending={operation.pending}
         error={operation.error}
@@ -790,7 +798,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
         <SelectField
           id="student-cycle"
           label="Ciclo que cursa"
-          tip="Pasa a ese ciclo y a su paralelo. Sus tutorías actuales se conservan."
+          tip="Después, su ciclo se actualiza solo con sus tutorías de cada período."
           error={operation.fieldError('cycle_id')}
           value={targetCycleId}
           onValueChange={setTargetCycleId}
@@ -829,6 +837,24 @@ function degreeCycleText(student: DegreeStudent): string {
   if (!student.cycle_number) return 'Sin ciclo asignado'
   const section = student.section_name ? `Paralelo ${student.section_name.replace(/^Paralelo\s+/i, '')}` : null
   return [`${student.cycle_number}° ciclo${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}`, section].filter(Boolean).join(' · ')
+}
+
+/** Ciclo que tuvo el estudiante en cada período, del más reciente al más antiguo. */
+function CycleHistory({ history }: Readonly<{ history: readonly StudentCycleHistory[] }>) {
+  return (
+    <section aria-labelledby="student-cycle-history" className="mt-6 flex max-w-2xl flex-col gap-2 text-sm">
+      <h2 id="student-cycle-history" className="text-muted-foreground">Ciclo por período</h2>
+      {history.length > 0 ? (
+        <ul aria-label="Ciclo por período" className="flex flex-col divide-y divide-border rounded-md ring-1 ring-surface-ring">
+          {history.map((item) => (
+            <li key={item.period_id} className="px-3 py-1.5">{item.period_name} · {item.cycle_number}° ciclo</li>
+          ))}
+        </ul>
+      ) : (
+        <p>Aún no tiene ciclos registrados por período.</p>
+      )}
+    </section>
+  )
 }
 
 function StudentDatum({ label, value }: Readonly<{ label: string; value: string }>) {

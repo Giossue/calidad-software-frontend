@@ -28,9 +28,9 @@ const cycles = [
   { id: 20, career_id: 10, name: 'Segundo', number: 2, paralelo_id: 1, paralelo_name: 'A', status: true },
   { id: 21, career_id: 10, name: 'Tercero', number: 3, paralelo_id: 1, paralelo_name: 'A', status: true },
 ]
-const algebra: Subject = { id: 29, career_id: 10, career_name: 'Software', code: 'ALG', name: 'Álgebra', is_active: true, cycle_ids: [19], next_subjects: [{ id: 30, code: 'MAT', name: 'Matemática' }], previous_subjects: [] }
-const math: Subject = { id: 30, career_id: 10, career_name: 'Software', code: 'MAT', name: 'Matemática', is_active: true, cycle_ids: [20], next_subjects: [], previous_subjects: [{ id: 29, code: 'ALG', name: 'Álgebra' }] }
-const physics: Subject = { id: 31, career_id: 10, career_name: 'Software', code: 'FIS', name: 'Física', is_active: true, cycle_ids: [21], next_subjects: [], previous_subjects: [] }
+const algebra: Subject = { id: 29, career_id: 10, career_name: 'Software', code: 'ALG', name: 'Álgebra', is_active: true, cycle_number: 1, next_subjects: [{ id: 30, code: 'MAT', name: 'Matemática' }], previous_subjects: [] }
+const math: Subject = { id: 30, career_id: 10, career_name: 'Software', code: 'MAT', name: 'Matemática', is_active: true, cycle_number: 2, next_subjects: [], previous_subjects: [{ id: 29, code: 'ALG', name: 'Álgebra' }] }
+const physics: Subject = { id: 31, career_id: 10, career_name: 'Software', code: 'FIS', name: 'Física', is_active: true, cycle_number: 3, next_subjects: [], previous_subjects: [] }
 
 function paginated<T>(data: readonly T[]) {
   return { data, meta: { current_page: 1, last_page: 1, from: 1, to: data.length, total: data.length, per_page: 100, active_count: data.length, inactive_count: 0 } }
@@ -132,7 +132,7 @@ describe('Malla visual (lienzo como en sílabos)', () => {
     await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     expect(within(form).getByRole('combobox', { name: /Ciclo/ })).toHaveTextContent('3° ciclo')
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'REDES', cycle_id: 21, period_id: 50 }))
+    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'REDES', cycle_number: 3 }))
 
     await user.click(screen.getByRole('button', { name: 'Volver a la vista' }))
     expect(await screen.findByRole('region', { name: 'Vista de la malla' })).toBeInTheDocument()
@@ -233,7 +233,7 @@ describe('Malla visual (lienzo como en sílabos)', () => {
 
 // Las constantes de la geometría son las de sílabos: carriles con sus tarjetas en fila.
 it('ubica las asignaturas de un ciclo en fila desde el inicio del carril', async () => {
-  vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, { ...physics, cycle_ids: [20], code: 'AAA' }]))
+  vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, { ...physics, cycle_number: 2, code: 'AAA' }]))
   renderCurriculum()
   await screen.findByRole('region', { name: 'Vista de la malla' })
   expect(nodePosition(31).x).toBe(laneStart)

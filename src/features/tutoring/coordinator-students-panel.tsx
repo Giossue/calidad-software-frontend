@@ -41,7 +41,8 @@ function validateStudentForm(form: StudentForm, editing: boolean, mode: Mode, se
   return errors
 }
 
-export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
+/** `readOnly`: tutoría de un período pasado, se ven sus estudiantes sin inscribir ni editar. */
+export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonly<{ tutoring: Tutoring; readOnly?: boolean }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog(
     (page, search) => tutoringApi.students(tutoring.id, { page, search, status: status || undefined }),
@@ -134,17 +135,19 @@ export function CoordinatorStudentsPanel({ tutoring }: Readonly<{ tutoring: Tuto
             ]}
           />
         </div>
-        <Button className="shrink-0" disabled={operation.pending} onClick={() => openForm()}>
-          <PlusIcon data-icon="inline-start" />Registrar estudiante
-        </Button>
+        {!readOnly && (
+          <Button className="shrink-0" disabled={operation.pending} onClick={() => openForm()}>
+            <PlusIcon data-icon="inline-start" />Registrar estudiante
+          </Button>
+        )}
       </div>
       <ErrorNotice message={list.error} retry={list.reload} />
       <RecordTable
         numberFrom={list.meta?.from}
         rows={list.data}
         loading={list.isFetching || list.isInitialLoading}
-        onRowClick={openForm}
-        rowTitle={(student) => `Ver o editar a ${student.name}`}
+        onRowClick={readOnly ? undefined : openForm}
+        rowTitle={readOnly ? undefined : (student) => `Ver o editar a ${student.name}`}
         isRowSelected={(student) => open && editing?.id === student.id}
         empty={list.searchInput || status
           ? 'No hay estudiantes con estos filtros.'

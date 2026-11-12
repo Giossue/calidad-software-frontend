@@ -26,11 +26,11 @@ export const MODULE_HELP: Readonly<Record<string, { readonly title: string; read
   },
   'tutoring-users': {
     title: 'Usuarios',
-    description: 'Docentes y estudiantes de tus carreras, en dos pestañas. En «Docentes» registras docentes nuevos o vinculas a los ya registrados; cada docente nuevo recibe una contraseña provisional por correo. En «Estudiantes» los registras, les asignas su ciclo y revisas en qué tutorías están inscritos.',
+    description: 'Docentes y estudiantes de tus carreras, en dos pestañas. En «Docentes» registras docentes nuevos o vinculas a los ya registrados; cada docente nuevo recibe una contraseña provisional por correo. En «Estudiantes» los registras, les asignas su ciclo si aún no tienen uno (después cambia solo con sus tutorías de cada período) y revisas en qué tutorías están inscritos.',
   },
   tutorings: {
     title: 'Tutorías',
-    description: 'Crea tutorías eligiendo ciclo y asignatura, y asigna el docente y los horarios.',
+    description: 'Crea las tutorías del período vigente eligiendo ciclo, asignatura y paralelo, y asigna el docente y los horarios. Los períodos pasados se consultan con el filtro «Período».',
   },
   'tutoring-reports': {
     title: 'Informes',

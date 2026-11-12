@@ -21,7 +21,7 @@ vi.mock('@/lib/tutoring-api', async (importOriginal) => {
 
 const career = { id: 10, faculty_id: 1, modality_id: 1, name: 'Software', code: 'SW', status: true, cycles_count: 2, active_cycles_count: 2, cycle_levels: 2 }
 const cycle = { id: 20, career_id: 10, name: 'Segundo', number: 2, paralelo_id: 1, paralelo_name: 'A', status: true }
-const subject: Subject = { id: 30, career_id: 10, career_name: 'Software', code: 'MAT', name: 'Matemática', is_active: true, cycle_ids: [20] }
+const subject: Subject = { id: 30, career_id: 10, career_name: 'Software', code: 'MAT', name: 'Matemática', is_active: true, cycle_number: 2 }
 const tutoring: Tutoring = { id: 40, subject_id: 30, subject_name: 'Matemática', cycle_id: 20, cycle_name: 'Segundo', career_id: 10, period_id: 50, period_name: '2026-2', modality_id: 60, modality_name: 'Presencial', section_id: 1, section_name: 'A', teacher_id: null, teacher_name: null, teacher_is_active: null, is_active: true }
 
 function paginated<T>(data: readonly T[], current = 1, last = 1) {
@@ -145,7 +145,7 @@ describe('Coordinación de tutorías', () => {
     fireEvent.submit(form)
     fireEvent.submit(form)
     expect(tutoringApi.createSubject).toHaveBeenCalledTimes(1)
-    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', cycle_id: 20, period_id: 50 })
+    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', cycle_number: 2 })
     expect(within(form).getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     await act(async () => reject(new ApiError(422, { message: 'No se pudo guardar.', errors: { code: ['El código ya existe.'] } })))
     // El error es del código (paso 1): el formulario vuelve a ese paso, con el error dentro y sin toast.
@@ -157,13 +157,13 @@ describe('Coordinación de tutorías', () => {
     expect(within(form).getByRole('button', { name: 'Registrar asignatura' })).toBeEnabled()
   })
 
-  it('con dos paralelos en un ciclo, el paso 2 ofrece ese ciclo una sola vez', async () => {
+  it('el paso 2 ofrece cada número de ciclo de la carrera una sola vez, aunque tenga varios paralelos', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 22, paralelo_id: 2, paralelo_name: 'B' }, { ...cycle, id: 21, name: 'Tercero', number: 3 }])
     await openCurriculum()
     const form = await fillSubjectData(user, 'Programación')
     await user.click(within(form).getByLabelText(/^Ciclo/))
-    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['Sin ciclo', '2° ciclo', '3° ciclo'])
+    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['Sin ciclo', '1° ciclo', '2° ciclo', '3° ciclo · Titulación'])
   })
   it('Malla curricular: título del módulo con la carrera en la descripción, toast en participio y error del servidor bajo el campo', async () => {
     const user = userEvent.setup()
@@ -190,22 +190,17 @@ describe('Coordinación de tutorías', () => {
     // Código es opcional: se envía solo con nombre y ciclo
     const form = await fillSubjectData(user, 'Programación')
     expect(within(form).queryByLabelText('Carrera')).not.toBeInTheDocument()
-    await choose(user, within(form).getByLabelText(/^Ciclo/), '3° ciclo')
+    await choose(user, within(form).getByLabelText(/^Ciclo/), '3° ciclo · Titulación')
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'PROGRAMACIÓN', cycle_id: 21, period_id: 50 }))
+    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'PROGRAMACIÓN', cycle_number: 3 }))
   })
-  it('muestra el período académico actual sobre los demás campos de solo lectura y lo asocia automáticamente al registrar una asignatura', async () => {
+  it('la asignatura es de la malla: sin período ni paralelos, con su modalidad y su número de ciclo', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.createSubject).mockResolvedValue(subject)
     await openCurriculum()
     const form = await fillSubjectData(user, 'Estructura de Datos')
-
-    // El período académico debe estar sobre los demás campos y ser solo lectura (no permite escoger)
-    const periodInput = within(form).getByLabelText('Período académico')
-    expect(periodInput).toBeDisabled()
-    expect(periodInput).toHaveValue('2026-2')
-    expect(within(form).getByText('PAO actual')).toBeInTheDocument()
-
+    expect(within(form).queryByLabelText('Período académico')).not.toBeInTheDocument()
+    expect(within(form).queryByRole('button', { name: /Crear nuevo paralelo/ })).not.toBeInTheDocument()
     await choose(user, within(form).getByLabelText(/^Ciclo/), '2° ciclo')
     await user.click(within(form).getByRole('button', { name: 'Atrás' }))
     await choose(user, within(form).getByLabelText(/^Modalidad/), 'Presencial')
@@ -214,41 +209,8 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({
       career_id: 10,
       name: 'ESTRUCTURA DE DATOS',
-      cycle_id: 20,
+      cycle_number: 2,
       modality_id: 60,
-      period_id: 50,
-    }))
-  })
-
-  it('permite seleccionar múltiples paralelos o crear uno nuevo tras elegir el ciclo al registrar una asignatura', async () => {
-    const user = userEvent.setup()
-    vi.mocked(tutoringApi.createSubject).mockResolvedValue(subject)
-    vi.mocked(tutoringApi.createSection).mockResolvedValue({ id: 2, name: 'B', is_active: true })
-    await openCurriculum()
-    // Code (optional) & Name, first
-    const form = await fillSubjectData(user, 'Estructuras de Datos', 'SW-201')
-
-    // Select cycle
-    await choose(user, within(form).getByLabelText(/^Ciclo/), '2° ciclo')
-
-    // Select existing parallel A
-    await user.click(within(form).getByLabelText(/Paralelo A/))
-
-    // Create a new parallel B with button
-    await user.click(within(form).getByRole('button', { name: /Crear nuevo paralelo/ }))
-    const parallelInput = within(form).getByPlaceholderText('Ej. B')
-    await user.type(parallelInput, 'B')
-    await user.click(within(form).getByRole('button', { name: 'Guardar' }))
-    await waitFor(() => expect(tutoringApi.createSection).toHaveBeenCalledWith('B'))
-
-    await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({
-      career_id: 10,
-      code: 'SW-201',
-      name: 'ESTRUCTURAS DE DATOS',
-      cycle_id: 20,
-      parallel_ids: [1, 2],
-      period_id: 50,
     }))
   })
 
@@ -278,8 +240,8 @@ describe('Coordinación de tutorías', () => {
   })
   it('dibuja la malla con un carril por ciclo, sin desplegable de ciclo ni tabla, y filtra por búsqueda y estado', async () => {
     const math = { ...subject, name: 'MATEMATICA', next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }], previous_subjects: [] }
-    const physics = { ...subject, id: 31, code: 'FIS', name: 'FISICA', cycle_ids: [21], next_subjects: [], previous_subjects: [{ id: 30, code: 'MAT', name: 'MATEMATICA' }] }
-    vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, physics, { ...subject, id: 32, code: null, name: 'ETICA', cycle_ids: [] }, { ...subject, id: 33, code: 'OLD', name: 'ANTIGUA', is_active: false }]))
+    const physics = { ...subject, id: 31, code: 'FIS', name: 'FISICA', cycle_number: 3, next_subjects: [], previous_subjects: [{ id: 30, code: 'MAT', name: 'MATEMATICA' }] }
+    vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, physics, { ...subject, id: 32, code: null, name: 'ETICA', cycle_number: null }, { ...subject, id: 33, code: 'OLD', name: 'ANTIGUA', is_active: false }]))
     await openCurriculum()
     const canvas = await screen.findByRole('region', { name: 'Vista de la malla' })
     expect(screen.queryByRole('combobox', { name: 'Ciclo' })).not.toBeInTheDocument()
@@ -303,7 +265,7 @@ describe('Coordinación de tutorías', () => {
   })
   it('define en qué asignatura continúa la malla al editar una asignatura y lo muestra en su pantalla', async () => {
     const user = userEvent.setup()
-    const physics = { ...subject, id: 31, code: 'FIS', name: 'Física', cycle_ids: [21] }
+    const physics = { ...subject, id: 31, code: 'FIS', name: 'Física', cycle_number: 3 }
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([{ ...subject, next_subjects: [], previous_subjects: [{ id: 5, code: 'AL', name: 'ALGEBRA' }] }, physics]))
     vi.mocked(tutoringApi.updateSubject).mockResolvedValue({ ...subject, next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }] })
     await openCurriculum()
@@ -475,38 +437,13 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByText('Matemática')).toBeInTheDocument()
     expect(screen.queryByText('Física')).not.toBeInTheDocument()
   })
-  it('permite asignar y desasignar paralelos desde la pantalla de la asignatura', async () => {
+  it('la pantalla de la asignatura muestra su número de ciclo, sin pestaña de paralelos', async () => {
     const user = userEvent.setup()
-    vi.mocked(tutoringApi.sections).mockResolvedValue([
-      { id: 1, name: 'A', is_active: true },
-      { id: 2, name: 'B', is_active: true },
-    ])
-    vi.mocked(tutoringApi.cycles).mockResolvedValue([
-      cycle,
-      { ...cycle, id: 21, name: 'Segundo', number: 2, paralelo_id: 2, paralelo_name: 'B' },
-    ])
-    vi.mocked(tutoringApi.assignSubjectParallel).mockResolvedValue({ ...subject, cycle_ids: [20, 21] })
-    vi.mocked(tutoringApi.unassignSubjectParallel).mockResolvedValue({ ...subject, cycle_ids: [] })
     await openCurriculum()
-    // Sin columna de acciones: los paralelos se gestionan en la pantalla de la asignatura.
-    expect(screen.queryByRole('button', { name: 'Acciones para Matemática' })).not.toBeInTheDocument()
     await user.click(await screen.findByText('Matemática'))
-    expect(await screen.findByRole('tab', { name: 'Paralelos', selected: true })).toBeInTheDocument()
-    const dialog = screen.getByRole('tabpanel', { name: 'Paralelos' })
-    expect(within(dialog).getByText('Paralelo A')).toBeInTheDocument()
-
-    await choose(user, within(dialog).getByLabelText('Agregar un paralelo'), 'Paralelo B')
-    await user.click(within(dialog).getByRole('button', { name: 'Agregar paralelo' }))
-    await waitFor(() => expect(tutoringApi.assignSubjectParallel).toHaveBeenCalledWith(30, {
-      parallel_id: 2,
-      cycle_id: 20,
-      new_parallel_name: undefined,
-    }))
-    expect(await within(dialog).findByText('Paralelo B')).toBeInTheDocument()
-
-    await user.click(within(dialog).getByRole('button', { name: 'Quitar Paralelo A' }))
-    await waitFor(() => expect(tutoringApi.unassignSubjectParallel).toHaveBeenCalledWith(30, 1))
-    expect(within(dialog).queryByRole('button', { name: 'Quitar Paralelo A' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Malla', selected: true })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Paralelos' })).not.toBeInTheDocument()
+    expect(screen.getByText('MAT · 2° ciclo')).toBeInTheDocument()
   })
 
   it('respeta la restricción de edición de cuentas docentes compartidas', async () => {
@@ -664,13 +601,11 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.teachers).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: undefined, status: undefined }))
   })
 
-  it('si la asignatura no tiene paralelos, permite crear uno desde el formulario de la tutoría y lo deja elegido', async () => {
+  it('si no hay ningún paralelo (ni en el ciclo ni en el catálogo), pide crear uno y no deja crear la tutoría', async () => {
     const user = userEvent.setup()
-    // El ciclo existe pero sin paralelo asignado.
     vi.mocked(tutoringApi.cycles).mockResolvedValue([{ ...cycle, paralelo_id: null, paralelo_name: null }])
-    vi.mocked(tutoringApi.availableTeachers).mockResolvedValue([])
-    vi.mocked(tutoringApi.assignSubjectParallel).mockResolvedValue({ ...subject, parallel_ids: [9] })
-    vi.mocked(tutoringApi.sections).mockResolvedValue([{ id: 1, name: 'A', is_active: true }, { id: 9, name: 'B', is_active: true }])
+    vi.mocked(tutoringApi.sections).mockResolvedValue([])
+    vi.mocked(tutoringApi.availableTeachers).mockResolvedValue([{ id: 70, name: 'Ana Torres', email: 'ana@ueb.edu.ec', is_active: true }])
 
     render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
     await screen.findByText('Matemática')
@@ -683,17 +618,12 @@ describe('Coordinación de tutorías', () => {
     // La materia y el ciclo elegidos van en la descripción del modal, sin carrera ni período.
     expect(screen.getByText('Matemática · 2° ciclo')).toBeInTheDocument()
     expect(within(form).queryByText('Software')).not.toBeInTheDocument()
-    expect(within(form).queryByText('2026-2')).not.toBeInTheDocument()
 
-    expect(within(form).getByText('Esta asignatura aún no tiene paralelos. Crea uno para continuar.')).toBeInTheDocument()
-    const createButton = within(form).getByRole('button', { name: 'Crear paralelo' })
-    expect(createButton).toBeDisabled()
-    await user.type(within(form).getByLabelText('Nombre del nuevo paralelo'), 'b')
-    await user.click(createButton)
-
-    await waitFor(() => expect(tutoringApi.assignSubjectParallel).toHaveBeenCalledWith(30, { new_parallel_name: 'B', cycle_id: 20 }))
-    expect(await within(form).findByRole('radio', { name: 'Paralelo B' })).toBeChecked()
-    expect(tutoringApi.availableTeachers).toHaveBeenCalledTimes(1)
+    expect(within(form).getByText('Aún no hay paralelos registrados. Crea uno para continuar.')).toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Crear paralelo' })).toBeInTheDocument()
+    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
+    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
+    expect(within(form).getByRole('button', { name: 'Crear tutoría' })).toBeDisabled()
   })
 
   it('crea una tutoría con un solo botón: elige ciclo y asignatura y luego asigna docente y horario', async () => {
@@ -745,7 +675,6 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledWith({
       subject_id: 30,
       cycle_id: 20,
-      parallel_ids: [1],
       period_id: 50,
       modality_id: 60,
       teacher_id: 70,
@@ -795,7 +724,7 @@ describe('Coordinación de tutorías', () => {
       code: 'ALG',
       name: 'Álgebra Lineal',
       is_active: false,
-      cycle_ids: [20],
+      cycle_number: 2,
     }
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([subject, disabledSubject]))
     vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([]))
@@ -822,7 +751,7 @@ describe('Coordinación de tutorías', () => {
 
   it('muestra en cada fila solo el paralelo de esa tutoría', async () => {
     vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 22, paralelo_id: 2, paralelo_name: 'B' }])
-    vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([{ ...subject, cycle_ids: [20, 22] }]))
+    vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([{ ...subject, cycle_number: 2 }]))
     vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([tutoring, { ...tutoring, id: 41, cycle_id: 22, section_id: 2, section_name: 'B' }]))
     render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
     await screen.findAllByText('Matemática')
@@ -1031,7 +960,7 @@ describe('Coordinación de tutorías', () => {
   it('muestra una sola tabla con el ciclo de cada tutoría y el contador, sin acordeones por ciclo', async () => {
     render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
     await screen.findByText('Matemática')
-    expect(screen.getByRole('heading', { level: 1, name: 'Tutorías' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Tutorías - Período 2026-2' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 3, name: 'Segundo' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Expandir todos/ })).not.toBeInTheDocument()
     expect(screen.getByText('2°')).toBeInTheDocument()
@@ -1507,25 +1436,20 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByRole('button', { name: 'Matricular en titulación' })).toBeDisabled()
   })
 
-  it('registra al estudiante en el ciclo de la pestaña y permite cambiarlo de ciclo', async () => {
+  it('un estudiante con ciclo no se cambia de ciclo a mano: su ciclo se ve en «Datos»', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
     const student = { id: 103, identification: '0201888888', name: 'Lucía Ciclo', email: 'lucia@ueb.edu.ec', phone: null, is_active: true, cycle_id: 20, cycle_number: 2, section_name: 'A', tutoring_count: 0, tutorings: [] }
     vi.mocked(tutoringApi.allStudents).mockResolvedValue(paginated([student]))
     vi.mocked(tutoringApi.degreeStudents).mockResolvedValue({ data: [], meta: { ...paginated([]).meta, current_period: { id: 50, name: '2026-2' } } })
-    vi.mocked(tutoringApi.updateStudentCycle).mockResolvedValue({ data: { ...student, cycle_id: 21, cycle_number: 6 } })
 
     render(<MemoryRouter><TutoringStudentsPage /></MemoryRouter>)
-    vi.mocked(tutoringApi.availableTutoringsForStudent).mockResolvedValue({ data: [] } as never)
     await user.click(await screen.findByTitle('Abrir a Lucía Ciclo'))
-    await user.click(await screen.findByRole('button', { name: 'Cambiar ciclo' }))
-    const form = screen.getByRole('form', { name: 'Cambiar ciclo' })
-    expect(within(form).getByLabelText(/Ciclo que cursa/i)).toHaveTextContent('2° ciclo')
-    await choose(user, within(form).getByLabelText(/Ciclo que cursa/i), /6° ciclo/)
-    await user.click(within(form).getByRole('button', { name: 'Guardar ciclo' }))
-
-    await waitFor(() => expect(tutoringApi.updateStudentCycle).toHaveBeenCalledWith(103, 21))
-    expect(tutoringApi.updateStudentCycle).toHaveBeenCalledTimes(1)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lucía Ciclo' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cambiar ciclo' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Datos' }))
+    expect(screen.getByText('2° ciclo · Paralelo A')).toBeInTheDocument()
+    expect(tutoringApi.updateStudentCycle).not.toHaveBeenCalled()
   })
 
   it('permite al coordinador de carrera cambiar a la pestaña de titulación y matricular a un estudiante', async () => {
@@ -1578,8 +1502,8 @@ describe('Coordinación de tutorías', () => {
 
     await user.click(screen.getByTitle('Abrir a María Estudiante'))
     expect(await screen.findByRole('heading', { level: 1, name: 'María Estudiante' })).toBeInTheDocument()
-    // Cambiar ciclo como ícono con tooltip; la matrícula, como acción con texto.
-    expect(screen.getByRole('button', { name: 'Cambiar ciclo' })).toBeInTheDocument()
+    // Su ciclo cambia solo con sus tutorías del período: no hay «Cambiar ciclo». La matrícula va con texto.
+    expect(screen.queryByRole('button', { name: 'Cambiar ciclo' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Matricular en titulación' }))
 
     // Confirm modal opens

@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import {
-  PlusIcon,
-  PowerIcon,
-} from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { PlusIcon, PowerIcon } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -13,12 +11,13 @@ import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
-import { SelectField } from '@/components/ui/select-field'
+import { SelectField, SelectInput } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { useDetailParam } from '@/hooks/use-detail-param'
 import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
+import type { Section } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { findScheduleConflicts, type ScheduleConflict } from '@/lib/schedule-conflicts'
 import { DAY_LABELS, tutoringApi, WEEK_DAYS, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule, type TutoringScheduleItem } from '@/lib/tutoring-api'
@@ -74,6 +73,9 @@ export function TutoringsPage() {
 
 const TUTORING_HEADERS = ['Asignatura', 'Modalidad', 'Ciclo', 'Paralelo', 'Docente', 'Estado'] as const
 
+/** Única línea que avisa que el período mostrado ya pasó. */
+const READ_ONLY_NOTICE = 'Período pasado: solo consulta.'
+
 /** Esqueleto de Tutorías: el mismo mientras cargan las carreras y la primera página. */
 function TutoringsSkeleton() {
   return <ListScreenSkeleton label="Cargando tutorías" actions={2} filters={2} headers={TUTORING_HEADERS} />
@@ -84,9 +86,16 @@ function serverFieldError(error: string | null, field: string | undefined, ...na
   return error && field && names.some((name) => field === name || field.startsWith(`${name}.`)) ? error : null
 }
 
+/** Período elegido en la URL (`?periodo=<id>`); sin él se muestra el período vigente. */
+const PERIOD_PARAM = 'periodo'
+
 function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
   const [cycleFilter, setCycleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const rawPeriod = Number(searchParams.get(PERIOD_PARAM))
+  const selectedPeriodId = Number.isInteger(rawPeriod) && rawPeriod > 0 ? rawPeriod : null
+  const activePeriod = catalogs.periods.find((period) => period.is_active) ?? null
   const list = usePaginatedCatalog(
     (page, search) => tutoringApi.tutorings({
       page,
@@ -94,9 +103,23 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       career_id: careerId,
       cycle_number: Number(cycleFilter) || undefined,
       status: statusFilter || undefined,
+      period_id: selectedPeriodId ?? undefined,
     }),
-    `${careerId}|${cycleFilter}|${statusFilter}`,
+    `${careerId}|${cycleFilter}|${statusFilter}|${selectedPeriodId ?? ''}`,
   )
+  // Período mostrado: el elegido o el vigente (según los catálogos o lo que dice la lista).
+  const catalogPeriod = selectedPeriodId === null ? activePeriod : catalogs.periods.find((period) => period.id === selectedPeriodId) ?? null
+  const shownPeriod = catalogPeriod ?? list.meta?.period ?? null
+  // Las tutorías de un período pasado son solo de consulta.
+  const readOnly = shownPeriod !== null && !shownPeriod.is_active
+  const noActivePeriod = selectedPeriodId === null && shownPeriod === null && !list.isInitialLoading
+
+  function choosePeriod(value: string) {
+    const next = new URLSearchParams(searchParams)
+    if (!value || Number(value) === activePeriod?.id) next.delete(PERIOD_PARAM)
+    else next.set(PERIOD_PARAM, value)
+    setSearchParams(next, { replace: true })
+  }
   const [choosingTutoring, setChoosingTutoring] = useState(false)
   const [chooserCycle, setChooserCycle] = useState('')
   const [chooserSubjectId, setChooserSubjectId] = useState('')
@@ -119,7 +142,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [createDayTimes, setCreateDayTimes] = useState<Record<string, { start_time: string; end_time: string }>>({
     lunes: { start_time: '08:00', end_time: '10:00' },
   })
+  // Paralelo de la tutoría: una fila de ciclo ya usada (su id) o un paralelo del catálogo
+  // (`p:<id>`), que se envía con la fila base del ciclo.
   const [createParallelIds, setCreateParallelIds] = useState<string[]>([])
+  // Paralelos creados desde el formulario, mientras el catálogo no se recarga.
+  const [createdSections, setCreatedSections] = useState<readonly Section[]>([])
+  const allSections = [...catalogs.sections, ...createdSections.filter((created) => !catalogs.sections.some((section) => section.id === created.id))]
   const [createInitialParallelIds, setCreateInitialParallelIds] = useState<string[]>([])
   const [createSaving, setCreateSaving] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -202,21 +230,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     return () => { cancelled = true }
   }, [creatingSubjectId, careerId])
 
-  /** Crea un paralelo para la asignatura sin salir del formulario y lo deja elegido. */
-  async function createParallelForTutoring(name: string) {
-    if (!creatingTutoringSubject || !creatingTutoringCycle) return
-    const subject = creatingTutoringSubject
-    const level = creatingTutoringCycle
-    const subjectCycle = catalogs.cycles.find((cycle) => subject.cycle_ids.includes(cycle.id) && cycle.number === level.number) ?? level
-    const before = new Set(subject.parallel_ids ?? [])
-    const updated = await tutoringApi.assignSubjectParallel(subject.id, { new_parallel_name: name, cycle_id: subjectCycle.id })
-    setCreatingTutoringSubject(updated)
-    catalogs.reload()
-    const created = (updated.parallel_ids ?? []).find((id) => !before.has(id))
-    if (created) setCreateParallelIds([String(created)])
-    toast.success(`Paralelo ${name} creado`)
-  }
-
   function openCreateTutoring(subject: Subject, cycle: Cycle) {
     if (!subject.is_active) {
       toast.error('No se puede crear tutoría para una asignatura deshabilitada.')
@@ -232,19 +245,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setCreateError(null)
     setCreateErrorField(undefined)
 
-    const cycleIdsForLevel = catalogs.cycles
-      .filter((c) => c.career_id === subject.career_id && (c.number === cycle.number || c.name === cycle.name))
-      .map((c) => c.id)
-
-    const subjParallelIds = catalogs.cycles
-      .filter((c) => cycleIdsForLevel.includes(c.id) && subject.cycle_ids.includes(c.id) && c.paralelo_id)
-      .map((c) => String(c.paralelo_id!))
-
-    const directParallelIds = (subject.parallel_ids ?? []).map(String)
-    const allRegisteredIds = Array.from(new Set([...subjParallelIds, ...directParallelIds]))
-
     // Cada paralelo es una tutoría con su propio docente: se elige uno solo.
-    const initialParallels = allRegisteredIds.length === 1 ? allRegisteredIds : []
+    const options = tutoringParallelOptions(catalogs.cycles, allSections, subject.career_id, cycle.number)
+    const initialParallels = options.length === 1 ? [options[0].value] : []
     setCreateParallelIds(initialParallels)
     setCreateInitialParallelIds(initialParallels)
   }
@@ -269,18 +272,20 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setCreateErrorField(undefined)
 
     try {
-      const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
       const activeModality = catalogs.modalities.find((m) => m.is_active) ?? catalogs.modalities[0]
-
-      const periodId = Number(creatingTutoringSubject.period_id || activePeriod?.id)
       const modalityId = Number(creatingTutoringSubject.modality_id || activeModality?.id)
 
-      // Tutoría, docente y horarios se guardan juntos: si algo falla, no se crea nada.
+      // Tutoría, docente y horarios se guardan juntos: si algo falla, no se crea nada. El
+      // paralelo es la fila de ciclo elegida o, si aún no tiene fila, la fila base del ciclo con
+      // el paralelo del catálogo; la tutoría es del período vigente.
+      const choice = createParallelIds[0] ?? ''
+      const placement = choice.startsWith(CATALOG_PARALLEL)
+        ? { cycle_id: baseCycleId(catalogs.cycles, creatingTutoringSubject.career_id, creatingTutoringCycle), parallel_id: Number(choice.slice(CATALOG_PARALLEL.length)) }
+        : { cycle_id: Number(choice) }
       await tutoringApi.createTutoring({
         subject_id: creatingTutoringSubject.id,
-        cycle_id: creatingTutoringCycle.id,
-        parallel_ids: createParallelIds.map(Number),
-        period_id: periodId,
+        ...placement,
+        period_id: activePeriod?.id,
         modality_id: modalityId,
         teacher_id: Number(createTeacherId),
         schedules: createSchedules,
@@ -378,27 +383,10 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       })
       .catch(() => {})
 
-    // Set initial parallels
-    const parallelIds: string[] = []
-    if (item.tutoring.section_id) {
-      parallelIds.push(String(item.tutoring.section_id))
-    }
-    const currentCycle = catalogs.cycles.find((c) => c.id === item.cycle_id)
-    if (currentCycle?.paralelo_id && !parallelIds.includes(String(currentCycle.paralelo_id))) {
-      parallelIds.push(String(currentCycle.paralelo_id))
-    }
-    item.parallels.forEach((pName) => {
-      const match = catalogs.sections.find((s) => s.name === pName)
-      if (match && !parallelIds.includes(String(match.id))) {
-        parallelIds.push(String(match.id))
-      }
-      const cycleMatch = catalogs.cycles.find((c) => c.paralelo_name === pName && c.paralelo_id)
-      if (cycleMatch?.paralelo_id && !parallelIds.includes(String(cycleMatch.paralelo_id))) {
-        parallelIds.push(String(cycleMatch.paralelo_id))
-      }
-    })
-    setEditParallelIds(parallelIds.slice(0, 1))
-    setEditInitial({ teacherId: item.teacher_id ? String(item.teacher_id) : '', schedule: scheduleSignature(initialDays, initialTimes), parallel: parallelIds.slice(0, 1).join(',') })
+    // Paralelo actual: la fila de ciclo de la tutoría.
+    const parallelIds = [String(item.cycle_id)]
+    setEditParallelIds(parallelIds)
+    setEditInitial({ teacherId: item.teacher_id ? String(item.teacher_id) : '', schedule: scheduleSignature(initialDays, initialTimes), parallel: parallelIds.join(',') })
   }
 
   async function handleEditTutoringSubmit(event: FormEvent<HTMLFormElement>) {
@@ -417,15 +405,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setEditErrorField(undefined)
 
     try {
-      const targetParallelId = Number(editParallelIds[0])
-      const matchingCycle = editParallelIds.length > 0
-        ? catalogs.cycles.find((c) => c.career_id === editingTutoringItem.career_id && c.paralelo_id === targetParallelId)
-        : undefined
+      const targetCycleId = Number(editParallelIds[0]) || null
 
       // Docente, paralelo y horarios se guardan juntos: si algo falla, no cambia nada.
       await tutoringApi.configureTutoring(currentTutoring.id, {
         teacher_id: Number(editTeacherId),
-        ...(matchingCycle && matchingCycle.id !== currentTutoring.cycle_id ? { cycle_id: matchingCycle.id } : {}),
+        ...(targetCycleId && targetCycleId !== currentTutoring.cycle_id ? { cycle_id: targetCycleId } : {}),
         schedules: editSchedules.map((schedule) => ({
           ...schedule,
           room: editOriginalSchedules.find((s) => s.day === schedule.day && s.is_active)?.room || undefined,
@@ -494,17 +479,16 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   useEffect(() => {
     if (detail.id === null || inList || listLoading) return
     let cancelled = false
-    tutoringApi.tutorings({ career_id: careerId, per_page: 100 })
+    tutoringApi.tutorings({ career_id: careerId, per_page: 100, period_id: selectedPeriodId ?? undefined })
       .then((response) => { if (!cancelled) setCareerTutorings(response.data) })
       .catch(() => { if (!cancelled) setCareerTutorings([]) })
     return () => { cancelled = true }
-  }, [detail.id, inList, listLoading, careerId])
+  }, [detail.id, inList, listLoading, careerId, selectedPeriodId])
 
   const chooserLevel = cycleLevels.find((level) => String(level.number) === chooserCycle)
-  const chooserCycleIds = chooserLevel
-    ? catalogs.cycles.filter((c) => c.career_id === careerId && c.number === chooserLevel.number).map((c) => c.id)
+  const chooserSubjects = chooserLevel
+    ? subjects.filter((subj) => subj.career_id === careerId && subj.is_active && subj.cycle_number === chooserLevel.number)
     : []
-  const chooserSubjects = subjects.filter((subj) => subj.career_id === careerId && subj.is_active && subj.cycle_ids.some((id) => chooserCycleIds.includes(id)))
 
   function openCreateChooser() {
     setChooserCycle(cycleFilter && cycleLevels.some((level) => String(level.number) === cycleFilter) ? cycleFilter : '')
@@ -539,97 +523,27 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setCreatingTutoringCycle(null)
   }
 
-  const subjectParallelsForModal = useMemo(() => {
-    if (!creatingTutoringSubject || !creatingTutoringCycle) return []
+  // Paralelos para la tutoría: los que ya usa el ciclo en la carrera y los demás del catálogo.
+  const subjectParallelsForModal = creatingTutoringSubject && creatingTutoringCycle
+    ? tutoringParallelOptions(catalogs.cycles, allSections, creatingTutoringSubject.career_id, creatingTutoringCycle.number)
+    : []
 
-    const cycleIdsForLevel = catalogs.cycles
-      .filter(
-        (c) =>
-          c.career_id === creatingTutoringSubject.career_id &&
-          (c.number === creatingTutoringCycle.number || c.name === creatingTutoringCycle.name),
-      )
-      .map((c) => c.id)
+  /** Crea un paralelo en el catálogo sin salir del formulario y lo deja elegido. */
+  async function createParallelForTutoring(name: string) {
+    if (!creatingTutoringSubject || !creatingTutoringCycle) return
+    const section = await tutoringApi.createSection(name)
+    if (!allSections.some((item) => item.id === section.id)) setCreatedSections((prev) => [...prev, section])
+    const existing = catalogs.cycles.find((c) => c.career_id === creatingTutoringSubject.career_id && c.number === creatingTutoringCycle.number && c.paralelo_id === section.id)
+    setCreateParallelIds([existing ? String(existing.id) : `${CATALOG_PARALLEL}${section.id}`])
+    toast.success(`Paralelo ${section.name} creado`)
+  }
 
-    const fromCycles = catalogs.cycles
-      .filter(
-        (c) =>
-          cycleIdsForLevel.includes(c.id) &&
-          creatingTutoringSubject.cycle_ids.includes(c.id) &&
-          c.paralelo_id &&
-          c.paralelo_name,
-      )
-      .map((c) => ({
-        id: c.paralelo_id!,
-        name: c.paralelo_name!,
-      }))
-
-    const directParallels = (creatingTutoringSubject.parallel_ids ?? []).map((id) => {
-      const section = catalogs.sections.find((s) => s.id === id)
-      const cycleMatch = catalogs.cycles.find((c) => c.paralelo_id === id)
-      return {
-        id,
-        name: section?.name || cycleMatch?.paralelo_name || String(id),
-      }
-    })
-
-    const map = new Map<number, { id: number; name: string }>()
-    fromCycles.forEach((p) => map.set(p.id, p))
-    directParallels.forEach((p) => map.set(p.id, p))
-
-    return Array.from(map.values())
-  }, [creatingTutoringSubject, creatingTutoringCycle, catalogs.cycles, catalogs.sections])
-
-  const editSubjectParallels = useMemo(() => {
-    if (!editingTutoringItem) return []
-
-    const targetSubject = editingTutoringItem.subject || subjects.find((s) => s.id === editingTutoringItem.subject_id)
-    const targetCycle = catalogs.cycles.find((c) => c.id === editingTutoringItem.cycle_id)
-
-    const cycleIdsForLevel = targetCycle
-      ? catalogs.cycles
-          .filter(
-            (c) =>
-              c.career_id === editingTutoringItem.career_id &&
-              (c.number === targetCycle.number || c.name === targetCycle.name),
-          )
-          .map((c) => c.id)
-      : [editingTutoringItem.cycle_id]
-
-    const fromCycles = catalogs.cycles
-      .filter(
-        (c) =>
-          cycleIdsForLevel.includes(c.id) &&
-          (targetSubject ? targetSubject.cycle_ids.includes(c.id) : true) &&
-          c.paralelo_id &&
-          c.paralelo_name,
-      )
-      .map((c) => ({
-        id: c.paralelo_id!,
-        name: c.paralelo_name!,
-      }))
-
-    const directParallels = ((targetSubject?.parallel_ids) ?? []).map((id) => {
-      const section = catalogs.sections.find((s) => s.id === id)
-      const cycleMatch = catalogs.cycles.find((c) => c.paralelo_id === id)
-      return {
-        id,
-        name: section?.name || cycleMatch?.paralelo_name || String(id),
-      }
-    })
-
-    const map = new Map<number, { id: number; name: string }>()
-    fromCycles.forEach((p) => map.set(p.id, p))
-    directParallels.forEach((p) => map.set(p.id, p))
-
-    if (editingTutoringItem.tutoring?.section_id && editingTutoringItem.tutoring?.section_name) {
-      map.set(editingTutoringItem.tutoring.section_id, {
-        id: editingTutoringItem.tutoring.section_id,
-        name: editingTutoringItem.tutoring.section_name,
-      })
-    }
-
-    return Array.from(map.values())
-  }, [editingTutoringItem, subjects, catalogs.cycles, catalogs.sections])
+  // Al editar: los paralelos del mismo número de ciclo (y el actual, aunque ya no esté activo).
+  const editCurrentCycle = editingTutoringItem ? catalogs.cycles.find((c) => c.id === editingTutoringItem.cycle_id) : undefined
+  const editCycleOptions = editingTutoringItem && editCurrentCycle ? parallelCycles(catalogs.cycles, editingTutoringItem.career_id, editCurrentCycle.number) : []
+  const editSubjectParallels = !editingTutoringItem || !editCurrentCycle || editCycleOptions.some((option) => option.value === String(editCurrentCycle.id))
+    ? editCycleOptions
+    : [...editCycleOptions, { value: String(editCurrentCycle.id), name: editingTutoringItem.section_name ?? editCurrentCycle.paralelo_name ?? editCurrentCycle.name }]
 
 
   const columns = [
@@ -712,7 +626,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     {
       title: 'Ciclo y asignatura',
       blockReason: chooserBlockReason,
-      fields: ['cycle_id', 'subject_id'],
+      fields: ['subject_id'],
       content: (
         <>
           <SelectField
@@ -722,7 +636,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             value={chooserCycle}
             onValueChange={chooseCycle}
             placeholder="Selecciona un ciclo"
-            error={createFieldError('cycle_id')}
             options={cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo` }))}
           />
           <SelectField
@@ -742,7 +655,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     },
     {
       title: 'Docente, horario y paralelo',
-      fields: ['teacher_id', 'schedules', 'parallel_ids'],
+      // `cycle_id` y `parallel_id` son la fila de ciclo y el paralelo elegidos en este paso.
+      fields: ['teacher_id', 'schedules', 'cycle_id', 'parallel_id', 'parallel_ids'],
       content: creatingTutoringSubject && creatingTutoringCycle ? (
         <>
           <TeacherSection
@@ -762,14 +676,17 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             error={createFieldError('schedules')}
             onChange={(days, times) => { setCreateScheduleDays(days); setCreateDayTimes(times) }}
           />
-          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} onCreate={createParallelForTutoring} serverError={createFieldError('parallel_ids')} />
+          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} onCreate={createParallelForTutoring} serverError={createFieldError('cycle_id', 'parallel_id', 'parallel_ids')} />
         </>
       ) : null,
     },
   ]
 
+  // Una tutoría abierta es de solo consulta si no es del período vigente.
+  const detailReadOnly = Boolean(detailItem?.tutoring && detailItem.tutoring.period_id !== activePeriod?.id)
+
   return <section className="flex flex-col gap-6">
-    {detailItem?.tutoring ? <TutoringDetail tutoring={detailItem.tutoring} schedules={detailItem.schedules ?? []} onBack={detail.close} onEdit={() => openEditTutoring(detailItem)} /> : tutoringNotFound ? (
+    {detailItem?.tutoring ? <TutoringDetail tutoring={detailItem.tutoring} schedules={detailItem.schedules ?? []} onBack={detail.close} onEdit={detailReadOnly ? undefined : () => openEditTutoring(detailItem)} readOnly={detailReadOnly} /> : tutoringNotFound ? (
       <div className="flex flex-col items-start gap-4">
         <p className="text-sm text-muted-foreground">No encontramos esta tutoría en la carrera.</p>
         <Button type="button" variant="secondary" onClick={detail.close}>Volver a tutorías</Button>
@@ -777,12 +694,14 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     ) : detail.id !== null ? <DetailPageSkeleton label="Cargando tutoría" /> : list.isInitialLoading ? <TutoringsSkeleton /> : <>
       <CareerBreadcrumb root="Tutorías" career={careerName} onBack={onBack} />
       <ModuleHeader
-        title="Tutorías"
-        description={`Asigna docente, horario y paralelo a las tutorías de ${careerName}. Haz clic en una para abrirla.`}
-        createLabel="Crear tutoría"
-        onCreate={openCreateChooser}
+        title={shownPeriod ? `Tutorías - Período ${shownPeriod.name}` : 'Tutorías'}
+        description={readOnly ? READ_ONLY_NOTICE : `Asigna docente, horario y paralelo a las tutorías de ${careerName}. Haz clic en una para abrirla.`}
+        {...(readOnly || noActivePeriod ? {} : {
+          createLabel: 'Crear tutoría',
+          onCreate: openCreateChooser,
+          extraActions: <RosterImportButton careerId={careerId} onFinished={list.reload} />,
+        })}
         disabled={operation.pending || catalogs.loading || subjects.length === 0}
-        extraActions={<RosterImportButton careerId={careerId} onFinished={list.reload} />}
       />
       <FilterBar
         id="tutorings"
@@ -790,6 +709,17 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         onSearch={list.setSearchInput}
         searchPlaceholder="Busca por asignatura…"
         onClear={clearFilters}
+        leading={catalogs.periods.length > 0 ? (
+          <SelectInput
+            id="tutorings-period"
+            ariaLabel="Período"
+            value={shownPeriod ? String(shownPeriod.id) : ''}
+            onValueChange={choosePeriod}
+            placeholder="Elige un período"
+            options={catalogs.periods.map((period) => ({ value: String(period.id), label: period.name }))}
+            className="min-w-40 flex-1 sm:w-48 sm:flex-none"
+          />
+        ) : undefined}
         filters={[
           { id: 'cycle', label: 'Ciclo', value: cycleFilter, onChange: setCycleFilter, allLabel: 'Todos los ciclos', options: cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo` })) },
           { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
@@ -800,7 +730,11 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       <RecordTable
         rows={rows}
         loading={list.isFetching || list.isInitialLoading}
-        empty="Aún no hay tutorías para esta búsqueda. Usa «Crear tutoría» para registrar una."
+        empty={noActivePeriod
+          ? 'No hay un período académico activo. Pide al administrador que active uno.'
+          : readOnly
+            ? 'Este período no tuvo tutorías con estos filtros.'
+            : 'Aún no hay tutorías para esta búsqueda. Usa «Crear tutoría» para registrar una.'}
         columns={columns}
         onRowClick={(item) => (item.tutoring ? detail.open(item.tutoring.id) : openEditTutoring(item))}
         rowTitle={(item) => `Abrir la tutoría de ${item.subject_name}`}
@@ -1054,14 +988,43 @@ function ScheduleSection({ prefix, days, times, onChange, disabled = false, erro
   )
 }
 
+type ParallelOption = { value: string; name: string }
+
+/** Prefijo de la opción de un paralelo del catálogo que aún no tiene fila en el ciclo. */
+const CATALOG_PARALLEL = 'p:'
+
+const parallelLabel = (name: string) => name.replace(/^Paralelo\s+/i, '')
+
+/** Paralelos del número de ciclo en la carrera: cada opción es la fila de ciclo con ese paralelo. */
+function parallelCycles(cycles: readonly Cycle[], careerId: number, number: number): ParallelOption[] {
+  return cycles
+    .filter((c) => c.career_id === careerId && c.number === number && c.paralelo_id)
+    .map((c) => ({ value: String(c.id), name: parallelLabel(c.paralelo_name ?? String(c.paralelo_id)) }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+}
+
+/** Al crear: los paralelos que ya usa el ciclo (su fila) y los demás paralelos activos del catálogo. */
+function tutoringParallelOptions(cycles: readonly Cycle[], sections: readonly Section[], careerId: number, number: number): ParallelOption[] {
+  const used = new Set(cycles.filter((c) => c.career_id === careerId && c.number === number && c.paralelo_id).map((c) => c.paralelo_id))
+  const fromCatalog = sections
+    .filter((section) => section.is_active && !used.has(section.id))
+    .map((section) => ({ value: `${CATALOG_PARALLEL}${section.id}`, name: parallelLabel(section.name) }))
+  return [...parallelCycles(cycles, careerId, number), ...fromCatalog].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+}
+
+/** Fila base (sin paralelo) del número de ciclo; si no existe, cualquier fila de ese número sirve. */
+function baseCycleId(cycles: readonly Cycle[], careerId: number, level: Cycle): number {
+  return cycles.find((c) => c.career_id === careerId && c.number === level.number && c.status && !c.paralelo_id)?.id ?? level.id
+}
+
 function ParallelField({ prefix, parallels, value, onChange, disabled = false, onCreate, serverError = null }: Readonly<{
   serverError?: string | null
   prefix: 'create' | 'edit'
-  parallels: readonly { id: number; name: string }[]
+  parallels: readonly ParallelOption[]
   value: readonly string[]
   onChange: (value: string[]) => void
   disabled?: boolean
-  /** Si la asignatura no tiene paralelos, permite crear uno aquí mismo. */
+  /** Al crear, permite registrar un paralelo nuevo aquí mismo. */
   onCreate?: (name: string) => Promise<void>
 }>) {
   const [newName, setNewName] = useState('')
@@ -1087,36 +1050,32 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
     <FormField
       id={`${prefix}-tutoring-parallels`}
       label="Paralelo"
-      // Igual que la validación: al crear siempre; al editar, si la asignatura tiene paralelos.
+      // Igual que la validación: al crear siempre; al editar, si el ciclo tiene paralelos.
       required={prefix === 'create' || parallels.length > 0}
-     
       error={serverError ?? (parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null)}
     >
       {parallels.length > 0 ? (
         <div id={`${prefix}-tutoring-parallels`} className="flex flex-wrap gap-x-4 gap-y-2" role="radiogroup" aria-label="Paralelo">
-          {parallels.map((parallel) => {
-            const isChecked = value.includes(String(parallel.id))
-            return (
-              <label key={parallel.id} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
-                <input
-                  type="radio"
-                  name={`${prefix}-tutoring-parallel`}
-                  value={parallel.id}
-                  checked={isChecked}
-                  disabled={disabled}
-                  onChange={() => onChange([String(parallel.id)])}
-                  className="size-4 accent-primary"
-                />
-                <span>Paralelo {parallel.name}</span>
-              </label>
-            )
-          })}
+          {parallels.map((parallel) => (
+            <label key={parallel.value} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
+              <input
+                type="radio"
+                name={`${prefix}-tutoring-parallel`}
+                value={parallel.value}
+                checked={value.includes(parallel.value)}
+                disabled={disabled}
+                onChange={() => onChange([parallel.value])}
+                className="size-4 accent-primary"
+              />
+              <span>Paralelo {parallel.name}</span>
+            </label>
+          ))}
         </div>
-      ) : onCreate ? (
-        <div className="flex flex-col gap-2 pt-1">
-          <p className="text-sm text-warning">
-            Esta asignatura aún no tiene paralelos. Crea uno para continuar.
-          </p>
+      ) : (
+        <p className="text-sm text-warning">{onCreate ? 'Aún no hay paralelos registrados. Crea uno para continuar.' : 'Este ciclo aún no tiene paralelos registrados en la carrera.'}</p>
+      )}
+      {onCreate && (
+        <div className="flex flex-col gap-2 pt-2">
           <div className="flex items-start gap-2">
             <Input
               id={`${prefix}-tutoring-new-parallel`}
@@ -1124,11 +1083,11 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
               value={newName}
               onChange={(event) => { setNewName(sanitizeLetters(event.target.value, 50)); setCreateError(null) }}
               onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void create() } }}
-              placeholder="Ej. A"
+              placeholder="Nuevo paralelo, ej. C"
               maxLength={50}
               disabled={disabled || creating}
               aria-invalid={Boolean(createError)}
-              className="max-w-40"
+              className="max-w-48"
             />
             <Button type="button" variant="secondary" disabled={disabled || creating || !newName.trim()} onClick={() => void create()}>
               {creating ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
@@ -1137,10 +1096,6 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
           </div>
           {createError && <p role="alert" className="text-xs text-destructive">{createError}</p>}
         </div>
-      ) : (
-        <p className="text-sm text-warning">
-          Esta asignatura no tiene paralelos registrados previamente.
-        </p>
       )}
     </FormField>
   )

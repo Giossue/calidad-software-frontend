@@ -1,53 +1,38 @@
 import { useState, type FormEvent } from 'react'
-import { PlusIcon, SaveIcon } from 'lucide-react'
-import { toast } from '@/lib/toast'
 
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
-import { Spinner } from '@/components/ui/spinner'
+import { maxCycleNumber } from '@/lib/academic-stage'
 import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
-import { tutoringApi, type Cycle, type Subject } from '@/lib/tutoring-api'
+import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { CheckboxListSkeleton } from './tutoring-skeletons'
 import type { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
-const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '', next_subject_ids: [] as string[] }
+const EMPTY_FORM = { career_id: '', cycle_number: '', modality_id: '', code: '', name: '', next_subject_ids: [] as string[] }
 
 /** Formulario abierto: registrar, editar los datos o editar la secuencia en la malla. */
 export type SubjectFormMode = 'create' | 'edit' | 'sequence'
 
 type TutoringCatalogsState = ReturnType<typeof useTutoringCatalogs>
 
-/** Paralelos activos del catálogo (o, sin catálogo, los de los ciclos registrados). */
-export function activeParallels(catalogs: TutoringCatalogsState): readonly { id: number; name: string; is_active: boolean }[] {
-  return catalogs.sections.length > 0
-    ? catalogs.sections.filter((s) => s.is_active)
-    : Array.from(
-        new Map(
-          catalogs.cycles
-            .filter((c) => c.paralelo_id && c.paralelo_name)
-            .map((c) => [c.paralelo_id!, { id: c.paralelo_id!, name: c.paralelo_name!, is_active: true }]),
-        ).values(),
-      )
-}
-
 /**
- * Un ciclo activo por número (si el ciclo tiene varios paralelos, uno solo): son las opciones
- * de «Ciclo» al registrar una asignatura y el ciclo que se elige al agregarla desde la malla.
+ * Números de ciclo de la carrera (1 … último), para ubicar una asignatura en la malla. La
+ * asignatura no lleva paralelos: el paralelo se elige al crear cada tutoría del período.
  */
-export function cycleLevelOptions(cycles: readonly Cycle[], careerId: number): Cycle[] {
-  const careerCycles = cycles.filter((cycle) => cycle.status && cycle.career_id === careerId)
-  return Array.from(new Map(careerCycles.map((cycle) => [cycle.number || cycle.name, cycle])).values()).sort((a, b) => a.number - b.number)
+export function careerCycleNumbers(catalogs: Pick<TutoringCatalogsState, 'careers' | 'cycles'>, careerId: number): number[] {
+  const career = catalogs.careers.find((item) => item.id === careerId)
+  const last = Math.max(career?.cycle_levels ?? 0, maxCycleNumber(catalogs.cycles.filter((cycle) => cycle.career_id === careerId)) ?? 0)
+  return Array.from({ length: last }, (_, index) => index + 1)
 }
 
 /**
  * Modal para registrar una asignatura de la malla, editar sus datos o su secuencia.
  * Se monta de nuevo (con `key`) cada vez que se abre, así parte de los datos actuales.
  */
-export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSubjects, initialCycleId, operation, onClose, onSaved }: Readonly<{
+export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSubjects, initialCycleNumber, operation, onClose, onSaved }: Readonly<{
   catalogs: TutoringCatalogsState
   careerId: number
   mode: SubjectFormMode | null
@@ -56,66 +41,22 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
   /** Asignaturas de la carrera: para elegir cuáles continúan a la abierta. */
   careerSubjects: readonly Subject[] | null
   /** Ciclo ya elegido al registrar (al agregar la asignatura desde un ciclo de la malla). */
-  initialCycleId?: number | null
+  initialCycleNumber?: number | null
   operation: ReturnType<typeof useOperation>
   onClose: () => void
   /** Se guardó: `updated` es la asignatura editada (null al registrar). */
   onSaved: (updated: Subject | null) => Promise<void> | void
 }>) {
   const editing = subject
-  const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
   const [initialForm] = useState(() => editing
-    ? { next_subject_ids: (editing.next_subjects ?? []).map((item) => String(item.id)), career_id: String(editing.career_id), cycle_id: '', parallel_ids: [] as string[], modality_id: editing.modality_id ? String(editing.modality_id) : '', period_id: editing.period_id ? String(editing.period_id) : (activePeriod ? String(activePeriod.id) : ''), code: editing.code ?? '', name: editing.name }
-    : { ...EMPTY_FORM, career_id: String(careerId), cycle_id: initialCycleId ? String(initialCycleId) : '', period_id: activePeriod ? String(activePeriod.id) : '' })
+    ? { next_subject_ids: (editing.next_subjects ?? []).map((item) => String(item.id)), career_id: String(editing.career_id), cycle_number: editing.cycle_number ? String(editing.cycle_number) : '', modality_id: editing.modality_id ? String(editing.modality_id) : '', code: editing.code ?? '', name: editing.name }
+    : { ...EMPTY_FORM, career_id: String(careerId), cycle_number: initialCycleNumber ? String(initialCycleNumber) : '' })
   const [form, setForm] = useState(initialForm)
-  const [isAddingSection, setIsAddingSection] = useState(false)
-  const [newSectionName, setNewSectionName] = useState('')
-  const [creatingSection, setCreatingSection] = useState(false)
-  const [sectionError, setSectionError] = useState<string | null>(null)
-
-  function toggleParallel(id: string) {
-    setForm((prev) => ({
-      ...prev,
-      parallel_ids: prev.parallel_ids.includes(id)
-        ? prev.parallel_ids.filter((item) => item !== id)
-        : [...prev.parallel_ids, id],
-    }))
-  }
-
-  async function handleCreateSection() {
-    const trimmed = newSectionName.trim()
-    if (!trimmed) {
-      setSectionError('El nombre del paralelo es obligatorio.')
-      return
-    }
-    setCreatingSection(true)
-    setSectionError(null)
-    try {
-      const created = await tutoringApi.createSection(trimmed)
-      await catalogs.reload()
-      setForm((prev) => ({
-        ...prev,
-        parallel_ids: prev.parallel_ids.includes(String(created.id))
-          ? prev.parallel_ids
-          : [...prev.parallel_ids, String(created.id)],
-      }))
-      setIsAddingSection(false)
-      setNewSectionName('')
-      toast.success('Paralelo creado', { description: `Se agregó "${created.name}" al catálogo de paralelos.` })
-    } catch {
-      setSectionError('No fue posible crear el paralelo. Intenta nuevamente.')
-    } finally {
-      setCreatingSection(false)
-    }
-  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedCode = form.code.trim()
-    const newParallel = isAddingSection && newSectionName.trim() ? newSectionName.trim() : undefined
-    const selectedParallelIds = form.parallel_ids.map(Number).filter(Boolean)
-    const chosenCycleId = form.cycle_id ? Number(form.cycle_id) : undefined
-    const periodId = Number(form.period_id || activePeriod?.id) || undefined
+    const cycleNumber = Number(form.cycle_number) || undefined
     let updated: Subject | null = null
 
     void operation.run(
@@ -133,11 +74,8 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
           code: trimmedCode || undefined,
           name: form.name.trim(),
           career_id: careerId,
-          ...(chosenCycleId ? { cycle_id: chosenCycleId } : {}),
-          ...(selectedParallelIds.length > 0 ? { parallel_ids: selectedParallelIds } : {}),
-          ...(newParallel ? { new_parallel_name: newParallel } : {}),
+          ...(cycleNumber ? { cycle_number: cycleNumber } : {}),
           ...(form.modality_id ? { modality_id: Number(form.modality_id) } : {}),
-          ...(periodId ? { period_id: periodId } : {}),
         })
       },
       editing ? 'Asignatura actualizada' : 'Asignatura registrada',
@@ -148,13 +86,12 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
   }
 
   const currentCareer = catalogs.careers.find((c) => c.id === careerId)
-  const currentPeriod = activePeriod
-  const uniqueCycleLevels = cycleLevelOptions(catalogs.cycles, careerId)
-  const allParallels = activeParallels(catalogs)
+  const cycleNumbers = careerCycleNumbers(catalogs, careerId)
+  const lastCycle = cycleNumbers.at(-1)
 
   const nameReason = form.name.trim() ? null : 'El nombre de la asignatura es obligatorio.'
 
-  // Lo que identifica a la asignatura va primero; el ciclo y los paralelos, después.
+  // Lo que identifica a la asignatura va primero; el ciclo, después.
   const dataFields = (
     <>
       <FormField id="subject-name" label="Nombre" required counter={{ current: form.name.length, max: 150 }} error={operation.fieldError('name')}>
@@ -180,107 +117,22 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
   )
 
   const placementFields = (
-    <>
-      <FormField id="subject-period" label="Período académico">
-        <div className="relative flex items-center">
-          <Input
-            id="subject-period"
-            value={currentPeriod ? currentPeriod.name : 'Sin período académico activo'}
-            disabled
-            readOnly
-            className="pr-24"
-            aria-readonly="true"
-          />
-          <span className="absolute right-2 text-xs text-muted-foreground">PAO actual</span>
-        </div>
-      </FormField>
-      <SelectField
-        id="subject-new-cycle"
-        label="Ciclo"
-        optional
-        value={form.cycle_id}
-        onValueChange={(value) => setForm({ ...form, cycle_id: value })}
-        emptyLabel="Sin ciclo"
-        placeholder="Selecciona un ciclo"
-        error={operation.fieldError('cycle_id', 'cycle_ids')}
-        options={uniqueCycleLevels.map((cycle) => ({ value: String(cycle.id), label: `${cycle.number}° ciclo` }))}
-      />
-      <FormField id="subject-parallels" label="Paralelo(s)" optional error={sectionError ?? operation.fieldError('parallel_ids', 'section_ids', 'new_parallel_name')}>
-        {isAddingSection ? (
-          <div className="flex items-center gap-2">
-            <Input
-              id="new-parallel-name"
-              aria-label="Nombre del nuevo paralelo"
-              value={newSectionName}
-              onChange={(e) => {
-                setNewSectionName(sanitizeLetters(e.target.value, 50))
-                setSectionError(null)
-              }}
-              placeholder="Ej. B"
-              maxLength={50}
-              disabled={creatingSection}
-              autoFocus
-            />
-            <Button
-              type="button"
-              onClick={() => void handleCreateSection()}
-              disabled={creatingSection || !newSectionName.trim()}
-              className="shrink-0"
-            >
-              {creatingSection ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
-              Guardar
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setIsAddingSection(false)
-                setNewSectionName('')
-                setSectionError(null)
-              }}
-              disabled={creatingSection}
-              className="shrink-0"
-            >
-              Cancelar
-            </Button>
-          </div>
-        ) : (
-          <div id="subject-parallels" className="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Paralelos">
-            {allParallels.map((parallel) => (
-              <label key={parallel.id} htmlFor={`subject-parallel-${parallel.id}`} className="inline-flex cursor-pointer items-center gap-2 pr-2 text-sm">
-                <Checkbox
-                  id={`subject-parallel-${parallel.id}`}
-                  checked={form.parallel_ids.includes(String(parallel.id))}
-                  onCheckedChange={() => toggleParallel(String(parallel.id))}
-                />
-                {parallel.name.startsWith('Paralelo') ? parallel.name : `Paralelo ${parallel.name}`}
-              </label>
-            ))}
-            {allParallels.length === 0 && (
-              <p className="text-xs text-muted-foreground">No hay paralelos activos registrados aún.</p>
-            )}
-            <Button
-              type="button"
-              variant="tertiary"
-              size="sm"
-              onClick={() => {
-                setIsAddingSection(true)
-                setNewSectionName('')
-                setSectionError(null)
-              }}
-              disabled={operation.pending}
-            >
-              <PlusIcon data-icon="inline-start" /> Crear nuevo paralelo
-            </Button>
-          </div>
-        )}
-      </FormField>
-    </>
+    <SelectField
+      id="subject-new-cycle"
+      label="Ciclo"
+      optional
+      value={form.cycle_number}
+      onValueChange={(value) => setForm({ ...form, cycle_number: value })}
+      emptyLabel="Sin ciclo"
+      placeholder="Selecciona un ciclo"
+      error={operation.fieldError('cycle_number')}
+      options={cycleNumbers.map((number) => ({ value: String(number), label: `${number}° ciclo${number === lastCycle ? ' · Titulación' : ''}` }))}
+    />
   )
 
   const createSteps: readonly FormStep[] = [
     { title: 'Datos de la asignatura', blockReason: nameReason, fields: ['name', 'code', 'modality_id'], content: dataFields },
-    { title: 'Ciclo y paralelos', fields: ['cycle_ids', 'section_ids'], content: placementFields },
+    { title: 'Ciclo', fields: ['cycle_number'], content: placementFields },
   ]
 
   const formTitle = mode === 'sequence' ? 'Secuencia en la malla' : editing ? 'Editar asignatura' : 'Registrar asignatura'
@@ -296,7 +148,7 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
       pending={operation.pending}
       error={operation.error}
       errorModal={operation.errorModal}
-      dirty={JSON.stringify(form) !== JSON.stringify(initialForm) || Boolean(newSectionName)}
+      dirty={JSON.stringify(form) !== JSON.stringify(initialForm)}
       blockReason={nameReason}
       onClose={onClose}
       onSubmit={submit}
@@ -308,7 +160,6 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
         <NextSubjectsField
           subject={editing}
           options={careerSubjects}
-          cycleNumber={(id) => catalogs.cycles.find((cycle) => cycle.id === id)?.number}
           value={form.next_subject_ids}
           onChange={(ids) => setForm({ ...form, next_subject_ids: ids })}
           disabled={operation.pending}
@@ -322,15 +173,14 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
  * Asignaturas que continúan a `subject` en la malla: el estudiante que aprueba todas
  * sus previas pasa a ellas. Se ofrecen las de ciclos posteriores de la misma carrera.
  */
-function NextSubjectsField({ subject, options, cycleNumber, value, onChange, disabled }: Readonly<{
+function NextSubjectsField({ subject, options, value, onChange, disabled }: Readonly<{
   subject: Subject
   options: readonly Subject[] | null
-  cycleNumber: (cycleId: number) => number | undefined
   value: readonly string[]
   onChange: (ids: string[]) => void
   disabled: boolean
 }>) {
-  const levelOf = (item: Subject) => Math.min(...item.cycle_ids.map((id) => cycleNumber(id) ?? Infinity))
+  const levelOf = (item: Subject) => item.cycle_number ?? Infinity
   const ownLevel = levelOf(subject)
   const candidates = (options ?? [])
     .filter((item) => item.id !== subject.id && (value.includes(String(item.id)) || !Number.isFinite(ownLevel) || levelOf(item) > ownLevel))
