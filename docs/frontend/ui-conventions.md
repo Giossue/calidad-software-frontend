@@ -151,6 +151,31 @@ las reglas de negocio que ya aplica el sistema.
   las filas muestran esqueleto.
 - **Fallo al cargar:** `ErrorNotice` con "Reintentar".
 
+## Malla visual
+
+La «Malla curricular» copia la malla del coordinador de sílabos (COR-13, Vue Flow) con
+React Flow (`@xyflow/react`), en `src/features/tutoring/curriculum-canvas/`. Las
+constantes de la geometría, los colores (`.curriculum-canvas` en `src/index.css`), la
+forma de las flechas, los controles de zoom y la leyenda son los de sílabos.
+
+- **Vista.** Un carril por ciclo (franja «Ciclo» con el número romano y, a la derecha,
+  cuántas asignaturas tiene); cada asignatura es una tarjeta con su código en la franja
+  lateral y su nombre. Las previas son flechas rojas que bajan de la previa a la
+  asignatura que la requiere. El lienzo no se arrastra ni se acerca con gestos: se
+  recorre con el scroll normal y el zoom toma niveles fijos (50, 75 y 100 %, o «Ajustar
+  al ancho», que se recuerda). Buscar y «Estado» filtran las tarjetas dibujadas. La
+  tarjeta abre la asignatura (`?asignatura=`).
+- **Edición («Editar malla»).** A pantalla completa con «Volver a la vista». Cada carril
+  termina en «Agregar asignatura» (el formulario abre con ese ciclo elegido); la tarjeta
+  abre su formulario y su menú «⋯» edita, conecta previas desde una lista o desactiva.
+  Arrastrar desde la manija verde de una tarjeta hasta otra conecta la previa; la previa
+  tiene que ser de un ciclo anterior y la secuencia no puede volver sobre sí misma (el
+  rechazo se avisa con un toast, como en sílabos). Pulsar una flecha pide confirmación
+  para quitarla.
+- Solo se dibujan los datos que este sistema tiene: código, nombre, ciclo y previas. No
+  hay horas, créditos, unidad, modalidad, correquisitos ni orden dentro del ciclo (las
+  tarjetas de un ciclo van por código).
+
 ## Texto
 
 - Español, trato de "tú" (como el resto del sistema), frases cortas y concretas.

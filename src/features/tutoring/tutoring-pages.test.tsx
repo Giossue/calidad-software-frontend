@@ -271,24 +271,30 @@ describe('Coordinación de tutorías', () => {
     expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: career.id, page: 2, per_page: 100 })
     expect(screen.queryByRole('button', { name: 'Página siguiente' })).not.toBeInTheDocument()
   })
-  it('agrupa las asignaturas por ciclo en tarjetas, sin desplegable de ciclo ni tabla', async () => {
+  it('dibuja la malla con un carril por ciclo, sin desplegable de ciclo ni tabla, y filtra por búsqueda y estado', async () => {
     const math = { ...subject, name: 'MATEMATICA', next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }], previous_subjects: [] }
     const physics = { ...subject, id: 31, code: 'FIS', name: 'FISICA', cycle_ids: [21], next_subjects: [], previous_subjects: [{ id: 30, code: 'MAT', name: 'MATEMATICA' }] }
-    vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, physics, { ...subject, id: 32, code: null, name: 'ETICA', cycle_ids: [] }]))
+    vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, physics, { ...subject, id: 32, code: null, name: 'ETICA', cycle_ids: [] }, { ...subject, id: 33, code: 'OLD', name: 'ANTIGUA', is_active: false }]))
     await openCurriculum()
-    const second = await screen.findByRole('region', { name: '2° ciclo' })
+    const canvas = await screen.findByRole('region', { name: 'Vista de la malla' })
     expect(screen.queryByRole('combobox', { name: 'Ciclo' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '3° ciclo · Titulación' })).toBeInTheDocument()
-    expect(within(second).getByTitle('Abrir MATEMATICA')).toHaveTextContent('FISICA')
-    expect(within(screen.getByRole('region', { name: '3° ciclo' })).getByText('Fin de secuencia')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Sin ciclo' })).getByText('Sin código')).toBeInTheDocument()
+    expect(within(canvas).getByRole('region', { name: '2° ciclo' })).toBeInTheDocument()
+    expect(within(within(canvas).getByRole('region', { name: '3° ciclo' })).getByText('Titulación')).toBeInTheDocument()
+    expect(within(canvas).getByRole('region', { name: 'Sin ciclo' })).toBeInTheDocument()
+    expect(within(canvas).getByRole('article', { name: 'Sin código: ETICA' })).toBeInTheDocument()
+    expect(within(canvas).queryByText('ANTIGUA')).not.toBeInTheDocument()
     // Buscar primero y después el estado; las búsquedas se aplican sobre la malla cargada.
     const filters = screen.getByLabelText('Buscar').closest('[data-tour="page-filters"]') as HTMLElement
     expect(within(filters).getAllByRole('combobox').map((select) => select.getAttribute('aria-label') ?? select.id)).toHaveLength(1)
-    await userEvent.setup().type(screen.getByLabelText('Buscar'), 'fis')
-    expect(screen.queryByRole('region', { name: '2° ciclo' })).not.toBeInTheDocument()
-    expect(screen.getByRole('region', { name: '3° ciclo' })).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('Buscar'), 'fis')
+    expect(screen.queryByRole('button', { name: 'Abrir MATEMATICA' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir FISICA' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
+    await choose(user, within(filters).getByRole('combobox'), 'Inactivas')
+    expect(screen.getByRole('button', { name: 'Abrir ANTIGUA' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Abrir FISICA' })).not.toBeInTheDocument()
   })
   it('define en qué asignatura continúa la malla al editar una asignatura y lo muestra en su pantalla', async () => {
     const user = userEvent.setup()
@@ -320,12 +326,12 @@ describe('Coordinación de tutorías', () => {
     const math = { ...subject, name: 'MATEMATICA', next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }], previous_subjects: [] }
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math]))
     renderCurriculum()
-    await user.click(await screen.findByTitle('Abrir MATEMATICA'))
+    await user.click(await screen.findByRole('button', { name: 'Abrir MATEMATICA' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'MATEMATICA' })).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Malla' }))
     expect(screen.getByText('Ninguna: inicia una secuencia.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Volver a la malla' }))
-    expect(await screen.findByRole('region', { name: '2° ciclo' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Vista de la malla' })).toBeInTheDocument()
   })
 
   it('abre la asignatura desde la URL y, si no existe en la carrera, lo dice con un camino de vuelta', async () => {
@@ -1095,7 +1101,7 @@ describe('Coordinación de tutorías', () => {
     await screen.findByText('Matemática')
     expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByTitle('Abrir Matemática'))
+    await user.click(screen.getByRole('button', { name: 'Abrir Matemática' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Matemática' })).toBeInTheDocument()
     expect(screen.getByText('MAT · 2° ciclo')).toBeInTheDocument()
     expect(screen.getByRole('tablist', { name: 'Secciones de la asignatura' })).toBeInTheDocument()

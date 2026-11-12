@@ -572,3 +572,95 @@ input[type='search']::-webkit-search-decoration {
     -webkit-print-color-adjust: exact;
   }
 }
+
+/*
+  Malla visual (React Flow): los mismos tokens y reglas de la malla del coordinador en
+  sílabos (src/styles.css, `.curriculum-canvas`), con las clases de React Flow.
+*/
+@theme {
+  --text-curriculum-edge: 0.625rem;
+  --text-curriculum-code: 0.65rem;
+}
+
+.curriculum-canvas {
+  --curriculum-canvas-height: 76vh;
+  --curriculum-lane: color-mix(in srgb, var(--card) 50%, var(--muted));
+  --curriculum-cycle-chrome: color-mix(in srgb, var(--primary) 10%, var(--card));
+  --curriculum-canvas-background: var(--background);
+  --curriculum-prerequisite: var(--destructive);
+  /* Colores de React Flow con los del sistema (controles, flechas y fondo). */
+  --xy-background-color: var(--curriculum-canvas-background);
+  --xy-edge-stroke: var(--curriculum-prerequisite);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+  --xy-controls-box-shadow: var(--shadow-menu);
+  --xy-node-border-radius: var(--radius);
+}
+
+.dark .curriculum-canvas {
+  --curriculum-lane: #1d2023;
+}
+
+.curriculum-canvas .react-flow {
+  background-color: var(--curriculum-canvas-background);
+}
+
+/* El lienzo no se arrastra ni se acerca con gestos: en el teléfono se recorre con el scroll normal. */
+.curriculum-canvas .react-flow__pane,
+.curriculum-canvas .react-flow__renderer {
+  touch-action: pan-x pan-y;
+}
+
+.curriculum-canvas .react-flow__node-cycle,
+.curriculum-canvas .react-flow__node-subject,
+.curriculum-canvas .react-flow__node-addSubject {
+  cursor: default;
+}
+
+.curriculum-canvas .react-flow__controls {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.curriculum-canvas .react-flow__handle:not(.curriculum-handle) {
+  opacity: 0;
+}
+
+.curriculum-canvas .react-flow__handle.curriculum-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  z-index: 2;
+  border: 2px solid var(--card);
+  background-color: var(--success);
+  cursor: crosshair;
+  transition: transform 150ms ease-out;
+}
+
+.curriculum-canvas .react-flow__handle.curriculum-handle::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 9999px;
+}
+
+.curriculum-canvas .react-flow__handle-top.curriculum-handle:hover,
+.curriculum-canvas .react-flow__handle-top.curriculum-handle.connectingfrom {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+
+.curriculum-canvas .react-flow__handle-bottom.curriculum-handle:hover,
+.curriculum-canvas .react-flow__handle-bottom.curriculum-handle.connectingfrom {
+  transform: translate(-50%, 50%) scale(1.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .curriculum-canvas .react-flow__handle.curriculum-handle {
+    transition: none;
+  }
+}

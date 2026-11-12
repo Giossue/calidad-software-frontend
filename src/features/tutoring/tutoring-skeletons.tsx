@@ -100,15 +100,23 @@ export function ListScreenSkeleton({ label, actions = 1, filters = 1, headers }:
   )
 }
 
-/** Tarjetas de la malla por ciclo (sin el encabezado de la pantalla). */
-export function CurriculumCardsSkeleton() {
+/**
+ * Lienzo de la malla (sin el encabezado de la pantalla): los controles de zoom arriba y un
+ * carril por ciclo con su franja del ciclo y las tarjetas de las asignaturas.
+ */
+export function CurriculumCanvasSkeleton() {
   return (
-    <div className="flex flex-col gap-5" aria-hidden="true">
-      {[5, 4, 3].map((count) => (
-        <div key={count} className="flex flex-col gap-2">
-          <Skeleton className="h-4 w-20" />
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-24" />)}
+    <div className="flex h-(--curriculum-canvas-height) min-h-96 flex-col gap-4 overflow-hidden rounded-md bg-background p-3 ring-1 ring-surface-ring [--curriculum-canvas-height:76vh]" aria-hidden="true">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="size-8" />
+        <Skeleton className="size-8" />
+      </div>
+      {[4, 3, 2].map((count) => (
+        <div key={count} className="flex h-40 shrink-0 gap-4 overflow-hidden rounded-md ring-1 ring-surface-ring">
+          <Skeleton className="h-full w-20 shrink-0 rounded-none" />
+          <div className="flex flex-1 items-center gap-8">
+            {Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-24 w-64 shrink-0" />)}
           </div>
         </div>
       ))}
@@ -116,14 +124,14 @@ export function CurriculumCardsSkeleton() {
   )
 }
 
-/** Pantalla de la malla mientras carga: encabezado, filtros y tarjetas, como la pantalla real. */
+/** Pantalla de la malla mientras carga: encabezado, filtros y el lienzo, como la pantalla real. */
 export function CurriculumScreenSkeleton() {
   return (
     <div className="flex flex-col gap-6">
       <span role="status" aria-label="Cargando malla curricular" className="sr-only">Cargando malla curricular</span>
-      <PageHeaderSkeleton actions={2} />
+      <PageHeaderSkeleton actions={3} />
       <FilterBarSkeleton filters={1} />
-      <CurriculumCardsSkeleton />
+      <CurriculumCanvasSkeleton />
     </div>
   )
 }

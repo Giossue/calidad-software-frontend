@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
-import { tutoringApi, type Subject } from '@/lib/tutoring-api'
+import { tutoringApi, type Cycle, type Subject } from '@/lib/tutoring-api'
 import { CheckboxListSkeleton } from './tutoring-skeletons'
 import type { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
@@ -35,10 +35,19 @@ export function activeParallels(catalogs: TutoringCatalogsState): readonly { id:
 }
 
 /**
+ * Un ciclo activo por número (si el ciclo tiene varios paralelos, uno solo): son las opciones
+ * de «Ciclo» al registrar una asignatura y el ciclo que se elige al agregarla desde la malla.
+ */
+export function cycleLevelOptions(cycles: readonly Cycle[], careerId: number): Cycle[] {
+  const careerCycles = cycles.filter((cycle) => cycle.status && cycle.career_id === careerId)
+  return Array.from(new Map(careerCycles.map((cycle) => [cycle.number || cycle.name, cycle])).values()).sort((a, b) => a.number - b.number)
+}
+
+/**
  * Modal para registrar una asignatura de la malla, editar sus datos o su secuencia.
  * Se monta de nuevo (con `key`) cada vez que se abre, así parte de los datos actuales.
  */
-export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSubjects, operation, onClose, onSaved }: Readonly<{
+export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSubjects, initialCycleId, operation, onClose, onSaved }: Readonly<{
   catalogs: TutoringCatalogsState
   careerId: number
   mode: SubjectFormMode | null
@@ -46,6 +55,8 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
   subject: Subject | null
   /** Asignaturas de la carrera: para elegir cuáles continúan a la abierta. */
   careerSubjects: readonly Subject[] | null
+  /** Ciclo ya elegido al registrar (al agregar la asignatura desde un ciclo de la malla). */
+  initialCycleId?: number | null
   operation: ReturnType<typeof useOperation>
   onClose: () => void
   /** Se guardó: `updated` es la asignatura editada (null al registrar). */
@@ -55,7 +66,7 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
   const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
   const [initialForm] = useState(() => editing
     ? { next_subject_ids: (editing.next_subjects ?? []).map((item) => String(item.id)), career_id: String(editing.career_id), cycle_id: '', parallel_ids: [] as string[], modality_id: editing.modality_id ? String(editing.modality_id) : '', period_id: editing.period_id ? String(editing.period_id) : (activePeriod ? String(activePeriod.id) : ''), code: editing.code ?? '', name: editing.name }
-    : { ...EMPTY_FORM, career_id: String(careerId), period_id: activePeriod ? String(activePeriod.id) : '' })
+    : { ...EMPTY_FORM, career_id: String(careerId), cycle_id: initialCycleId ? String(initialCycleId) : '', period_id: activePeriod ? String(activePeriod.id) : '' })
   const [form, setForm] = useState(initialForm)
   const [isAddingSection, setIsAddingSection] = useState(false)
   const [newSectionName, setNewSectionName] = useState('')
@@ -138,12 +149,7 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSub
 
   const currentCareer = catalogs.careers.find((c) => c.id === careerId)
   const currentPeriod = activePeriod
-  const careerCycles = catalogs.cycles.filter(
-    (cycle) => cycle.status && cycle.career_id === careerId,
-  )
-  const uniqueCycleLevels = Array.from(
-    new Map(careerCycles.map((c) => [c.number || c.name, c])).values(),
-  ).sort((a, b) => a.number - b.number)
+  const uniqueCycleLevels = cycleLevelOptions(catalogs.cycles, careerId)
   const allParallels = activeParallels(catalogs)
 
   const nameReason = form.name.trim() ? null : 'El nombre de la asignatura es obligatorio.'

@@ -22,7 +22,7 @@ export const MODULE_HELP: Readonly<Record<string, { readonly title: string; read
   // Coordinación de carrera (tutorías)
   'tutoring-curriculum': {
     title: 'Malla curricular',
-    description: 'Elige una carrera e importa su malla: se crean sus asignaturas por ciclo y su secuencia. Aquí también registras, editas o desactivas cada asignatura. Quien aprueba una asignatura pasa a la siguiente en el nuevo período.',
+    description: 'Elige una carrera e importa su malla: se crean sus asignaturas por ciclo y sus previas, y se ven como en la malla oficial. En «Editar malla» agregas asignaturas en cada ciclo, las editas y conectas sus previas. Quien aprueba una asignatura pasa a la siguiente en el nuevo período.',
   },
   'tutoring-teachers': {
     title: 'Docentes',
