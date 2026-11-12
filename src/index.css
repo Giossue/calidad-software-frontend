@@ -664,3 +664,13 @@ input[type='search']::-webkit-search-decoration {
     transition: none;
   }
 }
+
+/*
+ * Los menús y modales de Radix bloquean el scroll y compensan el ancho de la barra con un
+ * margen derecho en <body>. Como <html> ya reserva ese espacio (`scrollbar-gutter: stable`),
+ * la compensación duplicaba el hueco: aparecía una franja vacía y el encabezado se corría.
+ */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}
