@@ -476,7 +476,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
           </div>
           <AdminSectionHeader
             title={degreeStudent.name}
-            description={degreeCycleText(degreeStudent)}
             actions={
               <div className="flex flex-wrap items-center gap-2">
                 {degreeStudent.is_degree_enrolled
@@ -533,7 +532,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
 
           <AdminSectionHeader
             title={assignStudent.name}
-            description={studentCycleText(assignStudent)}
             actions={
               <div className="flex items-center gap-2">
                 <StatusBadge active={assignStudent.is_active} />

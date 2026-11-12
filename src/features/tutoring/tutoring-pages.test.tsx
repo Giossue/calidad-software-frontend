@@ -1390,6 +1390,8 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Carlos Estudiante' })).toBeInTheDocument()
     expect(screen.queryByText('Mostrando 1 de 1 estudiante')).not.toBeInTheDocument()
     expect(screen.getByRole('tablist', { name: 'Secciones del estudiante' })).toBeInTheDocument()
+    // Bajo el nombre no se repite el ciclo: está en «Datos».
+    expect(screen.queryByText('Sin ciclo asignado')).not.toBeInTheDocument()
     // Sin ciclo registrado, la acción de arriba es asignárselo.
     expect(screen.getByRole('button', { name: 'Asignar ciclo' })).toBeInTheDocument()
     expect(await screen.findByText('No hay más tutorías disponibles para inscribir a este estudiante.')).toBeInTheDocument()
@@ -1397,6 +1399,7 @@ describe('Coordinación de tutorías', () => {
     expect(within(enrolled).getByRole('button', { name: 'Acciones para Matemática' })).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Datos' }))
     expect(screen.getByText('0981112233')).toBeInTheDocument()
+    expect(screen.getByText('Sin ciclo asignado')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Volver a estudiantes' }))
     expect(await screen.findByText('Mostrando 1 de 1 estudiante')).toBeInTheDocument()
 
