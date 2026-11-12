@@ -29,15 +29,19 @@ import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { TabsSkeleton } from '@/features/tutoring/tutoring-skeletons'
 
 
-type CareerFormErrors = { facultyId?: string; name?: string }
+type CareerFormErrors = { facultyId?: string; name?: string; code?: string }
 
-function validateCareerForm(facultyId: string, name: string): CareerFormErrors {
+function validateCareerForm(facultyId: string, name: string, code: string): CareerFormErrors {
   const errors: CareerFormErrors = {}
   if (!facultyId) errors.facultyId = 'Selecciona una facultad.'
 
   const trimmedName = name.trim()
   if (!trimmedName) errors.name = 'El nombre de la carrera es obligatorio.'
   else if (trimmedName.length > 150) errors.name = 'El nombre no puede superar 150 caracteres.'
+
+  const trimmedCode = code.trim()
+  if (!trimmedCode) errors.code = 'El código de carrera es obligatorio.'
+  else if (trimmedCode.length > 30) errors.code = 'El código no puede superar 30 caracteres.'
 
   return errors
 }
@@ -200,10 +204,12 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
   // El formulario parte de la carrera (o vacío al registrar).
   const initialCareerFacultyId = editingCareer ? String(editingCareer.faculty_id) : ''
   const initialCareerName = editingCareer?.name ?? ''
+  const initialCareerCode = editingCareer?.code ?? ''
   const initialCareerModalityId = editingCareer?.modality_id ? String(editingCareer.modality_id) : ''
   const initialCareerCyclesCount = editingCareer ? String(editingCareer.cycle_levels) : '8'
   const [careerFacultyId, setCareerFacultyId] = useState(initialCareerFacultyId)
   const [careerName, setCareerName] = useState(initialCareerName)
+  const [careerCode, setCareerCode] = useState(initialCareerCode)
   const [careerModalityId, setCareerModalityId] = useState(initialCareerModalityId)
   const [careerCyclesCount, setCareerCyclesCount] = useState(initialCareerCyclesCount)
 
@@ -219,18 +225,19 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
     if (pending) return
 
     // Los errores de validación van solo bajo cada campo, sin otro recuadro.
-    const errors = validateCareerForm(careerFacultyId, careerName)
+    const errors = validateCareerForm(careerFacultyId, careerName, careerCode)
     setCareerErrors(errors)
     if (Object.keys(errors).length > 0) return
 
-    const normalizedName = careerName.trim().toLowerCase()
+    // Otra malla de la misma carrera repite el nombre con otro código; el código no se repite.
+    const normalizedCode = careerCode.trim().toLowerCase()
     const duplicateLocally = siblings.find(
-      (c) => (!editingCareer || c.id !== editingCareer.id) && c.name.trim().toLowerCase() === normalizedName,
+      (c) => (!editingCareer || c.id !== editingCareer.id) && (c.code ?? '').trim().toLowerCase() === normalizedCode,
     )
     if (duplicateLocally) {
       setCareerErrors((prev) => ({
         ...prev,
-        name: 'Ya existe una carrera con este nombre.',
+        code: 'Ya existe una carrera con este código.',
       }))
       return
     }
@@ -241,6 +248,7 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
       const input = {
         faculty_id: Number(careerFacultyId),
         name: careerName.trim(),
+        code: careerCode.trim(),
         modality_id: careerModalityId ? Number(careerModalityId) : null,
       }
       let saved: Career | null = null
@@ -261,8 +269,8 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
         title: friendly.title,
         description: friendly.description,
       })
-      if (friendly.field === 'name') {
-        setCareerErrors((prev) => ({ ...prev, name: friendly.description }))
+      if (friendly.field === 'name' || friendly.field === 'code') {
+        setCareerErrors((prev) => ({ ...prev, [friendly.field as 'name' | 'code']: friendly.description }))
       }
     } finally {
       setPending(false)
@@ -272,10 +280,11 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
   const isCareerFormDirty =
     careerFacultyId !== initialCareerFacultyId
     || careerName !== initialCareerName
+    || careerCode !== initialCareerCode
     || careerModalityId !== initialCareerModalityId
     || (Boolean(editingCareer) && careerCyclesCount !== initialCareerCyclesCount)
   // "Guardar" se bloquea con el primer error de validación; sin cambios lo bloquea FormDialog.
-  const liveCareerErrors = validateCareerForm(careerFacultyId, careerName)
+  const liveCareerErrors = validateCareerForm(careerFacultyId, careerName, careerCode)
   const careerBlockReason = Object.values(liveCareerErrors)[0] ?? null
   const careerFieldError = (field: keyof CareerFormErrors) => visibleFieldError(field, careerErrors, liveCareerErrors, touched)
   const facultyOptions = activeFaculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name }))
@@ -313,6 +322,22 @@ function CareerFormDialog({ open, career: editingCareer, siblings, onClose, onSa
           placeholder="Ej. Ingeniería en Software"
           disabled={pending}
           maxLength={150}
+          required
+        />
+      </FormField>
+
+      <FormField id="career-code" label="Código de carrera" required counter={{ current: careerCode.length, max: 30 }} error={careerFieldError('code')}>
+        <Input
+          id="career-code"
+          value={careerCode}
+          onChange={(e) => {
+            setCareerCode(e.target.value.slice(0, 30))
+            setCareerErrors((current) => ({ ...current, code: undefined }))
+          }}
+          onBlur={() => touch('code')}
+          placeholder="Ej. SW-2024"
+          disabled={pending}
+          maxLength={30}
           required
         />
       </FormField>
@@ -403,7 +428,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
 
   // Primera carga: toda la pantalla en esqueleto; después, solo las filas al filtrar o paginar.
   if (isInitialLoading) {
-    return <AdminListSkeleton label="Cargando carreras" filters={2} headers={['Carrera', 'Facultad', 'Modalidad', 'Estado']} />
+    return <AdminListSkeleton label="Cargando carreras" filters={2} headers={['Carrera', 'Código', 'Facultad', 'Modalidad', 'Estado']} />
   }
 
   return (
@@ -431,7 +456,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
           search={searchInput}
           onSearch={setSearchInput}
           searchLabel="Buscar carrera"
-          searchPlaceholder="Buscar carrera por nombre o facultad…"
+          searchPlaceholder="Buscar carrera por nombre, código o facultad…"
           filters={[
             { id: 'faculty', label: 'Facultad', value: facultyFilterId ? String(facultyFilterId) : '', onChange: (value) => setSearchParams(value ? { faculty: value } : {}), allLabel: 'Todas las facultades', options: activeFaculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name })) },
             { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
@@ -454,6 +479,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
                 </div>
               ),
             },
+            { label: 'Código', render: (career) => career.code ?? <span className="text-muted-foreground">Sin código</span> },
             { label: 'Facultad', render: (career) => <span className="text-muted-foreground">{career.faculty_name ?? `Facultad #${career.faculty_id}`}</span> },
             { label: 'Modalidad', render: (career) => <span className="text-muted-foreground">{career.modality_name ?? 'Sin modalidad'}</span> },
             { label: 'Estado', render: (career) => <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },
@@ -576,6 +602,7 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
         </TabsContent>
         <TabsContent value="data">
           <dl className="grid max-w-2xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+            <CareerDatum label="Código de carrera" value={career.code ?? 'Sin código'} />
             <CareerDatum label="Facultad" value={career.faculty_name ?? `Facultad #${career.faculty_id}`} />
             <CareerDatum label="Modalidad" value={career.modality_name ?? 'Sin modalidad'} />
             <CareerDatum label="Cantidad de ciclos" value={career.cycle_levels === 0 ? 'Sin ciclos' : `${career.cycle_levels} ${career.cycle_levels === 1 ? 'ciclo' : 'ciclos'}`} />
@@ -594,7 +621,7 @@ function CareerDetail({ career, siblings, onChange, onBack }: Readonly<{
           setCyclesVersion((version) => version + 1)
           // Mientras se vuelve a leer, se muestra lo guardado sin perder los datos que la respuesta no trae.
           const merged: Career = saved
-            ? { ...career, faculty_id: saved.faculty_id, name: saved.name, modality_id: saved.modality_id, status: saved.status }
+            ? { ...career, faculty_id: saved.faculty_id, name: saved.name, code: saved.code, modality_id: saved.modality_id, status: saved.status }
             : career
           await refreshCareer(merged)
         }}

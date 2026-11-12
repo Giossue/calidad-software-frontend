@@ -5,6 +5,7 @@ import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { ListPageSkeleton } from '@/components/ui/loading-skeletons'
 import { StatusBadge } from '@/components/ui/status-badge'
 import type { Career } from '@/lib/api'
+import { careerLabel } from '@/lib/career-label'
 import { FilterBar } from './filter-bar'
 import { ModuleHeader, RecordTable, ScopeNotice } from './tutoring-shared'
 import type { useTutoringCatalogs } from './tutoring-hooks'
@@ -36,7 +37,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect,
 }>) {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const filtered = catalogs.careers.filter((career) => career.name.toLowerCase().includes(search.trim().toLowerCase()))
+  const filtered = catalogs.careers.filter((career) => careerLabel(career, catalogs.careers).toLowerCase().includes(search.trim().toLowerCase()))
   const lastPage = Math.max(1, Math.ceil(filtered.length / CAREERS_PER_PAGE))
   const offset = (Math.min(page, lastPage) - 1) * CAREERS_PER_PAGE
   const rows = filtered.slice(offset, offset + CAREERS_PER_PAGE)
@@ -56,7 +57,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect,
       rowTitle={rowTitle}
       empty="No se encontraron carreras para esta búsqueda."
       columns={[
-        { label: 'Carrera', render: (career) => <div className="flex flex-col gap-0.5"><span>{career.name}</span>{career.modality_name && <span className="text-xs text-muted-foreground">{career.modality_name}</span>}</div> },
+        { label: 'Carrera', render: (career) => <div className="flex flex-col gap-0.5"><span>{careerLabel(career, catalogs.careers)}</span>{career.modality_name && <span className="text-xs text-muted-foreground">{career.modality_name}</span>}</div> },
         { label: 'Facultad', render: (career) => career.faculty_name ?? '—' },
         { label: 'Ciclos', render: (career) => career.cycle_levels > 0 ? `${career.cycle_levels} ciclos` : '—' },
         { label: 'Estado', render: (career) => <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },

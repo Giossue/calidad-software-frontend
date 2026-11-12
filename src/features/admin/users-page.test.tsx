@@ -79,6 +79,7 @@ const mockCareers: readonly Career[] = [
     faculty_id: 1,
     faculty_name: 'Facultad de Ingeniería',
     name: 'Ingeniería de Software',
+    code: 'SW-2020',
     modality_id: 1,
     status: true,
     cycles_count: 8,
@@ -90,6 +91,7 @@ const mockCareers: readonly Career[] = [
     faculty_id: 1,
     faculty_name: 'Facultad de Ingeniería',
     name: 'Ingeniería Civil',
+    code: 'IC-2020',
     modality_id: 1,
     status: true,
     cycles_count: 9,
@@ -101,6 +103,7 @@ const mockCareers: readonly Career[] = [
     faculty_id: 2,
     faculty_name: 'Facultad de Ciencias de la Salud',
     name: 'Enfermería',
+    code: 'ENF-2020',
     modality_id: 1,
     status: true,
     cycles_count: 8,
@@ -237,6 +240,28 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await user.click(careerSelect)
     expect(await screen.findByRole('option', { name: 'Enfermería' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Ingeniería de Software' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+  })
+
+  it('distingue por código las carreras que comparten nombre (otra malla)', async () => {
+    vi.mocked(api.listActiveCareers).mockResolvedValue([
+      ...mockCareers,
+      { ...mockCareers[0], id: 12, code: 'SW-2024' },
+    ])
+    const user = userEvent.setup()
+    render(<UsersPage />)
+
+    await screen.findByText('Carlos Docente')
+    await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
+    await fillPersonalData(user)
+    await next(user)
+    await choose(user, screen.getByLabelText(/^Rol en el sistema/), 'Coordinador de carrera')
+    await choose(user, await screen.findByLabelText(/^Facultad/), 'Facultad de Ingeniería')
+
+    await user.click(screen.getByLabelText(/^Carrera/))
+    expect(await screen.findByRole('option', { name: 'Ingeniería de Software · SW-2020' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Ingeniería de Software · SW-2024' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Ingeniería Civil' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
   })
 

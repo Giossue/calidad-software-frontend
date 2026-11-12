@@ -57,6 +57,8 @@ export interface Career {
   readonly modality_id: number | null
   readonly modality_name?: string
   readonly name: string
+  // Código de la carrera (su malla); las carreras previas pueden no tenerlo aún.
+  readonly code: string | null
   readonly status: boolean
   readonly cycles_count: number
   readonly active_cycles_count: number
@@ -179,6 +181,7 @@ export type FacultyInput = {
 export type CareerInput = {
   readonly faculty_id: number
   readonly name: string
+  readonly code: string
   readonly modality_id?: number | null
   readonly cycles_count?: number
 }

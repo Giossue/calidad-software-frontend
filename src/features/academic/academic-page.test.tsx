@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, type Career } from '@/lib/api'
 import { AcademicPage } from './academic-page'
 
-const career: Career = { id: 10, faculty_id: 1, faculty_name: 'Ingeniería', modality_id: null, name: 'Software', status: true, cycles_count: 4, active_cycles_count: 4, cycle_levels: 4 }
+const career: Career = { id: 10, faculty_id: 1, faculty_name: 'Ingeniería', modality_id: null, name: 'Software', code: 'SW-2020', status: true, cycles_count: 4, active_cycles_count: 4, cycle_levels: 4 }
 const meta = { current_page: 1, last_page: 1, per_page: 15, total: 1, from: 1, to: 1, active_count: 1, inactive_count: 0 }
 
 function CurrentLocation() {
@@ -69,7 +69,7 @@ describe('Edición de carreras', () => {
     expect(vi.mocked(api.updateCareer).mock.calls[0][1]).not.toHaveProperty('cycles_count')
   })
 
-  it('muestra la modalidad como opcional con un placeholder específico y valida nombre de carrera duplicado', async () => {
+  it('muestra la modalidad como opcional con un placeholder específico y valida código de carrera duplicado', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><AcademicPage /></MemoryRouter>)
     await user.click(await screen.findByRole('button', { name: 'Nueva carrera' }))
@@ -82,22 +82,68 @@ describe('Edición de carreras', () => {
     expect(within(dialog).queryByText('Se crean automáticamente los ciclos de la carrera.')).not.toBeInTheDocument()
     expect(within(dialog).queryByText('Asigna la nueva carrera a una facultad activa.')).not.toBeInTheDocument()
 
-    // Primero el nombre; nombre y facultad son obligatorios.
-    expect(dialog.querySelector('label')).toHaveTextContent(/^Nombre de la carrera/)
+    // Primero el nombre y luego el código; nombre, código y facultad son obligatorios.
+    const labels = dialog.querySelectorAll('label')
+    expect(labels[0]).toHaveTextContent(/^Nombre de la carrera/)
+    expect(labels[1]).toHaveTextContent(/^Código de carrera/)
     expect(within(dialog).getByRole('textbox', { name: 'Nombre de la carrera(obligatorio)' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('textbox', { name: 'Código de carrera(obligatorio)' })).toBeInTheDocument()
     expect(within(dialog).getByRole('combobox', { name: 'Facultad(obligatorio)' })).toBeInTheDocument()
 
-    // Intentar registrar una carrera con un nombre ya existente ("Software")
+    // Intentar registrar una carrera con un código ya existente ("SW-2020")
     await user.type(within(dialog).getByLabelText(/^Nombre de la carrera/), 'Software')
+    await user.type(within(dialog).getByLabelText(/^Código de carrera/), 'sw-2020')
     await choose(user, within(dialog).getByLabelText(/^Facultad/), 'Ingeniería')
     await user.click(within(dialog).getByRole('button', { name: 'Registrar carrera' }))
 
-    // El error se muestra una sola vez, en línea bajo el nombre (sin otro recuadro ni modal encima).
-    const messages = await within(dialog).findAllByText('Ya existe una carrera con este nombre.')
+    // El error se muestra una sola vez, en línea bajo el código (sin otro recuadro ni modal encima).
+    const messages = await within(dialog).findAllByText('Ya existe una carrera con este código.')
     expect(messages).toHaveLength(1)
-    expect(messages[0].closest('[data-slot="field"]')).toContainElement(within(dialog).getByLabelText(/^Nombre de la carrera/))
+    expect(messages[0].closest('[data-slot="field"]')).toContainElement(within(dialog).getByLabelText(/^Código de carrera/))
     expect(within(dialog).queryByText('Carrera ya registrada')).not.toBeInTheDocument()
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('registra otra malla de la carrera con el mismo nombre y otro código', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(api, 'createCareer').mockResolvedValue({ ...career, id: 11, code: 'SW-2024' })
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    await user.click(await screen.findByRole('button', { name: 'Nueva carrera' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar carrera' })
+
+    await user.type(within(dialog).getByLabelText(/^Nombre de la carrera/), 'Software')
+    await choose(user, within(dialog).getByLabelText(/^Facultad/), 'Ingeniería')
+    expect(within(dialog).getByRole('button', { name: 'Registrar carrera' })).toBeDisabled()
+    await user.type(within(dialog).getByLabelText(/^Código de carrera/), ' SW-2024 ')
+    await user.click(within(dialog).getByRole('button', { name: 'Registrar carrera' }))
+
+    await waitFor(() => expect(api.createCareer).toHaveBeenCalledWith(expect.objectContaining({ name: 'Software', code: 'SW-2024', faculty_id: 1 })))
+  })
+
+  it('exige el código al editar una carrera que aún no lo tiene', async () => {
+    const user = userEvent.setup()
+    const legacy = { ...career, code: null }
+    vi.mocked(api.listCareers).mockResolvedValue({ data: [legacy], meta })
+    vi.mocked(api.listActiveCareers).mockResolvedValue([legacy])
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    expect(within(await screen.findByRole('row', { name: /Software/ })).getByText('Sin código')).toBeInTheDocument()
+    const form = await openCareerEdit(user)
+    await user.type(within(form).getByLabelText(/^Nombre de la carrera/), ' II')
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    await user.type(within(form).getByLabelText(/^Código de carrera/), 'SW-2019')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(api.updateCareer).toHaveBeenCalledWith(10, expect.objectContaining({ name: 'Software II', code: 'SW-2019' })))
+  })
+
+  it('muestra el código en la lista y en los datos de la carrera', async () => {
+    const user = userEvent.setup()
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    const row = await screen.findByRole('row', { name: /Software/ })
+    expect(screen.getByRole('columnheader', { name: 'Código' })).toBeInTheDocument()
+    expect(within(row).getByText('SW-2020')).toBeInTheDocument()
+    await user.click(row)
+    await user.click(await screen.findByRole('tab', { name: 'Datos' }))
+    expect(screen.getByText('Código de carrera').nextElementSibling).toHaveTextContent('SW-2020')
   })
 
   it('conserva comas, puntos, guiones y paréntesis en el nombre de la carrera y del ciclo', async () => {

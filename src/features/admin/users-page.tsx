@@ -23,6 +23,7 @@ import { getPasswordRequirementHint, PASSWORD_MIN_LENGTH } from '@/lib/password-
 import { SelectField } from '@/components/ui/select-field'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
+import { careerLabel } from '@/lib/career-label'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
@@ -433,7 +434,7 @@ export function UsersPage() {
 
   const roleOptions = ROLE_OPTIONS.map((option) => ({ value: option.value, label: option.label }))
   const facultyOptions = faculties.map((faculty) => ({ value: String(faculty.id), label: faculty.name }))
-  const careerOptions = filteredCareers.map((career) => ({ value: String(career.id), label: career.name }))
+  const careerOptions = filteredCareers.map((career) => ({ value: String(career.id), label: careerLabel(career, filteredCareers) }))
   const cycleOptions = Array.from({ length: cycleLevels }, (_, index) => index + 1).map((number) => ({
     value: String(number),
     label: number === cycleLevels ? `Ciclo ${number} · Titulación` : `Ciclo ${number} · Tutorías`,
@@ -698,7 +699,7 @@ export function UsersPage() {
           filters={[
             { id: 'role', label: 'Rol', value: roleFilter, onChange: setRoleFilter, allLabel: 'Todos los roles', options: ROLE_OPTIONS.map((option) => ({ value: option.value, label: option.label })) },
             { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'pending' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activos' }, { value: 'pending', label: 'Pendientes de completar datos' }, { value: 'inactive', label: 'Inactivos' }] },
-            { id: 'career', label: 'Carrera', value: careerFilter, onChange: setCareerFilter, allLabel: 'Todas las carreras', options: filterCareers.map((career) => ({ value: String(career.id), label: career.name })) },
+            { id: 'career', label: 'Carrera', value: careerFilter, onChange: setCareerFilter, allLabel: 'Todas las carreras', options: filterCareers.map((career) => ({ value: String(career.id), label: careerLabel(career, filterCareers) })) },
           ]}
           onClear={() => { setSearchInput(''); setRoleFilter(''); setStatusFilter(''); setCareerFilter('') }}
         />

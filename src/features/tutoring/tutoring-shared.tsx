@@ -14,6 +14,7 @@ import { SearchInput } from '@/components/ui/search-input'
 import { SelectInput } from '@/components/ui/select-field'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Career } from '@/lib/api'
+import { careerLabel } from '@/lib/career-label'
 import { cn } from '@/lib/utils'
 import type { TutoringCatalogs } from './tutoring-hooks'
 
@@ -32,7 +33,7 @@ export function ModuleHeader({ title, description, createLabel, onCreate, disabl
 export function CatalogFilters({ search, onSearch, careerId, onCareer, careers }: Readonly<{ search: string; onSearch: (value: string) => void; careerId?: string; onCareer?: (value: string) => void; careers?: readonly Career[] }>) {
   return <FieldGroup className="flex flex-col gap-4 sm:flex-row" data-tour="page-filters">
     <FormField id="tutoring-search" label="Buscar" className="flex-1"><SearchInput id="tutoring-search" placeholder="Escribe para buscar…" value={search} onValueChange={onSearch} /></FormField>
-    {onCareer && <FormField id="tutoring-career-filter" label="Carrera" className="flex-1"><SelectInput id="tutoring-career-filter" value={careerId ?? ''} onValueChange={onCareer} emptyLabel="Todas mis carreras" options={(careers ?? []).map((career) => ({ value: String(career.id), label: career.name }))} /></FormField>}
+    {onCareer && <FormField id="tutoring-career-filter" label="Carrera" className="flex-1"><SelectInput id="tutoring-career-filter" value={careerId ?? ''} onValueChange={onCareer} emptyLabel="Todas mis carreras" options={(careers ?? []).map((career, _, all) => ({ value: String(career.id), label: careerLabel(career, all) }))} /></FormField>}
   </FieldGroup>
 }
 

@@ -20,8 +20,8 @@ const coordinator = {
 }
 
 const careers = [
-  { id: 1, name: 'Ingeniería de Software', status: true },
-  { id: 2, name: 'Administración', status: true },
+  { id: 1, name: 'Ingeniería de Software', code: 'SW-2020', status: true },
+  { id: 2, name: 'Administración', code: 'ADM-2020', status: true },
 ]
 
 function jsonResponse(data: unknown, status = 200) {
@@ -42,6 +42,15 @@ afterEach(() => {
 })
 
 describe('Asignación de carreras a coordinadores', () => {
+  it('distingue por código las carreras que comparten nombre', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ data: [...careers, { id: 3, name: 'Ingeniería de Software', code: 'SW-2024', status: true }] })))
+    render(<CoordinatorCareersDialog user={coordinator} onSaved={vi.fn()} onClose={vi.fn()} />)
+
+    expect(await screen.findByRole('checkbox', { name: 'Ingeniería de Software · SW-2020' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Ingeniería de Software · SW-2024' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Administración' })).toBeInTheDocument()
+  })
+
   it('carga la selección actual y guarda las carreras usando el token administrativo', async () => {
     tokenStore.set('admin-session')
     const fetchMock = vi.fn()

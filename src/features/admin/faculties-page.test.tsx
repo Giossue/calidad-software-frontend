@@ -7,7 +7,7 @@ import { api, type Career, type Faculty } from '@/lib/api'
 import { FacultiesPage } from './faculties-page'
 
 const faculty: Faculty = { id: 3, name: 'Facultad de Ingeniería', status: true, is_active: true, careers_count: 2, active_careers_count: 1 }
-const career: Career = { id: 10, faculty_id: 3, faculty_name: 'Facultad de Ingeniería', modality_id: 1, modality_name: 'Presencial', name: 'Software', status: true, cycles_count: 8, active_cycles_count: 8, cycle_levels: 8 }
+const career: Career = { id: 10, faculty_id: 3, faculty_name: 'Facultad de Ingeniería', modality_id: 1, modality_name: 'Presencial', name: 'Software', code: null, status: true, cycles_count: 8, active_cycles_count: 8, cycle_levels: 8 }
 const meta = { current_page: 1, last_page: 1, per_page: 15, total: 1, from: 1, to: 1, active_count: 1, inactive_count: 0 }
 
 function CurrentLocation() {

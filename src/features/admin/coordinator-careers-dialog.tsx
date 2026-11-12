@@ -8,6 +8,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet 
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApiError, type Career, type User } from '@/lib/api'
+import { careerLabel } from '@/lib/career-label'
 import { coordinatorCareersApi } from '@/lib/coordinator-careers-api'
 
 function describeError(error: unknown): string {
@@ -131,7 +132,7 @@ export function CoordinatorCareersDialog({ user, onClose, onSaved }: Readonly<{
                     onCheckedChange={(checked) => toggleCareer(career.id, checked === true)}
                     disabled={pending}
                   />
-                  <FieldLabel htmlFor={`coordinator-career-${career.id}`}>{career.name}</FieldLabel>
+                  <FieldLabel htmlFor={`coordinator-career-${career.id}`}>{careerLabel(career, careers)}</FieldLabel>
                 </Field>
               ))}
               {unavailableIds.map((id) => (
