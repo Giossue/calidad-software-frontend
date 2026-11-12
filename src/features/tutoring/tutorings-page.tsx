@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CheckIcon, PlusIcon, PowerIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { CheckIcon, PlusIcon, PowerIcon, XIcon } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { FieldError } from '@/components/ui/field'
 import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
@@ -22,23 +21,16 @@ import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import type { Section } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { findScheduleConflicts, type ScheduleConflict } from '@/lib/schedule-conflicts'
-import { DAY_LABELS, tutoringApi, WEEK_DAYS, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule, type TutoringScheduleItem } from '@/lib/tutoring-api'
+import { DAY_LABELS, tutoringApi, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { TutoringDetail } from './tutoring-detail'
+import { rowsFromSchedules, ScheduleEditor, scheduleSignature, toScheduleItems, validateScheduleRows, type ScheduleRow } from './schedule-editor'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
 import { RosterImportButton } from './roster-import-dialog'
 import { ModuleHeader, RecordTable } from './tutoring-shared'
 import { describeError, errorFieldOf, useOperation, useTutoringCatalogs } from './tutoring-hooks'
 import { ListScreenSkeleton } from './tutoring-skeletons'
-
-const SCHEDULE_TIME_OPTIONS = [
-  '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
-  '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
-  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
-  '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00',
-]
 
 export interface TutoringRowItem {
   id: string
@@ -140,7 +132,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [createTeachers, setCreateTeachers] = useState<readonly AvailableTeacher[]>([])
   const [createTeachersLoading, setCreateTeachersLoading] = useState(false)
   const [createTeachersError, setCreateTeachersError] = useState<string | null>(null)
-  const [createScheduleRows, setCreateScheduleRows] = useState<ScheduleRow[]>(defaultScheduleRows)
+  const [createScheduleRows, setCreateScheduleRows] = useState<ScheduleRow[]>([])
   // Los errores de validación en rojo aparecen solo tras intentar enviar.
   const [createAttempted, setCreateAttempted] = useState(false)
   // Paralelo de la tutoría: una fila de ciclo ya usada (su id) o un paralelo del catálogo
@@ -160,7 +152,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [editTeachers, setEditTeachers] = useState<readonly AvailableTeacher[]>([])
   const [editTeachersLoading, setEditTeachersLoading] = useState(false)
   const [editTeachersError, setEditTeachersError] = useState<string | null>(null)
-  const [editScheduleRows, setEditScheduleRows] = useState<ScheduleRow[]>(defaultScheduleRows)
+  const [editScheduleRows, setEditScheduleRows] = useState<ScheduleRow[]>([])
   const [editAttempted, setEditAttempted] = useState(false)
   const [editOriginalSchedules, setEditOriginalSchedules] = useState<readonly TutoringSchedule[]>([])
   const [editParallelIds, setEditParallelIds] = useState<string[]>([])
@@ -235,7 +227,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     }
     setCreatingTutoringSubject(subject)
     setCreatingTutoringCycle(cycle)
-    setCreateScheduleRows(defaultScheduleRows())
+    setCreateScheduleRows([])
     setCreateAttempted(false)
     setCreateError(null)
     setCreateErrorField(undefined)
@@ -342,7 +334,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
     // Set initial schedules
     const existing = (item.tutoring.schedules || item.schedules || []).filter((s) => s.is_active)
-    const initialRows = existing.length > 0 ? rowsFromSchedules(existing) : defaultScheduleRows()
+    const initialRows = rowsFromSchedules(existing)
     setEditScheduleRows(initialRows)
     setEditOriginalSchedules(existing)
 
@@ -570,7 +562,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     ? validateTutoringForm({ teacherId: createTeacherId, rows: createScheduleRows, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
     : chooserBlockReason
   const createDirty = createTeacherId !== '' || (creatingStep2 && (
-    scheduleSignature(createScheduleRows) !== scheduleSignature(defaultScheduleRows())
+    createScheduleRows.length > 0
     || createParallelIds.join(',') !== createInitialParallelIds.join(',')
   ))
 
@@ -627,7 +619,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       fields: ['schedules', 'cycle_id', 'parallel_id', 'parallel_ids'],
       content: creatingTutoringSubject && creatingTutoringCycle ? (
         <>
-          <ScheduleSection
+          <ScheduleEditor
             prefix="create"
             rows={createScheduleRows}
             error={createFieldError('schedules')}
@@ -774,7 +766,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             conflicts={editConflicts}
             disabled={editLocked}
           />
-          <ScheduleSection
+          <ScheduleEditor
             prefix="edit"
             rows={editScheduleRows}
             error={editFieldError('schedules')}
@@ -808,30 +800,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   </section>
 }
 
-const DEFAULT_TIMES = { start_time: '08:00', end_time: '10:00' }
-
-/** Una franja del horario: un día con su hora de inicio y de fin (una sola por día). */
-type ScheduleRow = { day: string; start_time: string; end_time: string }
-
-const defaultScheduleRows = (): ScheduleRow[] => [{ day: 'lunes', ...DEFAULT_TIMES }]
-
-/** Franjas guardadas: una por día, en el orden en que llegan (la última de cada día manda). */
-function rowsFromSchedules(schedules: readonly TutoringSchedule[]): ScheduleRow[] {
-  const rows: ScheduleRow[] = []
-  for (const schedule of schedules) {
-    const row = { day: schedule.day, start_time: schedule.start_time.slice(0, 5), end_time: schedule.end_time.slice(0, 5) }
-    const index = rows.findIndex((item) => item.day === schedule.day)
-    if (index >= 0) rows[index] = row
-    else rows.push(row)
-  }
-  return rows
-}
-
-// Huella del horario (orden de las filas irrelevante) para detectar cambios reales.
-function scheduleSignature(rows: readonly ScheduleRow[]): string {
-  return JSON.stringify(rows.map((row) => [row.day, row.start_time, row.end_time].join('|')).sort())
-}
-
 // Primer error de validación del formulario de tutoría (o null si es válido).
 function validateTutoringForm({ teacherId, rows, parallelRequired, parallelIds, conflicts }: Readonly<{
   teacherId: string
@@ -841,34 +809,12 @@ function validateTutoringForm({ teacherId, rows, parallelRequired, parallelIds, 
   conflicts: readonly ScheduleConflict[]
 }>): string | null {
   if (!teacherId) return 'Selecciona un docente para la tutoría.'
-  if (rows.length === 0) return 'Agrega al menos un horario para la tutoría.'
-  for (const [index, row] of rows.entries()) {
-    if (!row.day) return 'Selecciona el día de cada horario.'
-    const dayLabel = DAY_LABELS[row.day] ?? row.day
-    if (rows.findIndex((item) => item.day === row.day) !== index) return `El día ${dayLabel} ya tiene un horario.`
-    if (!row.start_time || !row.end_time) return `Selecciona la hora de inicio y fin para el día ${dayLabel}.`
-    if (row.start_time >= row.end_time) return `En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`
-  }
+  // El horario es opcional para el coordinador; una franja agregada sí tiene que ser válida.
+  const scheduleError = validateScheduleRows(rows)
+  if (scheduleError) return scheduleError
   if (parallelRequired && parallelIds.length === 0) return 'Selecciona el paralelo de la tutoría.'
   if (conflicts.length > 0) return describeConflicts(conflicts)
   return null
-}
-
-/**
- * Error en línea de una franja. Un rango imposible (fin antes del inicio) se marca en cuanto se
- * elige; lo que falta, solo tras intentar enviar.
- */
-function scheduleRowError(row: ScheduleRow, showMissing: boolean): string | null {
-  if (row.start_time && row.end_time && row.start_time >= row.end_time) return 'La hora de fin debe ser posterior a la de inicio.'
-  if (!showMissing) return null
-  if (!row.day) return 'Selecciona el día.'
-  if (!row.start_time || !row.end_time) return 'Selecciona la hora de inicio y de fin.'
-  return null
-}
-
-function timeOptions(current: string) {
-  const all = current && !SCHEDULE_TIME_OPTIONS.includes(current) ? [...SCHEDULE_TIME_OPTIONS, current].sort() : SCHEDULE_TIME_OPTIONS
-  return all.map((time) => ({ value: time, label: time }))
 }
 
 function TeacherSection({ prefix, teachers, loading, error, fieldError = null, value, onChange, conflicts = [], disabled = false }: Readonly<{
@@ -904,93 +850,6 @@ function TeacherSection({ prefix, teachers, loading, error, fieldError = null, v
       )}
       <ScheduleConflictNotice conflicts={conflicts} />
     </div>
-  )
-}
-
-/**
- * Horario: una fila por franja (día, desde, hasta y quitar) y «Agregar horario» debajo. Cada día
- * admite una sola franja, así que un día ya usado se ve deshabilitado en las demás filas.
- */
-function ScheduleSection({ prefix, rows, onChange, disabled = false, error = null, showErrors = false }: Readonly<{
-  prefix: 'create' | 'edit'
-  rows: readonly ScheduleRow[]
-  error?: string | null
-  /** Tras intentar enviar: marca en rojo lo que falta en cada fila. */
-  showErrors?: boolean
-  onChange: (rows: ScheduleRow[]) => void
-  disabled?: boolean
-}>) {
-  const numbered = rows.length > 1
-  const suffix = (index: number) => (numbered ? ` (horario ${index + 1})` : '')
-  const allDaysUsed = WEEK_DAYS.every((day) => rows.some((row) => row.day === day))
-
-  function update(index: number, patch: Partial<ScheduleRow>) {
-    onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)))
-  }
-
-  function add() {
-    // La fila nueva toma las horas de la anterior: casi siempre solo cambia el día.
-    const last = rows.at(-1)
-    onChange([...rows, { day: '', start_time: last?.start_time || DEFAULT_TIMES.start_time, end_time: last?.end_time || DEFAULT_TIMES.end_time }])
-  }
-
-  return (
-    <FormField id={`${prefix}-schedule-day-0`} label="Horario" required error={error}>
-      <div className="flex flex-col gap-2">
-        {rows.map((row, index) => {
-          const rowError = scheduleRowError(row, showErrors)
-          const usedElsewhere = new Set(rows.filter((_, i) => i !== index).map((item) => item.day))
-          return (
-            // Filas sin identidad propia: todos sus campos son controlados, así que la posición basta.
-            <div key={index} className="flex flex-col gap-1">
-              <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto_minmax(0,1fr)_2rem] items-center gap-2">
-                <SelectInput
-                  id={`${prefix}-schedule-day-${index}`}
-                  ariaLabel={`Día${suffix(index)}`}
-                  value={row.day}
-                  onValueChange={(day) => update(index, { day })}
-                  placeholder="Día"
-                  disabled={disabled}
-                  invalid={Boolean(rowError) && !row.day}
-                  options={WEEK_DAYS.map((day) => ({ value: day, label: DAY_LABELS[day] ?? day, disabled: usedElsewhere.has(day) }))}
-                />
-                <SelectInput
-                  id={`${prefix}-schedule-start-${index}`}
-                  ariaLabel={`Hora de inicio${suffix(index)}`}
-                  value={row.start_time}
-                  onValueChange={(value) => update(index, { start_time: value })}
-                  placeholder="Desde"
-                  disabled={disabled}
-                  invalid={Boolean(rowError) && Boolean(row.day)}
-                  options={timeOptions(row.start_time)}
-                />
-                <span className="text-sm text-muted-foreground">a</span>
-                <SelectInput
-                  id={`${prefix}-schedule-end-${index}`}
-                  ariaLabel={`Hora de fin${suffix(index)}`}
-                  value={row.end_time}
-                  onValueChange={(value) => update(index, { end_time: value })}
-                  placeholder="Hasta"
-                  disabled={disabled}
-                  invalid={Boolean(rowError) && Boolean(row.day)}
-                  options={timeOptions(row.end_time)}
-                />
-                {numbered ? (
-                  <Button type="button" variant="tertiary" tone="destructive" size="icon-sm" aria-label="Quitar horario" disabled={disabled} onClick={() => onChange(rows.filter((_, i) => i !== index))}>
-                    <Trash2Icon />
-                  </Button>
-                ) : <span aria-hidden="true" />}
-              </div>
-              {rowError && <FieldError>{rowError}</FieldError>}
-            </div>
-          )
-        })}
-      </div>
-      <Button type="button" variant="secondary" size="sm" className="self-start" disabled={disabled || allDaysUsed} onClick={add}>
-        <PlusIcon data-icon="inline-start" />
-        Agregar horario
-      </Button>
-    </FormField>
   )
 }
 
@@ -1142,14 +1001,6 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
       )}
     </FormField>
   )
-}
-
-function toScheduleItems(rows: readonly ScheduleRow[]): TutoringScheduleItem[] {
-  return rows.filter((row) => row.day).map((row) => ({
-    day: row.day,
-    start_time: (row.start_time || DEFAULT_TIMES.start_time).slice(0, 5),
-    end_time: (row.end_time || DEFAULT_TIMES.end_time).slice(0, 5),
-  }))
 }
 
 function describeConflict(conflict: ScheduleConflict): string {

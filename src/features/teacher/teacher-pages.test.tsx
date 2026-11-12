@@ -172,7 +172,7 @@ describe('Módulo Docente', () => {
     expect(teacherApi.allTutorings).toHaveBeenCalledTimes(1)
   })
 
-  it('permite al docente editar los días y horas de tutoría de la asignatura', async () => {
+  it('el docente edita el horario con filas (día, desde, hasta) y no puede guardarlo vacío', async () => {
     const user = userEvent.setup()
     const updatedSchedule = { id: 1, tutoring_id: 40, day: 'martes', start_time: '09:00', end_time: '11:00', room: 'Por asignar', is_active: true }
     vi.mocked(teacherApi.syncSchedules).mockImplementation(async () => {
@@ -182,29 +182,78 @@ describe('Módulo Docente', () => {
     workspace('schedules')
     expect(await screen.findByText('Sin horarios registrados')).toBeInTheDocument()
 
-    // Abre el modal de editar horarios
     await user.click(screen.getByRole('button', { name: 'Editar horarios' }))
-    expect(await screen.findByRole('dialog', { name: 'Editar horarios de tutoría' })).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Editar horarios de tutoría' })
+    const form = within(dialog).getByRole('form')
+    // Sin casillas de días: filas con «Agregar horario». Sin filas, «Guardar» se bloquea.
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
+    const addButton = within(dialog).getByRole('button', { name: 'Agregar horario' })
+    const field = addButton.closest('[data-slot="field"]') as HTMLElement
+    expect(field).toHaveTextContent('(obligatorio)')
+    const save = within(dialog).getByRole('button', { name: 'Guardar horarios' })
+    expect(save).toBeDisabled()
+    expect(within(dialog).queryByText('Agrega al menos un horario para la tutoría.')).not.toBeInTheDocument()
+    await user.hover(save.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Agrega al menos un horario para la tutoría.')
+    fireEvent.submit(form)
+    expect(await within(field).findByText('Agrega al menos un horario para la tutoría.')).toBeInTheDocument()
+    expect(teacherApi.syncSchedules).not.toHaveBeenCalled()
 
-    // Cambia los días: desmarca lunes y marca martes
-    await user.click(screen.getByLabelText('Lunes'))
-    await user.click(screen.getByLabelText('Martes'))
+    await user.click(addButton)
+    await choose(user, within(dialog).getByLabelText('Día'), 'Martes')
+    await choose(user, within(dialog).getByLabelText('Hora de inicio'), '09:00')
+    await choose(user, within(dialog).getByLabelText('Hora de fin'), '11:00')
+    expect(within(dialog).getByRole('button', { name: 'Quitar horario' })).toBeInTheDocument()
 
-    // Selecciona horario para martes
-    const startSelect = screen.getByLabelText(/Hora de inicio/i)
-    const endSelect = screen.getByLabelText(/Hora de fin/i)
-    await choose(user, startSelect, '09:00')
-    await choose(user, endSelect, '11:00')
-
-    // Guarda
     const success = vi.spyOn(sonnerToast, 'success')
-    await user.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+    await user.click(save)
     await waitFor(() => expect(success.mock.calls.at(-1)?.[0]).toMatch(/^Horarios de tutoría actualizados\.?$/))
-
     expect(teacherApi.syncSchedules).toHaveBeenCalledWith(40, [
       { day: 'martes', start_time: '09:00', end_time: '11:00', room: 'Por asignar' },
     ])
     expect(await screen.findByText('09:00 – 11:00')).toBeInTheDocument()
+  })
+
+  it('al editar el horario conserva el aula de cada día y envía lo mismo que antes', async () => {
+    const user = userEvent.setup()
+    const monday = { id: 9, tutoring_id: 40, day: 'lunes', start_time: '08:00:00', end_time: '10:00:00', room: 'Aula 1', is_active: true }
+    vi.mocked(teacherApi.allTutorings).mockResolvedValue([{ ...tutoring, schedules: [monday] }])
+    vi.mocked(teacherApi.syncSchedules).mockResolvedValue([monday])
+    workspace('schedules')
+    await user.click(await screen.findByRole('button', { name: 'Editar horarios' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Editar horarios de tutoría' })
+    expect(within(dialog).getByLabelText('Día')).toHaveTextContent('Lunes')
+    expect(within(dialog).getByLabelText('Hora de inicio')).toHaveTextContent('08:00')
+    await user.click(within(dialog).getByRole('button', { name: 'Agregar horario' }))
+    // Un día ya usado no se ofrece en otra fila.
+    await user.click(within(dialog).getByLabelText('Día (horario 2)'))
+    expect(await screen.findByRole('option', { name: 'Lunes' })).toHaveAttribute('aria-disabled', 'true')
+    await user.click(screen.getByRole('option', { name: 'Jueves' }))
+    await choose(user, within(dialog).getByLabelText('Hora de inicio (horario 2)'), '14:00')
+    await choose(user, within(dialog).getByLabelText('Hora de fin (horario 2)'), '16:00')
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar horarios' }))
+    await waitFor(() => expect(teacherApi.syncSchedules).toHaveBeenCalledWith(40, [
+      { day: 'lunes', start_time: '08:00', end_time: '10:00', room: 'Aula 1' },
+      { day: 'jueves', start_time: '14:00', end_time: '16:00', room: 'Por asignar' },
+    ]))
+  })
+
+  it('avisa en la tutoría y en «Mis tutorías» cuando aún no tiene horario', async () => {
+    const user = userEvent.setup()
+    const scheduled = { ...tutoring, id: 41, subject_name: 'Redes', schedules: [{ id: 9, tutoring_id: 41, day: 'lunes', start_time: '08:00:00', end_time: '10:00:00', room: 'Aula 1', is_active: true }] }
+    vi.mocked(teacherApi.tutorings).mockResolvedValue(paginated([tutoring, scheduled]))
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings')
+    await screen.findByText('Calidad de software')
+    expect(screen.getByRole('columnheader', { name: 'Horario' })).toBeInTheDocument()
+    expect(screen.getByText('Sin horario')).toBeInTheDocument()
+    expect(screen.getByText('Lunes 08:00 – 10:00')).toBeInTheDocument()
+
+    await user.click(screen.getByText('Calidad de software'))
+    await screen.findByRole('heading', { level: 1, name: 'Calidad de software' })
+    const notice = screen.getByText(/Esta tutoría aún no tiene horario: defínelo en/)
+    await user.click(within(notice).getByRole('button', { name: 'Horarios' }))
+    expect(await screen.findByRole('tab', { name: 'Horarios', selected: true })).toBeInTheDocument()
+    expect(screen.queryByText(/Esta tutoría aún no tiene horario/)).not.toBeInTheDocument()
   })
 
   it('no muestra un botón de volver en el espacio de trabajo: se vuelve desde el menú Mis tutorías', async () => {

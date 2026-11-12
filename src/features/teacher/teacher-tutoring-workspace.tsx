@@ -60,6 +60,12 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
       : <>
         <TutoringHeader tutoring={tutoring} />
         {!tutoring.can_manage && <Alert><AlertDescription>Esta tutoría o su período están inactivos. Puedes consultar su historial.</AlertDescription></Alert>}
+        {/* Sin horario no se puede tomar asistencia: se pide definirlo (en «Horarios» ya lo dice la lista vacía). */}
+        {tutoring.can_manage && tab !== 'schedules' && !(tutoring.schedules ?? []).some((schedule) => schedule.is_active) && (
+          <p className="text-sm text-warning">
+            Esta tutoría aún no tiene horario: defínelo en «<button type="button" className="font-medium underline underline-offset-4" onClick={() => selectTab('schedules')}>Horarios</button>».
+          </p>
+        )}
         <Tabs value={tab} onValueChange={selectTab}>
           <TabsList aria-label="Secciones de la tutoría">{TABS.map((item) => <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>)}</TabsList>
           {/* key: al cambiar de tutoría no se reutiliza el estado de la anterior. */}

@@ -677,12 +677,13 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByRole('option', { name: /ana@ueb.edu.ec/ })).not.toBeInTheDocument()
     await user.click(screen.getByRole('option', { name: 'Ana Torres' }))
     await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
-    // Paso 2: horario y paralelo
-    expect(within(form).getAllByText('(obligatorio)')).toHaveLength(2)
+    // Paso 2: horario y paralelo. El horario es opcional: solo el paralelo lleva asterisco.
+    expect(within(form).getAllByText('(obligatorio)')).toHaveLength(1)
 
     // Asignar horario según el día (por ejemplo lunes 14:00-16:00 y miércoles 16:00-18:00, sin aula)
     expect(within(form).queryByLabelText(/Aula/)).not.toBeInTheDocument()
-    expect(within(form).getByLabelText('Día')).toHaveTextContent('Lunes')
+    await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
+    await choose(user, within(form).getByLabelText('Día'), 'Lunes')
     await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
     await choose(user, within(form).getByLabelText('Día (horario 2)'), 'Miércoles')
 
@@ -726,6 +727,8 @@ describe('Coordinación de tutorías', () => {
     await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
 
     // Lunes 08:00-10:00 se cruza con Física (09:00-11:00).
+    await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
+    await choose(user, within(form).getByLabelText('Día'), 'Lunes')
     expect(within(form).getByRole('alert')).toHaveTextContent('Física (Lunes de 09:00 a 11:00)')
     expect(within(form).getByRole('button', { name: 'Crear tutoría' })).toBeDisabled()
 
@@ -1716,7 +1719,7 @@ describe('Crear tutoría: docente con la asignatura, horario por filas y paralel
     // Paso 2: horario y paralelo, sin el docente.
     expect(within(form).queryByLabelText(/^Docente/)).not.toBeInTheDocument()
     expect(within(form).getByRole('radiogroup', { name: 'Paralelo' })).toBeInTheDocument()
-    expect(within(form).getByLabelText('Día')).toHaveTextContent('Lunes')
+    expect(within(form).getByRole('button', { name: 'Agregar horario' })).toBeInTheDocument()
   })
 
   it('el paralelo nuevo se crea desde «+»: el campo aparece al pulsarlo, Enter lo crea y queda elegido', async () => {
@@ -1759,26 +1762,51 @@ describe('Crear tutoría: docente con la asignatura, horario por filas y paralel
     expect(within(form).queryByText('El paralelo ya existe.')).not.toBeInTheDocument()
   })
 
-  it('el horario es una lista de filas: se agregan y quitan, cada fila pide día y la hora de fin va después de la de inicio', async () => {
+  it('el horario es opcional: sin filas no lleva asterisco y la tutoría se crea sin horarios', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.createTutoring).mockResolvedValue(tutoring)
+    const form = await openCreate(user)
+    await goToStep2(user, form)
+    // Empieza sin filas: solo «Agregar horario».
+    expect(within(form).queryByLabelText(/^Día/)).not.toBeInTheDocument()
+    expect(within(form).queryByRole('button', { name: 'Quitar horario' })).not.toBeInTheDocument()
+    const scheduleField = within(form).getByRole('button', { name: 'Agregar horario' }).closest('[data-slot="field"]') as HTMLElement
+    expect(scheduleField).toHaveTextContent('Horario')
+    expect(scheduleField).not.toHaveTextContent('(obligatorio)')
+    expect(scheduleField).not.toHaveTextContent('*')
+
+    await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
+    await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledWith({
+      subject_id: 30,
+      cycle_id: 20,
+      period_id: 50,
+      modality_id: 60,
+      teacher_id: 70,
+      schedules: [],
+    }))
+  })
+
+  it('el horario es una lista de filas: se agregan y quitan (también la última), cada fila pide día y la hora de fin va después de la de inicio', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.createTutoring).mockResolvedValue(tutoring)
     const form = await openCreate(user)
     await goToStep2(user, form)
     const submit = within(form).getByRole('button', { name: 'Crear tutoría' })
-    // Una fila inicial (Lunes 08:00-10:00) que no se puede quitar.
-    expect(within(form).queryByRole('button', { name: 'Quitar horario' })).not.toBeInTheDocument()
     expect(submit).toBeEnabled()
 
+    // La fila agregada no tiene día: bloquea sin error rojo hasta intentar enviar.
     await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
-    expect(within(form).getAllByRole('button', { name: 'Quitar horario' })).toHaveLength(2)
-    // La fila nueva no tiene día: bloquea sin error rojo hasta intentar enviar.
-    expect(within(form).getByLabelText('Día (horario 2)')).toHaveTextContent('Día')
+    expect(within(form).getAllByRole('button', { name: 'Quitar horario' })).toHaveLength(1)
+    expect(within(form).getByLabelText('Día')).toHaveTextContent('Día')
     expect(submit).toBeDisabled()
     expect(within(form).queryByText('Selecciona el día.')).not.toBeInTheDocument()
     fireEvent.submit(form)
     expect(await within(form).findByText('Selecciona el día.')).toBeInTheDocument()
     expect(tutoringApi.createTutoring).not.toHaveBeenCalled()
+    await choose(user, within(form).getByLabelText('Día'), 'Lunes')
 
+    await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
+    expect(within(form).getAllByRole('button', { name: 'Quitar horario' })).toHaveLength(2)
     // Un día ya usado no se ofrece en otra fila.
     await user.click(within(form).getByLabelText('Día (horario 2)'))
     expect(await screen.findByRole('option', { name: 'Lunes' })).toHaveAttribute('aria-disabled', 'true')
@@ -1792,10 +1820,10 @@ describe('Crear tutoría: docente con la asignatura, horario por filas y paralel
     await choose(user, within(form).getByLabelText('Hora de fin (horario 2)'), '12:00')
     expect(within(form).queryByText('La hora de fin debe ser posterior a la de inicio.')).not.toBeInTheDocument()
 
-    // Quitar la primera fila deja solo la del miércoles.
+    // Quitar la primera fila deja solo la del miércoles, que también se puede quitar.
     await user.click(within(form).getAllByRole('button', { name: 'Quitar horario' })[0])
     expect(within(form).getByLabelText('Día')).toHaveTextContent('Miércoles')
-    expect(within(form).queryByRole('button', { name: 'Quitar horario' })).not.toBeInTheDocument()
+    expect(within(form).getAllByRole('button', { name: 'Quitar horario' })).toHaveLength(1)
 
     await user.click(submit)
     await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledWith({
@@ -1806,6 +1834,19 @@ describe('Crear tutoría: docente con la asignatura, horario por filas y paralel
       teacher_id: 70,
       schedules: [{ day: 'miercoles', start_time: '11:00', end_time: '12:00' }],
     }))
+  })
+
+  it('quitar la última fila deja la tutoría sin horario y se puede crear así', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.createTutoring).mockResolvedValue(tutoring)
+    const form = await openCreate(user)
+    await goToStep2(user, form)
+    await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
+    await choose(user, within(form).getByLabelText('Día'), 'Martes')
+    await user.click(within(form).getByRole('button', { name: 'Quitar horario' }))
+    expect(within(form).queryByLabelText(/^Día/)).not.toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
+    await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledWith(expect.objectContaining({ schedules: [] })))
   })
 
   it('sin paralelo elegido no hay error rojo hasta intentar crear la tutoría', async () => {

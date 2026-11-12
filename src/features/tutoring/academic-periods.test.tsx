@@ -149,7 +149,7 @@ describe('Tutorías por período académico', () => {
       period_id: 50,
       modality_id: 60,
       teacher_id: 70,
-      schedules: [{ day: 'lunes', start_time: '08:00', end_time: '10:00' }],
+      schedules: [],
     }))
   })
 
@@ -175,7 +175,7 @@ describe('Tutorías por período académico', () => {
     await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
   }
 
-  const expectedBase = { subject_id: 30, period_id: 50, modality_id: 60, teacher_id: 70, schedules: [{ day: 'lunes', start_time: '08:00', end_time: '10:00' }] }
+  const expectedBase = { subject_id: 30, period_id: 50, modality_id: 60, teacher_id: 70, schedules: [] }
 
   it('sin paralelos en el ciclo ofrece los del catálogo y envía el ciclo base con `parallel_id`', async () => {
     const user = userEvent.setup()

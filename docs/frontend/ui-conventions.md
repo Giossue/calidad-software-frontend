@@ -147,6 +147,13 @@ dependen del período; las tutorías sí.
   dentro del modal. El motivo por el que "Guardar" o "Siguiente" está bloqueado no se
   repite en el modal (los obligatorios ya llevan asterisco): se lee en el tooltip del
   botón bloqueado.
+- **Horario de una tutoría**: un solo editor (`src/features/tutoring/schedule-editor.tsx`)
+  para coordinador y docente. Filas [Día] [Hora de inicio] a [Hora de fin] [papelera
+  «Quitar horario»] y «Agregar horario» debajo; un día por fila (los usados se
+  deshabilitan en las demás) y el fin después del inicio. Puede quedar sin filas: para
+  el coordinador «Horario» es opcional; para el docente es obligatorio (asterisco y
+  «Guardar horarios» bloqueado sin filas). Una tutoría sin horario dice «Sin horario»
+  en «Mis tutorías» y, al abrirla, una línea pide definirlo en «Horarios».
 - Etiquetas de botón con verbo concreto ("Crear tutoría", "Guardar cambios"); nunca
   "Aceptar" u "OK". Placeholders con ejemplo: "Ej. maria.perez@ueb.edu.ec".
 

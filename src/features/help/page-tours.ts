@@ -279,7 +279,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     table('Metodologías de la actividad. Haz clic en una para editarla.'),
   ],
   'teacher-tutorings/schedules': [
-    step({ button: 'Editar horarios' }, 'Editar horarios', 'Configura los días y horas en que se dicta la tutoría. Sin horario no se puede tomar asistencia.'),
+    step({ button: 'Editar horarios' }, 'Editar horarios', 'Agrega una fila por día con su hora de inicio y de fin. Sin horario no se puede tomar asistencia.'),
     table('Horarios actuales de la tutoría.'),
   ],
   'teacher-tutorings/students': [
