@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, PencilIcon, PowerOffIcon, XIcon } from 'lucide-react'
+import { ArrowLeftIcon, PencilIcon, XIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,6 @@ export function TeacherDetail({
   pending,
   onBack,
   onEdit,
-  onDeactivate,
   onUnlink,
 }: Readonly<{
   teacher: Teacher
@@ -28,7 +27,6 @@ export function TeacherDetail({
   pending: boolean
   onBack: () => void
   onEdit: () => void
-  onDeactivate: () => void
   onUnlink: (career: Career) => void
 }>) {
   const manageable = teacher.can_manage && teacher.is_active
@@ -52,14 +50,9 @@ export function TeacherDetail({
           <div className="flex items-center gap-2">
             <StatusBadge active={teacher.is_active} />
             {manageable && (
-              <>
-                <Button type="button" variant="tertiary" size="icon" aria-label="Editar docente" disabled={pending} onClick={onEdit}>
-                  <PencilIcon />
-                </Button>
-                <Button type="button" variant="tertiary" size="icon" tone="destructive" aria-label="Desactivar docente" disabled={pending} onClick={onDeactivate}>
-                  <PowerOffIcon />
-                </Button>
-              </>
+              <Button type="button" variant="tertiary" size="icon" aria-label="Editar docente" disabled={pending} onClick={onEdit}>
+                <PencilIcon />
+              </Button>
             )}
           </div>
         }

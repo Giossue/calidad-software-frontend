@@ -610,12 +610,11 @@ describe('Coordinación de tutorías', () => {
     expect(within(form).getByLabelText('Identificación válida')).toBeInTheDocument()
   })
 
-  it('edita y desactiva un docente gestionable desde su pantalla, que se abre con el clic de fila', async () => {
+  it('edita un docente gestionable desde su pantalla, que se abre con el clic de fila, y no ofrece desactivar su cuenta', async () => {
     const user = userEvent.setup()
     const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [10], can_manage: true }
     vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher]))
     vi.mocked(tutoringApi.updateTeacher).mockResolvedValue({ ...teacher, name: 'Ana María Torres' })
-    vi.mocked(tutoringApi.deactivateTeacher).mockResolvedValue({ ...teacher, is_active: false })
     renderTeachers()
 
     await user.click(await screen.findByTitle('Abrir a Ana Torres'))
@@ -629,9 +628,8 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.updateTeacher).toHaveBeenCalledWith(1, { identification: '0201234567', name: 'Ana María Torres', email: 'ana@ueb.edu.ec', phone: '0999999999' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Ana María Torres' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Desactivar docente' }))
-    await user.click(within(await screen.findByRole('dialog', { name: '¿Desactivar docente?' })).getByRole('button', { name: 'Desactivar docente' }))
-    await waitFor(() => expect(tutoringApi.deactivateTeacher).toHaveBeenCalledWith(1))
+    // Desactivar la cuenta es tarea del administrador: el coordinador solo lo quita de su carrera.
+    expect(screen.queryByRole('button', { name: 'Desactivar docente' })).not.toBeInTheDocument()
   })
 
   it('filtra docentes por estado', async () => {

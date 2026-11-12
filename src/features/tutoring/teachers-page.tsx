@@ -59,7 +59,6 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
   const [editing, setEditing] = useState<Teacher | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [initialForm, setInitialForm] = useState(EMPTY_FORM)
-  const [deactivating, setDeactivating] = useState<Teacher | null>(null)
   const [unlinking, setUnlinking] = useState<{ teacher: Teacher; careerId: number; careerName: string } | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkCareerId, setLinkCareerId] = useState('')
@@ -176,7 +175,6 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
         pending={operation.pending}
         onBack={detail.close}
         onEdit={() => edit(detailTeacher)}
-        onDeactivate={() => { operation.clearError(); setDeactivating(detailTeacher) }}
         onUnlink={(career) => { operation.clearError(); setUnlinking({ teacher: detailTeacher, careerId: career.id, careerName: career.name }) }}
       />
     ) : detail.id !== null ? (
@@ -288,11 +286,6 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
       if (!unlinking) return
       let updated: Teacher | null = null
       void operation.run(async () => { updated = await tutoringApi.unlinkTeacherFromCareer(unlinking.teacher.id, unlinking.careerId) }, 'Docente quitado de la carrera', async () => { setUnlinking(null); if (updated) setOpenedTeacher(updated); await list.reload() })
-    }} />
-    <ConfirmModal open={Boolean(deactivating)} title="¿Desactivar docente?" description={`La cuenta de «${deactivating?.name ?? ''}» perderá el acceso y no podrá recibir nuevas asignaciones de tutorías.`} confirmLabel="Desactivar docente" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => {
-      if (!deactivating) return
-      let updated: Teacher | null = null
-      void operation.run(async () => { updated = await tutoringApi.deactivateTeacher(deactivating.id) }, 'Docente desactivado', async () => { setDeactivating(null); setOpen(false); if (updated) setOpenedTeacher(updated); await list.reload() })
     }} />
   </section>
 }

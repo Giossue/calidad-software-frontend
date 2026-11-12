@@ -255,7 +255,6 @@ export const tutoringApi = {
   unlinkTeacherFromCareer: (teacherId: number, careerId: number) => mutate<Teacher>(`teachers/${teacherId}/careers/${careerId}`, 'DELETE'),
   createTeacher: (input: TeacherInput) => mutate<Teacher>('teachers', 'POST', input),
   updateTeacher: (id: number, input: Omit<TeacherInput, 'career_id'>) => mutate<Teacher>(`teachers/${id}`, 'PATCH', input),
-  deactivateTeacher: (id: number) => mutate<Teacher>(`teachers/${id}/deactivate`, 'PATCH'),
   tutorings: (params?: TutoringListParams) => list<Tutoring>('tutorings', params),
   createTutoring: (input: TutoringInput) => mutate<Tutoring>('tutorings', 'POST', input),
   updateTutoring: (id: number, input: Pick<TutoringInput, 'period_id' | 'modality_id'>) => mutate<Tutoring>(`tutorings/${id}`, 'PATCH', input),
