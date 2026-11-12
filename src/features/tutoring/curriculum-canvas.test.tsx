@@ -224,10 +224,10 @@ describe('Malla visual (lienzo como en sílabos)', () => {
   it('una carrera sin asignaturas invita a importar la malla o registrar una asignatura', async () => {
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([]))
     renderCurriculum()
-    expect(await screen.findByText(/Usa «Importar malla» para crearlas desde el archivo de la malla o «Nueva asignatura»/)).toBeInTheDocument()
+    expect(await screen.findByText(/Usa «Importar malla» para crearlas desde el archivo de la malla o «Editar malla»/)).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Vista de la malla' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Importar malla' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Nueva asignatura' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nueva asignatura' })).not.toBeInTheDocument()
   })
 })
 

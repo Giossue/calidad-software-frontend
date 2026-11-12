@@ -205,8 +205,6 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
         <ModuleHeader
           title="Malla curricular"
           description={`Asignaturas de ${careerName} por ciclo y sus previas. Haz clic en una para abrirla.`}
-          createLabel="Nueva asignatura"
-          onCreate={() => openForm('create', null)}
           disabled={operation.pending || catalogs.loading}
           extraActions={
             <>
@@ -237,7 +235,7 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
             {filtered
               ? 'No hay asignaturas con estos filtros.'
               : subjects.length === 0
-                ? 'Esta carrera aún no tiene asignaturas. Usa «Importar malla» para crearlas desde el archivo de la malla o «Nueva asignatura» para registrarlas una a una.'
+                ? 'Esta carrera aún no tiene asignaturas. Usa «Importar malla» para crearlas desde el archivo de la malla o «Editar malla» para agregarlas una a una.'
                 : 'Esta carrera no tiene asignaturas activas.'}
           </EmptyState>
         ) : canvas}

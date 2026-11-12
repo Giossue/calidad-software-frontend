@@ -74,7 +74,7 @@ function renderCurriculum(initialEntries?: string[]) {
 // Con una sola carrera el módulo entra directo a ella.
 async function openCurriculum() {
   renderCurriculum()
-  await screen.findByRole('button', { name: 'Nueva asignatura' })
+  await screen.findByRole('button', { name: 'Editar malla' })
 }
 
 /** Docentes guarda el docente abierto en la URL: se monta dentro de un router. */
@@ -82,10 +82,16 @@ function renderTeachers() {
   return render(<MemoryRouter><TutoringTeachersPage /></MemoryRouter>)
 }
 
-/** Abre «Nueva asignatura», escribe el nombre (y el código) y pasa al paso de ciclo y paralelos. */
+/** Las asignaturas nuevas se agregan desde «Editar malla», en el carril de su ciclo. */
+async function openNewSubjectForm(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Editar malla' })).toBeEnabled())
+  await user.click(screen.getByRole('button', { name: 'Editar malla' }))
+  await user.click((await screen.findAllByRole('button', { name: /^Agregar asignatura al/ }))[0])
+}
+
+/** Abre una asignatura nueva, escribe el nombre (y el código) y pasa al paso de ciclo y paralelos. */
 async function fillSubjectData(user: ReturnType<typeof userEvent.setup>, name: string, code?: string) {
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Nueva asignatura' })).toBeEnabled())
-  await user.click(screen.getByRole('button', { name: 'Nueva asignatura' }))
+  await openNewSubjectForm(user)
   const form = screen.getByRole('form', { name: 'Registrar asignatura' })
   if (code) await user.type(within(form).getByLabelText(/^Código/), code)
   await user.type(within(form).getByLabelText(/^Nombre/), name)
@@ -139,7 +145,7 @@ describe('Coordinación de tutorías', () => {
     fireEvent.submit(form)
     fireEvent.submit(form)
     expect(tutoringApi.createSubject).toHaveBeenCalledTimes(1)
-    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', period_id: 50 })
+    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', cycle_id: 20, period_id: 50 })
     expect(within(form).getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     await act(async () => reject(new ApiError(422, { message: 'No se pudo guardar.', errors: { code: ['El código ya existe.'] } })))
     // El error es del código (paso 1): el formulario vuelve a ese paso, con el error dentro y sin toast.
@@ -249,8 +255,7 @@ describe('Coordinación de tutorías', () => {
   it('sanea los caracteres del código y el nombre al registrar una asignatura', async () => {
     const user = userEvent.setup()
     await openCurriculum()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Nueva asignatura' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Nueva asignatura' }))
+    await openNewSubjectForm(user)
     const form = screen.getByRole('form', { name: 'Registrar asignatura' })
 
     const code = within(form).getByLabelText(/^Código/)
@@ -342,7 +347,7 @@ describe('Coordinación de tutorías', () => {
     renderCurriculum(['/?asignatura=99'])
     expect(await screen.findByText('No encontramos esta asignatura en la carrera.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Volver a la malla' }))
-    expect(await screen.findByRole('button', { name: 'Nueva asignatura' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Editar malla' })).toBeInTheDocument()
   })
 
   it('una carrera sin asignaturas invita a importar la malla', async () => {
@@ -424,7 +429,7 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByLabelText('Buscar carrera')).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Busca por nombre de carrera…')).not.toBeInTheDocument()
     await act(async () => resolveCareers([career]))
-    expect(await screen.findByRole('button', { name: 'Nueva asignatura' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Editar malla' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Buscar carrera')).not.toBeInTheDocument()
   })
   it('al abrir un docente desde la URL, mientras carga muestra la forma de su ficha y no la lista', async () => {
@@ -1120,7 +1125,7 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'MATEMATICA I' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Volver a la malla' }))
-    expect(await screen.findByRole('button', { name: 'Nueva asignatura' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Editar malla' })).toBeInTheDocument()
   })
 
   it('pide confirmación antes de desactivar una asignatura', async () => {

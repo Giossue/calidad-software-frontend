@@ -114,7 +114,6 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     careerBack,
     step(HEADER, 'Malla curricular', 'La malla de la carrera como en la malla oficial: un carril por ciclo y las previas como flechas. Aquí la administras.'),
     step('[data-tour="curriculum-import"]', 'Importar malla', 'Sube la malla en Excel, CSV o PDF, revisa y corrige cada asignatura e impórtala: se crean las asignaturas con su ciclo y sus previas.'),
-    step(CREATE, 'Nueva asignatura', 'Agrega una asignatura suelta indicando su ciclo.'),
     step('[data-tour="curriculum-edit"]', 'Editar malla', 'Abre la malla a pantalla completa para agregar asignaturas en cada ciclo, editarlas y conectar sus previas.'),
     filters('Busca por nombre o código; elige «Inactivas» para ver las asignaturas desactivadas.'),
     step('[data-tour="curriculum-canvas"]', 'Malla', 'Cada flecha va de una previa a la asignatura que la requiere. Usa los controles de zoom o la leyenda de arriba y haz clic en una asignatura para abrirla.'),
