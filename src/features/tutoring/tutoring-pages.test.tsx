@@ -540,6 +540,30 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.linkTeacherToCareer).toHaveBeenCalledWith(70, career.id))
   })
 
+  it('bloquea el correo y la cédula de un docente que ya completó su perfil; antes, se pueden corregir', async () => {
+    const user = userEvent.setup()
+    const pending = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [10], can_manage: true, profile_completed: false }
+    const verified = { ...pending, id: 2, name: 'Luis Mora', identification: '1710034065', email: 'luis@ueb.edu.ec', profile_completed: true }
+    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([pending, verified]))
+    renderTeachers()
+
+    await user.click(await screen.findByTitle('Abrir a Luis Mora'))
+    await user.click(await screen.findByRole('button', { name: 'Editar docente' }))
+    let form = screen.getByRole('form', { name: 'Editar docente' })
+    expect(within(form).getByLabelText(/^Cédula o pasaporte/)).toBeDisabled()
+    expect(within(form).getByLabelText(/^Correo institucional/)).toBeDisabled()
+    expect(within(form).getByText('El docente ya completó su perfil: su cédula no se puede cambiar.')).toBeInTheDocument()
+    expect(within(form).getByText('El docente ya completó su perfil: su correo no se puede cambiar.')).toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Cancelar' }))
+    await user.click(await screen.findByRole('button', { name: 'Volver a docentes' }))
+
+    await user.click(await screen.findByTitle('Abrir a Ana Torres'))
+    await user.click(await screen.findByRole('button', { name: 'Editar docente' }))
+    form = screen.getByRole('form', { name: 'Editar docente' })
+    expect(within(form).getByLabelText(/^Cédula o pasaporte/)).toBeEnabled()
+    expect(within(form).getByLabelText(/^Correo institucional/)).toBeEnabled()
+  })
+
   it('Docentes muestra una fila por docente con nombre, correo, teléfono y estado (las asignaturas están en Tutorías)', async () => {
     const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [career.id], can_manage: true,
       tutorings: [{ id: 40, subject_name: 'ALGEBRA LINEAL', cycle_name: 'Primero', cycle_number: 1, section_name: 'A' }, { id: 41, subject_name: 'PROGRAMACION WEB I', cycle_name: 'Tercero', cycle_number: 3, section_name: 'Paralelo B' }] }

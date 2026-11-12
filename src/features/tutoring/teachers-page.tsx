@@ -57,6 +57,8 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
   const operation = useOperation()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Teacher | null>(null)
+  // Cédula y correo quedan fijos una vez que el docente confirmó sus datos al ingresar.
+  const identityLocked = Boolean(editing?.profile_completed)
   const [form, setForm] = useState(EMPTY_FORM)
   const [initialForm, setInitialForm] = useState(EMPTY_FORM)
   const [unlinking, setUnlinking] = useState<{ teacher: Teacher; careerId: number; careerName: string } | null>(null)
@@ -124,8 +126,13 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const careerId = Number(form.career_id) || Number(careerFilter) || (catalogs.careers[0]?.id ?? 0)
-    // La cédula de un docente ya registrado no se modifica.
-    const input = { identification: editing ? editing.identification : form.identification.trim(), name: form.name.trim(), email: form.email.trim().toLowerCase(), phone: form.phone.trim() }
+    // Si el docente ya completó su perfil, su cédula y su correo no se modifican.
+    const input = {
+      identification: editing && identityLocked ? editing.identification : form.identification.trim(),
+      name: form.name.trim(),
+      email: editing && identityLocked ? editing.email : form.email.trim().toLowerCase(),
+      phone: form.phone.trim(),
+    }
     let updated: Teacher | null = null
     void operation.run(
       async () => {
@@ -144,7 +151,8 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
 
   // Errores de validación en vivo; el primero bloquea "Guardar" y se explica en su tooltip.
   const teacherErrors: Partial<Record<'identification' | 'name' | 'email' | 'phone', string>> = {}
-  if (!editing) {
+  // Al editar solo se valida la cédula si cambió (los datos ya registrados no bloquean «Guardar»).
+  if (!identityLocked && (!editing || form.identification.trim() !== editing.identification)) {
     if (!form.identification.trim()) teacherErrors.identification = 'La cédula o pasaporte es obligatoria.'
     else if (!isValidIdentification(form.identification)) teacherErrors.identification = 'La cédula o pasaporte no es válida.'
   }
@@ -251,13 +259,13 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
       <FormField
         id="teacher-identification"
         label="Cédula o pasaporte"
-        required={!editing}
-        tip={editing ? 'La cédula o pasaporte ya registrado no se puede modificar.' : undefined}
+        required={!identityLocked}
+        tip={identityLocked ? 'El docente ya completó su perfil: su cédula no se puede cambiar.' : undefined}
         counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }}
-        error={operation.fieldError('identification') ?? (editing ? null : (form.identification && shouldShowIdentificationStatus(form.identification) ? teacherErrors.identification : null))}
+        error={operation.fieldError('identification') ?? (identityLocked ? null : (form.identification && shouldShowIdentificationStatus(form.identification) ? teacherErrors.identification : null))}
       >
         <div className="relative flex items-center">
-          <Input id="teacher-identification" aria-invalid={Boolean(operation.fieldError('identification'))} value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required disabled={Boolean(editing)} maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
+          <Input id="teacher-identification" aria-invalid={Boolean(operation.fieldError('identification'))} value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} required disabled={identityLocked} maxLength={10} autoComplete="off" placeholder="0102030405 o AB1234567" className={cn(shouldShowIdentificationStatus(form.identification) && 'pr-9')} />
           {shouldShowIdentificationStatus(form.identification) && (
             isValidIdentification(form.identification)
               ? <CheckCircle2Icon className="absolute right-3 size-4 text-success" aria-label="Identificación válida" />
@@ -265,8 +273,8 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
           )}
         </div>
       </FormField>
-      <FormField id="teacher-email" label="Correo institucional" required counter={{ current: form.email.length, max: 150 }} error={operation.fieldError('email') ?? (form.email ? teacherErrors.email : null)}>
-        <Input id="teacher-email" aria-invalid={Boolean(operation.fieldError('email') ?? (form.email && teacherErrors.email))} type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value.slice(0, 150) })} required maxLength={150} placeholder="docente@ueb.edu.ec" />
+      <FormField id="teacher-email" label="Correo institucional" required={!identityLocked} tip={identityLocked ? 'El docente ya completó su perfil: su correo no se puede cambiar.' : undefined} counter={{ current: form.email.length, max: 150 }} error={operation.fieldError('email') ?? (form.email ? teacherErrors.email : null)}>
+        <Input id="teacher-email" aria-invalid={Boolean(operation.fieldError('email') ?? (form.email && teacherErrors.email))} type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value.slice(0, 150) })} required disabled={identityLocked} maxLength={150} placeholder="docente@ueb.edu.ec" />
       </FormField>
       <FormField id="teacher-phone" label="Teléfono" required counter={{ current: form.phone.length, max: 10 }} error={operation.fieldError('phone') ?? (form.phone ? teacherErrors.phone : null)}>
         <Input id="teacher-phone" aria-invalid={Boolean(operation.fieldError('phone') ?? (form.phone && teacherErrors.phone))} type="tel" inputMode="numeric" value={form.phone} onChange={(event) => setForm({ ...form, phone: sanitizeDigits(event.target.value, 10) })} required maxLength={10} placeholder="0991234567" />
