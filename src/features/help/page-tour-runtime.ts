@@ -31,6 +31,11 @@ const TABBED: Readonly<Record<string, readonly [param: string, defaultTab: strin
   'teacher-degree-tracking': ['topic', 'estado-ficha'],
 }
 
+/** Pantallas con pestañas siempre visibles en la URL: parámetro de la pestaña y pestaña por defecto. */
+const URL_TABS: Readonly<Record<string, readonly [param: string, defaultTab: string, tabs: readonly string[]]>> = {
+  'tutoring-users': ['pestana', 'docentes', ['docentes', 'estudiantes']],
+}
+
 /** Sub-vistas que se abren con un parámetro de la URL dentro de una pestaña, de la más interna a la más externa. */
 // Parámetro de la URL → sub-vista de la guía (p. ej. `consult` abre el detalle de una sesión).
 const URL_SUB_VIEWS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
@@ -53,7 +58,9 @@ function visibleView(): string | null {
  */
 export function currentPageTourKey(section: string, params: URLSearchParams): string {
   const tabs = TABBED[section]
-  const base = tabs && params.get(tabs[0]) ? `${section}/${params.get('tab') ?? tabs[1]}` : section
+  const urlTabs = URL_TABS[section]
+  const urlTab = urlTabs && (urlTabs[2].find((tab) => tab === params.get(urlTabs[0])) ?? urlTabs[1])
+  const base = urlTab ? `${section}/${urlTab}` : tabs && params.get(tabs[0]) ? `${section}/${params.get('tab') ?? tabs[1]}` : section
   const subViews = URL_SUB_VIEWS[section] ?? {}
   const subParam = Object.keys(subViews).find((param) => base !== section && params.get(param))
   const subView = subParam ? subViews[subParam] : undefined

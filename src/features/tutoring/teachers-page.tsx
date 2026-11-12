@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CheckCircle2Icon, LinkIcon, XCircleIcon } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -20,7 +21,8 @@ import { FilterBar } from './filter-bar'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { useDetailParam } from '@/hooks/use-detail-param'
 import { TeacherDetail } from './teacher-detail'
-import { ModuleHeader, RecordTable, ScopeNotice } from './tutoring-shared'
+import { ModuleHeader, RecordTable, ScopeNotice, type TabbedScreen } from './tutoring-shared'
+import { CAREER_PARAM } from './tutoring-navigation'
 import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { ListScreenSkeleton } from './tutoring-skeletons'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
@@ -29,9 +31,19 @@ const TEACHER_HEADERS = ['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo
 
 const EMPTY_FORM = { career_id: '', identification: '', name: '', email: '', phone: '' }
 
-export function TutoringTeachersPage() {
+/** `screen`: se muestra como pestaña de «Usuarios» (su título y sus pestañas). */
+export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScreen }> = {}) {
   const catalogs = useTutoringCatalogs()
-  const [careerFilter, setCareerFilter] = useState('')
+  // La carrera del filtro vive en la URL (?carrera=) y la comparte la pestaña Estudiantes.
+  const [params, setParams] = useSearchParams()
+  const careerParam = params.get(CAREER_PARAM) ?? ''
+  const careerFilter = careerParam && (catalogs.loading || (catalogs.careers.length > 1 && catalogs.careers.some((career) => String(career.id) === careerParam))) ? careerParam : ''
+  function setCareerFilter(value: string) {
+    const next = new URLSearchParams(params)
+    if (value) next.set(CAREER_PARAM, value)
+    else next.delete(CAREER_PARAM)
+    setParams(next, { replace: true })
+  }
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog(
     (page, search) => tutoringApi.teachers({
@@ -176,9 +188,10 @@ export function TutoringTeachersPage() {
       ) : <DetailPageSkeleton label="Cargando docente" />
     ) : list.isInitialLoading || (catalogs.loading && catalogs.careers.length === 0) ? (
       // Primera carga (docentes o carreras): la forma de toda la pantalla, sin botones reales.
-      <ListScreenSkeleton label="Cargando docentes" actions={3} filters={catalogs.careers.length > 1 ? 2 : 1} headers={TEACHER_HEADERS} />
+      <ListScreenSkeleton label="Cargando docentes" actions={3} filters={catalogs.careers.length > 1 ? 2 : 1} tabs={screen?.tabCount} headers={TEACHER_HEADERS} />
     ) : <>
-    <ModuleHeader title="Docentes" description="Registra a los docentes de tus carreras o vincula a uno que ya tiene cuenta. Haz clic en uno para abrirlo." createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="secondary" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    <ModuleHeader title={screen?.title ?? 'Docentes'} description="Registra a los docentes de tus carreras o vincula a uno que ya tiene cuenta. Haz clic en uno para abrirlo." createLabel="Registrar docente nuevo" onCreate={() => edit(null)} extraActions={<><BulkImportButton type="teachers" title="Carga masiva de docentes" description="Cada docente recibirá su contraseña provisional por correo y completará sus datos al ingresar." onFinished={list.reload} /><Button type="button" variant="secondary" onClick={openLink} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)}><LinkIcon data-icon="inline-start" />Vincular docente existente</Button></>} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
+    {screen?.tabs}
     <ScopeNotice catalogs={catalogs} />
     <FilterBar
       id="teachers"

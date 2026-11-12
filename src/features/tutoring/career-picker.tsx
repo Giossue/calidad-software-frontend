@@ -26,8 +26,10 @@ export function useSelectedCareer(careers: readonly Career[]) {
   return { career, canChange: !single, select: (id: number) => setSelectedId(id), clear: () => setSelectedId(null) }
 }
 
-export function CareerPicker({ catalogs, title, description, rowTitle, onSelect, skeleton }: Readonly<{
+export function CareerPicker({ catalogs, title, description, rowTitle, onSelect, skeleton, tabs }: Readonly<{
   catalogs: Catalogs
+  /** Pestañas de la pantalla que contiene la lista (p. ej. Usuarios): van bajo el encabezado. */
+  tabs?: ReactNode
   /** Esqueleto de la pantalla a la que se entra: se muestra igual mientras cargan las carreras. */
   skeleton?: ReactNode
   title: string
@@ -48,6 +50,7 @@ export function CareerPicker({ catalogs, title, description, rowTitle, onSelect,
 
   return <section className="flex flex-col gap-6" data-tour-view="career-picker">
     <ModuleHeader title={title} description={description} />
+    {tabs}
     <ScopeNotice catalogs={catalogs} />
     {catalogs.careers.length > 0 && <FilterBar id="career-picker" search={search} onSearch={(value) => { setSearch(value); setPage(1) }} searchLabel="Buscar carrera" searchPlaceholder="Busca por nombre de carrera…" filters={[]} onClear={() => { setSearch(''); setPage(1) }} />}
     {catalogs.careers.length > 0 && <RecordTable

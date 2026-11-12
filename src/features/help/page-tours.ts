@@ -48,6 +48,8 @@ const careerBack = step(CAREER_BACK, 'Cambiar de carrera', 'Vuelve a la lista de
 const back = (label: string, description: string) => step({ button: label }, 'Volver', description)
 /** Activar o desactivar desde la cabecera de un detalle (botones de solo ícono). */
 const toggle = (noun: string, description: string) => step([{ button: `Desactivar ${noun}` }, { button: `Habilitar ${noun}` }], 'Cambiar estado', description)
+/** Pestañas de «Usuarios» del coordinador de carrera. */
+const usersTabs = step('[data-tour="page-users-tabs"]', 'Docentes y estudiantes', 'Cambia entre los docentes y los estudiantes de tus carreras. Cada pestaña tiene su propia guía.')
 const studentTutoringTabs = step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre contenido, asistencia, calificaciones y horarios. Cada pestaña tiene su propia guía.')
 
 export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
@@ -130,8 +132,10 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step({ button: 'Desactivar asignatura' }, 'Desactivar asignatura', 'Deja de ofrecer la asignatura.'),
     step('[aria-label="Secciones de la asignatura"]', 'Paralelos, malla y datos', '«Paralelos» asigna o quita paralelos; «Malla» muestra de cuál viene y en cuál continúa, y permite editar la secuencia; «Datos», su información.'),
   ],
-  'tutoring-teachers': [
+  // «Usuarios»: una guía por pestaña (`?pestana=`) y por vista dentro de ella.
+  'tutoring-users/docentes': [
     step(HEADER, 'Docentes', 'Aquí administras los docentes de tus carreras.'),
+    usersTabs,
     step(CREATE, 'Registrar docente nuevo', 'Crea la cuenta de un docente. Recibe una contraseña provisional por correo.'),
     step({ button: 'Vincular docente existente' }, 'Vincular docente existente', 'Si el docente ya tiene cuenta (por ejemplo, en otra carrera), agrégalo a tu carrera sin crearle otra.'),
     bulk('Registra varios docentes a la vez.'),
@@ -139,17 +143,19 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     table('Cada fila es un docente con sus asignaturas y paralelos. Haz clic en él para abrirlo.'),
     pagination,
   ],
-  'tutoring-teachers/detail': [
+  'tutoring-users/docentes/detail': [
     back('Volver a docentes', 'Regresa a la lista de docentes.'),
     step(HEADER, 'Docente', 'Su nombre, correo y estado.'),
     step({ button: 'Editar docente' }, 'Editar docente', 'Cambia los datos del docente.'),
     step({ button: 'Desactivar docente' }, 'Desactivar docente', 'Quita el acceso de la cuenta; deja de recibir nuevas tutorías.'),
     step('[aria-label="Secciones del docente"]', 'Asignaturas, carreras y datos', '«Asignaturas» muestra sus tutorías; «Carreras», de cuáles forma parte, y ahí puedes quitarlo de una; «Datos», su información.'),
   ],
-  'tutoring-students/career-picker': careerPicker('Estudiantes'),
-  'tutoring-students': [
+  // Las pestañas van bajo el encabezado de la lista de carreras.
+  'tutoring-users/estudiantes/career-picker': ((steps) => [steps[0], usersTabs, ...steps.slice(1)])(careerPicker('Estudiantes')),
+  'tutoring-users/estudiantes': [
     careerBack,
     step(HEADER, 'Estudiantes de la carrera', 'Aquí registras a los estudiantes y los ubicas en su ciclo.'),
+    usersTabs,
     step(CREATE, 'Registrar estudiante', 'Registra un estudiante con su ciclo y, si quieres, inscríbelo en una tutoría.'),
     bulk('Registra muchos estudiantes a la vez. Los importados quedan en «Sin ciclo» hasta que les asignes uno.'),
     step('[aria-label="Ciclos de la carrera"]', 'Ciclo', 'Elige el ciclo cuyos estudiantes quieres ver. «Sin ciclo» reúne a quienes aún no tienen uno asignado.'),
@@ -157,7 +163,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     table('Cada fila es un estudiante con sus tutorías. Haz clic en él para abrirlo; en el ciclo de titulación, desde ahí lo matriculas, le das de baja o lo cambias de ciclo.'),
     pagination,
   ],
-  'tutoring-students/detail': [
+  'tutoring-users/estudiantes/detail': [
     back('Volver a estudiantes', 'Regresa a la lista de estudiantes.'),
     step(HEADER, 'Estudiante', 'Su ciclo y su estado.'),
     step([{ button: 'Cambiar ciclo' }, { button: 'Asignar ciclo' }], 'Ciclo del estudiante', 'Asigna o cambia el ciclo que cursa.'),

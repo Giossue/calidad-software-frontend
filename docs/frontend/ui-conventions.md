@@ -54,7 +54,11 @@ las reglas de negocio que ya aplica el sistema.
 - Una única acción extra que no es editar puede ir en `RowActionsMenu`.
 - **Desplegable antes que fila de pestañas para elegir un valor.** Elegir ciclo,
   período o carrera se hace con un desplegable en la fila de filtros. Las pestañas
-  son para secciones de un mismo registro, no para filtrar listas.
+  son para secciones de un mismo registro, no para filtrar listas. Excepción: dos
+  listas hermanas que comparten pantalla (p. ej. «Usuarios» del coordinador de carrera,
+  con «Docentes» y «Estudiantes»): la pestaña va en la URL (`?pestana=`), queda bajo
+  el encabezado y sobre los filtros, el encabezado toma la descripción y las acciones
+  de la pestaña activa, y al abrir un registro las pestañas se ocultan.
 - **Modales directos.** Sin tarjetas ni recuadros dentro del modal, sin repetir lo que
   ya dice el título, la descripción o los propios campos (nada de "Nombre, código y
   modalidad" sobre esos campos, ni "El nombre es obligatorio" junto al botón), sin

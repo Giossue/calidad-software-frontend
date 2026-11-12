@@ -27,6 +27,19 @@ describe('currentPageTourKey', () => {
     expect(currentPageTourKey('teacher-tutorings', new URLSearchParams())).toBe('teacher-tutorings')
   })
 
+  it('usa la pestaña de Usuarios de la URL, con Docentes por defecto', () => {
+    expect(currentPageTourKey('tutoring-users', new URLSearchParams())).toBe('tutoring-users/docentes')
+    expect(currentPageTourKey('tutoring-users', new URLSearchParams('pestana=estudiantes'))).toBe('tutoring-users/estudiantes')
+    expect(currentPageTourKey('tutoring-users', new URLSearchParams('pestana=otra'))).toBe('tutoring-users/docentes')
+
+    document.body.innerHTML = '<main data-slot="sidebar-inset"><div data-tour-view="detail"></div></main>'
+    expect(currentPageTourKey('tutoring-users', new URLSearchParams('pestana=estudiantes&estudiante=3'))).toBe('tutoring-users/estudiantes/detail')
+    expect(currentPageTourKey('tutoring-users', new URLSearchParams('docente=5'))).toBe('tutoring-users/docentes/detail')
+
+    document.body.innerHTML = '<main data-slot="sidebar-inset"><section data-tour-view="career-picker"></section></main>'
+    expect(currentPageTourKey('tutoring-users', new URLSearchParams('pestana=estudiantes'))).toBe('tutoring-users/estudiantes/career-picker')
+  })
+
   it('usa el tema, la actividad o la sesión abiertos dentro de la pestaña', () => {
     expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4&tab=content&topic=7'))).toBe('teacher-tutorings/content/topic')
     expect(currentPageTourKey('teacher-tutorings', new URLSearchParams('tutoring=4&tab=content&topic=7&activity=9'))).toBe('teacher-tutorings/content/activity')
@@ -56,12 +69,13 @@ describe('buildPageTourSteps', () => {
   it('explica solo los elementos que están en pantalla, encontrando botones por su texto', () => {
     document.body.innerHTML = `<main data-slot="sidebar-inset">
       <div data-tour="page-header"></div>
+      <div role="tablist" data-tour="page-users-tabs"></div>
       <button data-tour="page-create">Registrar estudiante</button>
       <div data-tour="page-filters"></div>
       <div data-slot="table-container"><table><tbody data-slot="table-body"><tr><td>Ana</td></tr></tbody></table></div>
     </main>`
 
-    expect(titles('tutoring-students')).toEqual(['Estudiantes de la carrera', 'Registrar estudiante', 'Buscar y filtrar', 'Listado'])
+    expect(titles('tutoring-users/estudiantes')).toEqual(['Estudiantes de la carrera', 'Docentes y estudiantes', 'Registrar estudiante', 'Buscar y filtrar', 'Listado'])
   })
 
   it('omite las acciones de fila si la última celda no tiene botones', () => {
@@ -74,7 +88,7 @@ describe('buildPageTourSteps', () => {
   })
 
   it('todas las pantallas del menú tienen guía', () => {
-    for (const key of ['users', 'periods', 'faculties', 'careers', 'tutoring-curriculum', 'tutoring-teachers', 'tutoring-students', 'tutorings', 'tutoring-reports',
+    for (const key of ['users', 'periods', 'faculties', 'careers', 'tutoring-curriculum', 'tutoring-users/docentes', 'tutoring-users/estudiantes', 'tutorings', 'tutoring-reports',
       'degree-students', 'degree-topics', 'degree-tracking', 'degree-reports', 'teacher-tutorings', 'teacher-reports', 'teacher-degree-assignments',
       'teacher-degree-tracking', 'student-tutorings', 'student-degree-topics', 'student-degree-tracking', 'student-degree-assignments']) {
       expect(PAGE_TOURS[key]?.length, key).toBeGreaterThan(0)
@@ -93,7 +107,7 @@ describe('PAGE_TOURS', () => {
 
   it('incluye una guía para cada detalle que se abre desde una fila', () => {
     expect(detailKeys).toEqual(expect.arrayContaining([
-      'faculties/detail', 'careers/detail', 'tutoring-curriculum/detail', 'tutoring-teachers/detail', 'tutoring-students/detail', 'tutorings/detail',
+      'faculties/detail', 'careers/detail', 'tutoring-curriculum/detail', 'tutoring-users/docentes/detail', 'tutoring-users/estudiantes/detail', 'tutorings/detail',
       'degree-topics/detail', 'degree-tracking/detail', 'teacher-reports/tutoring', 'teacher-tutorings/content/topic', 'teacher-tutorings/attendance/session',
     ]))
   })

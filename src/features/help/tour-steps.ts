@@ -24,13 +24,9 @@ export const MODULE_HELP: Readonly<Record<string, { readonly title: string; read
     title: 'Malla curricular',
     description: 'Elige una carrera e importa su malla: se crean sus asignaturas por ciclo y sus previas, y se ven como en la malla oficial. En «Editar malla» agregas asignaturas en cada ciclo, las editas y conectas sus previas. Quien aprueba una asignatura pasa a la siguiente en el nuevo período.',
   },
-  'tutoring-teachers': {
-    title: 'Docentes',
-    description: 'Registra docentes nuevos o vincula docentes ya registrados a tus carreras. Cada docente nuevo recibe una contraseña provisional por correo.',
-  },
-  'tutoring-students': {
-    title: 'Estudiantes',
-    description: 'Registra estudiantes, asígnales su ciclo y revisa en qué tutorías están inscritos.',
+  'tutoring-users': {
+    title: 'Usuarios',
+    description: 'Docentes y estudiantes de tus carreras, en dos pestañas. En «Docentes» registras docentes nuevos o vinculas a los ya registrados; cada docente nuevo recibe una contraseña provisional por correo. En «Estudiantes» los registras, les asignas su ciclo y revisas en qué tutorías están inscritos.',
   },
   tutorings: {
     title: 'Tutorías',

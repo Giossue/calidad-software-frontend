@@ -113,7 +113,7 @@ describe('Coordinación de tutorías', () => {
     expect(dashboardSection('coordinador_carrera', 'tutoring-subjects')).toBe('tutoring-curriculum')
     expect(dashboardSection('docente', 'tutoring-subjects')).toBe('teacher-tutorings')
     expect(dashboardSection('coordinador_carrera', 'tutoring-curriculum')).toBe('tutoring-curriculum')
-    expect(dashboardSection('coordinador_carrera', 'tutoring-students')).toBe('tutoring-students')
+    expect(dashboardSection('coordinador_carrera', 'tutoring-users')).toBe('tutoring-users')
     expect(dashboardSection('coordinador_carrera', 'tutoring-reports')).toBe('tutoring-reports')
     expect(dashboardSection('administrador', 'users')).toBe('users')
     expect(dashboardSection('administrador', 'tutorings')).toBe('users')

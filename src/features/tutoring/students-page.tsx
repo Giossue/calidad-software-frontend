@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   ArrowLeftIcon,
   ArrowRightLeftIcon,
@@ -40,15 +41,35 @@ import {
   type Tutoring,
 } from '@/lib/tutoring-api'
 import { FilterBar } from './filter-bar'
-import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
+import { CareerBreadcrumb, CareerPicker } from './career-picker'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
+import { CycleSelect, ModuleHeader, RecordTable, type TabbedScreen } from './tutoring-shared'
+import { CAREER_PARAM } from './tutoring-navigation'
+import type { Career } from '@/lib/api'
 import { ListScreenSkeleton } from './tutoring-skeletons'
 
 /** Esqueleto de Estudiantes: el mismo mientras cargan las carreras y la primera página. */
-function StudentsSkeleton() {
-  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} headers={['#', 'Estudiante', 'Cédula / Teléfono', 'Tutorías', 'Estado']} />
+function StudentsSkeleton({ tabs }: Readonly<{ tabs?: number }>) {
+  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} tabs={tabs} headers={['#', 'Estudiante', 'Cédula / Teléfono', 'Tutorías', 'Estado']} />
+}
+
+/**
+ * Carrera elegida, guardada en la URL (?carrera=) para que la pestaña Docentes la comparta y
+ * la recarga la conserve. Con una sola carrera no hay nada que elegir: se entra directo a ella.
+ */
+function useCareerParam(careers: readonly Career[]) {
+  const [params, setParams] = useSearchParams()
+  const selectedId = Number(params.get(CAREER_PARAM))
+  const single = careers.length === 1
+  const career = careers.find((item) => item.id === selectedId) ?? (single ? careers[0] : undefined)
+  function update(id: number | null) {
+    const next = new URLSearchParams(params)
+    if (id === null) next.delete(CAREER_PARAM)
+    else next.set(CAREER_PARAM, String(id))
+    setParams(next)
+  }
+  return { career, canChange: !single, select: (id: number) => update(id), clear: () => update(null) }
 }
 
 const EMPTY_STUDENT_FORM = {
@@ -60,20 +81,22 @@ const EMPTY_STUDENT_FORM = {
   tutoring_id: '',
 }
 
-export function TutoringStudentsPage() {
+/** `screen`: se muestra como pestaña de «Usuarios» (su título y sus pestañas). */
+export function TutoringStudentsPage({ screen }: Readonly<{ screen?: TabbedScreen }> = {}) {
   const catalogs = useTutoringCatalogs()
-  const selection = useSelectedCareer(catalogs.careers)
+  const selection = useCareerParam(catalogs.careers)
 
   if (selection.career) {
-    return <StudentsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
+    return <StudentsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} screen={screen} />
   }
 
-  return <CareerPicker catalogs={catalogs} title="Estudiantes" skeleton={<StudentsSkeleton />} rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
+  const picker = <CareerPicker catalogs={catalogs} title={screen?.title ?? 'Estudiantes'} description={screen ? 'Elige la carrera cuyos estudiantes quieres ver.' : undefined} skeleton={<StudentsSkeleton tabs={screen?.tabCount} />} rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} tabs={screen?.tabs} />
+  return picker
 }
 
 const WITHOUT_CYCLE = 'none'
 
-function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
+function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void; screen?: TabbedScreen }>) {
   const careerCycles = catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId)
   // Una pestaña por ciclo de la carrera (los paralelos de un mismo ciclo comparten pestaña).
   const cycleLevels = Array.from(new Map(careerCycles.map((cycle) => [cycle.number, cycle])).values()).sort((a, b) => a.number - b.number)
@@ -604,17 +627,18 @@ function StudentsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       ) : detailId !== null ? (
         <DetailPageSkeleton label="Cargando estudiante" tabs={2} />
       ) : list.isInitialLoading ? (
-        <StudentsSkeleton />
+        <StudentsSkeleton tabs={screen?.tabCount} />
       ) : (
         <>
           <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
           <ModuleHeader
-            title="Estudiantes"
+            title={screen?.title ?? 'Estudiantes'}
             description={`Registra a los estudiantes de ${careerName}, ubícalos en su ciclo y matricula en titulación a los del último. Haz clic en uno para abrirlo.`}
             createLabel="Registrar estudiante"
             onCreate={openCreateModal}
             extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
           />
+          {screen?.tabs}
 
           {!isDegreeTab && (
             <>

@@ -59,9 +59,8 @@ import { DegreeReportsPage } from '@/features/degree-coordination/degree-reports
 import { StudentDegreeTopicsPage } from '@/features/student-degree-topics/student-degree-topics-page'
 import { StudentDegreeTrackingPage } from '@/features/student-degree-tracking/student-degree-tracking-page'
 import { TutoringCurriculumPage } from '@/features/tutoring/curriculum-page'
-import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
 import { TutoringsPage } from '@/features/tutoring/tutorings-page'
-import { TutoringStudentsPage } from '@/features/tutoring/students-page'
+import { TutoringUsersPage } from '@/features/tutoring/users-page'
 import { TutoringReportsPage } from '@/features/tutoring/reports-page'
 import { canCoordinateTutorings, dashboardSection, sectionRedirectPath, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
 import type { StudentSection } from '@/features/student/student-navigation'
@@ -89,8 +88,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 
 const TUTORING_NAV_ITEMS: readonly NavItem[] = [
   { id: 'tutoring-curriculum', label: 'Malla curricular', icon: NetworkIcon },
-  { id: 'tutoring-teachers', label: 'Docentes', icon: UsersIcon },
-  { id: 'tutoring-students', label: 'Estudiantes', icon: UserCheckIcon },
+  { id: 'tutoring-users', label: 'Usuarios', icon: UsersIcon },
   { id: 'tutorings', label: 'Tutorías', icon: GraduationCapIcon },
   { id: 'tutoring-reports', label: 'Informes', icon: FileTextIcon },
 ]
@@ -379,12 +377,10 @@ export function DashboardPage() {
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-curriculum' ? (
             <TutoringCurriculumPage />
-          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-teachers' ? (
-            <TutoringTeachersPage />
+          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-users' ? (
+            <TutoringUsersPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutorings' ? (
             <TutoringsPage />
-          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-students' ? (
-            <TutoringStudentsPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-reports' ? (
             <TutoringReportsPage />
           ) : canCoordinateDegrees(user?.role) && activeSection === 'degree-students' ? (

@@ -42,11 +42,14 @@ describe('buildTourSteps', () => {
   })
 
   it('tiene explicación para todos los módulos del menú', () => {
-    for (const id of ['users', 'periods', 'faculties', 'careers', 'tutoring-curriculum', 'tutoring-teachers', 'tutoring-students', 'tutorings',
+    for (const id of ['users', 'periods', 'faculties', 'careers', 'tutoring-curriculum', 'tutoring-users', 'tutorings',
       'tutoring-reports', 'degree-students', 'degree-topics', 'degree-tracking', 'degree-reports', 'teacher-tutorings', 'teacher-reports',
       'teacher-degree-assignments', 'teacher-degree-tracking', 'student-tutorings', 'student-degree-topics', 'student-degree-tracking',
       'student-degree-assignments']) {
       expect(MODULE_HELP[id], id).toBeDefined()
     }
+    // Docentes y estudiantes ahora son pestañas de «Usuarios».
+    expect(MODULE_HELP['tutoring-teachers']).toBeUndefined()
+    expect(MODULE_HELP['tutoring-students']).toBeUndefined()
   })
 })

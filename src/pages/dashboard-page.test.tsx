@@ -1,5 +1,5 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAuth } from '@/features/auth/auth-context'
@@ -31,6 +31,10 @@ vi.mock('@/features/student-degree-topics/student-degree-topics-page', () => ({
 
 vi.mock('@/features/student-degree-tracking/student-degree-tracking-page', () => ({
   StudentDegreeTrackingPage: () => <div>Vista Seguimiento Estudiante</div>,
+}))
+
+vi.mock('@/features/tutoring/users-page', () => ({
+  TutoringUsersPage: () => <div>Vista Usuarios</div>,
 }))
 
 beforeEach(() => {
@@ -160,5 +164,57 @@ describe('DashboardPage - Módulos del estudiante según su ciclo', () => {
     expect(screen.getAllByText('Mis propuestas').length).toBeGreaterThan(0)
     expect(screen.getByText('Tutor y pares')).toBeInTheDocument()
     expect(screen.queryByText('Mis tutorías')).not.toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage - Usuarios del coordinador de carrera', () => {
+  const coordinator = {
+    id: 20,
+    name: 'Coordinadora Prueba',
+    email: 'coordinadora@ueb.edu.ec',
+    identification: '0201234567',
+    role: 'coordinador_carrera',
+    phone: null,
+    email_verified_at: null,
+    has_two_factor: false,
+    is_active: true,
+  }
+
+  function LocationProbe() {
+    const location = useLocation()
+    return <output data-testid="location">{`${location.pathname}${location.search}`}</output>
+  }
+
+  function renderAt(entry: string) {
+    vi.mocked(useAuth).mockReturnValue({ user: coordinator, logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), replaceUser: vi.fn() })
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/panel/:section" element={<><DashboardPage /><LocationProbe /></>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('el menú lateral muestra «Usuarios» en lugar de «Docentes» y «Estudiantes»', async () => {
+    renderAt('/panel/tutoring-users')
+
+    expect(await screen.findByText('Vista Usuarios')).toBeInTheDocument()
+    const items = [...document.querySelectorAll('[data-tour^="nav-"]')].map((item) => item.textContent)
+    expect(items).toEqual(['Malla curricular', 'Usuarios', 'Tutorías', 'Informes'])
+    expect(document.querySelector('[data-tour="nav-tutoring-users"]')).toHaveAttribute('data-active', 'true')
+  })
+
+  it('redirige la antigua sección de Estudiantes a la pestaña Estudiantes conservando el estudiante abierto', async () => {
+    renderAt('/panel/tutoring-students?estudiante=103')
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/panel/tutoring-users?estudiante=103&pestana=estudiantes'))
+    expect(screen.getByText('Vista Usuarios')).toBeInTheDocument()
+  })
+
+  it('redirige la antigua sección de Docentes a la pestaña Docentes', async () => {
+    renderAt('/panel/tutoring-teachers?docente=5')
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/panel/tutoring-users?docente=5&pestana=docentes'))
   })
 })

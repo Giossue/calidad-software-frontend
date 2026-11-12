@@ -33,7 +33,7 @@ export function HeadedTableSkeleton({ headers, rows = 5 }: Readonly<{ headers: r
 /** Fila de pestañas (mismo alto que `TabsList`). */
 export function TabsSkeleton({ tabs }: Readonly<{ tabs: number }>) {
   return (
-    <div className="flex h-9 items-center gap-4" aria-hidden="true">
+    <div className="flex h-9 items-center gap-4" aria-hidden="true" data-slot="tabs-skeleton">
       {Array.from({ length: tabs }, (_, index) => <Skeleton key={index} className="h-5 w-24" />)}
     </div>
   )
@@ -89,11 +89,12 @@ export function PersonSkeleton() {
  * columnas reales. La misma pieza se muestra mientras cargan las carreras y mientras carga
  * la primera página, para que se vea un solo esqueleto continuo.
  */
-export function ListScreenSkeleton({ label, actions = 1, filters = 1, headers }: Readonly<{ label: string; actions?: number; filters?: number; headers: readonly string[] }>) {
+export function ListScreenSkeleton({ label, actions = 1, filters = 1, tabs = 0, headers }: Readonly<{ label: string; actions?: number; filters?: number; /** Pestañas bajo el encabezado (p. ej. Docentes y Estudiantes). */ tabs?: number; headers: readonly string[] }>) {
   return (
     <div className="flex flex-col gap-6">
       <span role="status" aria-label={label} className="sr-only">{label}</span>
       <PageHeaderSkeleton actions={actions} />
+      {tabs > 0 && <TabsSkeleton tabs={tabs} />}
       <FilterBarSkeleton filters={filters} />
       <HeadedTableSkeleton headers={headers} />
     </div>
