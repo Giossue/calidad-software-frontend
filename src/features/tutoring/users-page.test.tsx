@@ -57,9 +57,9 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('Usuarios (docentes y estudiantes en pestañas)', () => {
-  it('abre Docentes por defecto con el título «Usuarios» y sin un segundo título', async () => {
+  it('abre Docentes por defecto con el título de la pestaña y sin un segundo título', async () => {
     renderUsers()
-    expect(await screen.findByRole('heading', { level: 1, name: 'Usuarios' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Docentes' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('tab', { name: 'Docentes' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Estudiantes' })).toHaveAttribute('aria-selected', 'false')
@@ -79,11 +79,13 @@ describe('Usuarios (docentes y estudiantes en pestañas)', () => {
     expect(screen.queryByRole('button', { name: 'Vincular docente existente' })).not.toBeInTheDocument()
     expect(await screen.findByTitle('Abrir a Lucía Ciclo')).toBeInTheDocument()
     expect(search().get('pestana')).toBe('estudiantes')
-    expect(screen.getByRole('heading', { level: 1, name: 'Usuarios' })).toBeInTheDocument()
+    // El título y la descripción son los de la pestaña abierta.
+    expect(screen.getByRole('heading', { level: 1, name: 'Estudiantes' })).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
 
     await user.click(screen.getByRole('tab', { name: 'Docentes' }))
     expect(await screen.findByRole('button', { name: 'Registrar docente nuevo' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Docentes' })).toBeInTheDocument()
     expect(search().get('pestana')).toBe('docentes')
   })
 
@@ -124,7 +126,7 @@ describe('Usuarios (docentes y estudiantes en pestañas)', () => {
     const statuses = () => screen.queryAllByRole('status').filter((status) => (status.getAttribute('aria-label') ?? status.textContent ?? '').startsWith('Cargando'))
     expect(statuses()).toHaveLength(1)
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Usuarios' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Docentes' })).not.toBeInTheDocument()
     expect(document.querySelector('[data-slot="tabs-skeleton"]')).toBeInTheDocument()
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado'])
     await act(async () => careers.resolve([career]))

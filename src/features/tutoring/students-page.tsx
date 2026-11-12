@@ -90,7 +90,7 @@ export function TutoringStudentsPage({ screen }: Readonly<{ screen?: TabbedScree
     return <StudentsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} screen={screen} />
   }
 
-  const picker = <CareerPicker catalogs={catalogs} title={screen?.title ?? 'Estudiantes'} description={screen ? 'Elige la carrera cuyos estudiantes quieres ver.' : undefined} skeleton={<StudentsSkeleton tabs={screen?.tabCount} />} rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} tabs={screen?.tabs} />
+  const picker = <CareerPicker catalogs={catalogs} title="Estudiantes" description={screen ? 'Elige la carrera cuyos estudiantes quieres ver.' : undefined} skeleton={<StudentsSkeleton tabs={screen?.tabCount} />} rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} tabs={screen?.tabs} />
   return picker
 }
 
@@ -632,7 +632,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
         <>
           <CareerBreadcrumb root="Estudiantes" career={careerName} onBack={onBack} />
           <ModuleHeader
-            title={screen?.title ?? 'Estudiantes'}
+            title="Estudiantes"
             description={`Registra a los estudiantes de ${careerName}, ubícalos en su ciclo y matricula en titulación a los del último. Haz clic en uno para abrirlo.`}
             createLabel="Registrar estudiante"
             onCreate={openCreateModal}

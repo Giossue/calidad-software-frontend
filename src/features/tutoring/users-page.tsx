@@ -12,7 +12,7 @@ const DETAIL_PARAMS = ['docente', 'estudiante'] as const
 /**
  * «Usuarios» del coordinador de carrera: docentes y estudiantes en pestañas. La pestaña vive
  * en la URL (`?pestana=`) y la carrera elegida (`?carrera=`) se conserva al cambiar de pestaña.
- * Cada pestaña pone su descripción y sus acciones bajo el título «Usuarios»; al abrir un
+ * Cada pestaña pone su propio título, su descripción y sus acciones; al abrir un
  * docente o un estudiante, las pestañas se ocultan.
  */
 export function TutoringUsersPage() {
@@ -28,7 +28,6 @@ export function TutoringUsersPage() {
   }
 
   const screen: TabbedScreen = {
-    title: 'Usuarios',
     tabCount: 2,
     tabs: (
       <TabsList aria-label="Tipo de usuario" data-tour="page-users-tabs">

@@ -22,7 +22,7 @@ import type { TutoringCatalogs } from './tutoring-hooks'
  * Pantalla que se muestra como pestaña de otra (p. ej. Docentes dentro de «Usuarios»): usa
  * el título de la pantalla que la contiene y pone su fila de pestañas bajo el encabezado.
  */
-export type TabbedScreen = Readonly<{ title: string; tabs: ReactNode; tabCount: number }>
+export type TabbedScreen = Readonly<{ tabs: ReactNode; tabCount: number }>
 
 export function ScopeNotice({ catalogs }: Readonly<{ catalogs: TutoringCatalogs }>) {
   if (catalogs.error) return <ErrorNotice message={catalogs.error} retry={catalogs.reload} />
