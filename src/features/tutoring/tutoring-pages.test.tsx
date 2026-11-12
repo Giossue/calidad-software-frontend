@@ -610,8 +610,9 @@ describe('Coordinación de tutorías', () => {
     render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
     await screen.findByText('Matemática')
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
-    await choose(user, screen.getByLabelText(/^Ciclo/), '2° ciclo')
-    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática')
+    // Solo se elige la asignatura: su ciclo ya viene de la malla.
+    expect(screen.queryByLabelText(/^Ciclo/)).not.toBeInTheDocument()
+    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
 
@@ -637,11 +638,10 @@ describe('Coordinación de tutorías', () => {
     // Ya no hay botones de crear por fila: existe uno solo, arriba
     expect(screen.queryByRole('button', { name: 'Crear tutoría para Matemática' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
-    // Ciclo y asignatura son obligatorios (asterisco).
-    expect(screen.getByLabelText(/^Ciclo/).closest('[data-slot="field"]')?.textContent).toContain('(obligatorio)')
+    // La asignatura es obligatoria (asterisco); el ciclo no se pide, viene de la malla.
+    expect(screen.queryByLabelText(/^Ciclo/)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/^Asignatura/).closest('[data-slot="field"]')?.textContent).toContain('(obligatorio)')
-    await choose(user, screen.getByLabelText(/^Ciclo/), '2° ciclo')
-    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática')
+    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
 
@@ -697,8 +697,7 @@ describe('Coordinación de tutorías', () => {
     render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
     await screen.findByText('Matemática')
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
-    await choose(user, screen.getByLabelText(/^Ciclo/), '2° ciclo')
-    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática')
+    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
     await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
@@ -735,10 +734,9 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByText(/Aún no hay tutorías/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Crear tutoría' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
-    await choose(user, screen.getByLabelText(/^Ciclo/), '2° ciclo')
     await user.click(screen.getByLabelText(/^Asignatura/))
-    expect(await screen.findByRole('option', { name: 'Matemática' })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: 'Álgebra Lineal' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'Matemática · 2° ciclo' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Álgebra Lineal/ })).not.toBeInTheDocument()
   })
 
   it('muestra los paralelos de cada tutoría como texto en la tabla', async () => {
@@ -806,8 +804,7 @@ describe('Coordinación de tutorías', () => {
     await screen.findByText('Matemática')
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
     expect(screen.queryByText('Elige el ciclo y la asignatura de la tutoría.')).not.toBeInTheDocument()
-    await choose(user, screen.getByLabelText(/^Ciclo/), '2° ciclo')
-    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática')
+    await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
     await user.click(within(form).getByRole('button', { name: 'Atrás' }))

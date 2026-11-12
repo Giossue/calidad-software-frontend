@@ -121,7 +121,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setSearchParams(next, { replace: true })
   }
   const [choosingTutoring, setChoosingTutoring] = useState(false)
-  const [chooserCycle, setChooserCycle] = useState('')
   const [chooserSubjectId, setChooserSubjectId] = useState('')
   const operation = useOperation()
   const [subjects, setSubjects] = useState<readonly Subject[]>([])
@@ -485,13 +484,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     return () => { cancelled = true }
   }, [detail.id, inList, listLoading, careerId, selectedPeriodId])
 
-  const chooserLevel = cycleLevels.find((level) => String(level.number) === chooserCycle)
-  const chooserSubjects = chooserLevel
-    ? subjects.filter((subj) => subj.career_id === careerId && subj.is_active && subj.cycle_number === chooserLevel.number)
-    : []
+  // La asignatura ya trae su ciclo de la malla: solo se elige la asignatura (por ciclo y nombre).
+  const chooserSubjects = subjects
+    .filter((subj) => subj.career_id === careerId && subj.is_active && cycleLevels.some((level) => level.number === subj.cycle_number))
+    .toSorted((a, b) => (a.cycle_number ?? 0) - (b.cycle_number ?? 0) || a.name.localeCompare(b.name))
 
   function openCreateChooser() {
-    setChooserCycle(cycleFilter && cycleLevels.some((level) => String(level.number) === cycleFilter) ? cycleFilter : '')
     setChooserSubjectId('')
     setCreatingTutoringSubject(null)
     setCreatingTutoringCycle(null)
@@ -513,14 +511,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   function chooseSubject(subjectId: string) {
     setChooserSubjectId(subjectId)
     const subject = chooserSubjects.find((item) => String(item.id) === subjectId)
-    if (subject && chooserLevel) openCreateTutoring(subject, chooserLevel)
-  }
-
-  function chooseCycle(value: string) {
-    setChooserCycle(value)
-    setChooserSubjectId('')
-    setCreatingTutoringSubject(null)
-    setCreatingTutoringCycle(null)
+    const level = cycleLevels.find((item) => item.number === subject?.cycle_number)
+    if (subject && level) openCreateTutoring(subject, level)
   }
 
   // Paralelos para la tutoría: los que ya usa el ciclo en la carrera y los demás del catálogo.
@@ -595,7 +587,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const tutoringNotFound = detail.id !== null && !detailTutoring && careerTutorings !== null && !listLoading
 
   const creatingStep2 = Boolean(creatingTutoringSubject && creatingTutoringCycle)
-  const chooserBlockReason = !chooserCycle ? 'Selecciona un ciclo.' : !chooserSubjectId ? 'Selecciona una asignatura.' : null
+  const chooserBlockReason = !chooserSubjectId ? 'Selecciona una asignatura.' : null
   const createBlockReason = creatingStep2
     ? validateTutoringForm({ teacherId: createTeacherId, days: createScheduleDays, times: createDayTimes, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
     : chooserBlockReason
@@ -624,32 +616,22 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
   const createSteps: readonly FormStep[] = [
     {
-      title: 'Ciclo y asignatura',
+      title: 'Asignatura',
       blockReason: chooserBlockReason,
       fields: ['subject_id'],
       content: (
         <>
-          <SelectField
-            id="create-tutoring-cycle"
-            label="Ciclo"
-            required
-            value={chooserCycle}
-            onValueChange={chooseCycle}
-            placeholder="Selecciona un ciclo"
-            options={cycleLevels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo` }))}
-          />
           <SelectField
             id="create-tutoring-subject"
             label="Asignatura"
             required
             value={chooserSubjectId}
             onValueChange={chooseSubject}
-            disabled={!chooserCycle}
-            placeholder={chooserCycle ? 'Selecciona una asignatura' : 'Primero elige un ciclo'}
+            placeholder="Selecciona una asignatura"
             error={createFieldError('subject_id')}
-            options={chooserSubjects.map((subj) => ({ value: String(subj.id), label: subj.name }))}
+            options={chooserSubjects.map((subj) => ({ value: String(subj.id), label: `${subj.name} · ${subj.cycle_number}° ciclo` }))}
           />
-          {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en la Malla curricular.</p>}
+          {chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">La carrera aún no tiene asignaturas activas. Regístralas primero en la Malla curricular.</p>}
         </>
       ),
     },
