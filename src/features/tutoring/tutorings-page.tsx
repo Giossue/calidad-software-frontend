@@ -72,7 +72,7 @@ export function TutoringsPage() {
   return <CareerPicker catalogs={catalogs} title="Tutorías" skeleton={<TutoringsSkeleton />} rowTitle={(career) => `Ver tutorías de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
-const TUTORING_HEADERS = ['Asignatura', 'Ciclo', 'Paralelo', 'Docente', 'Estado'] as const
+const TUTORING_HEADERS = ['Asignatura', 'Modalidad', 'Ciclo', 'Paralelo', 'Docente', 'Estado'] as const
 
 /** Esqueleto de Tutorías: el mismo mientras cargan las carreras y la primera página. */
 function TutoringsSkeleton() {
@@ -635,13 +635,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const columns = [
     {
       label: 'Asignatura',
-      render: (item: TutoringRowItem) => (
-        <div className="flex flex-col gap-0.5">
-          <span>{item.subject_name}</span>
-          <span className="text-xs text-muted-foreground">{item.modality_name || 'Presencial'}</span>
-        </div>
-      ),
+      render: (item: TutoringRowItem) => item.subject_name,
     },
+    { label: 'Modalidad', render: (item: TutoringRowItem) => item.modality_name || 'Presencial' },
     ...(cycleFilter === '' ? [{
       label: 'Ciclo',
       render: (item: TutoringRowItem) => {

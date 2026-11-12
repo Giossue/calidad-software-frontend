@@ -803,7 +803,7 @@ describe('Coordinación de tutorías', () => {
     await screen.findAllByText('Matemática')
     await waitFor(() => expect(tutoringApi.subjects).toHaveBeenCalled())
     const rows = screen.getAllByTitle('Abrir la tutoría de Matemática')
-    expect(rows.map((row) => within(row).getAllByRole('cell')[2].textContent)).toEqual(['A', 'B'])
+    expect(rows.map((row) => within(row).getAllByRole('cell')[3].textContent)).toEqual(['A', 'B'])
   })
 
   it('abre la tutoría en la URL: «Atrás» vuelve a la lista y, si no existe, lo dice con un camino de vuelta', async () => {
@@ -1038,6 +1038,15 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByText(/^Mostrando/)).not.toBeInTheDocument()
     await act(async () => resolveList(paginated([tutoring])))
     expect(await screen.findByText('Mostrando 1 de 1 tutoría')).toBeInTheDocument()
+  })
+
+  it('la lista de tutorías muestra la modalidad en su propia columna', async () => {
+    vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([tutoring]))
+    render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
+    expect(await screen.findByText('Mostrando 1 de 1 tutoría')).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Asignatura', 'Modalidad', 'Ciclo', 'Paralelo', 'Docente', 'Estado'])
+    const row = screen.getByText('Matemática').closest('tr')!
+    expect(within(row).getAllByRole('cell').slice(0, 2).map((cell) => cell.textContent)).toEqual(['Matemática', 'Presencial'])
   })
 
   it('con varias carreras de tutorías pide elegir la carrera antes de ver las tutorías', async () => {
