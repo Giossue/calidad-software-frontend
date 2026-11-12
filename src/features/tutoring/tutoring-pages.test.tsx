@@ -1340,10 +1340,10 @@ describe('Coordinación de tutorías', () => {
     // La cédula ya no va en la tabla (está en el detalle): se ve el correo.
     expect(screen.getByText('carlos@ueb.edu.ec')).toBeInTheDocument()
     expect(screen.getByText('Mostrando 1 de 1 estudiante')).toBeInTheDocument()
-    // Numeración de filas, nombre, correo, teléfono y estado (las tutorías están en Tutorías); sin columna de acciones: la fila abre al estudiante.
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Estudiante', 'Correo', 'Teléfono', 'Estado'])
+    // Sin numeración: nombre, correo, teléfono y estado (las tutorías están en Tutorías); sin columna de acciones: la fila abre al estudiante.
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Estudiante', 'Correo', 'Teléfono', 'Estado'])
     const row = screen.getByText('Carlos Estudiante').closest('tr')!
-    expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('1')
+    expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('Carlos Estudiante')
     expect(within(row).queryByRole('button')).not.toBeInTheDocument()
     expect(within(row).queryByText('1 tutoría')).not.toBeInTheDocument()
     // El estado siempre va en badge (solo los estados llevan badge).

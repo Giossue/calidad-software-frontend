@@ -50,7 +50,7 @@ import { ListScreenSkeleton } from './tutoring-skeletons'
 
 /** Esqueleto de Estudiantes: el mismo mientras cargan las carreras y la primera página. */
 function StudentsSkeleton({ tabs }: Readonly<{ tabs?: number }>) {
-  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} tabs={tabs} headers={['#', 'Estudiante', 'Correo', 'Teléfono', 'Estado']} />
+  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} tabs={tabs} headers={['Estudiante', 'Correo', 'Teléfono', 'Estado']} />
 }
 
 /**
@@ -658,7 +658,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
 
               <RecordTable<CoordinatorStudent>
                 rows={list.data}
-                numberFrom={list.meta?.from}
                 loading={list.isFetching || list.isInitialLoading}
                 onRowClick={openAssignModal}
                 rowTitle={(student) => `Abrir a ${student.name}`}
@@ -735,7 +734,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
               <ErrorNotice message={degreeList.error} retry={degreeList.reload} />
 
               <RecordTable<DegreeStudent>
-                numberFrom={degreeList.meta?.from}
                 rows={degreeList.data}
                 loading={degreeList.isFetching || degreeList.isInitialLoading}
                 onRowClick={openDegreeStudent}
