@@ -30,7 +30,7 @@ export const MODULE_HELP: Readonly<Record<string, { readonly title: string; read
   },
   tutorings: {
     title: 'Tutorías',
-    description: 'Crea las tutorías del período vigente eligiendo ciclo, asignatura y paralelo, y asigna el docente y los horarios. Los períodos pasados se consultan con el filtro «Período».',
+    description: 'Crea las tutorías del período vigente: eliges la asignatura y el docente, y después los horarios y el paralelo. Los períodos pasados se consultan con el filtro «Período».',
   },
   'tutoring-reports': {
     title: 'Informes',

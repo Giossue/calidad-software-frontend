@@ -135,13 +135,13 @@ describe('Tutorías por período académico', () => {
     await screen.findByText('Matemática')
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
     await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
-    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
+    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
+    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     const parallels = within(form).getByRole('radiogroup', { name: 'Paralelo' })
     expect(within(parallels).getAllByRole('radio').map((radio) => radio.closest('label')?.textContent)).toEqual(['Paralelo A', 'Paralelo B'])
     await user.click(within(parallels).getByRole('radio', { name: 'Paralelo B' }))
-    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
-    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
     await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
     await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledWith({
       subject_id: 30,
@@ -163,13 +163,15 @@ describe('Tutorías por período académico', () => {
     await screen.findByText('Matemática')
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
     await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
-    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
-    return screen.findByRole('form', { name: 'Crear tutoría' })
+    const form = await screen.findByRole('form', { name: 'Crear tutoría' })
+    // El docente se elige junto con la asignatura, en el primer paso.
+    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
+    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
+    return form
   }
 
   async function submitWithTeacher(user: ReturnType<typeof userEvent.setup>, form: HTMLElement) {
-    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
-    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
     await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
   }
 
@@ -204,8 +206,9 @@ describe('Tutorías por período académico', () => {
     vi.mocked(tutoringApi.sections).mockResolvedValue([])
     vi.mocked(tutoringApi.createSection).mockResolvedValue({ id: 3, name: 'C', is_active: true })
     const form = await openParallelStep(user)
-    await user.type(within(form).getByLabelText('Nombre del nuevo paralelo'), 'c')
     await user.click(within(form).getByRole('button', { name: 'Crear paralelo' }))
+    await user.type(within(form).getByLabelText('Nombre del nuevo paralelo'), 'c')
+    await user.click(within(form).getByRole('button', { name: 'Guardar paralelo' }))
     await waitFor(() => expect(tutoringApi.createSection).toHaveBeenCalledWith('C'))
     const parallels = await within(form).findByRole('radiogroup', { name: 'Paralelo' })
     expect(within(parallels).getByRole('radio', { name: 'Paralelo C' })).toBeChecked()

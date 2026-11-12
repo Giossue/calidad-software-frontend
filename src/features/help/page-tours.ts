@@ -173,7 +173,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   tutorings: [
     careerBack,
     step(HEADER, 'Tutorías del período', 'Aquí organizas las tutorías de cada ciclo en el período vigente.'),
-    step(CREATE, 'Crear tutoría', 'Elige el ciclo y la asignatura; después asigna el docente y el horario.'),
+    step(CREATE, 'Crear tutoría', 'Elige la asignatura y el docente; después, el horario y el paralelo.'),
     step('[data-tour="tutorings-roster-import"]', 'Cargar listado PDF', 'Sube el listado de una asignatura que descargas del sistema académico. Antes de cargar ves qué se hará; al confirmar se crea la tutoría si no existe, se asigna el docente y se registran e inscriben sus estudiantes.'),
     filters('Busca por asignatura, elige el período y filtra por ciclo o estado. Los períodos pasados son solo de consulta.'),
     table('Cada fila es una tutoría con su docente y paralelo. Haz clic en ella para abrirla.'),

@@ -1,12 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { PlusIcon, PowerIcon } from 'lucide-react'
+import { CheckIcon, PlusIcon, PowerIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
+import { FieldError } from '@/components/ui/field'
 import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
@@ -137,10 +138,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [createTeachers, setCreateTeachers] = useState<readonly AvailableTeacher[]>([])
   const [createTeachersLoading, setCreateTeachersLoading] = useState(false)
   const [createTeachersError, setCreateTeachersError] = useState<string | null>(null)
-  const [createScheduleDays, setCreateScheduleDays] = useState<string[]>(['lunes'])
-  const [createDayTimes, setCreateDayTimes] = useState<Record<string, { start_time: string; end_time: string }>>({
-    lunes: { start_time: '08:00', end_time: '10:00' },
-  })
+  const [createScheduleRows, setCreateScheduleRows] = useState<ScheduleRow[]>(defaultScheduleRows)
+  // Los errores de validación en rojo aparecen solo tras intentar enviar.
+  const [createAttempted, setCreateAttempted] = useState(false)
   // Paralelo de la tutoría: una fila de ciclo ya usada (su id) o un paralelo del catálogo
   // (`p:<id>`), que se envía con la fila base del ciclo.
   const [createParallelIds, setCreateParallelIds] = useState<string[]>([])
@@ -158,24 +158,22 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const [editTeachers, setEditTeachers] = useState<readonly AvailableTeacher[]>([])
   const [editTeachersLoading, setEditTeachersLoading] = useState(false)
   const [editTeachersError, setEditTeachersError] = useState<string | null>(null)
-  const [editScheduleDays, setEditScheduleDays] = useState<string[]>(['lunes'])
-  const [editDayTimes, setEditDayTimes] = useState<Record<string, { start_time: string; end_time: string }>>({
-    lunes: { start_time: '08:00', end_time: '10:00' },
-  })
+  const [editScheduleRows, setEditScheduleRows] = useState<ScheduleRow[]>(defaultScheduleRows)
+  const [editAttempted, setEditAttempted] = useState(false)
   const [editOriginalSchedules, setEditOriginalSchedules] = useState<readonly TutoringSchedule[]>([])
   const [editParallelIds, setEditParallelIds] = useState<string[]>([])
   // Estado inicial del formulario de edición, para saber si hay cambios reales.
   const [editInitial, setEditInitial] = useState({ teacherId: '', schedule: '', parallel: '' })
 
   // Aviso previo de choques: el mismo docente no puede tener dos tutorías a la misma hora.
-  const createSchedules = toScheduleItems(createScheduleDays, createDayTimes)
+  const createSchedules = toScheduleItems(createScheduleRows)
   const createConflicts = findScheduleConflicts(
     createTeachers.find((t) => String(t.id) === createTeacherId)?.busy_schedules ?? [],
     createSchedules,
     undefined,
     creatingTutoringSubject?.name,
   )
-  const editSchedules = toScheduleItems(editScheduleDays, editDayTimes)
+  const editSchedules = toScheduleItems(editScheduleRows)
   const editConflicts = findScheduleConflicts(
     editTeachers.find((t) => String(t.id) === editTeacherId)?.busy_schedules ?? [],
     editSchedules,
@@ -214,20 +212,19 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   }, [subjectsRevision])
 
 
-  // Volver a cargar docentes solo al cambiar de asignatura, no al actualizarla (p. ej. al crear un paralelo).
-  const creatingSubjectId = creatingTutoringSubject?.id
+  // Los docentes de la carrera se cargan al abrir el formulario: se eligen junto con la asignatura.
   useEffect(() => {
-    if (!creatingSubjectId) return
+    if (!choosingTutoring) return
     let cancelled = false
     setCreateTeachersLoading(true)
     setCreateTeachersError(null)
     // Solo los docentes vinculados a la carrera.
-    tutoringApi.availableTeachers('', undefined, careerId)
-      .then((data) => { if (!cancelled) setCreateTeachers(data) })
+    Promise.resolve(tutoringApi.availableTeachers('', undefined, careerId))
+      .then((data) => { if (!cancelled) setCreateTeachers(Array.isArray(data) ? data : []) })
       .catch((caught: unknown) => { if (!cancelled) setCreateTeachersError(describeError(caught)) })
       .finally(() => { if (!cancelled) setCreateTeachersLoading(false) })
     return () => { cancelled = true }
-  }, [creatingSubjectId, careerId])
+  }, [choosingTutoring, careerId])
 
   function openCreateTutoring(subject: Subject, cycle: Cycle) {
     if (!subject.is_active) {
@@ -236,11 +233,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     }
     setCreatingTutoringSubject(subject)
     setCreatingTutoringCycle(cycle)
-    setCreateTeacherId('')
-    setCreateScheduleDays(['lunes'])
-    setCreateDayTimes({
-      lunes: { start_time: '08:00', end_time: '10:00' },
-    })
+    setCreateScheduleRows(defaultScheduleRows())
+    setCreateAttempted(false)
     setCreateError(null)
     setCreateErrorField(undefined)
 
@@ -260,9 +254,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       return
     }
 
-    const invalid = validateTutoringForm({ teacherId: createTeacherId, days: createScheduleDays, times: createDayTimes, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
-    if (invalid) {
-      setCreateError(invalid)
+    // Lo que falta se marca en línea bajo cada campo (y en el tooltip del botón bloqueado).
+    if (validateTutoringForm({ teacherId: createTeacherId, rows: createScheduleRows, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })) {
+      setCreateAttempted(true)
       return
     }
 
@@ -308,6 +302,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     if (!item.tutoring) return
     setEditingTutoringItem(item)
     setEditTeacherId(item.teacher_id ? String(item.teacher_id) : '')
+    setEditAttempted(false)
     setEditError(null)
     setEditErrorField(undefined)
 
@@ -345,20 +340,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
     // Set initial schedules
     const existing = (item.tutoring.schedules || item.schedules || []).filter((s) => s.is_active)
-    const days: string[] = []
-    const dayTimes: Record<string, { start_time: string; end_time: string }> = {}
-    existing.forEach((s) => {
-      if (!days.includes(s.day)) days.push(s.day)
-      dayTimes[s.day] = {
-        start_time: s.start_time.slice(0, 5),
-        end_time: s.end_time.slice(0, 5),
-      }
-    })
-    setEditScheduleDays(days.length > 0 ? days : ['lunes'])
-    setEditDayTimes(days.length > 0 ? dayTimes : { lunes: { start_time: '08:00', end_time: '10:00' } })
+    const initialRows = existing.length > 0 ? rowsFromSchedules(existing) : defaultScheduleRows()
+    setEditScheduleRows(initialRows)
     setEditOriginalSchedules(existing)
-    const initialDays = days.length > 0 ? days : DEFAULT_DAYS
-    const initialTimes = days.length > 0 ? dayTimes : DEFAULT_TIMES_BY_DAY
 
     Promise.resolve(tutoringApi.schedules(item.tutoring.id))
       .then((data) => {
@@ -366,18 +350,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         const freshActive = data.filter((s) => s.is_active)
         setEditOriginalSchedules(freshActive)
         if (freshActive.length > 0) {
-          const freshDays: string[] = []
-          const freshTimes: Record<string, { start_time: string; end_time: string }> = {}
-          freshActive.forEach((s) => {
-            if (!freshDays.includes(s.day)) freshDays.push(s.day)
-            freshTimes[s.day] = {
-              start_time: s.start_time.slice(0, 5),
-              end_time: s.end_time.slice(0, 5),
-            }
-          })
-          setEditScheduleDays(freshDays)
-          setEditDayTimes(freshTimes)
-          setEditInitial((prev) => ({ ...prev, schedule: scheduleSignature(freshDays, freshTimes) }))
+          const freshRows = rowsFromSchedules(freshActive)
+          setEditScheduleRows(freshRows)
+          setEditInitial((prev) => ({ ...prev, schedule: scheduleSignature(freshRows) }))
         }
       })
       .catch(() => {})
@@ -385,7 +360,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     // Paralelo actual: la fila de ciclo de la tutoría.
     const parallelIds = [String(item.cycle_id)]
     setEditParallelIds(parallelIds)
-    setEditInitial({ teacherId: item.teacher_id ? String(item.teacher_id) : '', schedule: scheduleSignature(initialDays, initialTimes), parallel: parallelIds.join(',') })
+    setEditInitial({ teacherId: item.teacher_id ? String(item.teacher_id) : '', schedule: scheduleSignature(initialRows), parallel: parallelIds.join(',') })
   }
 
   async function handleEditTutoringSubmit(event: FormEvent<HTMLFormElement>) {
@@ -393,9 +368,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     if (!editingTutoringItem || !editingTutoringItem.tutoring) return
     const currentTutoring = editingTutoringItem.tutoring
 
-    const invalid = validateTutoringForm({ teacherId: editTeacherId, days: editScheduleDays, times: editDayTimes, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })
-    if (invalid) {
-      setEditError(invalid)
+    if (validateTutoringForm({ teacherId: editTeacherId, rows: editScheduleRows, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })) {
+      setEditAttempted(true)
       return
     }
 
@@ -491,6 +465,8 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
   function openCreateChooser() {
     setChooserSubjectId('')
+    setCreateTeacherId('')
+    setCreateAttempted(false)
     setCreatingTutoringSubject(null)
     setCreatingTutoringCycle(null)
     setCreateError(null)
@@ -507,7 +483,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     setCreateErrorField(undefined)
   }
 
-  /** Al elegir la asignatura se prepara la segunda fase (docente, horario y paralelo). */
+  /** Al elegir la asignatura se prepara la segunda fase (horario y paralelo). */
   function chooseSubject(subjectId: string) {
     setChooserSubjectId(subjectId)
     const subject = chooserSubjects.find((item) => String(item.id) === subjectId)
@@ -587,25 +563,24 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
   const tutoringNotFound = detail.id !== null && !detailTutoring && careerTutorings !== null && !listLoading
 
   const creatingStep2 = Boolean(creatingTutoringSubject && creatingTutoringCycle)
-  const chooserBlockReason = !chooserSubjectId ? 'Selecciona una asignatura.' : null
+  const chooserBlockReason = !chooserSubjectId ? 'Selecciona una asignatura.' : !createTeacherId ? 'Selecciona un docente para la tutoría.' : null
   const createBlockReason = creatingStep2
-    ? validateTutoringForm({ teacherId: createTeacherId, days: createScheduleDays, times: createDayTimes, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
+    ? validateTutoringForm({ teacherId: createTeacherId, rows: createScheduleRows, parallelRequired: true, parallelIds: createParallelIds, conflicts: createConflicts })
     : chooserBlockReason
-  const createDirty = creatingStep2 && (
-    createTeacherId !== ''
-    || scheduleSignature(createScheduleDays, createDayTimes) !== scheduleSignature(DEFAULT_DAYS, DEFAULT_TIMES_BY_DAY)
+  const createDirty = createTeacherId !== '' || (creatingStep2 && (
+    scheduleSignature(createScheduleRows) !== scheduleSignature(defaultScheduleRows())
     || createParallelIds.join(',') !== createInitialParallelIds.join(',')
-  )
+  ))
 
   const editLocked = Boolean(editingTutoringItem && !editingTutoringItem.tutoring?.is_active)
   const editDirty = Boolean(editingTutoringItem) && (
     editTeacherId !== editInitial.teacherId
-    || scheduleSignature(editScheduleDays, editDayTimes) !== editInitial.schedule
+    || scheduleSignature(editScheduleRows) !== editInitial.schedule
     || editParallelIds.join(',') !== editInitial.parallel
   )
   const editBlockReason = editLocked
     ? 'Activa la tutoría para poder editarla.'
-    : validateTutoringForm({ teacherId: editTeacherId, days: editScheduleDays, times: editDayTimes, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })
+    : validateTutoringForm({ teacherId: editTeacherId, rows: editScheduleRows, parallelRequired: editSubjectParallels.length > 0, parallelIds: editParallelIds, conflicts: editConflicts })
 
   const cycleLabel = (cycleId: number, fallback: string) => {
     const number = catalogs.cycles.find((cycle) => cycle.id === cycleId)?.number
@@ -616,9 +591,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
   const createSteps: readonly FormStep[] = [
     {
-      title: 'Asignatura',
+      title: 'Asignatura y docente',
       blockReason: chooserBlockReason,
-      fields: ['subject_id'],
+      fields: ['subject_id', 'teacher_id'],
       content: (
         <>
           <SelectField
@@ -632,15 +607,6 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             options={chooserSubjects.map((subj) => ({ value: String(subj.id), label: `${subj.name} · ${subj.cycle_number}° ciclo` }))}
           />
           {chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">La carrera aún no tiene asignaturas activas. Regístralas primero en la Malla curricular.</p>}
-        </>
-      ),
-    },
-    {
-      title: 'Docente, horario y paralelo',
-      // `cycle_id` y `parallel_id` son la fila de ciclo y el paralelo elegidos en este paso.
-      fields: ['teacher_id', 'schedules', 'cycle_id', 'parallel_id', 'parallel_ids'],
-      content: creatingTutoringSubject && creatingTutoringCycle ? (
-        <>
           <TeacherSection
             prefix="create"
             teachers={createTeachers}
@@ -649,16 +615,25 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             fieldError={createFieldError('teacher_id')}
             value={createTeacherId}
             onChange={setCreateTeacherId}
-            conflicts={createConflicts}
           />
+        </>
+      ),
+    },
+    {
+      title: 'Horario y paralelo',
+      // `cycle_id` y `parallel_id` son la fila de ciclo y el paralelo elegidos en este paso.
+      fields: ['schedules', 'cycle_id', 'parallel_id', 'parallel_ids'],
+      content: creatingTutoringSubject && creatingTutoringCycle ? (
+        <>
           <ScheduleSection
             prefix="create"
-            days={createScheduleDays}
-            times={createDayTimes}
+            rows={createScheduleRows}
             error={createFieldError('schedules')}
-            onChange={(days, times) => { setCreateScheduleDays(days); setCreateDayTimes(times) }}
+            showErrors={createAttempted}
+            onChange={setCreateScheduleRows}
           />
-          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} onCreate={createParallelForTutoring} serverError={createFieldError('cycle_id', 'parallel_id', 'parallel_ids')} />
+          <ScheduleConflictNotice conflicts={createConflicts} />
+          <ParallelField prefix="create" parallels={subjectParallelsForModal} value={createParallelIds} onChange={setCreateParallelIds} onCreate={createParallelForTutoring} showErrors={createAttempted} serverError={createFieldError('cycle_id', 'parallel_id', 'parallel_ids')} />
         </>
       ) : null,
     },
@@ -730,13 +705,15 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       </div>
     </>}
 
-    {/* Crear tutoría por pasos: primero ciclo y asignatura; luego docente, horario y paralelo */}
+    {/* Crear tutoría por pasos: primero asignatura y docente; luego horario y paralelo */}
     <FormDialog
       open={choosingTutoring}
       title="Crear tutoría"
       description={creatingTutoringSubject && creatingTutoringCycle ? `${creatingTutoringSubject.name} · ${creatingTutoringCycle.number}° ciclo` : undefined}
       pending={createSaving}
       error={createError}
+      // El campo rechazado por el servidor lleva al paso donde se corrige (p. ej. `teacher_id` al paso 1).
+      errorModal={createError && createErrorField ? { title: '', description: createError, field: createErrorField } : null}
       dirty={createDirty}
       requireChanges
       blockReason={createBlockReason}
@@ -797,13 +774,13 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
           />
           <ScheduleSection
             prefix="edit"
-            days={editScheduleDays}
-            times={editDayTimes}
+            rows={editScheduleRows}
             error={editFieldError('schedules')}
-            onChange={(days, times) => { setEditScheduleDays(days); setEditDayTimes(times) }}
+            showErrors={editAttempted}
+            onChange={setEditScheduleRows}
             disabled={editLocked}
           />
-          <ParallelField prefix="edit" parallels={editSubjectParallels} value={editParallelIds} onChange={setEditParallelIds} disabled={editLocked} serverError={editFieldError('parallel_ids', 'cycle_id')} />
+          <ParallelField prefix="edit" parallels={editSubjectParallels} value={editParallelIds} onChange={setEditParallelIds} disabled={editLocked} showErrors={editAttempted} serverError={editFieldError('parallel_ids', 'cycle_id')} />
         </>
       )}
     </FormDialog>
@@ -813,35 +790,60 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 }
 
 const DEFAULT_TIMES = { start_time: '08:00', end_time: '10:00' }
-const DEFAULT_DAYS = ['lunes']
-const DEFAULT_TIMES_BY_DAY: DayTimes = { lunes: DEFAULT_TIMES }
 
-type DayTimes = Record<string, { start_time: string; end_time: string }>
+/** Una franja del horario: un día con su hora de inicio y de fin (una sola por día). */
+type ScheduleRow = { day: string; start_time: string; end_time: string }
 
-// Huella del horario (orden de días irrelevante) para detectar cambios reales.
-function scheduleSignature(days: readonly string[], times: Readonly<Record<string, { start_time: string; end_time: string } | undefined>>): string {
-  return JSON.stringify([...days].sort().map((day) => [day, times[day]?.start_time ?? DEFAULT_TIMES.start_time, times[day]?.end_time ?? DEFAULT_TIMES.end_time]))
+const defaultScheduleRows = (): ScheduleRow[] => [{ day: 'lunes', ...DEFAULT_TIMES }]
+
+/** Franjas guardadas: una por día, en el orden en que llegan (la última de cada día manda). */
+function rowsFromSchedules(schedules: readonly TutoringSchedule[]): ScheduleRow[] {
+  const rows: ScheduleRow[] = []
+  for (const schedule of schedules) {
+    const row = { day: schedule.day, start_time: schedule.start_time.slice(0, 5), end_time: schedule.end_time.slice(0, 5) }
+    const index = rows.findIndex((item) => item.day === schedule.day)
+    if (index >= 0) rows[index] = row
+    else rows.push(row)
+  }
+  return rows
+}
+
+// Huella del horario (orden de las filas irrelevante) para detectar cambios reales.
+function scheduleSignature(rows: readonly ScheduleRow[]): string {
+  return JSON.stringify(rows.map((row) => [row.day, row.start_time, row.end_time].join('|')).sort())
 }
 
 // Primer error de validación del formulario de tutoría (o null si es válido).
-function validateTutoringForm({ teacherId, days, times, parallelRequired, parallelIds, conflicts }: Readonly<{
+function validateTutoringForm({ teacherId, rows, parallelRequired, parallelIds, conflicts }: Readonly<{
   teacherId: string
-  days: readonly string[]
-  times: Readonly<Record<string, { start_time: string; end_time: string } | undefined>>
+  rows: readonly ScheduleRow[]
   parallelRequired: boolean
   parallelIds: readonly string[]
   conflicts: readonly ScheduleConflict[]
 }>): string | null {
   if (!teacherId) return 'Selecciona un docente para la tutoría.'
-  if (days.length === 0) return 'Selecciona al menos un día para el horario de la tutoría.'
-  for (const day of days) {
-    const dayTimes = times[day]
-    const dayLabel = DAY_LABELS[day] ?? day
-    if (!dayTimes?.start_time || !dayTimes?.end_time) return `Selecciona la hora de inicio y fin para el día ${dayLabel}.`
-    if (dayTimes.start_time >= dayTimes.end_time) return `En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`
+  if (rows.length === 0) return 'Agrega al menos un horario para la tutoría.'
+  for (const [index, row] of rows.entries()) {
+    if (!row.day) return 'Selecciona el día de cada horario.'
+    const dayLabel = DAY_LABELS[row.day] ?? row.day
+    if (rows.findIndex((item) => item.day === row.day) !== index) return `El día ${dayLabel} ya tiene un horario.`
+    if (!row.start_time || !row.end_time) return `Selecciona la hora de inicio y fin para el día ${dayLabel}.`
+    if (row.start_time >= row.end_time) return `En ${dayLabel}, la hora de fin debe ser posterior a la hora de inicio.`
   }
   if (parallelRequired && parallelIds.length === 0) return 'Selecciona el paralelo de la tutoría.'
   if (conflicts.length > 0) return describeConflicts(conflicts)
+  return null
+}
+
+/**
+ * Error en línea de una franja. Un rango imposible (fin antes del inicio) se marca en cuanto se
+ * elige; lo que falta, solo tras intentar enviar.
+ */
+function scheduleRowError(row: ScheduleRow, showMissing: boolean): string | null {
+  if (row.start_time && row.end_time && row.start_time >= row.end_time) return 'La hora de fin debe ser posterior a la de inicio.'
+  if (!showMissing) return null
+  if (!row.day) return 'Selecciona el día.'
+  if (!row.start_time || !row.end_time) return 'Selecciona la hora de inicio y de fin.'
   return null
 }
 
@@ -850,7 +852,7 @@ function timeOptions(current: string) {
   return all.map((time) => ({ value: time, label: time }))
 }
 
-function TeacherSection({ prefix, teachers, loading, error, fieldError = null, value, onChange, conflicts, disabled = false }: Readonly<{
+function TeacherSection({ prefix, teachers, loading, error, fieldError = null, value, onChange, conflicts = [], disabled = false }: Readonly<{
   prefix: 'create' | 'edit'
   teachers: readonly AvailableTeacher[]
   loading: boolean
@@ -859,7 +861,8 @@ function TeacherSection({ prefix, teachers, loading, error, fieldError = null, v
   fieldError?: string | null
   value: string
   onChange: (value: string) => void
-  conflicts: readonly ScheduleConflict[]
+  /** Cruces de horario del docente elegido (al crear se muestran junto al horario). */
+  conflicts?: readonly ScheduleConflict[]
   disabled?: boolean
 }>) {
   return (
@@ -886,86 +889,88 @@ function TeacherSection({ prefix, teachers, loading, error, fieldError = null, v
 }
 
 /**
- * Horario: se marcan los días y, por cada día marcado, su hora de inicio y de fin en una
- * sola línea. Sin recuadros anidados.
+ * Horario: una fila por franja (día, desde, hasta y quitar) y «Agregar horario» debajo. Cada día
+ * admite una sola franja, así que un día ya usado se ve deshabilitado en las demás filas.
  */
-function ScheduleSection({ prefix, days, times, onChange, disabled = false, error = null }: Readonly<{
+function ScheduleSection({ prefix, rows, onChange, disabled = false, error = null, showErrors = false }: Readonly<{
   prefix: 'create' | 'edit'
-  days: readonly string[]
-  times: DayTimes
+  rows: readonly ScheduleRow[]
   error?: string | null
-  onChange: (days: string[], times: DayTimes) => void
+  /** Tras intentar enviar: marca en rojo lo que falta en cada fila. */
+  showErrors?: boolean
+  onChange: (rows: ScheduleRow[]) => void
   disabled?: boolean
 }>) {
-  function toggleDay(day: string) {
-    if (days.includes(day)) {
-      onChange(days.filter((d) => d !== day), times)
-      return
-    }
-    const ref = days[0] ? times[days[0]] : undefined
-    onChange([...days, day], { ...times, [day]: times[day] ?? { start_time: ref?.start_time || DEFAULT_TIMES.start_time, end_time: ref?.end_time || DEFAULT_TIMES.end_time } })
+  const numbered = rows.length > 1
+  const suffix = (index: number) => (numbered ? ` (horario ${index + 1})` : '')
+  const allDaysUsed = WEEK_DAYS.every((day) => rows.some((row) => row.day === day))
+
+  function update(index: number, patch: Partial<ScheduleRow>) {
+    onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)))
   }
 
-  function setTime(day: string, key: 'start_time' | 'end_time', value: string) {
-    onChange([...days], { ...times, [day]: { ...(times[day] ?? DEFAULT_TIMES), [key]: value } })
+  function add() {
+    // La fila nueva toma las horas de la anterior: casi siempre solo cambia el día.
+    const last = rows.at(-1)
+    onChange([...rows, { day: '', start_time: last?.start_time || DEFAULT_TIMES.start_time, end_time: last?.end_time || DEFAULT_TIMES.end_time }])
   }
-
-  // Los días marcados se listan en el orden de la semana.
-  const orderedDays = WEEK_DAYS.filter((day) => days.includes(day))
 
   return (
-    <FormField id={`${prefix}-schedule-days`} label="Horario" required error={error}>
-      <div id={`${prefix}-schedule-days`} className="flex flex-wrap gap-x-4 gap-y-2" role="group" aria-label="Días de la semana">
-        {WEEK_DAYS.map((day) => (
-          <label key={day} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
-            <input
-              type="checkbox"
-              value={day}
-              checked={days.includes(day)}
-              disabled={disabled}
-              onChange={() => toggleDay(day)}
-              className="size-4 accent-primary"
-            />
-            {DAY_LABELS[day]}
-          </label>
-        ))}
-      </div>
-      {orderedDays.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {orderedDays.map((day) => {
-            const dayLabel = DAY_LABELS[day] ?? day
-            const currentTimes = times[day] ?? DEFAULT_TIMES
-            return (
-              <div key={day} className="grid grid-cols-[6rem_1fr_auto_1fr] items-center gap-2">
-                <span className="text-sm font-medium">{dayLabel}</span>
-                <SelectField
-                  id={`${prefix}-schedule-start-${day}`}
-                  label={days.length === 1 ? 'Hora de inicio' : `Hora de inicio (${dayLabel})`}
-                  labelClassName="sr-only"
-                  value={currentTimes.start_time}
-                  onValueChange={(value) => setTime(day, 'start_time', value)}
-                  placeholder="Inicio"
+    <FormField id={`${prefix}-schedule-day-0`} label="Horario" required error={error}>
+      <div className="flex flex-col gap-2">
+        {rows.map((row, index) => {
+          const rowError = scheduleRowError(row, showErrors)
+          const usedElsewhere = new Set(rows.filter((_, i) => i !== index).map((item) => item.day))
+          return (
+            // Filas sin identidad propia: todos sus campos son controlados, así que la posición basta.
+            <div key={index} className="flex flex-col gap-1">
+              <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto_minmax(0,1fr)_2rem] items-center gap-2">
+                <SelectInput
+                  id={`${prefix}-schedule-day-${index}`}
+                  ariaLabel={`Día${suffix(index)}`}
+                  value={row.day}
+                  onValueChange={(day) => update(index, { day })}
+                  placeholder="Día"
                   disabled={disabled}
-                  options={timeOptions(currentTimes.start_time)}
+                  invalid={Boolean(rowError) && !row.day}
+                  options={WEEK_DAYS.map((day) => ({ value: day, label: DAY_LABELS[day] ?? day, disabled: usedElsewhere.has(day) }))}
+                />
+                <SelectInput
+                  id={`${prefix}-schedule-start-${index}`}
+                  ariaLabel={`Hora de inicio${suffix(index)}`}
+                  value={row.start_time}
+                  onValueChange={(value) => update(index, { start_time: value })}
+                  placeholder="Desde"
+                  disabled={disabled}
+                  invalid={Boolean(rowError) && Boolean(row.day)}
+                  options={timeOptions(row.start_time)}
                 />
                 <span className="text-sm text-muted-foreground">a</span>
-                <SelectField
-                  id={`${prefix}-schedule-end-${day}`}
-                  label={days.length === 1 ? 'Hora de fin' : `Hora de fin (${dayLabel})`}
-                  labelClassName="sr-only"
-                  value={currentTimes.end_time}
-                  onValueChange={(value) => setTime(day, 'end_time', value)}
-                  placeholder="Fin"
+                <SelectInput
+                  id={`${prefix}-schedule-end-${index}`}
+                  ariaLabel={`Hora de fin${suffix(index)}`}
+                  value={row.end_time}
+                  onValueChange={(value) => update(index, { end_time: value })}
+                  placeholder="Hasta"
                   disabled={disabled}
-                  options={timeOptions(currentTimes.end_time)}
+                  invalid={Boolean(rowError) && Boolean(row.day)}
+                  options={timeOptions(row.end_time)}
                 />
+                {numbered ? (
+                  <Button type="button" variant="tertiary" tone="destructive" size="icon-sm" aria-label="Quitar horario" disabled={disabled} onClick={() => onChange(rows.filter((_, i) => i !== index))}>
+                    <Trash2Icon />
+                  </Button>
+                ) : <span aria-hidden="true" />}
               </div>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="text-sm text-warning">Marca al menos un día.</p>
-      )}
+              {rowError && <FieldError>{rowError}</FieldError>}
+            </div>
+          )
+        })}
+      </div>
+      <Button type="button" variant="secondary" size="sm" className="self-start" disabled={disabled || allDaysUsed} onClick={add}>
+        <PlusIcon data-icon="inline-start" />
+        Agregar horario
+      </Button>
     </FormField>
   )
 }
@@ -999,19 +1004,33 @@ function baseCycleId(cycles: readonly Cycle[], careerId: number, level: Cycle): 
   return cycles.find((c) => c.career_id === careerId && c.number === level.number && c.status && !c.paralelo_id)?.id ?? level.id
 }
 
-function ParallelField({ prefix, parallels, value, onChange, disabled = false, onCreate, serverError = null }: Readonly<{
+function ParallelField({ prefix, parallels, value, onChange, disabled = false, onCreate, serverError = null, showErrors = false }: Readonly<{
   serverError?: string | null
   prefix: 'create' | 'edit'
   parallels: readonly ParallelOption[]
   value: readonly string[]
   onChange: (value: string[]) => void
   disabled?: boolean
-  /** Al crear, permite registrar un paralelo nuevo aquí mismo. */
+  /** Al crear, permite registrar un paralelo nuevo aquí mismo (botón «+»). */
   onCreate?: (name: string) => Promise<void>
+  /** Tras intentar enviar: marca en rojo si falta elegir el paralelo. */
+  showErrors?: boolean
 }>) {
+  const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus()
+  }, [adding])
+
+  function cancel() {
+    setAdding(false)
+    setNewName('')
+    setCreateError(null)
+  }
 
   async function create() {
     const name = newName.trim().toUpperCase()
@@ -1021,6 +1040,7 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
     try {
       await onCreate(name)
       setNewName('')
+      setAdding(false)
     } catch (caught) {
       setCreateError(describeError(caught))
     } finally {
@@ -1028,52 +1048,74 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
     }
   }
 
+  const missing = showErrors && parallels.length > 0 && value.length === 0
+
   return (
     <FormField
       id={`${prefix}-tutoring-parallels`}
       label="Paralelo"
       // Igual que la validación: al crear siempre; al editar, si el ciclo tiene paralelos.
       required={prefix === 'create' || parallels.length > 0}
-      error={serverError ?? (parallels.length > 0 && value.length === 0 ? 'Selecciona el paralelo de la tutoría.' : null)}
+      error={serverError ?? (missing ? 'Selecciona el paralelo de la tutoría.' : null)}
     >
-      {parallels.length > 0 ? (
-        <div id={`${prefix}-tutoring-parallels`} className="flex flex-wrap gap-x-4 gap-y-2" role="radiogroup" aria-label="Paralelo">
-          {parallels.map((parallel) => (
-            <label key={parallel.value} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
-              <input
-                type="radio"
-                name={`${prefix}-tutoring-parallel`}
-                value={parallel.value}
-                checked={value.includes(parallel.value)}
-                disabled={disabled}
-                onChange={() => onChange([parallel.value])}
-                className="size-4 accent-primary"
-              />
-              <span>Paralelo {parallel.name}</span>
-            </label>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-warning">{onCreate ? 'Aún no hay paralelos registrados. Crea uno para continuar.' : 'Este ciclo aún no tiene paralelos registrados en la carrera.'}</p>
-      )}
-      {onCreate && (
-        <div className="flex flex-col gap-2 pt-2">
-          <div className="flex items-start gap-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {parallels.length > 0 ? (
+          <div id={`${prefix}-tutoring-parallels`} className="flex flex-wrap gap-x-4 gap-y-2" role="radiogroup" aria-label="Paralelo">
+            {parallels.map((parallel) => (
+              <label key={parallel.value} className={cn('inline-flex items-center gap-2 text-sm', disabled && 'opacity-50')}>
+                <input
+                  type="radio"
+                  name={`${prefix}-tutoring-parallel`}
+                  value={parallel.value}
+                  checked={value.includes(parallel.value)}
+                  disabled={disabled}
+                  onChange={() => onChange([parallel.value])}
+                  className="size-4 accent-primary"
+                />
+                <span>Paralelo {parallel.name}</span>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-warning">{onCreate ? 'Aún no hay paralelos registrados. Crea uno para continuar.' : 'Este ciclo aún no tiene paralelos registrados en la carrera.'}</p>
+        )}
+        {onCreate && !adding && (
+          <Button type="button" variant="secondary" size="icon-sm" aria-label="Crear paralelo" disabled={disabled} onClick={() => setAdding(true)}>
+            <PlusIcon />
+          </Button>
+        )}
+      </div>
+      {onCreate && adding && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1">
             <Input
+              ref={inputRef}
               id={`${prefix}-tutoring-new-parallel`}
               aria-label="Nombre del nuevo paralelo"
               value={newName}
               onChange={(event) => { setNewName(sanitizeLetters(event.target.value, 50)); setCreateError(null) }}
-              onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void create() } }}
-              placeholder="Nuevo paralelo, ej. C"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void create()
+                } else if (event.key === 'Escape') {
+                  // Escape cierra solo el campo, no el modal.
+                  event.preventDefault()
+                  event.stopPropagation()
+                  if (!creating) cancel()
+                }
+              }}
+              placeholder="Ej. C"
               maxLength={50}
               disabled={disabled || creating}
               aria-invalid={Boolean(createError)}
-              className="max-w-48"
+              className="h-8 max-w-40"
             />
-            <Button type="button" variant="secondary" disabled={disabled || creating || !newName.trim()} onClick={() => void create()}>
-              {creating ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
-              Crear paralelo
+            <Button type="button" variant="tertiary" size="icon-sm" aria-label="Guardar paralelo" disabled={disabled || creating || !newName.trim()} onClick={() => void create()}>
+              {creating ? <Spinner /> : <CheckIcon />}
+            </Button>
+            <Button type="button" variant="tertiary" size="icon-sm" aria-label="Cancelar" disabled={creating} onClick={cancel}>
+              <XIcon />
             </Button>
           </div>
           {createError && <p role="alert" className="text-xs text-destructive">{createError}</p>}
@@ -1083,14 +1125,11 @@ function ParallelField({ prefix, parallels, value, onChange, disabled = false, o
   )
 }
 
-function toScheduleItems(
-  days: readonly string[],
-  times: Readonly<Record<string, { start_time: string; end_time: string } | undefined>>,
-): TutoringScheduleItem[] {
-  return days.map((day) => ({
-    day,
-    start_time: (times[day]?.start_time ?? '08:00').slice(0, 5),
-    end_time: (times[day]?.end_time ?? '10:00').slice(0, 5),
+function toScheduleItems(rows: readonly ScheduleRow[]): TutoringScheduleItem[] {
+  return rows.filter((row) => row.day).map((row) => ({
+    day: row.day,
+    start_time: (row.start_time || DEFAULT_TIMES.start_time).slice(0, 5),
+    end_time: (row.end_time || DEFAULT_TIMES.end_time).slice(0, 5),
   }))
 }
 

@@ -613,6 +613,8 @@ describe('Coordinación de tutorías', () => {
     // Solo se elige la asignatura: su ciclo ya viene de la malla.
     expect(screen.queryByLabelText(/^Ciclo/)).not.toBeInTheDocument()
     await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
+    await waitFor(() => expect(screen.getByLabelText(/^Docente/)).toBeEnabled())
+    await choose(user, screen.getByLabelText(/^Docente/), 'Ana Torres')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
 
@@ -622,8 +624,6 @@ describe('Coordinación de tutorías', () => {
 
     expect(within(form).getByText('Aún no hay paralelos registrados. Crea uno para continuar.')).toBeInTheDocument()
     expect(within(form).getByRole('button', { name: 'Crear paralelo' })).toBeInTheDocument()
-    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
-    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
     expect(within(form).getByRole('button', { name: 'Crear tutoría' })).toBeDisabled()
   })
 
@@ -642,32 +642,35 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByLabelText(/^Ciclo/)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/^Asignatura/).closest('[data-slot="field"]')?.textContent).toContain('(obligatorio)')
     await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
-    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
 
     // La materia ya está seleccionada y visible en la descripción del modal
-    expect(screen.getByText(/^Matemática · /)).toBeInTheDocument()
+    expect(screen.getByText(/^Matemática · /, { selector: 'p' })).toBeInTheDocument()
 
-    // Asignar docente recuperado de docentes de la carrera específica (solo nombre, sin buscador ni correo)
+    // El docente va en el mismo paso que la asignatura: docentes de la carrera (solo nombre, sin buscador ni correo)
     await waitFor(() => expect(tutoringApi.availableTeachers).toHaveBeenCalledWith('', undefined, 10))
     await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
-    expect(within(form).getAllByText('(obligatorio)')).toHaveLength(3)
-    // Con el docente sin elegir, el formulario queda bloqueado
-    expect(within(form).getByRole('button', { name: 'Crear tutoría' })).toBeDisabled()
+    expect(within(form).getAllByText('(obligatorio)')).toHaveLength(2)
+    // Con el docente sin elegir, «Siguiente» queda bloqueado
+    expect(within(form).getByRole('button', { name: 'Siguiente' })).toBeDisabled()
     await user.click(within(form).getByLabelText(/^Docente/))
     expect(await screen.findByRole('option', { name: 'Ana Torres' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /ana@ueb.edu.ec/ })).not.toBeInTheDocument()
     await user.click(screen.getByRole('option', { name: 'Ana Torres' }))
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
+    // Paso 2: horario y paralelo
+    expect(within(form).getAllByText('(obligatorio)')).toHaveLength(2)
 
     // Asignar horario según el día (por ejemplo lunes 14:00-16:00 y miércoles 16:00-18:00, sin aula)
     expect(within(form).queryByLabelText(/Aula/)).not.toBeInTheDocument()
-    expect(within(form).getByLabelText('Lunes')).toBeChecked()
-    await user.click(within(form).getByLabelText('Miércoles'))
+    expect(within(form).getByLabelText('Día')).toHaveTextContent('Lunes')
+    await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
+    await choose(user, within(form).getByLabelText('Día (horario 2)'), 'Miércoles')
 
-    await choose(user, within(form).getByLabelText('Hora de inicio (Lunes)'), '14:00')
-    await choose(user, within(form).getByLabelText('Hora de fin (Lunes)'), '16:00')
-    await choose(user, within(form).getByLabelText('Hora de inicio (Miércoles)'), '16:00')
-    await choose(user, within(form).getByLabelText('Hora de fin (Miércoles)'), '18:00')
+    await choose(user, within(form).getByLabelText('Hora de inicio (horario 1)'), '14:00')
+    await choose(user, within(form).getByLabelText('Hora de fin (horario 1)'), '16:00')
+    await choose(user, within(form).getByLabelText('Hora de fin (horario 2)'), '18:00')
+    await choose(user, within(form).getByLabelText('Hora de inicio (horario 2)'), '16:00')
 
     await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
 
@@ -698,10 +701,10 @@ describe('Coordinación de tutorías', () => {
     await screen.findByText('Matemática')
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
     await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
-    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
     await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
     await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
 
     // Lunes 08:00-10:00 se cruza con Física (09:00-11:00).
     expect(within(form).getByRole('alert')).toHaveTextContent('Física (Lunes de 09:00 a 11:00)')
@@ -805,17 +808,20 @@ describe('Coordinación de tutorías', () => {
     await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
     expect(screen.queryByText('Elige el ciclo y la asignatura de la tutoría.')).not.toBeInTheDocument()
     await choose(user, screen.getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
-    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     const form = await screen.findByRole('form', { name: 'Crear tutoría' })
-    await user.click(within(form).getByRole('button', { name: 'Atrás' }))
-    expect(within(form).getByLabelText(/^Asignatura/)).toHaveTextContent('Matemática')
-    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
     await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
+    await user.click(within(form).getByRole('button', { name: 'Atrás' }))
+    expect(within(form).getByLabelText(/^Asignatura/)).toHaveTextContent('Matemática')
+    expect(within(form).getByLabelText(/^Docente/)).toHaveTextContent('Ana Torres')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
-    const teacher = within(form).getByLabelText(/^Docente/)
+    // El error del docente vuelve al paso 1, bajo el campo.
+    const teacher = await within(form).findByLabelText(/^Docente/)
     await waitFor(() => expect(teacher).toHaveAttribute('aria-invalid', 'true'))
     expect(teacher.closest('[data-slot="field"]')).toHaveTextContent('El docente ya tiene asignado un horario.')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     await user.click(within(form).getByRole('button', { name: 'Crear tutoría' }))
     await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(success).toHaveBeenCalledWith('Tutoría creada', undefined))
@@ -893,7 +899,7 @@ describe('Coordinación de tutorías', () => {
     // Contiene la misma información de la creación: materia, docente, horario y paralelos
     expect(screen.getByText(/^Matemática · /)).toBeInTheDocument()
     expect(within(form).getByLabelText(/^Docente/)).toHaveTextContent('Ana Torres')
-    expect(within(form).getByLabelText('Lunes')).toBeChecked()
+    expect(within(form).getByLabelText('Día')).toHaveTextContent('Lunes')
     expect(within(form).getByLabelText('Hora de inicio')).toHaveTextContent('08:00')
     expect(within(form).getByLabelText('Hora de fin')).toHaveTextContent('10:00')
     expect(within(form).getByLabelText(/Paralelo A/)).toBeChecked()
@@ -1037,9 +1043,10 @@ describe('Coordinación de tutorías', () => {
 
     const form = await screen.findByRole('form', { name: 'Editar tutoría' })
     // Agregar Miércoles
-    await user.click(within(form).getByLabelText('Miércoles'))
-    await choose(user, within(form).getByLabelText('Hora de inicio (Miércoles)'), '14:00')
-    await choose(user, within(form).getByLabelText('Hora de fin (Miércoles)'), '16:00')
+    await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
+    await choose(user, within(form).getByLabelText('Día (horario 2)'), 'Miércoles')
+    await choose(user, within(form).getByLabelText('Hora de inicio (horario 2)'), '14:00')
+    await choose(user, within(form).getByLabelText('Hora de fin (horario 2)'), '16:00')
 
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
     await waitFor(() => expect(tutoringApi.configureTutoring).toHaveBeenCalledWith(40, {
@@ -1626,5 +1633,149 @@ describe('Carga completa de las pantallas de coordinación de carrera', () => {
     await act(async () => students.resolve(paginated([])))
     expect(await screen.findByRole('button', { name: 'Registrar estudiante' })).toBeInTheDocument()
     expect(screen.getByLabelText('Buscar')).toBeInTheDocument()
+  })
+})
+
+describe('Crear tutoría: docente con la asignatura, horario por filas y paralelo con «+»', () => {
+  const teachers = [{ id: 70, name: 'Ana Torres', email: 'ana@ueb.edu.ec', is_active: true }]
+
+  async function openCreate(user: ReturnType<typeof userEvent.setup>) {
+    vi.mocked(tutoringApi.availableTeachers).mockResolvedValue(teachers)
+    render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
+    await screen.findByText('Matemática')
+    await user.click(screen.getByRole('button', { name: 'Crear tutoría' }))
+    return screen.findByRole('form', { name: 'Crear tutoría' })
+  }
+
+  async function goToStep2(user: ReturnType<typeof userEvent.setup>, form: HTMLElement) {
+    await choose(user, within(form).getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
+    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
+    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
+    await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
+  }
+
+  it('el paso 1 pide asignatura y luego docente, ambos obligatorios; «Siguiente» se bloquea hasta elegir los dos', async () => {
+    const user = userEvent.setup()
+    const form = await openCreate(user)
+    const subjectField = within(form).getByLabelText(/^Asignatura/).closest('[data-slot="field"]') as HTMLElement
+    const teacherField = within(form).getByLabelText(/^Docente/).closest('[data-slot="field"]') as HTMLElement
+    expect(subjectField).toHaveTextContent('(obligatorio)')
+    expect(teacherField).toHaveTextContent('(obligatorio)')
+    expect(subjectField.compareDocumentPosition(teacherField) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const next = within(form).getByRole('button', { name: 'Siguiente' })
+    expect(next).toBeDisabled()
+    await choose(user, within(form).getByLabelText(/^Asignatura/), 'Matemática · 2° ciclo')
+    expect(next).toBeDisabled()
+    await waitFor(() => expect(within(form).getByLabelText(/^Docente/)).toBeEnabled())
+    await choose(user, within(form).getByLabelText(/^Docente/), 'Ana Torres')
+    expect(next).toBeEnabled()
+    await user.click(next)
+    // Paso 2: horario y paralelo, sin el docente.
+    expect(within(form).queryByLabelText(/^Docente/)).not.toBeInTheDocument()
+    expect(within(form).getByRole('radiogroup', { name: 'Paralelo' })).toBeInTheDocument()
+    expect(within(form).getByLabelText('Día')).toHaveTextContent('Lunes')
+  })
+
+  it('el paralelo nuevo se crea desde «+»: el campo aparece al pulsarlo, Enter lo crea y queda elegido', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.sections).mockResolvedValue([{ id: 1, name: 'A', is_active: true }, { id: 2, name: 'B', is_active: true }])
+    vi.mocked(tutoringApi.createSection).mockResolvedValue({ id: 3, name: 'C', is_active: true })
+    const form = await openCreate(user)
+    await goToStep2(user, form)
+    expect(within(form).queryByLabelText('Nombre del nuevo paralelo')).not.toBeInTheDocument()
+    expect(within(form).queryByPlaceholderText(/Nuevo paralelo/)).not.toBeInTheDocument()
+    // Sin error rojo antes de intentar crear la tutoría.
+    expect(within(form).queryByText('Selecciona el paralelo de la tutoría.')).not.toBeInTheDocument()
+
+    await user.click(within(form).getByRole('button', { name: 'Crear paralelo' }))
+    const input = within(form).getByLabelText('Nombre del nuevo paralelo')
+    expect(input).toHaveFocus()
+    // Escape lo oculta sin cerrar el modal.
+    await user.keyboard('{Escape}')
+    expect(within(form).queryByLabelText('Nombre del nuevo paralelo')).not.toBeInTheDocument()
+    expect(screen.getByRole('form', { name: 'Crear tutoría' })).toBeInTheDocument()
+
+    await user.click(within(form).getByRole('button', { name: 'Crear paralelo' }))
+    await user.type(within(form).getByLabelText('Nombre del nuevo paralelo'), 'c{Enter}')
+    await waitFor(() => expect(tutoringApi.createSection).toHaveBeenCalledWith('C'))
+    expect(await within(form).findByRole('radio', { name: 'Paralelo C' })).toBeChecked()
+    expect(within(form).queryByLabelText('Nombre del nuevo paralelo')).not.toBeInTheDocument()
+  })
+
+  it('el error al crear el paralelo se muestra bajo su campo y «Cancelar» lo oculta', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.createSection).mockRejectedValue(new ApiError(422, { message: 'El paralelo ya existe.', errors: { name: ['El paralelo ya existe.'] } }))
+    const form = await openCreate(user)
+    await goToStep2(user, form)
+    await user.click(within(form).getByRole('button', { name: 'Crear paralelo' }))
+    await user.type(within(form).getByLabelText('Nombre del nuevo paralelo'), 'a')
+    await user.click(within(form).getByRole('button', { name: 'Guardar paralelo' }))
+    expect(await within(form).findByText('El paralelo ya existe.')).toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Cancelar' }))
+    expect(within(form).queryByLabelText('Nombre del nuevo paralelo')).not.toBeInTheDocument()
+    expect(within(form).queryByText('El paralelo ya existe.')).not.toBeInTheDocument()
+  })
+
+  it('el horario es una lista de filas: se agregan y quitan, cada fila pide día y la hora de fin va después de la de inicio', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.createTutoring).mockResolvedValue(tutoring)
+    const form = await openCreate(user)
+    await goToStep2(user, form)
+    const submit = within(form).getByRole('button', { name: 'Crear tutoría' })
+    // Una fila inicial (Lunes 08:00-10:00) que no se puede quitar.
+    expect(within(form).queryByRole('button', { name: 'Quitar horario' })).not.toBeInTheDocument()
+    expect(submit).toBeEnabled()
+
+    await user.click(within(form).getByRole('button', { name: 'Agregar horario' }))
+    expect(within(form).getAllByRole('button', { name: 'Quitar horario' })).toHaveLength(2)
+    // La fila nueva no tiene día: bloquea sin error rojo hasta intentar enviar.
+    expect(within(form).getByLabelText('Día (horario 2)')).toHaveTextContent('Día')
+    expect(submit).toBeDisabled()
+    expect(within(form).queryByText('Selecciona el día.')).not.toBeInTheDocument()
+    fireEvent.submit(form)
+    expect(await within(form).findByText('Selecciona el día.')).toBeInTheDocument()
+    expect(tutoringApi.createTutoring).not.toHaveBeenCalled()
+
+    // Un día ya usado no se ofrece en otra fila.
+    await user.click(within(form).getByLabelText('Día (horario 2)'))
+    expect(await screen.findByRole('option', { name: 'Lunes' })).toHaveAttribute('aria-disabled', 'true')
+    await user.click(screen.getByRole('option', { name: 'Miércoles' }))
+    expect(within(form).queryByText('Selecciona el día.')).not.toBeInTheDocument()
+
+    // La hora de fin debe ser posterior a la de inicio.
+    await choose(user, within(form).getByLabelText('Hora de inicio (horario 2)'), '11:00')
+    expect(within(form).getByText('La hora de fin debe ser posterior a la de inicio.')).toBeInTheDocument()
+    expect(submit).toBeDisabled()
+    await choose(user, within(form).getByLabelText('Hora de fin (horario 2)'), '12:00')
+    expect(within(form).queryByText('La hora de fin debe ser posterior a la de inicio.')).not.toBeInTheDocument()
+
+    // Quitar la primera fila deja solo la del miércoles.
+    await user.click(within(form).getAllByRole('button', { name: 'Quitar horario' })[0])
+    expect(within(form).getByLabelText('Día')).toHaveTextContent('Miércoles')
+    expect(within(form).queryByRole('button', { name: 'Quitar horario' })).not.toBeInTheDocument()
+
+    await user.click(submit)
+    await waitFor(() => expect(tutoringApi.createTutoring).toHaveBeenCalledWith({
+      subject_id: 30,
+      cycle_id: 20,
+      period_id: 50,
+      modality_id: 60,
+      teacher_id: 70,
+      schedules: [{ day: 'miercoles', start_time: '11:00', end_time: '12:00' }],
+    }))
+  })
+
+  it('sin paralelo elegido no hay error rojo hasta intentar crear la tutoría', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.sections).mockResolvedValue([{ id: 1, name: 'A', is_active: true }, { id: 2, name: 'B', is_active: true }])
+    const form = await openCreate(user)
+    await goToStep2(user, form)
+    const parallelField = within(form).getByRole('radiogroup', { name: 'Paralelo' }).closest('[data-slot="field"]') as HTMLElement
+    expect(parallelField).toHaveAttribute('data-invalid', 'false')
+    expect(within(form).queryByText('Selecciona el paralelo de la tutoría.')).not.toBeInTheDocument()
+    fireEvent.submit(form)
+    expect(await within(form).findByText('Selecciona el paralelo de la tutoría.')).toBeInTheDocument()
+    expect(within(form).getAllByText('Selecciona el paralelo de la tutoría.')).toHaveLength(1)
+    expect(tutoringApi.createTutoring).not.toHaveBeenCalled()
   })
 })
