@@ -460,7 +460,9 @@ describe('Coordinación de tutorías', () => {
     const user = userEvent.setup()
     await openCurriculum()
     await user.click(await screen.findByText('Matemática'))
-    expect(await screen.findByText('MAT · 2° ciclo')).toBeInTheDocument()
+    // Código y ciclo van solo en los datos, no repetidos bajo el título.
+    expect(await screen.findByRole('definition', { name: 'Código' })).toHaveTextContent('MAT')
+    expect(screen.queryByText('MAT · 2° ciclo')).not.toBeInTheDocument()
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.getByRole('definition', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
   })
@@ -1114,7 +1116,7 @@ describe('Coordinación de tutorías', () => {
 
     await user.click(screen.getByRole('button', { name: 'Abrir Matemática' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Matemática' })).toBeInTheDocument()
-    expect(screen.getByText('MAT · 2° ciclo')).toBeInTheDocument()
+    expect(screen.getByRole('definition', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Editar asignatura' })).not.toBeInTheDocument()
 

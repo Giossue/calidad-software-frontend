@@ -30,7 +30,6 @@ export function SubjectDetail({
   onDeactivate: () => void
 }>) {
   const cycleText = subject.cycle_number ? `${subject.cycle_number}° ciclo` : 'Sin ciclo'
-  const description = [subject.code, cycleText].filter(Boolean).join(' · ')
 
   return (
     <div className="flex flex-col gap-6" data-tour-view="detail">
@@ -43,7 +42,6 @@ export function SubjectDetail({
 
       <AdminSectionHeader
         title={formatSubjectName(subject.name)}
-        description={description}
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge active={subject.is_active} activeLabel="Activa" inactiveLabel="Inactiva" />
