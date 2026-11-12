@@ -540,24 +540,19 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.linkTeacherToCareer).toHaveBeenCalledWith(70, career.id))
   })
 
-  it('muestra en Docentes las asignaturas que dicta cada docente en lugar de sus carreras', async () => {
+  it('Docentes muestra una fila por docente con nombre, correo, teléfono y estado (las asignaturas están en Tutorías)', async () => {
     const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [career.id], can_manage: true,
       tutorings: [{ id: 40, subject_name: 'ALGEBRA LINEAL', cycle_name: 'Primero', cycle_number: 1, section_name: 'A' }, { id: 41, subject_name: 'PROGRAMACION WEB I', cycle_name: 'Tercero', cycle_number: 3, section_name: 'Paralelo B' }] }
-    const idle = { ...teacher, id: 2, name: 'Luis Mora', tutorings: [] }
+    const idle = { ...teacher, id: 2, name: 'Luis Mora', email: 'luis@ueb.edu.ec', phone: '', is_active: false, tutorings: [] }
     vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher, idle]))
     renderTeachers()
     await screen.findByText('Ana Torres')
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado'])
-    expect(screen.queryByRole('columnheader', { name: 'Carreras' })).not.toBeInTheDocument()
-    // Una fila por asignatura; el docente abarca sus dos filas.
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Docente', 'Correo', 'Teléfono', 'Estado'])
     const rows = screen.getAllByRole('row').slice(1)
-    expect(rows).toHaveLength(3)
-    expect(within(rows[0]).getByRole('cell', { name: /Ana Torres/ })).toHaveAttribute('rowspan', '2')
-    expect(within(rows[0]).getAllByRole('cell').slice(2, 5).map((cell) => cell.textContent)).toEqual(['ALGEBRA LINEAL', '1', 'A'])
-    expect(within(rows[1]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['PROGRAMACION WEB I', '3', 'B'])
-    expect(within(rows[2]).getAllByRole('cell').slice(2, 5).map((cell) => cell.textContent)).toEqual(['Sin tutorías', '—', '—'])
-    expect(screen.getByText('Sin tutorías')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Ver carreras de/ })).not.toBeInTheDocument()
+    expect(rows).toHaveLength(2)
+    expect(within(rows[0]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['Ana Torres', 'ana@ueb.edu.ec', '0999999999', 'Activo'])
+    expect(within(rows[1]).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['Luis Mora', 'luis@ueb.edu.ec', 'Sin teléfono', 'Inactivo'])
+    expect(screen.queryByText('ALGEBRA LINEAL')).not.toBeInTheDocument()
   })
 
   it('quita a un docente de una de sus carreras tras confirmar', async () => {
@@ -1342,15 +1337,15 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByText(/Registra a los estudiantes de Software/)).toBe(description)
     await chooseCycle(userEvent.setup(), '2° ciclo')
     expect(await screen.findByText('Carlos Estudiante')).toBeInTheDocument()
-    expect(screen.getByText('0201999999')).toBeInTheDocument()
+    // La cédula ya no va en la tabla (está en el detalle): se ve el correo.
     expect(screen.getByText('carlos@ueb.edu.ec')).toBeInTheDocument()
     expect(screen.getByText('Mostrando 1 de 1 estudiante')).toBeInTheDocument()
-    // Numeración de filas, cantidad de tutorías y estado en texto plano; sin columna de acciones: la fila abre al estudiante.
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Estudiante', 'Cédula / Teléfono', 'Tutorías', 'Estado'])
+    // Numeración de filas, nombre, correo, teléfono y estado (las tutorías están en Tutorías); sin columna de acciones: la fila abre al estudiante.
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Estudiante', 'Correo', 'Teléfono', 'Estado'])
     const row = screen.getByText('Carlos Estudiante').closest('tr')!
     expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('1')
     expect(within(row).queryByRole('button')).not.toBeInTheDocument()
-    expect(within(row).getByText('1 tutoría')).toBeInTheDocument()
+    expect(within(row).queryByText('1 tutoría')).not.toBeInTheDocument()
     // El estado siempre va en badge (solo los estados llevan badge).
     expect(within(row).getByText('Activo').closest('[data-slot="badge"]')).not.toBeNull()
     expect(within(row).getByText('Arrastra: PROGRAMACIÓN I')).toBeInTheDocument()
@@ -1466,7 +1461,7 @@ describe('Coordinación de tutorías', () => {
     render(<MemoryRouter><TutoringStudentsPage /></MemoryRouter>)
     await chooseCycle(user, /Titulación/i)
 
-    expect(await screen.findByText('5° ciclo')).toBeInTheDocument()
+    expect(await screen.findByTitle('Abrir a Pedro Quinto')).toBeInTheDocument()
     await user.click(screen.getByTitle('Abrir a Pedro Quinto'))
     expect(await screen.findByRole('heading', { level: 1, name: 'Pedro Quinto' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Matricular en titulación' })).toBeDisabled()
@@ -1537,7 +1532,7 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Matrícula en Titulación' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Acciones para María Estudiante' })).not.toBeInTheDocument()
-    expect(screen.getByText('0201888888')).toBeInTheDocument()
+    expect(screen.queryByText('0201888888')).not.toBeInTheDocument()
     expect(screen.getByText('No matriculado')).toBeInTheDocument()
     expect(screen.queryByText(/Período actual/)).not.toBeInTheDocument()
 
@@ -1619,7 +1614,7 @@ describe('Carga completa de las pantallas de coordinación de carrera', () => {
     expect(screen.queryByRole('heading', { name: 'Docentes' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Registrar docente nuevo' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Vincular docente existente' })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado'])
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Docente', 'Correo', 'Teléfono', 'Estado'])
     await act(async () => careers.resolve([career]))
     onlyLoadingStatus('Cargando docentes')
     expect(screen.queryByRole('button', { name: 'Registrar docente nuevo' })).not.toBeInTheDocument()

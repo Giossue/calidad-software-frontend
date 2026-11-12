@@ -26,7 +26,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { useDetailParam } from '@/hooks/use-detail-param'
-import { cn } from '@/lib/utils'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import type { Cycle } from '@/lib/api'
@@ -51,7 +50,7 @@ import { ListScreenSkeleton } from './tutoring-skeletons'
 
 /** Esqueleto de Estudiantes: el mismo mientras cargan las carreras y la primera página. */
 function StudentsSkeleton({ tabs }: Readonly<{ tabs?: number }>) {
-  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} tabs={tabs} headers={['#', 'Estudiante', 'Cédula / Teléfono', 'Tutorías', 'Estado']} />
+  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} tabs={tabs} headers={['#', 'Estudiante', 'Correo', 'Teléfono', 'Estado']} />
 }
 
 /**
@@ -676,7 +675,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                     render: (student) => (
                       <div className="flex flex-col gap-0.5">
                         <span>{student.name}</span>
-                        <span className="text-xs text-muted-foreground">{student.email}</span>
                         {(student.pending_subjects ?? []).length > 0 && (
                           <span className="text-xs text-warning">
                             Arrastra: {(student.pending_subjects ?? []).map((subject) => formatSubjectName(subject.name)).join(', ')}
@@ -685,23 +683,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                       </div>
                     ),
                   },
-                  {
-                    label: 'Cédula / Teléfono',
-                    render: (student) => (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-mono text-sm">{student.identification}</span>
-                        <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
-                      </div>
-                    ),
-                  },
-                  {
-                    label: 'Tutorías',
-                    render: (student) => (
-                      <span className={cn('text-sm', student.tutorings.length === 0 && 'text-muted-foreground')}>
-                        {student.tutorings.length === 0 ? 'Sin tutorías' : student.tutorings.length === 1 ? '1 tutoría' : `${student.tutorings.length} tutorías`}
-                      </span>
-                    ),
-                  },
+                  { label: 'Correo', render: (student) => student.email },
+                  { label: 'Teléfono', render: (student) => <span className="whitespace-nowrap">{student.phone || 'Sin teléfono'}</span> },
                   { label: 'Estado', render: (student) => <StatusBadge active={student.is_active} /> },
                 ]}
               />
@@ -765,30 +748,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                 columns={[
                   {
                     label: 'Estudiante',
-                    render: (student) => (
-                      <div className="flex flex-col gap-0.5">
-                        <span>{student.name}</span>
-                        <span className="text-xs text-muted-foreground">{student.email}</span>
-                      </div>
-                    ),
+                    render: (student) => student.name,
                   },
-                  {
-                    label: 'Cédula / Teléfono',
-                    render: (student) => (
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-mono text-sm">{student.identification}</span>
-                        <span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span>
-                      </div>
-                    ),
-                  },
-                  {
-                    label: 'Ciclo',
-                    render: (student) => (
-                      <span className="text-sm text-muted-foreground">
-                        {student.cycle_number ? `${student.cycle_number}° ciclo${student.academic_stage === 'titulacion' ? ' · Titulación' : ''}` : 'Sin registrar'}
-                      </span>
-                    ),
-                  },
+                  { label: 'Correo', render: (student) => student.email },
+                  { label: 'Teléfono', render: (student) => <span className="whitespace-nowrap">{student.phone || 'Sin teléfono'}</span> },
                   {
                     label: 'Estado en Titulación',
                     render: (student) =>

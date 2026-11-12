@@ -128,7 +128,7 @@ describe('Usuarios (docentes y estudiantes en pestañas)', () => {
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Docentes' })).not.toBeInTheDocument()
     expect(document.querySelector('[data-slot="tabs-skeleton"]')).toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado'])
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Docente', 'Correo', 'Teléfono', 'Estado'])
     await act(async () => careers.resolve([career]))
     expect(statuses()).toHaveLength(1)
     await act(async () => teachers.resolve(paginated([teacher])))

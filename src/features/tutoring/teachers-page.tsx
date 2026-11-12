@@ -14,7 +14,7 @@ import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
-import { formatSubjectName, sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { tutoringApi, type AvailableTeacher, type Teacher } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { FilterBar } from './filter-bar'
@@ -27,7 +27,7 @@ import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { ListScreenSkeleton } from './tutoring-skeletons'
 import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
-const TEACHER_HEADERS = ['Docente', 'Contacto', 'Asignatura', 'Ciclo', 'Paralelo', 'Estado'] as const
+const TEACHER_HEADERS = ['Docente', 'Correo', 'Teléfono', 'Estado'] as const
 
 const EMPTY_FORM = { career_id: '', identification: '', name: '', email: '', phone: '' }
 
@@ -154,16 +154,8 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
   if (!form.phone.trim()) teacherErrors.phone = 'El teléfono es obligatorio.'
   else if (!/^\d{10}$/.test(form.phone.trim())) teacherErrors.phone = 'El teléfono debe tener 10 dígitos numéricos.'
 
-  // Una fila por asignatura; los datos del docente abarcan todas sus filas.
-  const teacherRows = list.data.flatMap((teacher) => {
-    const tutorings = teacher.tutorings ?? []
-    return (tutorings.length > 0 ? tutorings : [null]).map((tutoring, index, all) => ({
-      id: `${teacher.id}-${tutoring?.id ?? 'none'}`,
-      teacher,
-      tutoring,
-      span: index === 0 ? all.length : 0,
-    }))
-  })
+  // Una fila por docente: sus asignaturas se consultan en Tutorías.
+  const teacherRows = list.data.map((teacher) => ({ id: teacher.id, teacher }))
 
   const teacherNotFound = detail.id !== null && !detailTeacher && !list.isFetching && !list.isInitialLoading
 
@@ -206,12 +198,10 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
     />
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable rows={teacherRows} loading={list.isFetching || list.isInitialLoading} empty={list.searchInput || careerFilter || statusFilter ? 'No hay docentes con estos filtros.' : 'Aún no hay docentes registrados.'} onRowClick={({ teacher }) => openTeacher(teacher)} rowTitle={({ teacher }) => `Abrir a ${teacher.name}`} columns={[
-      { label: 'Docente', span: ({ span }) => span, render: ({ teacher }) => <div className="flex flex-col gap-1"><span>{teacher.name}</span><span className="text-xs text-muted-foreground">{teacher.identification}</span></div> },
-      { label: 'Contacto', span: ({ span }) => span, render: ({ teacher }) => <div className="flex flex-col gap-1"><span>{teacher.email}</span><span className="text-xs text-muted-foreground">{teacher.phone || 'Sin teléfono'}</span></div> },
-      { label: 'Asignatura', render: ({ tutoring }) => tutoring ? <span className="leading-snug">{formatSubjectName(tutoring.subject_name)}</span> : <span className="text-sm text-muted-foreground">Sin tutorías</span> },
-      { label: 'Ciclo', render: ({ tutoring }) => <span className="whitespace-nowrap text-muted-foreground">{tutoring?.cycle_number ?? '—'}</span> },
-      { label: 'Paralelo', render: ({ tutoring }) => <span className="text-muted-foreground">{tutoring?.section_name ? tutoring.section_name.replace(/^Paralelo\s+/i, '') : '—'}</span> },
-      { label: 'Estado', span: ({ span }) => span, render: ({ teacher }) => <StatusBadge active={teacher.is_active} /> },
+      { label: 'Docente', render: ({ teacher }) => teacher.name },
+      { label: 'Correo', render: ({ teacher }) => teacher.email },
+      { label: 'Teléfono', render: ({ teacher }) => <span className="whitespace-nowrap">{teacher.phone || 'Sin teléfono'}</span> },
+      { label: 'Estado', render: ({ teacher }) => <StatusBadge active={teacher.is_active} /> },
     ]} />
     <CatalogPagination label="docentes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </>}
