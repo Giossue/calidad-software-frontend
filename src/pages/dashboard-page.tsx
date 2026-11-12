@@ -58,13 +58,12 @@ import { DegreeTrackingPage } from '@/features/degree-coordination/degree-tracki
 import { DegreeReportsPage } from '@/features/degree-coordination/degree-reports-page'
 import { StudentDegreeTopicsPage } from '@/features/student-degree-topics/student-degree-topics-page'
 import { StudentDegreeTrackingPage } from '@/features/student-degree-tracking/student-degree-tracking-page'
-import { TutoringSubjectsPage } from '@/features/tutoring/subjects-page'
 import { TutoringCurriculumPage } from '@/features/tutoring/curriculum-page'
 import { TutoringTeachersPage } from '@/features/tutoring/teachers-page'
 import { TutoringsPage } from '@/features/tutoring/tutorings-page'
 import { TutoringStudentsPage } from '@/features/tutoring/students-page'
 import { TutoringReportsPage } from '@/features/tutoring/reports-page'
-import { canCoordinateTutorings, dashboardSection, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
+import { canCoordinateTutorings, dashboardSection, sectionRedirectPath, type TutoringSection } from '@/features/tutoring/tutoring-navigation'
 import type { StudentSection } from '@/features/student/student-navigation'
 import { StudentTutoringsPage } from '@/features/student/student-tutorings-page'
 import { StudentDegreeAssignmentsPage } from '@/features/student/student-degree-assignments-page'
@@ -89,7 +88,6 @@ const NAV_ITEMS: readonly NavItem[] = [
 ]
 
 const TUTORING_NAV_ITEMS: readonly NavItem[] = [
-  { id: 'tutoring-subjects', label: 'Asignaturas', icon: BookOpenIcon },
   { id: 'tutoring-curriculum', label: 'Malla curricular', icon: NetworkIcon },
   { id: 'tutoring-teachers', label: 'Docentes', icon: UsersIcon },
   { id: 'tutoring-students', label: 'Estudiantes', icon: UserCheckIcon },
@@ -269,9 +267,9 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (section !== activeSection) {
-      navigate(`/panel/${activeSection}`, { replace: true })
+      navigate(sectionRedirectPath(section, activeSection, searchParams), { replace: true })
     }
-  }, [section, activeSection, navigate])
+  }, [section, activeSection, navigate, searchParams])
 
   useEffect(() => {
     if (
@@ -379,8 +377,6 @@ export function DashboardPage() {
         <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 overflow-x-clip p-4 sm:p-6">
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
-          ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-subjects' ? (
-            <TutoringSubjectsPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-curriculum' ? (
             <TutoringCurriculumPage />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-teachers' ? (

@@ -5,7 +5,7 @@ export type { Cycle }
 const ROOT = '/api/v1/tutoring-coordination'
 type Collection<T> = { readonly data: readonly T[] }
 type Resource<T> = { readonly data: T }
-export type TutoringListParams = { page?: number; search?: string; career_id?: number; curriculum_id?: number; cycle_id?: number; cycle_number?: number; status?: 'active' | 'inactive'; per_page?: number }
+export type TutoringListParams = { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; status?: 'active' | 'inactive'; per_page?: number }
 
 export interface CoordinatorEnrollment {
   readonly id: number
@@ -26,8 +26,6 @@ export interface Subject {
   readonly id: number
   readonly career_id: number
   readonly career_name: string
-  /** Versión de la malla curricular a la que pertenece. */
-  readonly curriculum_id?: number | null
   readonly code: string | null
   readonly name: string
   readonly modality_id?: number | null
@@ -209,24 +207,7 @@ export interface SupervisionSession {
   readonly attendance: readonly { readonly id: number; readonly student_id: number; readonly student_name: string; readonly student_identification: string; readonly present: boolean }[]
 }
 
-/** Versión de la malla curricular de una carrera. */
-export interface Curriculum {
-  readonly id: number
-  readonly name: string
-  readonly is_initial: boolean
-  readonly from_period_id: number | null
-  readonly from_period_name: string | null
-  /** Se aplica a quienes estén hasta este ciclo al subirla. */
-  readonly up_to_cycle: number | null
-  /** Malla que siguen los estudiantes de ciclos superiores. */
-  readonly previous_name: string | null
-  /** Rige en el PAO activo. */
-  readonly in_force: boolean
-  readonly subjects_count: number
-}
-export type CurriculumPeriod = { readonly id: number; readonly name: string; readonly start_date: string }
-export type CurriculumList = { readonly data: readonly Curriculum[]; readonly periods: readonly CurriculumPeriod[] }
-/** Asignatura de una malla nueva leída del archivo o corregida en la vista previa. */
+/** Asignatura de la malla leída del archivo o corregida en la vista previa. */
 export interface CurriculumSubjectRow {
   readonly code: string | null
   readonly name: string
@@ -234,19 +215,18 @@ export interface CurriculumSubjectRow {
   readonly previous: readonly string[]
   readonly errors?: readonly string[]
 }
-export type CurriculumInput = { career_id: number; name: string; period_id: number; up_to_cycle: number; subjects: readonly CurriculumSubjectRow[] }
+export type CurriculumInput = { career_id: number; subjects: readonly CurriculumSubjectRow[] }
 
 export const tutoringApi = {
-  curricula: (careerId: number) => request<CurriculumList>(`${ROOT}/curricula${buildQuery({ career_id: careerId })}`),
-  /** Lee el archivo de la malla nueva (Excel, CSV o PDF) para revisarla. */
+  /** Lee el archivo de la malla (Excel, CSV o PDF) para revisarla antes de importarla. */
   previewCurriculum: async (careerId: number, file: File): Promise<readonly CurriculumSubjectRow[]> => {
     const body = new FormData()
     body.append('file', file)
     body.append('career_id', String(careerId))
     return (await request<Resource<{ subjects: readonly CurriculumSubjectRow[] }>>(`${ROOT}/curricula/preview`, { method: 'POST', body })).data.subjects
   },
-  createCurriculum: (input: CurriculumInput) => mutate<{ id: number; name: string; subjects_count: number }>('curricula', 'POST', input),
-  deleteCurriculum: (id: number) => request<void>(`${ROOT}/curricula/${id}`, { method: 'DELETE' }),
+  /** Crea en la carrera las asignaturas de la malla revisada, con sus ciclos y previas. */
+  importCurriculum: (input: CurriculumInput) => request<{ created: number }>(`${ROOT}/curricula`, { method: 'POST', body: JSON.stringify(input) }),
   /** Lee el listado PDF; con `confirm` crea la tutoría, las cuentas y las inscripciones. */
   importRoster: async (careerId: number, file: File, confirm: boolean): Promise<RosterImport> => {
     const body = new FormData()

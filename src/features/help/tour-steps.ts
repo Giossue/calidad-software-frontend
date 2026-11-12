@@ -20,13 +20,9 @@ export const MODULE_HELP: Readonly<Record<string, { readonly title: string; read
     description: 'Registra las carreras de cada facultad y define su estructura de ciclos.',
   },
   // Coordinación de carrera (tutorías)
-  'tutoring-subjects': {
-    title: 'Asignaturas',
-    description: 'Elige una carrera y administra sus asignaturas por ciclo. También puedes cargarlas de forma masiva.',
-  },
   'tutoring-curriculum': {
     title: 'Malla curricular',
-    description: 'Consulta las asignaturas de cada ciclo y su secuencia: de cuál viene cada una y en cuál continúa. Quien aprueba una asignatura pasa a la siguiente en el nuevo período.',
+    description: 'Elige una carrera e importa su malla: se crean sus asignaturas por ciclo y su secuencia. Aquí también registras, editas o desactivas cada asignatura. Quien aprueba una asignatura pasa a la siguiente en el nuevo período.',
   },
   'tutoring-teachers': {
     title: 'Docentes',

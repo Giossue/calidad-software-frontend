@@ -1,134 +1,66 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { PlusIcon, SaveIcon } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
-import { BulkImportButton } from '@/components/bulk-import-dialog'
-import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
-import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { maxCycleNumber } from '@/lib/academic-stage'
 import { sanitizeCode, sanitizeLetters, formatSubjectName } from '@/lib/sanitize'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
-import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
-import { FilterBar } from './filter-bar'
-import { ErrorNotice } from '@/components/ui/error-notice'
-import { SubjectDetail } from './subject-detail'
-import { useDetailParam } from '@/hooks/use-detail-param'
-import { CycleSelect, ModuleHeader, RecordTable } from './tutoring-shared'
 import { CheckboxListSkeleton } from './tutoring-skeletons'
-import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
-import { ListScreenSkeleton } from './tutoring-skeletons'
+import type { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
-const ALL_CYCLES = 'all'
 const EMPTY_FORM = { career_id: '', cycle_id: '', parallel_ids: [] as string[], modality_id: '', period_id: '', code: '', name: '', next_subject_ids: [] as string[] }
 
 /** Formulario abierto: registrar, editar los datos o editar la secuencia en la malla. */
-type FormMode = 'create' | 'edit' | 'sequence'
-
-export function TutoringSubjectsPage() {
-  const catalogs = useTutoringCatalogs()
-  const selection = useSelectedCareer(catalogs.careers)
-
-  if (selection.career) {
-    return <SubjectsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
-  }
-
-  return <CareerPicker catalogs={catalogs} title="Asignaturas" skeleton={<SubjectsSkeleton />} rowTitle={(career) => `Ver asignaturas de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
-}
+export type SubjectFormMode = 'create' | 'edit' | 'sequence'
 
 type TutoringCatalogsState = ReturnType<typeof useTutoringCatalogs>
 
-/** Esqueleto de Asignaturas: el mismo mientras cargan las carreras y la primera página. */
-function SubjectsSkeleton() {
-  return <ListScreenSkeleton label="Cargando asignaturas" actions={2} filters={2} headers={['Código', 'Asignatura', 'Continúa en', 'Paralelo(s)', 'Estado']} />
+/** Paralelos activos del catálogo (o, sin catálogo, los de los ciclos registrados). */
+export function activeParallels(catalogs: TutoringCatalogsState): readonly { id: number; name: string; is_active: boolean }[] {
+  return catalogs.sections.length > 0
+    ? catalogs.sections.filter((s) => s.is_active)
+    : Array.from(
+        new Map(
+          catalogs.cycles
+            .filter((c) => c.paralelo_id && c.paralelo_name)
+            .map((c) => [c.paralelo_id!, { id: c.paralelo_id!, name: c.paralelo_name!, is_active: true }]),
+        ).values(),
+      )
 }
 
-function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: TutoringCatalogsState; careerId: number; onBack?: () => void }>) {
-  const [cycleSelection, setCycleSelection] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
-  const activeCareerId = String(careerId)
-  const cycleLevels = Array.from(
-    new Map(catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === Number(activeCareerId)).map((cycle) => [cycle.number, cycle])).values(),
-  ).sort((a, b) => a.number - b.number)
-  // Como en Estudiantes, se trabaja por ciclo y se abre en el primero. Sin ciclos registrados se listan todas.
-  const activeCycle = cycleLevels.length === 0
-    ? ALL_CYCLES
-    : cycleLevels.some((level) => String(level.number) === cycleSelection) ? cycleSelection : String(cycleLevels[0].number)
-  const careerMaxCycle = maxCycleNumber(catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId)))
-  const list = usePaginatedCatalog(
-    (page, search) => tutoringApi.subjects({
-      page,
-      search,
-      career_id: Number(activeCareerId) || undefined,
-      cycle_number: activeCycle === ALL_CYCLES ? undefined : Number(activeCycle),
-      status: statusFilter || undefined,
-    }),
-    `${activeCareerId}|${activeCycle}|${statusFilter}`,
-  )
-  const operation = useOperation()
-  // La asignatura abierta vive en la URL (?asignatura=<id>) para que "Atrás" vuelva a la lista.
-  const detail = useDetailParam('asignatura')
-  const [openedSubject, setOpenedSubject] = useState<Subject | null>(null)
-  const [mode, setMode] = useState<FormMode | null>(null)
-  const [editing, setEditing] = useState<Subject | null>(null)
-  const [form, setForm] = useState(EMPTY_FORM)
-  // Asignaturas de la carrera: para elegir cuáles continúan a la abierta (y para abrirla desde la URL).
-  const [careerSubjects, setCareerSubjects] = useState<readonly Subject[] | null>(null)
-  const [initialForm, setInitialForm] = useState(EMPTY_FORM)
-  const [deactivating, setDeactivating] = useState<Subject | null>(null)
-
+/**
+ * Modal para registrar una asignatura de la malla, editar sus datos o su secuencia.
+ * Se monta de nuevo (con `key`) cada vez que se abre, así parte de los datos actuales.
+ */
+export function SubjectFormDialog({ catalogs, careerId, mode, subject, careerSubjects, operation, onClose, onSaved }: Readonly<{
+  catalogs: TutoringCatalogsState
+  careerId: number
+  mode: SubjectFormMode | null
+  /** Asignatura que se edita; `null` al registrar una nueva. */
+  subject: Subject | null
+  /** Asignaturas de la carrera: para elegir cuáles continúan a la abierta. */
+  careerSubjects: readonly Subject[] | null
+  operation: ReturnType<typeof useOperation>
+  onClose: () => void
+  /** Se guardó: `updated` es la asignatura editada (null al registrar). */
+  onSaved: (updated: Subject | null) => Promise<void> | void
+}>) {
+  const editing = subject
+  const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
+  const [initialForm] = useState(() => editing
+    ? { next_subject_ids: (editing.next_subjects ?? []).map((item) => String(item.id)), career_id: String(editing.career_id), cycle_id: '', parallel_ids: [] as string[], modality_id: editing.modality_id ? String(editing.modality_id) : '', period_id: editing.period_id ? String(editing.period_id) : (activePeriod ? String(activePeriod.id) : ''), code: editing.code ?? '', name: editing.name }
+    : { ...EMPTY_FORM, career_id: String(careerId), period_id: activePeriod ? String(activePeriod.id) : '' })
+  const [form, setForm] = useState(initialForm)
   const [isAddingSection, setIsAddingSection] = useState(false)
   const [newSectionName, setNewSectionName] = useState('')
   const [creatingSection, setCreatingSection] = useState(false)
   const [sectionError, setSectionError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (detail.id === null) return
-    let cancelled = false
-    tutoringApi.subjects({ career_id: careerId, per_page: 100 })
-      .then((response) => { if (!cancelled) setCareerSubjects(response.data) })
-      .catch(() => { if (!cancelled) setCareerSubjects([]) })
-    return () => { cancelled = true }
-  }, [detail.id, careerId])
-
-  const detailSubject = detail.id === null
-    ? null
-    : (openedSubject?.id === detail.id ? openedSubject : null)
-      ?? list.data.find((item) => item.id === detail.id)
-      ?? careerSubjects?.find((item) => item.id === detail.id)
-      ?? null
-
-  function openSubject(subject: Subject) {
-    setOpenedSubject(subject)
-    detail.open(subject.id)
-  }
-
-  function openForm(nextMode: FormMode, subject: Subject | null, preselectedCycleId?: number | string) {
-    const defaultCareerId = (activeCareerId && catalogs.careers.some((c) => String(c.id) === activeCareerId))
-      ? activeCareerId
-      : (catalogs.careers[0] ? String(catalogs.careers[0].id) : '')
-    const activePeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
-    const next = subject
-      ? { next_subject_ids: (subject.next_subjects ?? []).map((item) => String(item.id)), career_id: String(subject.career_id), cycle_id: '', parallel_ids: [] as string[], modality_id: subject.modality_id ? String(subject.modality_id) : '', period_id: subject.period_id ? String(subject.period_id) : (activePeriod ? String(activePeriod.id) : ''), code: subject.code ?? '', name: subject.name }
-      : { ...EMPTY_FORM, career_id: defaultCareerId, cycle_id: preselectedCycleId ? String(preselectedCycleId) : '', period_id: activePeriod ? String(activePeriod.id) : '' }
-    setEditing(subject)
-    setForm(next)
-    setInitialForm(next)
-    setIsAddingSection(false)
-    setNewSectionName('')
-    setSectionError(null)
-    operation.clearError()
-    setMode(nextMode)
-  }
 
   function toggleParallel(id: string) {
     setForm((prev) => ({
@@ -169,17 +101,10 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedCode = form.code.trim()
-    const input = {
-      code: trimmedCode || undefined,
-      name: form.name.trim(),
-    }
-    const careerId = Number(form.career_id) || Number(activeCareerId) || (catalogs.careers[0]?.id ?? 0)
     const newParallel = isAddingSection && newSectionName.trim() ? newSectionName.trim() : undefined
     const selectedParallelIds = form.parallel_ids.map(Number).filter(Boolean)
     const chosenCycleId = form.cycle_id ? Number(form.cycle_id) : undefined
-
-    const currentPeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
-    const periodId = Number(form.period_id || currentPeriod?.id) || undefined
+    const periodId = Number(form.period_id || activePeriod?.id) || undefined
     let updated: Subject | null = null
 
     void operation.run(
@@ -194,7 +119,8 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
           return
         }
         await tutoringApi.createSubject({
-          ...input,
+          code: trimmedCode || undefined,
+          name: form.name.trim(),
           career_id: careerId,
           ...(chosenCycleId ? { cycle_id: chosenCycleId } : {}),
           ...(selectedParallelIds.length > 0 ? { parallel_ids: selectedParallelIds } : {}),
@@ -205,81 +131,20 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       },
       editing ? 'Asignatura actualizada' : 'Asignatura registrada',
       async () => {
-        setMode(null)
-        if (updated) setOpenedSubject(updated)
-        await list.reload()
-        catalogs.reload()
+        await onSaved(updated)
       },
     )
   }
 
-  function clearFilters() {
-    setStatusFilter('')
-  }
-
-  const currentCareerId = Number(form.career_id || activeCareerId || catalogs.careers[0]?.id)
-  const currentCareer = catalogs.careers.find((c) => c.id === currentCareerId)
-  const currentPeriod = catalogs.periods.find((p) => p.is_active) ?? catalogs.periods[0]
+  const currentCareer = catalogs.careers.find((c) => c.id === careerId)
+  const currentPeriod = activePeriod
   const careerCycles = catalogs.cycles.filter(
-    (cycle) => cycle.status && cycle.career_id === currentCareerId,
+    (cycle) => cycle.status && cycle.career_id === careerId,
   )
   const uniqueCycleLevels = Array.from(
     new Map(careerCycles.map((c) => [c.number || c.name, c])).values(),
   ).sort((a, b) => a.number - b.number)
-
-  const allParallels = catalogs.sections.length > 0
-    ? catalogs.sections.filter((s) => s.is_active)
-    : Array.from(
-        new Map(
-          catalogs.cycles
-            .filter((c) => c.paralelo_id && c.paralelo_name)
-            .map((c) => [c.paralelo_id!, { id: c.paralelo_id!, name: c.paralelo_name!, is_active: true }]),
-        ).values(),
-      )
-
-  const currentCareerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Asignaturas'
-  const selectedLevel = cycleLevels.find((level) => String(level.number) === activeCycle)
-  const selectedCycleIds = activeCycle === ALL_CYCLES
-    ? []
-    : catalogs.cycles.filter((cycle) => cycle.career_id === Number(activeCareerId) && cycle.number === Number(activeCycle)).map((cycle) => cycle.id)
-
-  const renderSubjectColumns = () => [
-    { label: 'Código', render: (subject: Subject) => subject.code ?? <span className="text-muted-foreground">—</span> },
-    {
-      label: 'Asignatura',
-      render: (subject: Subject) => (
-        <div className="flex flex-col gap-0.5">
-          <span>{formatSubjectName(subject.name)}</span>
-          {subject.modality_name && (
-            <span className="text-xs text-muted-foreground">{subject.modality_name}</span>
-          )}
-        </div>
-      ),
-    },
-    ...(activeCycle === ALL_CYCLES ? [{
-      label: 'Ciclo',
-      render: (subject: Subject) => {
-        const level = cycleLevels.find((item) => catalogs.cycles.some((cycle) => cycle.number === item.number && cycle.career_id === item.career_id && subject.cycle_ids.includes(cycle.id)))
-        return level ? `${level.number}°` : <span className="text-muted-foreground">—</span>
-      },
-    }] : []),
-    {
-      label: 'Continúa en',
-      render: (subject: Subject) => (subject.next_subjects ?? []).length > 0
-        ? <span className="text-sm">{(subject.next_subjects ?? []).map((next) => formatSubjectName(next.name)).join(', ')}</span>
-        : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      label: 'Paralelo(s)',
-      render: (subject: Subject) => {
-        const names = Array.from(new Set(catalogs.cycles.filter((cycle) => subject.cycle_ids.includes(cycle.id) && cycle.paralelo_name).map((cycle) => cycle.paralelo_name!.replace(/^Paralelo\s+/i, '')))).sort()
-        return names.length > 0
-          ? names.join(', ')
-          : <span className="text-muted-foreground">—</span>
-      },
-    },
-    { label: 'Estado', render: (subject: Subject) => <StatusBadge active={subject.is_active} activeLabel="Activa" inactiveLabel="Inactiva" /> },
-  ]
+  const allParallels = activeParallels(catalogs)
 
   const nameReason = form.name.trim() ? null : 'El nombre de la asignatura es obligatorio.'
 
@@ -417,67 +282,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
     ? (mode === 'sequence' ? formatSubjectName(editing.name) : `Modifica los datos de ${formatSubjectName(editing.name)}.`)
     : currentCareer ? `Carrera: ${currentCareer.name}` : undefined
 
-  const subjectNotFound = detail.id !== null && !detailSubject && careerSubjects !== null && !list.isFetching && !list.isInitialLoading
-
-  return <section className="flex flex-col gap-6">
-    {detailSubject ? (
-      <SubjectDetail
-        subject={detailSubject}
-        cycles={catalogs.cycles}
-        parallels={allParallels}
-        operation={operation}
-        onBack={detail.close}
-        onEdit={() => openForm('edit', detailSubject)}
-        onEditSequence={() => openForm('sequence', detailSubject)}
-        onDeactivate={() => { operation.clearError(); setDeactivating(detailSubject) }}
-        onChanged={async (updated) => {
-          setOpenedSubject(updated)
-          await list.reload()
-          catalogs.reload()
-        }}
-      />
-    ) : subjectNotFound ? (
-      <div className="flex flex-col items-start gap-4">
-        <p className="text-sm text-muted-foreground">No encontramos esta asignatura en la carrera.</p>
-        <Button type="button" variant="secondary" onClick={detail.close}>Volver a asignaturas</Button>
-      </div>
-    ) : detail.id !== null ? (
-      <DetailPageSkeleton label="Cargando asignatura" />
-    ) : list.isInitialLoading ? (
-      <SubjectsSkeleton />
-    ) : (
-      <>
-        <CareerBreadcrumb root="Asignaturas" career={currentCareerName} onBack={onBack} />
-        <ModuleHeader title="Asignaturas" description={`Registra las asignaturas de cada ciclo de ${currentCareerName} y sus paralelos. Haz clic en una para abrirla.`} createLabel="Registrar asignatura" onCreate={() => openForm('create', null, uniqueCycleLevels.find((level) => String(level.number) === activeCycle)?.id ?? selectedCycleIds[0])} extraActions={<BulkImportButton type="subjects" title="Carga masiva de asignaturas" onFinished={() => Promise.all([list.reload(), catalogs.reload()])} />} disabled={operation.pending || catalogs.loading || !catalogs.careers.some((career) => career.status)} />
-        <FilterBar
-          id="subjects"
-          leading={cycleLevels.length > 0 ? <CycleSelect id="subjects-cycle" levels={cycleLevels} value={activeCycle} onChange={setCycleSelection} degreeCycleNumber={careerMaxCycle} /> : undefined}
-          search={list.searchInput}
-          onSearch={list.setSearchInput}
-          searchPlaceholder="Busca por nombre o código…"
-          onClear={clearFilters}
-          filters={[
-            { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'active' | 'inactive'), allLabel: 'Todos los estados', options: [{ value: 'active', label: 'Activas' }, { value: 'inactive', label: 'Inactivas' }] },
-          ]}
-        />
-        <ErrorNotice message={list.error} retry={list.reload} />
-
-        <RecordTable
-          rows={list.data}
-          loading={list.isFetching || list.isInitialLoading}
-          empty={list.searchInput || statusFilter ? 'No hay asignaturas con estos filtros.' : activeCycle === ALL_CYCLES ? 'Aún no hay asignaturas registradas en esta carrera.' : 'Aún no hay asignaturas en este ciclo.'}
-          columns={renderSubjectColumns()}
-          onRowClick={openSubject}
-          rowTitle={(subject) => `Abrir ${formatSubjectName(subject.name)}`}
-        />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {list.isFetching || list.isInitialLoading ? <span /> : <p className="text-sm text-muted-foreground">
-            Mostrando {list.data.length} de {list.meta?.total ?? list.data.length} {(list.meta?.total ?? list.data.length) === 1 ? 'asignatura' : 'asignaturas'}{activeCycle === ALL_CYCLES ? '' : ` del ${selectedLevel ? `${selectedLevel.number}° ciclo` : 'ciclo seleccionado'}`}
-          </p>}
-          <CatalogPagination label="asignaturas" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
-        </div>
-      </>
-    )}
+  return (
     <FormDialog
       open={mode !== null}
       title={formTitle}
@@ -487,7 +292,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       errorModal={operation.errorModal}
       dirty={JSON.stringify(form) !== JSON.stringify(initialForm) || Boolean(newSectionName)}
       blockReason={nameReason}
-      onClose={() => setMode(null)}
+      onClose={onClose}
       onSubmit={submit}
       submitLabel={mode === 'create' ? 'Registrar asignatura' : mode === 'sequence' ? 'Guardar secuencia' : 'Guardar cambios'}
       steps={mode === 'create' ? createSteps : undefined}
@@ -496,7 +301,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
       {mode === 'sequence' && editing && (
         <NextSubjectsField
           subject={editing}
-          options={careerSubjects?.filter((subject) => subject.curriculum_id === editing.curriculum_id) ?? null}
+          options={careerSubjects}
           cycleNumber={(id) => catalogs.cycles.find((cycle) => cycle.id === id)?.number}
           value={form.next_subject_ids}
           onChange={(ids) => setForm({ ...form, next_subject_ids: ids })}
@@ -504,29 +309,7 @@ function SubjectsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: 
         />
       )}
     </FormDialog>
-    <ConfirmModal
-      open={Boolean(deactivating)}
-      title="¿Desactivar asignatura?"
-      description={`La asignatura «${deactivating?.name ?? ''}» dejará de estar disponible para nuevas tutorías. Sus tutorías existentes se conservarán.`}
-      confirmLabel="Desactivar asignatura"
-      pending={operation.pending}
-      onClose={() => { if (!operation.pending) setDeactivating(null) }}
-      onConfirm={() => {
-        if (!deactivating) return
-        let updated: Subject | null = null
-        void operation.run(
-          async () => { updated = await tutoringApi.deactivateSubject(deactivating.id) },
-          'Asignatura desactivada',
-          async () => {
-            setDeactivating(null)
-            setMode(null)
-            if (updated) setOpenedSubject(updated)
-            await list.reload()
-          },
-        )
-      }}
-    />
-  </section>
+  )
 }
 
 /**

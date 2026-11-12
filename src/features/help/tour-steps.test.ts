@@ -42,7 +42,7 @@ describe('buildTourSteps', () => {
   })
 
   it('tiene explicación para todos los módulos del menú', () => {
-    for (const id of ['users', 'periods', 'faculties', 'careers', 'tutoring-subjects', 'tutoring-curriculum', 'tutoring-teachers', 'tutoring-students', 'tutorings',
+    for (const id of ['users', 'periods', 'faculties', 'careers', 'tutoring-curriculum', 'tutoring-teachers', 'tutoring-students', 'tutorings',
       'tutoring-reports', 'degree-students', 'degree-topics', 'degree-tracking', 'degree-reports', 'teacher-tutorings', 'teacher-reports',
       'teacher-degree-assignments', 'teacher-degree-tracking', 'student-tutorings', 'student-degree-topics', 'student-degree-tracking',
       'student-degree-assignments']) {

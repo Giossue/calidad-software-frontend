@@ -109,32 +109,21 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
 
   // ---------- Coordinación de carrera ----------
-  'tutoring-subjects/career-picker': careerPicker('Asignaturas'),
-  'tutoring-subjects': [
+  'tutoring-curriculum/career-picker': careerPicker('Malla curricular'),
+  'tutoring-curriculum': [
     careerBack,
-    step(HEADER, 'Asignaturas de la carrera', 'Aquí administras las asignaturas de cada ciclo.'),
-    step(CREATE, 'Registrar asignatura', 'Agrega una asignatura indicando su ciclo.'),
-    bulk('Registra varias asignaturas a la vez.'),
-    step('[aria-label="Ciclos de la carrera"]', 'Ciclo', 'Elige el ciclo cuyas asignaturas quieres ver.'),
-    filters('Busca por nombre o código y filtra por estado.'),
-    table('Cada fila muestra la asignatura, en cuál continúa y sus paralelos. Haz clic en ella para abrirla.'),
-    pagination,
+    step(HEADER, 'Malla curricular', 'Las asignaturas de la carrera ordenadas por ciclo, como en la malla oficial. Aquí las administras.'),
+    step('[data-tour="curriculum-import"]', 'Importar malla', 'Sube la malla en Excel, CSV o PDF, revisa y corrige cada asignatura e impórtala: se crean las asignaturas con su ciclo y sus previas.'),
+    step(CREATE, 'Nueva asignatura', 'Agrega una asignatura suelta indicando su ciclo.'),
+    filters('Busca por nombre o código; elige «Inactivas» para ver las asignaturas desactivadas.'),
+    step('section[aria-label$="ciclo"] button', 'Asignaturas', 'Cada tarjeta indica en qué asignatura continúa, o «Fin de secuencia» si ahí termina. Haz clic en una para abrirla.'),
   ],
-  'tutoring-subjects/detail': [
-    back('Volver a asignaturas', 'Regresa a la lista de asignaturas.'),
+  'tutoring-curriculum/detail': [
+    back('Volver a la malla', 'Regresa a la malla curricular.'),
     step(HEADER, 'Asignatura', 'Su código, ciclo y estado.'),
     step({ button: 'Editar asignatura' }, 'Editar asignatura', 'Cambia el nombre, el código o la modalidad.'),
     step({ button: 'Desactivar asignatura' }, 'Desactivar asignatura', 'Deja de ofrecer la asignatura.'),
     step('[aria-label="Secciones de la asignatura"]', 'Paralelos, malla y datos', '«Paralelos» asigna o quita paralelos; «Malla» muestra de cuál viene y en cuál continúa, y permite editar la secuencia; «Datos», su información.'),
-  ],
-  'tutoring-curriculum/career-picker': careerPicker('Malla curricular'),
-  'tutoring-curriculum/curriculum': [
-    careerBack,
-    step(HEADER, 'Malla curricular', 'Las asignaturas de la carrera ordenadas por ciclo, como en la malla oficial.'),
-    step('[data-tour="curriculum-upload"]', 'Subir nueva malla curricular', 'Sube la malla nueva en Excel, CSV o PDF, elige desde qué PAO rige y hasta qué ciclo se aplica. Los estudiantes de ciclos superiores terminan con la malla anterior.'),
-    step('[data-tour="curriculum-version"]', 'Versiones de la malla', 'Si la carrera tiene varias mallas, elige cuál ver. Una malla que ninguna tutoría usa se puede eliminar.'),
-    step('[data-tour="curriculum-detail"]', 'Secuencia de la asignatura', 'Al elegir una asignatura, aquí ves de cuál viene y en cuál continúa. En la malla se resaltan en ámbar las previas y en verde las que continúan.'),
-    step('section[aria-label$="ciclo"] button', 'Asignaturas', 'Cada tarjeta indica en qué asignatura continúa, o «Fin de secuencia» si ahí termina. La secuencia se edita en Asignaturas.'),
   ],
   'tutoring-teachers': [
     step(HEADER, 'Docentes', 'Aquí administras los docentes de tus carreras.'),

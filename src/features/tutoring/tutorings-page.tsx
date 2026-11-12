@@ -740,7 +740,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
             error={createFieldError('subject_id')}
             options={chooserSubjects.map((subj) => ({ value: String(subj.id), label: subj.name }))}
           />
-          {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en Asignaturas.</p>}
+          {chooserCycle && chooserSubjects.length === 0 && <p className="text-xs text-muted-foreground">Este ciclo aún no tiene asignaturas activas. Regístralas primero en la Malla curricular.</p>}
         </>
       ),
     },

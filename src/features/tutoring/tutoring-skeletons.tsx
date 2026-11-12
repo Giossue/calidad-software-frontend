@@ -104,7 +104,6 @@ export function ListScreenSkeleton({ label, actions = 1, filters = 1, headers }:
 export function CurriculumCardsSkeleton() {
   return (
     <div className="flex flex-col gap-5" aria-hidden="true">
-      <Skeleton className="h-9 w-full" />
       {[5, 4, 3].map((count) => (
         <div key={count} className="flex flex-col gap-2">
           <Skeleton className="h-4 w-20" />
@@ -117,12 +116,13 @@ export function CurriculumCardsSkeleton() {
   )
 }
 
-/** Pantalla de la malla mientras carga: encabezado y tarjetas, como la pantalla real. */
+/** Pantalla de la malla mientras carga: encabezado, filtros y tarjetas, como la pantalla real. */
 export function CurriculumScreenSkeleton() {
   return (
     <div className="flex flex-col gap-6">
       <span role="status" aria-label="Cargando malla curricular" className="sr-only">Cargando malla curricular</span>
-      <PageHeaderSkeleton actions={1} />
+      <PageHeaderSkeleton actions={2} />
+      <FilterBarSkeleton filters={1} />
       <CurriculumCardsSkeleton />
     </div>
   )

@@ -55,7 +55,7 @@ export function SubjectDetail({
       <div>
         <Button type="button" variant="tertiary" onClick={onBack}>
           <ArrowLeftIcon data-icon="inline-start" />
-          Volver a asignaturas
+          Volver a la malla
         </Button>
       </div>
 

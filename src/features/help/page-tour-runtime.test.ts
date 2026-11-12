@@ -74,7 +74,7 @@ describe('buildPageTourSteps', () => {
   })
 
   it('todas las pantallas del menú tienen guía', () => {
-    for (const key of ['users', 'periods', 'faculties', 'careers', 'tutoring-subjects', 'tutoring-curriculum/curriculum', 'tutoring-teachers', 'tutoring-students', 'tutorings', 'tutoring-reports',
+    for (const key of ['users', 'periods', 'faculties', 'careers', 'tutoring-curriculum', 'tutoring-teachers', 'tutoring-students', 'tutorings', 'tutoring-reports',
       'degree-students', 'degree-topics', 'degree-tracking', 'degree-reports', 'teacher-tutorings', 'teacher-reports', 'teacher-degree-assignments',
       'teacher-degree-tracking', 'student-tutorings', 'student-degree-topics', 'student-degree-tracking', 'student-degree-assignments']) {
       expect(PAGE_TOURS[key]?.length, key).toBeGreaterThan(0)
@@ -93,7 +93,7 @@ describe('PAGE_TOURS', () => {
 
   it('incluye una guía para cada detalle que se abre desde una fila', () => {
     expect(detailKeys).toEqual(expect.arrayContaining([
-      'faculties/detail', 'careers/detail', 'tutoring-subjects/detail', 'tutoring-teachers/detail', 'tutoring-students/detail', 'tutorings/detail',
+      'faculties/detail', 'careers/detail', 'tutoring-curriculum/detail', 'tutoring-teachers/detail', 'tutoring-students/detail', 'tutorings/detail',
       'degree-topics/detail', 'degree-tracking/detail', 'teacher-reports/tutoring', 'teacher-tutorings/content/topic', 'teacher-tutorings/attendance/session',
     ]))
   })
