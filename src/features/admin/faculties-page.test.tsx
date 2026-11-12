@@ -49,6 +49,16 @@ describe('Facultades', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Facultades' })).toBeInTheDocument()
   })
 
+  it('muestra la modalidad de cada carrera, y «—» si una carrera antigua no la tiene', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listCareers).mockResolvedValue({ data: [career, { ...career, id: 11, name: 'Redes', modality_id: null, modality_name: undefined }], meta })
+    render(<MemoryRouter><FacultiesPage /></MemoryRouter>)
+    await user.click(await screen.findByRole('row', { name: /Facultad de Ingeniería/ }))
+    expect(within(await screen.findByRole('row', { name: /Software/ })).getByText('Presencial')).toBeInTheDocument()
+    expect(within(screen.getByRole('row', { name: /Redes/ })).getByText('—')).toBeInTheDocument()
+    expect(screen.queryByText('Sin modalidad')).not.toBeInTheDocument()
+  })
+
   it('edita el nombre desde la pantalla de la facultad', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'updateFaculty').mockResolvedValue({ ...faculty, name: 'Facultad de Ingenierías' })

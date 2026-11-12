@@ -156,7 +156,6 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
         operation={operation}
         onBack={detail.close}
         onEdit={() => openForm('edit', detailSubject)}
-        onEditSequence={() => openForm('sequence', detailSubject)}
         onDeactivate={() => askDeactivate(detailSubject)}
       />
     )
@@ -245,7 +244,6 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
         careerId={careerId}
         mode={form.mode}
         subject={form.subject}
-        careerSubjects={resource.settled ? subjects : null}
         initialCycleNumber={form.cycleNumber}
         operation={operation}
         onClose={() => setForm((current) => ({ ...current, mode: null }))}

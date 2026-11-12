@@ -130,7 +130,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Asignatura', 'Su código, ciclo y estado.'),
     step({ button: 'Editar asignatura' }, 'Editar asignatura', 'Cambia el nombre, el código o la modalidad.'),
     step({ button: 'Desactivar asignatura' }, 'Desactivar asignatura', 'Deja de ofrecer la asignatura.'),
-    step('[aria-label="Secciones de la asignatura"]', 'Malla y datos', '«Malla» muestra de cuál viene y en cuál continúa, y permite editar la secuencia; «Datos», su información. Los paralelos se eligen al crear cada tutoría del período.'),
+    step('[data-tour="subject-data"]', 'Datos', 'Su código, ciclo, modalidad, previas y en cuál continúa. Las previas se conectan en «Editar malla»; los paralelos se eligen al crear cada tutoría del período.'),
   ],
   // «Usuarios»: una guía por pestaña (`?pestana=`) y por vista dentro de ella.
   'tutoring-users/docentes': [

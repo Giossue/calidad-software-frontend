@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, type Career } from '@/lib/api'
 import { AcademicPage } from './academic-page'
 
-const career: Career = { id: 10, faculty_id: 1, faculty_name: 'Ingeniería', modality_id: null, name: 'Software', code: 'SW-2020', status: true, cycles_count: 4, active_cycles_count: 4, cycle_levels: 4 }
+const career: Career = { id: 10, faculty_id: 1, faculty_name: 'Ingeniería', modality_id: 1, modality_name: 'Presencial', name: 'Software', code: 'SW-2020', status: true, cycles_count: 4, active_cycles_count: 4, cycle_levels: 4 }
 const meta = { current_page: 1, last_page: 1, per_page: 15, total: 1, from: 1, to: 1, active_count: 1, inactive_count: 0 }
 
 function CurrentLocation() {
@@ -18,7 +18,7 @@ beforeEach(() => {
   vi.spyOn(api, 'listCareers').mockResolvedValue({ data: [career], meta })
   vi.spyOn(api, 'listActiveCareers').mockResolvedValue([career])
   vi.spyOn(api, 'listActiveFaculties').mockResolvedValue([{ id: 1, name: 'Ingeniería', status: true, is_active: true, careers_count: 1, active_careers_count: 1 }])
-  vi.spyOn(api, 'listModalities').mockResolvedValue({ data: [], meta })
+  vi.spyOn(api, 'listModalities').mockResolvedValue({ data: [{ id: 1, name: 'Presencial', is_active: true }, { id: 2, name: 'Virtual', is_active: true }], meta })
   vi.spyOn(api, 'updateCareer').mockResolvedValue(career)
   vi.spyOn(api, 'listCycles').mockResolvedValue({
     data: [{ id: 1, career_id: 10, name: 'Primer Ciclo', number: 1, status: true, paralelo_id: null, paralelo_name: null }],
@@ -69,15 +69,14 @@ describe('Edición de carreras', () => {
     expect(vi.mocked(api.updateCareer).mock.calls[0][1]).not.toHaveProperty('cycles_count')
   })
 
-  it('muestra la modalidad como opcional con un placeholder específico y valida código de carrera duplicado', async () => {
+  it('exige la modalidad, sin opción «Sin modalidad», y valida código de carrera duplicado', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><AcademicPage /></MemoryRouter>)
     await user.click(await screen.findByRole('button', { name: 'Nueva carrera' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Registrar carrera' })
-    const modalitySelect = within(dialog).getByLabelText(/^Modalidad/)
+    const modalitySelect = within(dialog).getByRole('combobox', { name: 'Modalidad(obligatorio)' })
     expect(modalitySelect).toHaveTextContent('Selecciona la modalidad')
-    expect(within(dialog).getByText(/^Modalidad/).closest('label')).toHaveTextContent('(Opcional)')
     // Sin ayudas que repitan los campos.
     expect(within(dialog).queryByText('Se crean automáticamente los ciclos de la carrera.')).not.toBeInTheDocument()
     expect(within(dialog).queryByText('Asigna la nueva carrera a una facultad activa.')).not.toBeInTheDocument()
@@ -94,6 +93,10 @@ describe('Edición de carreras', () => {
     await user.type(within(dialog).getByLabelText(/^Nombre de la carrera/), 'Software')
     await user.type(within(dialog).getByLabelText(/^Código de carrera/), 'sw-2020')
     await choose(user, within(dialog).getByLabelText(/^Facultad/), 'Ingeniería')
+    expect(within(dialog).getByRole('button', { name: 'Registrar carrera' })).toBeDisabled()
+    await user.click(modalitySelect)
+    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['Presencial', 'Virtual'])
+    await user.click(screen.getByRole('option', { name: 'Presencial' }))
     await user.click(within(dialog).getByRole('button', { name: 'Registrar carrera' }))
 
     // El error se muestra una sola vez, en línea bajo el código (sin otro recuadro ni modal encima).
@@ -115,9 +118,29 @@ describe('Edición de carreras', () => {
     await choose(user, within(dialog).getByLabelText(/^Facultad/), 'Ingeniería')
     expect(within(dialog).getByRole('button', { name: 'Registrar carrera' })).toBeDisabled()
     await user.type(within(dialog).getByLabelText(/^Código de carrera/), ' SW-2024 ')
+    await choose(user, within(dialog).getByLabelText(/^Modalidad/), 'Virtual')
     await user.click(within(dialog).getByRole('button', { name: 'Registrar carrera' }))
 
-    await waitFor(() => expect(api.createCareer).toHaveBeenCalledWith(expect.objectContaining({ name: 'Software', code: 'SW-2024', faculty_id: 1 })))
+    await waitFor(() => expect(api.createCareer).toHaveBeenCalledWith(expect.objectContaining({ name: 'Software', code: 'SW-2024', faculty_id: 1, modality_id: 2 })))
+  })
+
+  it('una carrera antigua sin modalidad muestra «—» y exige elegirla al editarla', async () => {
+    const user = userEvent.setup()
+    const legacy = { ...career, modality_id: null, modality_name: undefined }
+    vi.mocked(api.listCareers).mockResolvedValue({ data: [legacy], meta })
+    vi.mocked(api.listActiveCareers).mockResolvedValue([legacy])
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    const row = await screen.findByRole('row', { name: /Software/ })
+    expect(within(row).getByText('—')).toBeInTheDocument()
+    expect(screen.queryByText('Sin modalidad')).not.toBeInTheDocument()
+    const form = await openCareerEdit(user)
+    await user.type(within(form).getByLabelText(/^Nombre de la carrera/), ' II')
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    await user.click(within(form).getByLabelText(/^Modalidad/))
+    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['Presencial', 'Virtual'])
+    await user.click(screen.getByRole('option', { name: 'Presencial' }))
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(api.updateCareer).toHaveBeenCalledWith(10, expect.objectContaining({ name: 'Software II', modality_id: 1 })))
   })
 
   it('exige el código al editar una carrera que aún no lo tiene', async () => {

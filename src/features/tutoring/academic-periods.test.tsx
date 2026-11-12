@@ -19,7 +19,7 @@ class DOMMatrixReadOnlyShim {
   m22 = 1
 }
 
-const career = { id: 10, faculty_id: 1, modality_id: 1, name: 'Software', code: 'SW', status: true, cycles_count: 3, active_cycles_count: 3, cycle_levels: 3 }
+const career = { id: 10, faculty_id: 1, modality_id: 60, name: 'Software', code: 'SW', status: true, cycles_count: 3, active_cycles_count: 3, cycle_levels: 3 }
 const cycleA = { id: 20, career_id: 10, name: 'Segundo', number: 2, paralelo_id: 1, paralelo_name: 'A', status: true }
 const cycleB = { id: 22, career_id: 10, name: 'Segundo', number: 2, paralelo_id: 2, paralelo_name: 'B', status: true }
 const third = { id: 21, career_id: 10, name: 'Tercero', number: 3, paralelo_id: 1, paralelo_name: 'A', status: true }
@@ -253,7 +253,7 @@ describe('Malla: el ciclo de la asignatura es solo su número', () => {
     expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['Sin ciclo', '1° ciclo', '2° ciclo', '3° ciclo · Titulación'])
     await user.click(screen.getByRole('option', { name: '1° ciclo' }))
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'REDES', cycle_number: 1 }))
+    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'REDES', cycle_number: 1, modality_id: 60 }))
   })
 
   it('la malla agrupa por `cycle_number`, no por `cycle_ids`', async () => {

@@ -22,7 +22,7 @@ class DOMMatrixReadOnlyShim {
   }
 }
 
-const career = { id: 10, faculty_id: 1, modality_id: 1, name: 'Software', code: 'SW', status: true, cycles_count: 3, active_cycles_count: 3, cycle_levels: 3 }
+const career = { id: 10, faculty_id: 1, modality_id: 60, name: 'Software', code: 'SW', status: true, cycles_count: 3, active_cycles_count: 3, cycle_levels: 3 }
 const cycles = [
   { id: 19, career_id: 10, name: 'Primero', number: 1, paralelo_id: 1, paralelo_name: 'A', status: true },
   { id: 20, career_id: 10, name: 'Segundo', number: 2, paralelo_id: 1, paralelo_name: 'A', status: true },
@@ -43,7 +43,7 @@ beforeEach(() => {
   vi.mocked(tutoringApi.careers).mockResolvedValue([career])
   vi.mocked(tutoringApi.cycles).mockResolvedValue(cycles)
   vi.mocked(tutoringApi.periods).mockResolvedValue([{ id: 50, name: '2026-2', start_date: '2026-09-01', end_date: '2027-02-01', is_active: true }])
-  vi.mocked(tutoringApi.modalities).mockResolvedValue([])
+  vi.mocked(tutoringApi.modalities).mockResolvedValue([{ id: 60, name: 'Presencial', is_active: true }])
   vi.mocked(tutoringApi.sections).mockResolvedValue([{ id: 1, name: 'A', is_active: true }])
   vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([algebra, math, physics]))
 })
@@ -132,7 +132,7 @@ describe('Malla visual (lienzo como en sílabos)', () => {
     await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
     expect(within(form).getByRole('combobox', { name: /Ciclo/ })).toHaveTextContent('3° ciclo')
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'REDES', cycle_number: 3 }))
+    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'REDES', cycle_number: 3, modality_id: 60 }))
 
     await user.click(screen.getByRole('button', { name: 'Volver a la vista' }))
     expect(await screen.findByRole('region', { name: 'Vista de la malla' })).toBeInTheDocument()

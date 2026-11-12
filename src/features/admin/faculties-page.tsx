@@ -414,7 +414,7 @@ function FacultyDetail({ faculty, onChange, onBack }: Readonly<{
           empty="Esta facultad aún no tiene carreras registradas."
           columns={[
             { label: 'Carrera', render: (career) => career.name },
-            { label: 'Modalidad', render: (career) => <span className="text-muted-foreground">{career.modality_name ?? 'Sin modalidad'}</span> },
+            { label: 'Modalidad', render: (career) => <span className="text-muted-foreground">{career.modality_name ?? '—'}</span> },
             { label: 'Ciclos', render: (career) => <span className="text-muted-foreground">{career.cycles_count === 0 ? 'Sin ciclos' : `${career.active_cycles_count} de ${career.cycles_count} activos`}</span> },
             { label: 'Estado', render: (career) => <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },
           ]}
