@@ -1394,9 +1394,12 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByText('Sin ciclo asignado')).not.toBeInTheDocument()
     // Sin ciclo registrado, la acción de arriba es asignárselo.
     expect(screen.getByRole('button', { name: 'Asignar ciclo' })).toBeInTheDocument()
-    expect(await screen.findByText('No hay más tutorías disponibles para inscribir a este estudiante.')).toBeInTheDocument()
+    // Sus tutorías se ven pero no se modifican aquí: inscribir y desvincular se hace en Tutorías.
     const enrolled = screen.getByText('Matemática').closest('tr')!
-    expect(within(enrolled).getByRole('button', { name: 'Acciones para Matemática' })).toBeInTheDocument()
+    expect(within(enrolled).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Inscribir en una tutoría' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
+    expect(tutoringApi.availableTutoringsForStudent).not.toHaveBeenCalled()
     await user.click(screen.getByRole('tab', { name: 'Datos' }))
     expect(screen.getByText('0981112233')).toBeInTheDocument()
     expect(screen.getByText('Sin ciclo asignado')).toBeInTheDocument()

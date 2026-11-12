@@ -5,7 +5,6 @@ import {
   ArrowRightLeftIcon,
   GraduationCapIcon,
   UserMinusIcon,
-  UserPlusIcon,
 } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
@@ -17,10 +16,7 @@ import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { SelectField } from '@/components/ui/select-field'
-import { Spinner } from '@/components/ui/spinner'
-import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -35,7 +31,6 @@ import { formatSubjectName, sanitizeDigits, sanitizeLetters } from '@/lib/saniti
 import {
   tutoringApi,
   type CoordinatorStudent,
-  type CoordinatorStudentTutoring,
   type DegreeStudent,
   type Tutoring,
 } from '@/lib/tutoring-api'
@@ -134,16 +129,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
   const [openedDegree, setOpenedDegree] = useState<DegreeStudent | null>(null)
   // Abierto desde la URL y fuera de la página actual: se busca entre los estudiantes de la carrera.
   const [careerStudents, setCareerStudents] = useState<{ id: number; students: readonly CoordinatorStudent[]; degree: readonly DegreeStudent[] } | null>(null)
-  const [availableTutorings, setAvailableTutorings] = useState<readonly Tutoring[]>([])
-  const [loadingAvailable, setLoadingAvailable] = useState(false)
-  // Estudiante cuyas tutorías disponibles ya se cargaron.
-  const [availableFor, setAvailableFor] = useState<number | null>(null)
-  const [selectedTutoringId, setSelectedTutoringId] = useState('')
-  const [tutoringSearch, setTutoringSearch] = useState('')
-
-  // Modal de confirmación para desvincular tutoría
-  const [unlinking, setUnlinking] = useState<{ student: CoordinatorStudent; tutoring: CoordinatorStudentTutoring } | null>(null)
-
   // Cargar lista de ciclos y tutorías activas al abrir creación
   useEffect(() => {
     if (!createOpen) return
@@ -192,19 +177,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
       cancelled = true
     }
   }, [createOpen])
-
-  // Cargar tutorías disponibles al seleccionar un estudiante para asignación
-  const loadAvailableForStudent = async (studentId: number, search = '') => {
-    setLoadingAvailable(true)
-    try {
-      const res = await tutoringApi.availableTutoringsForStudent(studentId, search)
-      setAvailableTutorings(res.data ?? [])
-    } catch {
-      setAvailableTutorings([])
-    } finally {
-      setLoadingAvailable(false)
-    }
-  }
 
   function openCreateModal() {
     // Con un solo paralelo en el ciclo de la pestaña, el ciclo queda elegido de antemano.
@@ -265,8 +237,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
   function openAssignModal(student: CoordinatorStudent) {
     setOpenedStudent(student)
     setOpenedDegree(null)
-    setSelectedTutoringId('')
-    setTutoringSearch('')
     operation.clearError()
     detail.open(student.id)
   }
@@ -276,44 +246,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
     setOpenedStudent(null)
     operation.clearError()
     detail.open(student.student_id)
-  }
-
-  function handleAssignSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!assignStudent || !selectedTutoringId) return
-
-    void operation.run(
-      () => tutoringApi.enrollStudentInTutoring(assignStudent.id, Number(selectedTutoringId)),
-      'Estudiante inscrito en la tutoría',
-      async () => {
-        setSelectedTutoringId('')
-        await loadAvailableForStudent(assignStudent.id, tutoringSearch)
-        await list.reload()
-        const updatedList = await tutoringApi.allStudents({ search: assignStudent.identification })
-        const updated = updatedList.data.find((s) => s.id === assignStudent.id)
-        if (updated) setOpenedStudent(updated)
-      },
-    )
-  }
-
-  function handleUnenroll() {
-    if (!unlinking) return
-    const { student, tutoring } = unlinking
-
-    void operation.run(
-      () => tutoringApi.unenrollStudentFromTutoring(student.id, tutoring.enrollment_id),
-      'Tutoría desvinculada del estudiante',
-      async () => {
-        setUnlinking(null)
-        await list.reload()
-        if (assignStudent?.id === student.id) {
-          const updatedList = await tutoringApi.allStudents({ search: student.identification })
-          const updated = updatedList.data.find((s) => s.id === student.id)
-          if (updated) setOpenedStudent(updated)
-          await loadAvailableForStudent(student.id, tutoringSearch)
-        }
-      },
-    )
   }
 
   const isFormDirty = JSON.stringify(form) !== JSON.stringify(initialForm)
@@ -344,17 +276,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
   const isLastCycle = (cycle: Cycle) => isDegreeCycleNumber(cycle.number, createModalMaxCycle)
   const selectedCycle = cycles.find((cycle) => String(cycle.id) === form.cycle_id)
   const isDegreeCycle = selectedCycle ? isLastCycle(selectedCycle) : false
-
-  const filteredAvailableTutorings = availableTutorings.filter((t) => {
-    if (!tutoringSearch.trim()) return true
-    const term = tutoringSearch.toLowerCase()
-    return (
-      t.subject_name.toLowerCase().includes(term) ||
-      (t.cycle_name && t.cycle_name.toLowerCase().includes(term)) ||
-      (t.teacher_name && t.teacher_name.toLowerCase().includes(term)) ||
-      (t.section_name && t.section_name.toLowerCase().includes(term))
-    )
-  })
 
   // Matrícula de Titulación
   const [degreeFilter, setDegreeFilter] = useState<'' | 'enrolled' | 'not_enrolled'>('')
@@ -426,22 +347,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
     return () => { cancelled = true }
   }, [detailId, foundInPage, listsLoading, careerId])
 
-  // Tutorías disponibles del estudiante abierto (no aplica en titulación).
-  const tutoringsStudentId = assignStudent && !showDegree ? assignStudent.id : null
-  useEffect(() => {
-    if (tutoringsStudentId === null) return
-    let cancelled = false
-    tutoringApi.availableTutoringsForStudent(tutoringsStudentId, '')
-      .then((response) => response.data ?? [])
-      .catch(() => [] as readonly Tutoring[])
-      .then((data) => {
-        if (cancelled) return
-        setAvailableTutorings(data)
-        setAvailableFor(tutoringsStudentId)
-      })
-    return () => { cancelled = true }
-  }, [tutoringsStudentId])
-  const availableLoading = loadingAvailable || (tutoringsStudentId !== null && availableFor !== tutoringsStudentId)
 
   // El ciclo encabeza la fila de filtros en las dos vistas (tutorías y titulación).
   const cycleSelect = (
@@ -553,56 +458,15 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                   Arrastra: {(assignStudent.pending_subjects ?? []).map((subject) => formatSubjectName(subject.name)).join(', ')}. No se le inscribe en las asignaturas que las continúan hasta que las apruebe.
                 </p>
               )}
-              {availableLoading ? (
-                <div role="status" aria-label="Cargando tutorías disponibles" className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                  <div className="flex flex-col gap-2 sm:max-w-xl sm:flex-1" aria-hidden="true">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-9 w-full" />
-                  </div>
-                  <Skeleton className="h-9 w-44" aria-hidden="true" />
-                </div>
-              ) : availableTutorings.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No hay más tutorías disponibles para inscribir a este estudiante.</p>
-              ) : (
-                <form onSubmit={handleAssignSubmit} aria-label="Inscribir en una tutoría" className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                  <SelectField
-                    id="assign-tutoring-select"
-                    label="Inscribir en una tutoría"
-                    className="sm:max-w-xl sm:flex-1"
-                    value={selectedTutoringId}
-                    onValueChange={setSelectedTutoringId}
-                    disabled={operation.pending}
-                    placeholder="Elige una tutoría disponible"
-                    options={filteredAvailableTutorings.map((tutoring) => ({
-                      value: String(tutoring.id),
-                      label: `${tutoring.subject_name} (${tutoring.cycle_name}${tutoring.section_name ? ` - ${tutoring.section_name}` : ''})${tutoring.teacher_name ? ` — Docente: ${tutoring.teacher_name}` : ''}`,
-                    }))}
-                  />
-                  <Button type="submit" disabled={!selectedTutoringId || operation.pending}>
-                    {operation.pending ? <Spinner data-icon="inline-start" /> : <UserPlusIcon data-icon="inline-start" />}
-                    Inscribir en tutoría
-                  </Button>
-                </form>
-              )}
               <RecordTable
                 rows={assignStudent.tutorings.map((tutoring) => ({ ...tutoring, id: tutoring.enrollment_id }))}
                 loading={false}
-                empty="Aún no está inscrito en ninguna tutoría."
+                empty="Aún no está inscrito en ninguna tutoría. Las inscripciones se hacen desde Tutorías."
                 columns={[
                   { label: 'Asignatura', render: (tutoring) => formatSubjectName(tutoring.subject_name) },
                   { label: 'Ciclo', render: (tutoring) => tutoring.cycle_name },
                   { label: 'Paralelo', render: (tutoring) => tutoring.section_name ?? '—' },
                   { label: 'Período', render: (tutoring) => tutoring.period_name },
-                  {
-                    label: 'Acciones',
-                    render: (tutoring) => (
-                      <RowActionsMenu
-                        name={tutoring.subject_name}
-                        disabled={operation.pending}
-                        actions={[{ label: 'Desvincular', icon: UserMinusIcon, tone: 'destructive', onSelect: () => setUnlinking({ student: assignStudent, tutoring }) }]}
-                      />
-                    ),
-                  },
                 ]}
               />
             </TabsContent>
@@ -910,16 +774,6 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
       >
         {null}
       </FormDialog>
-
-      <ConfirmModal
-        open={Boolean(unlinking)}
-        title="¿Desvincular tutoría del estudiante?"
-        description={`${unlinking?.student.name ?? 'El estudiante'} dejará la tutoría de «${unlinking?.tutoring.subject_name ?? ''}» y perderá el acceso a sus sesiones.`}
-        confirmLabel="Desvincular tutoría"
-        pending={operation.pending}
-        onClose={() => setUnlinking(null)}
-        onConfirm={handleUnenroll}
-      />
 
       <FormDialog
         open={Boolean(cycleTarget)}
