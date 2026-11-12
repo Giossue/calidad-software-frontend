@@ -17,7 +17,7 @@ export interface CoordinatorEnrollment {
   readonly id: number
   readonly tutoring_id: number
   readonly student_id: number
-  readonly identification: string
+  readonly identification: string | null
   readonly name: string
   readonly email: string
   readonly phone: string | null
@@ -56,7 +56,7 @@ export interface SubjectReference {
 
 export interface Teacher {
   readonly id: number
-  readonly identification: string
+  readonly identification: string | null
   readonly name: string
   readonly email: string
   readonly phone: string | null
@@ -225,7 +225,7 @@ export type TutoringFinalResult = 'approved' | 'failed'
 export interface TutoringStudentGrades {
   readonly enrollment_id: number
   readonly student_id: number
-  readonly identification: string
+  readonly identification: string | null
   readonly name: string
   /** Una entrada por etapa, en orden; `value` es la nota con dos decimales o `null`. */
   readonly grades: readonly { readonly stage: TutoringGradeStage; readonly label: string; readonly value: string | null }[]
@@ -360,7 +360,7 @@ export interface StudentCycleHistory {
 export interface DegreeStudent {
   readonly id: number
   readonly student_id: number
-  readonly identification: string
+  readonly identification: string | null
   readonly name: string
   readonly email: string
   readonly phone: string | null
@@ -397,7 +397,7 @@ export interface CoordinatorStudentTutoring {
 
 export interface CoordinatorStudent {
   readonly id: number
-  readonly identification: string
+  readonly identification: string | null
   readonly name: string
   readonly email: string
   readonly phone?: string | null

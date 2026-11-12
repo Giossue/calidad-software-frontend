@@ -99,7 +99,7 @@ export function TeacherDetail({
         </TabsContent>
         <TabsContent value="data">
           <dl className="grid max-w-2xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-            <Datum label="Cédula o pasaporte" value={teacher.identification} />
+            <Datum label="Cédula o pasaporte" value={teacher.identification ?? 'Sin registrar'} />
             <Datum label="Correo institucional" value={teacher.email} />
             <Datum label="Teléfono" value={teacher.phone || 'Sin teléfono'} />
           </dl>

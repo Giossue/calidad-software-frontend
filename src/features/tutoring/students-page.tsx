@@ -421,7 +421,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
             }
           />
           <dl className="grid max-w-2xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-            <StudentDatum label="Cédula o pasaporte" value={degreeStudent.identification} />
+            <StudentDatum label="Cédula o pasaporte" value={degreeStudent.identification ?? 'Sin registrar'} />
             <StudentDatum label="Correo institucional" value={degreeStudent.email} />
             <StudentDatum label="Teléfono" value={degreeStudent.phone || 'Sin teléfono'} />
             <StudentDatum label="Ciclo" value={degreeCycleText(degreeStudent)} />
@@ -479,7 +479,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
             </TabsContent>
             <TabsContent value="data">
               <dl className="grid max-w-2xl gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-                <StudentDatum label="Cédula o pasaporte" value={assignStudent.identification} />
+                <StudentDatum label="Cédula o pasaporte" value={assignStudent.identification ?? 'Sin registrar'} />
                 <StudentDatum label="Correo institucional" value={assignStudent.email} />
                 <StudentDatum label="Teléfono" value={assignStudent.phone || 'Sin teléfono'} />
                 <StudentDatum label="Ciclo" value={studentCycleText(assignStudent)} />

@@ -1282,6 +1282,28 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.updateStudent).toHaveBeenCalledWith(40, 5, { name: 'Luis Pérez', phone: '0991234567' }))
   })
 
+  it('abre al estudiante sin cédula registrada (cédula nula) sin romper la pantalla', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
+      { id: 6, tutoring_id: 40, student_id: 10, identification: null as unknown as string, name: 'Noemi Aguachela', email: 'noemi@ueb.edu.ec', phone: '0969961116', is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01' },
+    ]))
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await user.click(await screen.findByTitle('Ver o editar a Noemi Aguachela'))
+    const form = await screen.findByRole('form', { name: 'Editar estudiante' })
+    expect(within(form).getByLabelText(/^Cédula o pasaporte/)).toHaveValue('')
+    expect(within(form).getByLabelText(/^Nombre completo/)).toHaveValue('Noemi Aguachela')
+  })
+
+  it('abre el formulario de un docente sin cédula registrada sin romper la pantalla', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([{ id: 1, name: 'Ana Torres', identification: null as unknown as string, email: 'ana@ueb.edu.ec', phone: null, is_active: true, career_ids: [10], can_manage: true, profile_completed: false }]))
+    renderTeachers()
+    await user.click(await screen.findByTitle('Abrir a Ana Torres'))
+    await user.click(await screen.findByRole('button', { name: 'Editar docente' }))
+    expect(within(screen.getByRole('form', { name: 'Editar docente' })).getByLabelText(/^Cédula o pasaporte/)).toHaveValue('')
+  })
+
   it('en el panel de estudiantes de la tutoría elige con una opción si el estudiante ya está registrado o es nuevo', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.students).mockResolvedValue(paginated([]))

@@ -77,7 +77,8 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
 
   function openForm(student: CoordinatorEnrollment | null = null) {
     const next = student
-      ? { identification: student.identification, name: student.name, email: student.email, phone: student.phone ?? '' }
+      // Hay cuentas importadas sin cédula (o sin teléfono): el formulario trabaja con texto vacío.
+      ? { identification: student.identification ?? '', name: student.name ?? '', email: student.email ?? '', phone: student.phone ?? '' }
       : EMPTY_FORM
     setEditing(student)
     setForm(next)

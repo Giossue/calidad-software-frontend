@@ -26,7 +26,7 @@ export interface Enrollment {
   readonly id: number
   readonly tutoring_id: number
   readonly student_id: number
-  readonly identification: string
+  readonly identification: string | null
   readonly name: string
   readonly email: string
   readonly phone: string | null

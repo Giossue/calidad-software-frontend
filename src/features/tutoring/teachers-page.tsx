@@ -114,7 +114,7 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
       ? careerFilter
       : (catalogs.careers[0] ? String(catalogs.careers[0].id) : '')
     const next = teacher
-      ? { career_id: String(teacher.career_ids[0] ?? defaultCareerId), identification: teacher.identification, name: teacher.name, email: teacher.email, phone: teacher.phone ?? '' }
+      ? { career_id: String(teacher.career_ids[0] ?? defaultCareerId), identification: teacher.identification ?? '', name: teacher.name ?? '', email: teacher.email ?? '', phone: teacher.phone ?? '' }
       : { ...EMPTY_FORM, career_id: defaultCareerId }
     setEditing(teacher)
     setForm(next)
@@ -128,7 +128,7 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
     const careerId = Number(form.career_id) || Number(careerFilter) || (catalogs.careers[0]?.id ?? 0)
     // Si el docente ya completó su perfil, su cédula y su correo no se modifican.
     const input = {
-      identification: editing && identityLocked ? editing.identification : form.identification.trim(),
+      identification: editing && identityLocked ? (editing.identification ?? '') : form.identification.trim(),
       name: form.name.trim(),
       email: editing && identityLocked ? editing.email : form.email.trim().toLowerCase(),
       phone: form.phone.trim(),
