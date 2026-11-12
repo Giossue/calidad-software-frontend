@@ -147,7 +147,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     back('Volver a docentes', 'Regresa a la lista de docentes.'),
     step(HEADER, 'Docente', 'Su nombre, correo y estado.'),
     step({ button: 'Editar docente' }, 'Editar docente', 'Cambia los datos del docente.'),
-    step('[aria-label="Secciones del docente"]', 'Asignaturas, carreras y datos', '«Asignaturas» muestra sus tutorías; «Carreras», de cuáles forma parte, y ahí puedes quitarlo de una; «Datos», su información.'),
+    step('[aria-label="Secciones del docente"]', 'Asignaturas y datos', '«Asignaturas» muestra sus tutorías en tus carreras; «Datos», su cédula, correo y teléfono.'),
   ],
   // Las pestañas van bajo el encabezado de la lista de carreras.
   'tutoring-users/estudiantes/career-picker': ((steps) => [steps[0], usersTabs, ...steps.slice(1)])(careerPicker('Estudiantes')),

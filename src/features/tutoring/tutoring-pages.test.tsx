@@ -519,8 +519,6 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByText(/Solo consulta: los cambios de este docente están a cargo de administración/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Editar docente' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Desactivar docente' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: 'Carreras' }))
-    expect(screen.getByText('Software')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Quitar de/ })).not.toBeInTheDocument()
   })
 
@@ -588,7 +586,10 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByText('Ana Torres')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Acciones para Ana Torres' })).not.toBeInTheDocument()
     await user.click(screen.getByText('Ana Torres'))
-    await user.click(await screen.findByRole('tab', { name: 'Carreras' }))
+    // Sin pestaña «Carreras» ni correo bajo el nombre: quitar va como ícono junto a editar.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ana Torres' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Carreras' })).not.toBeInTheDocument()
+    expect(screen.queryByText('ana@ueb.edu.ec')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: `Quitar de ${career.name}` }))
     expect(tutoringApi.unlinkTeacherFromCareer).not.toHaveBeenCalled()
     await user.click(await screen.findByRole('button', { name: 'Quitar de la carrera' }))
