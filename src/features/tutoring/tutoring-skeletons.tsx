@@ -136,3 +136,17 @@ export function CurriculumScreenSkeleton() {
     </div>
   )
 }
+
+/** Pestaña «Notas» del detalle de la tutoría mientras carga: título, descripción y la tabla. */
+export function TutoringGradesSkeleton({ headers }: Readonly<{ headers: readonly string[] }>) {
+  return (
+    <div className="flex flex-col gap-4">
+      <span role="status" aria-label="Cargando notas…" className="sr-only">Cargando notas…</span>
+      <div className="flex flex-col gap-2" aria-hidden="true">
+        <Skeleton className="h-6 w-56 max-w-full" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+      </div>
+      <HeadedTableSkeleton headers={headers} rows={6} />
+    </div>
+  )
+}

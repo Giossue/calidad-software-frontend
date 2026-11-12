@@ -1135,6 +1135,90 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(tutoringApi.deactivateSubject).toHaveBeenCalledWith(30))
   })
 
+  describe('pestaña Notas del detalle de la tutoría', () => {
+    const stages = (diagnostic: string | null, partial: string | null, partialTwo: string | null) => [
+      { stage: 'diagnostic' as const, label: 'Diagnóstico', value: diagnostic },
+      { stage: 'partial' as const, label: 'Parcial 1', value: partial },
+      { stage: 'partial_two' as const, label: 'Parcial 2', value: partialTwo },
+    ]
+
+    it('lista un grupo por estudiante con una fila por etapa, sin controles de edición', async () => {
+      const user = userEvent.setup()
+      vi.mocked(tutoringApi.tutoringGrades).mockResolvedValue([
+        { enrollment_id: 5, student_id: 9, identification: '0201234567', name: 'Ana Torres', grades: stages('8.50', '9.00', '7.00'), final_result: 'approved', suggested_result: 'approved' },
+        { enrollment_id: 6, student_id: 10, identification: '0207654321', name: 'Beto Ruiz', grades: stages(null, '6.00', null), final_result: null, suggested_result: null },
+      ])
+      render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} readOnly />)
+      expect(tutoringApi.tutoringGrades).not.toHaveBeenCalled()
+      await user.click(screen.getByRole('tab', { name: 'Notas' }))
+
+      const panel = await screen.findByRole('tabpanel', { name: 'Notas' })
+      await within(panel).findByText('Ana Torres')
+      expect(tutoringApi.tutoringGrades).toHaveBeenCalledWith(40)
+      const headers = within(panel).getAllByRole('columnheader').map((header) => header.textContent)
+      expect(headers).toEqual(['Estudiante', 'Etapa', 'Nota', 'Resultado final'])
+      const rows = within(panel).getAllByRole('row').slice(1)
+      expect(rows).toHaveLength(6)
+      expect(within(rows[0]).getByText('Ana Torres').closest('td')).toHaveAttribute('rowspan', '3')
+      expect(within(rows[0]).getByText('Diagnóstico')).toBeInTheDocument()
+      expect(within(rows[0]).getByText('8.50')).toBeInTheDocument()
+      expect(within(rows[1]).getByText('Parcial 1')).toBeInTheDocument()
+      expect(within(rows[2]).getByText('Parcial 2')).toBeInTheDocument()
+      expect(within(rows[0]).getByText('Aprobado')).toHaveAttribute('data-slot', 'badge')
+      expect(within(rows[3]).getByText('Beto Ruiz')).toBeInTheDocument()
+      expect(within(rows[3]).getByText('—')).toBeInTheDocument()
+      expect(within(rows[4]).getByText('6.00')).toBeInTheDocument()
+      expect(within(rows[3]).getByText('Sin registrar')).toHaveAttribute('data-slot', 'badge')
+      expect(within(panel).queryAllByRole('button')).toHaveLength(0)
+      expect(within(panel).queryAllByRole('textbox')).toHaveLength(0)
+      expect(within(panel).queryAllByRole('combobox')).toHaveLength(0)
+    })
+
+    it('mientras carga muestra un solo estado «Cargando…» con la tabla esbozada', async () => {
+      const user = userEvent.setup()
+      vi.mocked(tutoringApi.tutoringGrades).mockReturnValue(new Promise(() => {}))
+      render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+      await user.click(screen.getByRole('tab', { name: 'Notas' }))
+
+      const panel = await screen.findByRole('tabpanel', { name: 'Notas' })
+      expect(within(panel).getAllByRole('status')).toHaveLength(1)
+      expect(within(panel).getByRole('status')).toHaveAccessibleName('Cargando notas…')
+      expect(within(panel).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Estudiante', 'Etapa', 'Nota', 'Resultado final'])
+    })
+
+    it('dice si aún no hay estudiantes o si aún no hay notas', async () => {
+      const user = userEvent.setup()
+      vi.mocked(tutoringApi.tutoringGrades).mockResolvedValue([])
+      const { unmount } = render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+      await user.click(screen.getByRole('tab', { name: 'Notas' }))
+      expect(await screen.findByText('Aún no hay estudiantes inscritos.')).toBeInTheDocument()
+      unmount()
+
+      vi.mocked(tutoringApi.tutoringGrades).mockResolvedValue([
+        { enrollment_id: 5, student_id: 9, identification: '0201234567', name: 'Ana Torres', grades: stages(null, null, null), final_result: null, suggested_result: null },
+      ])
+      render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+      await user.click(screen.getByRole('tab', { name: 'Notas' }))
+      expect(await screen.findByText('Aún no hay notas registradas.')).toBeInTheDocument()
+      expect(screen.getByText('Ana Torres')).toBeInTheDocument()
+    })
+
+    it('si falla la carga muestra el error en la pantalla con «Reintentar»', async () => {
+      const user = userEvent.setup()
+      vi.mocked(tutoringApi.tutoringGrades).mockRejectedValueOnce(new ApiError(403, { message: 'No tienes acceso a esta tutoría.' }))
+        .mockResolvedValueOnce([])
+      render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+      await user.click(screen.getByRole('tab', { name: 'Notas' }))
+
+      const panel = await screen.findByRole('tabpanel', { name: 'Notas' })
+      const retry = await within(panel).findByRole('button', { name: 'Reintentar' })
+      expect(within(panel).queryByRole('table')).not.toBeInTheDocument()
+      await user.click(retry)
+      expect(await screen.findByText('Aún no hay estudiantes inscritos.')).toBeInTheDocument()
+      expect(tutoringApi.tutoringGrades).toHaveBeenCalledTimes(2)
+    })
+  })
+
   it('la supervisión separa la asistencia por sesión y abre la lista de cada una', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.sessions).mockResolvedValue(paginated([

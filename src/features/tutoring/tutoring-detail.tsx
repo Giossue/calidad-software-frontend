@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { Empty, EmptyDescription, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Badge } from '@/components/ui/badge'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { DAY_LABELS, tutoringApi, WEEK_DAYS, type SupervisionSession, type Tutoring, type TutoringSchedule } from '@/lib/tutoring-api'
+import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
+import { DAY_LABELS, tutoringApi, WEEK_DAYS, type SupervisionSession, type Tutoring, type TutoringFinalResult, type TutoringSchedule, type TutoringStudentGrades } from '@/lib/tutoring-api'
 import { RecordTable } from './tutoring-shared'
 import { CoordinatorStudentsPanel } from './coordinator-students-panel'
+import { TutoringGradesSkeleton } from './tutoring-skeletons'
 
 function formatDate(value: string, time = false): string {
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value)
@@ -22,7 +25,7 @@ function formatDate(value: string, time = false): string {
 
 /**
  * Pantalla de una tutoría: se abre al pulsar su fila. Arriba lo esencial y la acción de
- * editar; debajo, la información separada en pestañas (resumen, supervisión, estudiantes).
+ * editar; debajo, la información separada en pestañas (resumen, supervisión, estudiantes, notas).
  */
 export function TutoringDetail({
   tutoring,
@@ -81,6 +84,7 @@ export function TutoringDetail({
           <TabsTrigger value="summary">Resumen</TabsTrigger>
           <TabsTrigger value="supervision">Supervisión</TabsTrigger>
           <TabsTrigger value="students">Estudiantes</TabsTrigger>
+          <TabsTrigger value="grades" data-tour="tutoring-grades-tab">Notas</TabsTrigger>
         </TabsList>
         <TabsContent value="summary">
           <SummaryPanel tutoring={tutoring} schedules={schedules} />
@@ -90,6 +94,9 @@ export function TutoringDetail({
         </TabsContent>
         <TabsContent value="students">
           <CoordinatorStudentsPanel tutoring={tutoring} readOnly={readOnly} />
+        </TabsContent>
+        <TabsContent value="grades">
+          <GradesPanel tutoring={tutoring} />
         </TabsContent>
       </Tabs>
     </div>
@@ -186,6 +193,60 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
               onChange={sessions.setPage}
             />
           </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+const GRADES_HEADERS = ['Estudiante', 'Etapa', 'Nota', 'Resultado final'] as const
+const FINAL_RESULT_BADGES: Record<TutoringFinalResult, { label: string; variant: 'success' | 'danger' }> = {
+  approved: { label: 'Aprobado', variant: 'success' },
+  failed: { label: 'Reprobado', variant: 'danger' },
+}
+
+/**
+ * Notas de los estudiantes inscritos, solo de consulta (las registra el docente): un grupo
+ * por estudiante con una fila por etapa. Se carga al abrir la pestaña (Radix no monta las
+ * pestañas cerradas).
+ */
+function GradesPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
+  const grades = useDegreeResource(() => tutoringApi.tutoringGrades(tutoring.id), `tutoring-grades:${tutoring.id}`)
+  const students: readonly TutoringStudentGrades[] = grades.data ?? []
+  const rows = students.flatMap((student) => student.grades.map((grade, index) => ({
+    id: `${student.enrollment_id}-${grade.stage}`,
+    student,
+    grade,
+    first: index === 0,
+  })))
+  const groupSpan = ({ first, student }: (typeof rows)[number]) => (first ? student.grades.length : 0)
+  const hasGrades = students.some((student) => student.final_result !== null || student.grades.some((grade) => grade.value !== null))
+
+  if (grades.loading && !grades.settled) return <Card><CardContent className="pt-6"><TutoringGradesSkeleton headers={GRADES_HEADERS} /></CardContent></Card>
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl">Notas de los estudiantes</CardTitle>
+        <CardDescription>Las registra el docente en cada etapa; aquí solo se consultan.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <ErrorNotice message={grades.error} retry={grades.reload} />
+        {!grades.error && students.length > 0 && !hasGrades && <p className="text-sm">Aún no hay notas registradas.</p>}
+        {!grades.error && (
+          <RecordTable
+            rows={rows}
+            loading={grades.loading}
+            empty="Aún no hay estudiantes inscritos."
+            columns={[
+              { label: 'Estudiante', span: groupSpan, render: ({ student }) => student.name },
+              { label: 'Etapa', render: ({ grade }) => grade.label },
+              { label: 'Nota', render: ({ grade }) => <span className="tabular-nums">{grade.value ?? '—'}</span> },
+              { label: 'Resultado final', span: groupSpan, render: ({ student }) => student.final_result
+                ? <Badge variant={FINAL_RESULT_BADGES[student.final_result].variant}>{FINAL_RESULT_BADGES[student.final_result].label}</Badge>
+                : <Badge variant="neutral">Sin registrar</Badge> },
+            ]}
+          />
         )}
       </CardContent>
     </Card>

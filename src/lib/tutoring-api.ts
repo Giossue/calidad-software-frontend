@@ -217,6 +217,22 @@ export interface SupervisionSession {
   readonly attendance: readonly { readonly id: number; readonly student_id: number; readonly student_name: string; readonly student_identification: string; readonly present: boolean }[]
 }
 
+/** Etapa calificada de una tutoría (los mismos nombres que usa el docente). */
+export type TutoringGradeStage = 'diagnostic' | 'partial' | 'partial_two'
+export type TutoringFinalResult = 'approved' | 'failed'
+
+/** Notas de un estudiante inscrito, de solo consulta para el coordinador. */
+export interface TutoringStudentGrades {
+  readonly enrollment_id: number
+  readonly student_id: number
+  readonly identification: string
+  readonly name: string
+  /** Una entrada por etapa, en orden; `value` es la nota con dos decimales o `null`. */
+  readonly grades: readonly { readonly stage: TutoringGradeStage; readonly label: string; readonly value: string | null }[]
+  readonly final_result: TutoringFinalResult | null
+  readonly suggested_result: TutoringFinalResult | null
+}
+
 /** Asignatura de la malla leída del archivo o corregida en la vista previa. */
 export interface CurriculumSubjectRow {
   readonly code: string | null
@@ -277,6 +293,7 @@ export const tutoringApi = {
   attendance: (id: number, page: number) => list<Attendance>(`tutorings/${id}/attendance`, { page }),
   /** Sesiones de la tutoría, de la más reciente a la primera, cada una con su lista. */
   sessions: (id: number, page: number) => list<SupervisionSession>(`tutorings/${id}/sessions`, { page }),
+  tutoringGrades: (id: number) => collection<TutoringStudentGrades>(`tutorings/${id}/grades`),
   reports: (id: number, page: number) => request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/tutorings/${id}/reports${buildQuery({ page })}`),
   allReports: (params?: { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; tutoring_id?: number }) =>
     request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/reports${buildQuery(params ?? {})}`),

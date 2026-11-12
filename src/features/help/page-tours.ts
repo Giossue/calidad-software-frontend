@@ -183,7 +183,8 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Tutoría', 'Su ciclo, paralelo, modalidad, período y estado.'),
     step({ button: 'Editar tutoría' }, 'Editar tutoría', 'Cambia el docente, el horario o el paralelo, o activa la tutoría si está inactiva.'),
     step({ button: 'Eliminar tutoría' }, 'Eliminar tutoría', 'Borra una tutoría creada por error; si ya tiene estudiantes o registros, desactívala.'),
-    step('[aria-label="Secciones de la tutoría"]', 'Resumen, supervisión y estudiantes', '«Resumen» muestra el docente y el horario; «Supervisión», las sesiones con su asistencia; «Estudiantes», quiénes están inscritos.'),
+    step('[aria-label="Secciones de la tutoría"]', 'Resumen, supervisión, estudiantes y notas', '«Resumen» muestra el docente y el horario; «Supervisión», las sesiones con su asistencia; «Estudiantes», quiénes están inscritos; «Notas», sus calificaciones.'),
+    step('[data-tour="tutoring-grades-tab"]', 'Notas', 'Consulta las notas de cada estudiante por etapa (diagnóstico, parcial 1 y parcial 2) y su resultado final. Las registra el docente; aquí no se editan.'),
   ],
   'tutoring-reports/career-picker': careerPicker('Informes'),
   'tutoring-reports': [
