@@ -22,11 +22,9 @@ import {
   type CanvasLane,
   type CanvasRequirement,
   type CanvasSubject,
-  type RelationMode,
   type ZoomChoice,
 } from './layout'
 import { CurriculumLegendButton, CurriculumNavigationControls } from './navigation-controls'
-import { CurriculumRelationPicker } from './relation-picker'
 import { CurriculumRequirementEdge } from './requirement-edge'
 import { prerequisiteError, requirementsOf, type CycleOf } from './rules'
 import { CurriculumSubjectNode } from './subject-node'
@@ -80,7 +78,6 @@ function CurriculumCanvasBoard({ subjects, careerSubjects, lanes, cycleOf, editi
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canvasWidth, setCanvasWidth] = useState(0)
   const [zoomChoice, setZoomChoice] = useState<ZoomChoice>(storedZoom)
-  const [picker, setPicker] = useState<{ subjectId: string; mode: RelationMode } | null>(null)
   const [removing, setRemoving] = useState<CanvasRequirement | null>(null)
   const disabled = operation.pending
 
@@ -127,7 +124,6 @@ function CurriculumCanvasBoard({ subjects, careerSubjects, lanes, cycleOf, editi
     canAdd,
     onOpen: (id) => { const subject = subjectOf(id); if (subject) onOpen(subject) },
     onEdit: (id) => { const subject = subjectOf(id); if (subject) onEdit(subject) },
-    onRelate: (id, mode) => { operation.clearError(); setPicker({ subjectId: id, mode }) },
     onDeactivate: (id) => { const subject = subjectOf(id); if (subject) onDeactivate(subject) },
     onAdd,
   })
@@ -171,7 +167,6 @@ function CurriculumCanvasBoard({ subjects, careerSubjects, lanes, cycleOf, editi
     setRemoving(requirements.find((requirement) => requirement.id === edge.id) ?? null)
   }
 
-  const pickerSubject = picker ? drawn.find((subject) => subject.id === picker.subjectId) ?? null : null
   const legendRows = [
     { id: 'subjects', label: 'N° asignaturas', value: String(drawn.length) },
     { id: 'requirements', label: 'N° previas', value: String(edges.length) },
@@ -221,16 +216,6 @@ function CurriculumCanvasBoard({ subjects, careerSubjects, lanes, cycleOf, editi
         </div>
       </div>
 
-      {picker && pickerSubject && (
-        <CurriculumRelationPicker
-          subject={pickerSubject}
-          mode={picker.mode}
-          subjects={drawn}
-          operation={operation}
-          onClose={() => { if (!operation.pending) setPicker(null) }}
-          onPick={({ source, target }) => connect(source, target, () => setPicker(null))}
-        />
-      )}
       <ConfirmModal
         open={removing !== null}
         title="¿Quitar previa?"

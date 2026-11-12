@@ -146,22 +146,18 @@ describe('Malla visual (lienzo como en sílabos)', () => {
     expect(await screen.findByRole('form', { name: 'Editar asignatura' })).toBeInTheDocument()
   })
 
-  it('conecta una previa desde el menú de la asignatura con la misma petición que el formulario de la secuencia', async () => {
+  it('el menú de cada asignatura en edición solo ofrece Editar y Desactivar', async () => {
     const user = userEvent.setup()
-    const success = vi.spyOn(toast, 'success')
-    vi.mocked(tutoringApi.updateSubject).mockResolvedValue({ ...math, next_subjects: [{ id: 31, code: 'FIS', name: 'Física' }] })
     const editor = await openEditor(user)
     await user.click(within(editor).getByRole('button', { name: 'Acciones para Matemática' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Es previa de otra asignatura…' }))
-    const form = await screen.findByRole('form', { name: 'Nueva previa' })
-    // Solo ofrece las de ciclos posteriores.
-    await user.click(within(form).getByRole('combobox', { name: /De qué asignatura es previa/ }))
-    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['3° ciclo · FIS · Física'])
-    await user.click(screen.getByRole('option', { name: '3° ciclo · FIS · Física' }))
-    await user.click(within(form).getByRole('button', { name: 'Agregar previa' }))
-    await waitFor(() => expect(tutoringApi.updateSubject).toHaveBeenCalledWith(30, { code: 'MAT', name: 'Matemática', next_subject_ids: [31] }))
-    await waitFor(() => expect(success).toHaveBeenCalledWith('Previa agregada', undefined))
-    await waitFor(() => expect(screen.queryByRole('form', { name: 'Nueva previa' })).not.toBeInTheDocument())
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Editar', 'Desactivar'])
+  })
+
+  it('la vista de la malla no tiene buscador ni desplegable de estado', async () => {
+    renderCurriculum()
+    expect(await screen.findByRole('button', { name: 'Editar malla' })).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Busca por nombre o código…')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /Estado/ })).not.toBeInTheDocument()
   })
 
   describe('arrastrando desde una manija', () => {

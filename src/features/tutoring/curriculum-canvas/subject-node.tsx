@@ -1,5 +1,5 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
-import { Link2Icon, PencilIcon, PlusIcon, PowerOffIcon, UnlinkIcon } from 'lucide-react'
+import { PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
 import { RowActionsMenu } from '@/components/ui/row-actions-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -27,8 +27,6 @@ export function CurriculumSubjectNode({ data }: NodeProps<Node<SubjectNodeData>>
               disabled={disabled}
               actions={[
                 { label: 'Editar', icon: PencilIcon, onSelect: data.onEdit },
-                { label: 'Agregar su previa…', icon: Link2Icon, onSelect: () => data.onRelate('requires') },
-                { label: 'Es previa de otra asignatura…', icon: UnlinkIcon, onSelect: () => data.onRelate('required-by') },
                 { label: 'Desactivar', icon: PowerOffIcon, onSelect: data.onDeactivate, tone: 'destructive' },
               ]}
             />

@@ -265,7 +265,7 @@ describe('Coordinación de tutorías', () => {
     expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: career.id, page: 2, per_page: 100 })
     expect(screen.queryByRole('button', { name: 'Página siguiente' })).not.toBeInTheDocument()
   })
-  it('dibuja la malla con un carril por ciclo, sin desplegable de ciclo ni tabla, y filtra por búsqueda y estado', async () => {
+  it('dibuja la malla con un carril por ciclo, sin desplegable de ciclo, tabla, buscador ni filtro de estado', async () => {
     const math = { ...subject, name: 'MATEMATICA', next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }], previous_subjects: [] }
     const physics = { ...subject, id: 31, code: 'FIS', name: 'FISICA', cycle_number: 3, next_subjects: [], previous_subjects: [{ id: 30, code: 'MAT', name: 'MATEMATICA' }] }
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math, physics, { ...subject, id: 32, code: null, name: 'ETICA', cycle_number: null }, { ...subject, id: 33, code: 'OLD', name: 'ANTIGUA', is_active: false }]))
@@ -278,17 +278,11 @@ describe('Coordinación de tutorías', () => {
     expect(within(canvas).getByRole('region', { name: 'Sin ciclo' })).toBeInTheDocument()
     expect(within(canvas).getByRole('article', { name: 'Sin código: ETICA' })).toBeInTheDocument()
     expect(within(canvas).queryByText('ANTIGUA')).not.toBeInTheDocument()
-    // Buscar primero y después el estado; las búsquedas se aplican sobre la malla cargada.
-    const filters = screen.getByLabelText('Buscar').closest('[data-tour="page-filters"]') as HTMLElement
-    expect(within(filters).getAllByRole('combobox').map((select) => select.getAttribute('aria-label') ?? select.id)).toHaveLength(1)
-    const user = userEvent.setup()
-    await user.type(screen.getByLabelText('Buscar'), 'fis')
-    expect(screen.queryByRole('button', { name: 'Abrir MATEMATICA' })).not.toBeInTheDocument()
+    // Sin buscador ni filtro: la malla muestra todas sus asignaturas activas.
+    expect(screen.queryByLabelText('Buscar')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Filtrar por Estado')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir MATEMATICA' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Abrir FISICA' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
-    await choose(user, within(filters).getByRole('combobox'), 'Inactivas')
-    expect(screen.getByRole('button', { name: 'Abrir ANTIGUA' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Abrir FISICA' })).not.toBeInTheDocument()
   })
   it('la pantalla de la asignatura muestra sus datos sin pestañas, con previas, en cuál continúa y su modalidad', async () => {
     const user = userEvent.setup()
@@ -440,20 +434,10 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByLabelText('Buscar carrera')).toBeInTheDocument()
   })
 
-  it('muestra las asignaturas inactivas solo al elegirlas en el filtro de estado, y permite limpiarlo', async () => {
-    const user = userEvent.setup()
+  it('la malla solo muestra las asignaturas activas', async () => {
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([subject, { ...subject, id: 31, code: 'FIS', name: 'Física', is_active: false }]))
     await openCurriculum()
     await screen.findByText('Matemática')
-    expect(screen.queryByText('Física')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Filtrar por Estado')).toHaveTextContent('Activas')
-    await choose(user, screen.getByLabelText('Filtrar por Estado'), 'Inactivas')
-    expect(screen.getByText('Física')).toBeInTheDocument()
-    expect(screen.queryByText('Matemática')).not.toBeInTheDocument()
-    await user.type(screen.getByLabelText('Buscar'), 'quimica')
-    expect(screen.getByText('No hay asignaturas con estos filtros.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
-    expect(screen.getByText('Matemática')).toBeInTheDocument()
     expect(screen.queryByText('Física')).not.toBeInTheDocument()
   })
   it('la pantalla de la asignatura muestra su número de ciclo, sin pestaña de paralelos', async () => {

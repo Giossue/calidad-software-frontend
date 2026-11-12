@@ -86,6 +86,9 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'careers', label: 'Carreras', icon: BookOpenIcon },
 ]
 
+/** Pantallas que usan todo el ancho disponible (la malla es un lienzo amplio). */
+const WIDE_SECTIONS = new Set<string>(['tutoring-curriculum'])
+
 const TUTORING_NAV_ITEMS: readonly NavItem[] = [
   { id: 'tutorings', label: 'Tutorías', icon: GraduationCapIcon },
   { id: 'tutoring-users', label: 'Usuarios', icon: UsersIcon },
@@ -372,7 +375,7 @@ export function DashboardPage() {
           </div>
         </header>
 
-        <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 overflow-x-clip p-4 sm:p-6">
+        <div className={cn("mx-auto flex w-full min-w-0 flex-1 flex-col gap-6 overflow-x-clip p-4 sm:p-6", WIDE_SECTIONS.has(activeSection) ? "max-w-none" : "max-w-6xl")}>
           {user?.role === 'administrador' && isAdminSection(activeSection) ? (
             <AdminSectionContent section={activeSection} />
           ) : canCoordinateTutorings(user?.role) && activeSection === 'tutoring-curriculum' ? (

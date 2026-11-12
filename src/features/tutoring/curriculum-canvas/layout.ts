@@ -31,7 +31,6 @@ export type CanvasLane = {
   readonly degree: boolean
 }
 
-export type RelationMode = 'requires' | 'required-by'
 
 const ROMAN_NUMERALS = [
   ['X', 10],
@@ -92,7 +91,6 @@ export type SubjectNodeData = {
   disabled: boolean
   onOpen: () => void
   onEdit: () => void
-  onRelate: (mode: RelationMode) => void
   onDeactivate: () => void
 }
 
@@ -108,7 +106,6 @@ type NodeOptions = {
   canAdd: (cycle: number) => boolean
   onOpen: (subjectId: string) => void
   onEdit: (subjectId: string) => void
-  onRelate: (subjectId: string, mode: RelationMode) => void
   onDeactivate: (subjectId: string) => void
   onAdd: (cycle: number) => void
 }
@@ -147,7 +144,6 @@ export function buildCurriculumNodes(options: NodeOptions): Node[] {
           disabled: options.disabled,
           onOpen: () => options.onOpen(subject.id),
           onEdit: () => options.onEdit(subject.id),
-          onRelate: (mode: RelationMode) => options.onRelate(subject.id, mode),
           onDeactivate: () => options.onDeactivate(subject.id),
         } satisfies SubjectNodeData,
         // Con medidas y manijas declaradas, las flechas se dibujan antes de medir el DOM.

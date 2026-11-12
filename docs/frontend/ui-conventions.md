@@ -196,7 +196,7 @@ forma de las flechas, los controles de zoom y la leyenda son los de sílabos.
   tarjeta abre la asignatura (`?asignatura=`).
 - **Edición («Editar malla»).** A pantalla completa con «Volver a la vista». Cada carril
   termina en «Agregar asignatura» (el formulario abre con ese ciclo elegido); la tarjeta
-  abre su formulario y su menú «⋯» edita, conecta previas desde una lista o desactiva.
+  abre su formulario y su menú «⋯» la edita o la desactiva; las previas se conectan arrastrando.
   Arrastrar desde la manija verde de una tarjeta hasta otra conecta la previa; la previa
   tiene que ser de un ciclo anterior y la secuencia no puede volver sobre sí misma (el
   rechazo se avisa con un toast, como en sílabos). Pulsar una flecha pide confirmación

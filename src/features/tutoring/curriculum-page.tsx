@@ -14,7 +14,6 @@ import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import { tutoringApi, type Subject } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { CurriculumImportButton } from './curriculum-upload-dialog'
-import { FilterBar } from './filter-bar'
 import { SubjectDetail } from './subject-detail'
 import { CurriculumCanvas } from './curriculum-canvas/curriculum-canvas'
 import type { CanvasLane } from './curriculum-canvas/layout'
@@ -55,12 +54,9 @@ async function loadCareerSubjects(careerId: number): Promise<Subject[]> {
   return subjects
 }
 
-const normalize = (value: string) => value.normalize('NFD').replace(/\p{Mn}/gu, '').trim().toLocaleLowerCase('es')
 
 function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonly<{ catalogs: Catalogs; careerId: number; careerName: string; onBack?: () => void }>) {
   const resource = useDegreeResource(() => loadCareerSubjects(careerId), `curriculum-${careerId}`)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'' | 'inactive'>('')
   const [editing, setEditing] = useState(false)
   const operation = useOperation()
   // La asignatura abierta vive en la URL (?asignatura=<id>) para que "Atrás" vuelva a la malla.
@@ -77,13 +73,8 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
   // Ciclos en los que se puede agregar una asignatura desde un carril.
   const cycleNumbers = new Set(careerCycleNumbers(catalogs, careerId))
 
-  const needle = normalize(search)
-  // Al editar se ve la malla vigente completa; los filtros son de la vista.
-  const visible = editing
-    ? subjects.filter((subject) => subject.is_active)
-    : subjects
-      .filter((subject) => (statusFilter === 'inactive' ? !subject.is_active : subject.is_active))
-      .filter((subject) => !needle || normalize(subject.name).includes(needle) || normalize(subject.code ?? '').includes(needle))
+  // La malla muestra las asignaturas activas, en la vista y al editar.
+  const visible = subjects.filter((subject) => subject.is_active)
   const levels = Array.from(new Set([
     ...careerCycles.map((cycle) => cycle.number),
     ...visible.map(levelOf).filter((number): number is number => number !== null),
@@ -128,7 +119,6 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
 
   // Lo que la carrera ya tiene: la vista previa lo marca y lo acepta como previa.
   const existing = subjects.map((subject) => ({ code: subject.code, name: subject.name, cycle: subject.cycle_number ?? null }))
-  const filtered = needle !== '' || statusFilter !== ''
 
   const canvas = (
     <CurriculumCanvas
@@ -201,34 +191,20 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
           extraActions={
             <>
               <CurriculumImportButton careerId={careerId} careerName={careerName} existing={existing} onImported={() => refresh()} />
-              <Button type="button" variant="secondary" className="w-full sm:w-auto" data-tour="curriculum-edit" disabled={operation.pending || catalogs.loading || levels.length === 0} onClick={() => { setSearch(''); setStatusFilter(''); setEditing(true) }}>
+              <Button type="button" variant="secondary" className="w-full sm:w-auto" data-tour="curriculum-edit" disabled={operation.pending || catalogs.loading || levels.length === 0} onClick={() => setEditing(true)}>
                 <PencilIcon data-icon="inline-start" />
                 Editar malla
               </Button>
             </>
           }
         />
-        {subjects.length > 0 && (
-          <FilterBar
-            id="curriculum"
-            search={search}
-            onSearch={setSearch}
-            searchPlaceholder="Busca por nombre o código…"
-            onClear={() => { setSearch(''); setStatusFilter('') }}
-            filters={[
-              { id: 'status', label: 'Estado', value: statusFilter, onChange: (value) => setStatusFilter(value as '' | 'inactive'), allLabel: 'Activas', options: [{ value: 'inactive', label: 'Inactivas' }] },
-            ]}
-          />
-        )}
         <ErrorNotice message={resource.error} retry={resource.reload} />
 
         {visible.length === 0 ? (
           <EmptyState className="rounded-md ring-1 ring-surface-ring">
-            {filtered
-              ? 'No hay asignaturas con estos filtros.'
-              : subjects.length === 0
-                ? 'Esta carrera aún no tiene asignaturas. Usa «Importar malla» para crearlas desde el archivo de la malla o «Editar malla» para agregarlas una a una.'
-                : 'Esta carrera no tiene asignaturas activas.'}
+            {subjects.length === 0
+              ? 'Esta carrera aún no tiene asignaturas. Usa «Importar malla» para crearlas desde el archivo de la malla o «Editar malla» para agregarlas una a una.'
+              : 'Esta carrera no tiene asignaturas activas.'}
           </EmptyState>
         ) : canvas}
       </>

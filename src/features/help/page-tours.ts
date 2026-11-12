@@ -117,13 +117,12 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Malla curricular', 'La malla de la carrera como en la malla oficial: un carril por ciclo y las previas como flechas. Aquí la administras.'),
     step('[data-tour="curriculum-import"]', 'Importar malla', 'Sube la malla en Excel, CSV o PDF, revisa y corrige cada asignatura e impórtala: se crean las asignaturas con su ciclo y sus previas.'),
     step('[data-tour="curriculum-edit"]', 'Editar malla', 'Abre la malla a pantalla completa para agregar asignaturas en cada ciclo, editarlas y conectar sus previas.'),
-    filters('Busca por nombre o código; elige «Inactivas» para ver las asignaturas desactivadas.'),
     step('[data-tour="curriculum-canvas"]', 'Malla', 'Cada flecha va de una previa a la asignatura que la requiere. Usa los controles de zoom o la leyenda de arriba y haz clic en una asignatura para abrirla.'),
   ],
   'tutoring-curriculum/editor': [
     step('[data-tour="curriculum-back"]', 'Volver a la vista', 'Termina de editar y regresa a la vista de la malla.'),
     step('[data-tour="curriculum-add"]', 'Agregar asignatura', 'Registra una asignatura directamente en ese ciclo.'),
-    step('[data-tour="curriculum-canvas"]', 'Conectar previas', 'Arrastra desde el círculo verde de una asignatura hasta otra de un ciclo posterior para conectar su previa; pulsa una flecha para quitarla. El menú «⋯» de cada asignatura también la edita, conecta previas o la desactiva.'),
+    step('[data-tour="curriculum-canvas"]', 'Conectar previas', 'Arrastra desde el círculo verde de una asignatura hasta otra de un ciclo posterior para conectar su previa; pulsa una flecha para quitarla. El menú «⋯» de cada asignatura la edita o la desactiva.'),
   ],
   'tutoring-curriculum/detail': [
     back('Volver a la malla', 'Regresa a la malla curricular.'),
