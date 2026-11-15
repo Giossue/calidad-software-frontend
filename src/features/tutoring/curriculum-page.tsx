@@ -10,7 +10,7 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useDetailParam } from '@/hooks/use-detail-param'
-import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
+import { isDegreeCycleNumber } from '@/lib/academic-stage'
 import { tutoringApi, type Malla, type Subject, type TutoringCareer } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { CurriculumImportButton } from './curriculum-upload-dialog'
@@ -98,7 +98,6 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
 
   const subjects = resource.data ?? resource.previous ?? []
   const careerCycles = catalogs.cycles.filter((cycle) => cycle.career_id === careerId)
-  const maxCycle = maxCycleNumber(careerCycles)
   // La asignatura se dibuja en el carril de su número de ciclo (la malla no tiene paralelos).
   const levelOf = useCallback((subject: Subject) => subject.cycle_number ?? null, [])
   // Ciclos en los que se puede agregar una asignatura desde un carril.
@@ -111,7 +110,7 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
     ...visible.map(levelOf).filter((number): number is number => number !== null),
   ])).sort((a, b) => a - b)
   const lanes: CanvasLane[] = [
-    ...levels.map((level) => ({ key: String(level), cycle: level, label: `${level}° ciclo`, degree: isDegreeCycleNumber(level, maxCycle) })),
+    ...levels.map((level) => ({ key: String(level), cycle: level, label: `${level}° ciclo`, degree: isDegreeCycleNumber(level) })),
     ...(visible.some((subject) => levelOf(subject) === null) ? [{ key: 'none', cycle: null, label: 'Sin ciclo', degree: false }] : []),
   ]
 

@@ -17,6 +17,7 @@ import type { Career } from '@/lib/api'
 import { careerLabel } from '@/lib/career-label'
 import { cn } from '@/lib/utils'
 import type { TutoringCatalogs } from './tutoring-hooks'
+import { isDegreeCycleNumber } from '@/lib/academic-stage'
 
 /**
  * Pantalla que se muestra como pestaña de otra (p. ej. Docentes dentro de «Usuarios»): usa
@@ -95,19 +96,18 @@ export function RecordActions({ name, onEdit, onDeactivate, disabled }: Readonly
 
 /**
  * Elige el ciclo de la carrera con un desplegable (en lugar de una fila de pestañas que no
- * cabe cuando la carrera tiene muchos ciclos). El último ciclo se marca como titulación.
+ * cabe cuando la carrera tiene muchos ciclos). Desde el 6.º ciclo se marcan como titulación.
  * `extraOptions` agrega opciones al final (p. ej. "Sin ciclo").
  */
-export function CycleSelect({ id, levels, value, onChange, degreeCycleNumber, extraOptions = [] }: Readonly<{
+export function CycleSelect({ id, levels, value, onChange, extraOptions = [] }: Readonly<{
   id: string
   levels: readonly { readonly number: number }[]
   value: string
   onChange: (value: string) => void
-  degreeCycleNumber: number | null
   extraOptions?: readonly { value: string; label: string }[]
 }>) {
   const options = [
-    ...levels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo${level.number === degreeCycleNumber ? ' · Titulación' : ''}` })),
+    ...levels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo${isDegreeCycleNumber(level.number) ? ' · Titulación' : ''}` })),
     ...extraOptions,
   ]
   return (

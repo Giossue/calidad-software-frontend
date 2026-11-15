@@ -38,7 +38,7 @@ describe('CompleteProfileModal', () => {
     expect(screen.queryByLabelText('Cerrar modal')).not.toBeInTheDocument()
   })
 
-  it('marca como titulación solo el último ciclo de la carrera, no uno fijo como el 6.º', async () => {
+  it('marca como titulación desde el 6.º ciclo, como el servidor, y no solo el último', async () => {
     const user = userEvent.setup()
     vi.mocked(useAuth).mockReturnValue({ user: imported, status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), logout: vi.fn(), replaceUser: vi.fn() })
     const optionsWithEighthCycle = [{
@@ -64,7 +64,8 @@ describe('CompleteProfileModal', () => {
     await choose(user, screen.getByLabelText('Carrera'), 'Software')
 
     await user.click(screen.getByLabelText('Ciclo'))
-    expect(await screen.findByRole('option', { name: '6.º ciclo · Sexto · Paralelo B' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: '6.º ciclo · Sexto · Paralelo B · Titulación' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '2.º ciclo · Segundo · Paralelo A' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: '8.º ciclo · Octavo · Paralelo A · Titulación' })).toBeInTheDocument()
   })
 

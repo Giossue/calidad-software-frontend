@@ -277,7 +277,8 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByRole('combobox', { name: 'Ciclo' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader')).not.toBeInTheDocument()
     expect(within(canvas).getByRole('region', { name: '2° ciclo' })).toBeInTheDocument()
-    expect(within(within(canvas).getByRole('region', { name: '3° ciclo' })).getByText('Titulación')).toBeInTheDocument()
+    // Titulación empieza en el 6.º ciclo: una carrera de 3 ciclos no tiene carril de titulación.
+    expect(within(within(canvas).getByRole('region', { name: '3° ciclo' })).queryByText('Titulación')).not.toBeInTheDocument()
     expect(within(canvas).getByRole('region', { name: 'Sin ciclo' })).toBeInTheDocument()
     expect(within(canvas).getByRole('article', { name: 'Sin código: ETICA' })).toBeInTheDocument()
     expect(within(canvas).queryByText('ANTIGUA')).not.toBeInTheDocument()
@@ -1655,8 +1656,8 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByRole('option', { name: /Matemática/i })).toBeInTheDocument()
   })
 
-  it('marca como titulación solo el último ciclo de la carrera, no uno fijo como el 6.º', async () => {
-    // Carrera con ciclos hasta el 8.º: el 6.º y 7.º ya no son titulación, solo el 8.º.
+  it('marca como titulación desde el 6.º ciclo, como el servidor, y no solo el último', async () => {
+    // Carrera con ciclos hasta el 8.º: el 6.º y el 8.º son titulación; el 2.º, tutorías.
     vi.mocked(tutoringApi.cycles).mockResolvedValue([
       cycle,
       { ...cycle, id: 21, name: 'Sexto', number: 6 },
@@ -1668,7 +1669,7 @@ describe('Coordinación de tutorías', () => {
     render(<MemoryRouter><TutoringStudentsPage /></MemoryRouter>)
 
     expect(await screen.findByRole('combobox', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
-    expect(await readCycleOptions(userEvent.setup())).toEqual(['2° ciclo', '6° ciclo', '8° ciclo · Titulación', 'Sin ciclo'])
+    expect(await readCycleOptions(userEvent.setup())).toEqual(['2° ciclo', '6° ciclo · Titulación', '8° ciclo · Titulación', 'Sin ciclo'])
   })
 
   it('exige el ciclo al registrar un estudiante y no ofrece tutorías en el ciclo de titulación', async () => {

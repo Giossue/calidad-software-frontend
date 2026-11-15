@@ -230,7 +230,7 @@ export function DashboardPage() {
     ...(user?.role === 'administrador' ? [{ label: 'Administración', items: NAV_ITEMS }] : []),
     ...(canCoordinateTutorings(user?.role) ? [{ label: 'Coordinación de tutorías', items: TUTORING_NAV_ITEMS }] : []),
     ...(canCoordinateDegrees(user?.role) ? [{ label: 'Coordinación de titulación', items: DEGREE_NAV_ITEMS }] : []),
-    // El último ciclo de la carrera es titulación; los anteriores, tutorías.
+    // Desde el 6.º ciclo es titulación; los anteriores, tutorías (etapa que calcula el servidor).
     // Sin ciclo registrado se conserva el comportamiento anterior (matrícula de titulación).
     ...(user?.role === 'estudiante'
       ? studentStage === 'titulacion'

@@ -408,7 +408,7 @@ export interface DegreeStudent {
   readonly name: string
   readonly email: string
   readonly phone: string | null
-  /** Ciclo que cursa; el último ciclo de la carrera es titulación. */
+  /** Ciclo que cursa; desde el 6.º ciclo es titulación. */
   readonly cycle_id?: number | null
   readonly cycle_number?: number | null
   readonly cycle_name?: string | null
@@ -449,7 +449,7 @@ export interface CoordinatorStudent {
   /** Malla que sigue el estudiante (una de su carrera). */
   readonly malla_id?: number | null
   readonly malla_name?: string | null
-  /** Ciclo que cursa; el último ciclo de la carrera es titulación. */
+  /** Ciclo que cursa; desde el 6.º ciclo es titulación. */
   readonly cycle_id?: number | null
   readonly cycle_number?: number | null
   readonly cycle_name?: string | null

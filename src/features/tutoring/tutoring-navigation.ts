@@ -64,7 +64,7 @@ export function dashboardSection(
 ): AdminSection | TutoringSection | DegreeSection | TeacherSection | StudentSection | 'home' {
   if (role === 'docente') return isTeacherSection(section) ? section : 'teacher-tutorings'
   if (role === 'estudiante') {
-    // En el último ciclo de la carrera el estudiante solo tiene titulación.
+    // Desde el 6.º ciclo el estudiante solo tiene titulación (etapa que calcula el servidor).
     if (studentStage === 'titulacion') {
       return isStudentSection(section) && section !== 'student-tutorings' ? section : 'student-degree-topics'
     }

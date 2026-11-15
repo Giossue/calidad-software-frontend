@@ -614,7 +614,7 @@ export function UsersPage() {
               name="cycleNumber"
               label="Ciclo"
               required
-              tip="El último ciclo de la carrera habilita el módulo de titulación; los anteriores, el de tutorías."
+              tip="Desde el 6.º ciclo se habilita el módulo de titulación; los ciclos anteriores, el de tutorías."
               value={userForm.cycleNumber}
               onValueChange={(value) => updateUserField('cycleNumber', value)}
               options={cycleOptions}

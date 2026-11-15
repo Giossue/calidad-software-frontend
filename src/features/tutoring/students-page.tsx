@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { useDetailParam } from '@/hooks/use-detail-param'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
-import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
+import { isDegreeCycleNumber } from '@/lib/academic-stage'
 import type { Cycle } from '@/lib/api'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
@@ -104,13 +104,11 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
   const careerCycles = catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId)
   // Una pestaña por ciclo de la carrera (los paralelos de un mismo ciclo comparten pestaña).
   const cycleLevels = Array.from(new Map(careerCycles.map((cycle) => [cycle.number, cycle])).values()).sort((a, b) => a.number - b.number)
-  // Titulación es el último ciclo (número más alto) de la carrera.
-  const careerMaxCycle = maxCycleNumber(careerCycles)
   const [cycleTab, setCycleTab] = useState('')
   const activeTab = cycleTab || (cycleLevels[0] ? String(cycleLevels[0].number) : WITHOUT_CYCLE)
   const tabCycleNumber = activeTab === WITHOUT_CYCLE ? undefined : Number(activeTab)
-  // En el último ciclo los estudiantes están en titulación: se gestiona su matrícula en lugar de tutorías.
-  const isDegreeTab = isDegreeCycleNumber(tabCycleNumber, careerMaxCycle)
+  // Desde el 6.º ciclo los estudiantes están en titulación: se gestiona su matrícula en lugar de tutorías.
+  const isDegreeTab = isDegreeCycleNumber(tabCycleNumber)
 
   const [tutoringStatus, setTutoringStatus] = useState<'' | 'with' | 'without'>('')
   const list = usePaginatedCatalog(
@@ -314,9 +312,8 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
   const availableTutoringsForCycle = form.cycle_id
     ? allTutorings.filter((t) => t.cycle_id === Number(form.cycle_id))
     : []
-  // En el último ciclo de la carrera los estudiantes están en titulación: no se inscriben en tutorías.
-  const createModalMaxCycle = maxCycleNumber(cycles)
-  const isLastCycle = (cycle: Cycle) => isDegreeCycleNumber(cycle.number, createModalMaxCycle)
+  // Desde el 6.º ciclo los estudiantes están en titulación: no se inscriben en tutorías.
+  const isLastCycle = (cycle: Cycle) => isDegreeCycleNumber(cycle.number)
   const selectedCycle = cycles.find((cycle) => String(cycle.id) === form.cycle_id)
   const isDegreeCycle = selectedCycle ? isLastCycle(selectedCycle) : false
 
@@ -399,7 +396,6 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
       levels={cycleLevels}
       value={activeTab}
       onChange={setCycleTab}
-      degreeCycleNumber={careerMaxCycle}
       extraOptions={[{ value: WITHOUT_CYCLE, label: 'Sin ciclo' }]}
     />
   )
@@ -407,7 +403,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
   const sectionLabel = (name?: string | null) => (name ? `Paralelo ${name.replace(/^Paralelo\s+/i, '')}` : null)
   const studentCycleText = (student: CoordinatorStudent) =>
     student.cycle_number
-      ? [`${student.cycle_number}° ciclo${isDegreeCycleNumber(student.cycle_number, careerMaxCycle) ? ' · Titulación' : ''}`, sectionLabel(student.section_name)].filter(Boolean).join(' · ')
+      ? [`${student.cycle_number}° ciclo${isDegreeCycleNumber(student.cycle_number) ? ' · Titulación' : ''}`, sectionLabel(student.section_name)].filter(Boolean).join(' · ')
       : 'Sin ciclo asignado'
   const hasStudentFilters = Boolean(list.searchInput || tutoringStatus)
 
@@ -446,7 +442,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
                     Matricular en titulación
                   </Button>
                 ) : (
-                  // Solo se matriculan en titulación los estudiantes del último ciclo de la carrera.
+                  // Solo se matriculan en titulación los estudiantes desde el 6.º ciclo.
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span tabIndex={0} className="inline-flex rounded-md outline-hidden focus-visible:ring-3 focus-visible:ring-ring/50">
@@ -456,7 +452,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
                         </Button>
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>Solo se matricula en titulación a estudiantes del último ciclo de la carrera.</TooltipContent>
+                    <TooltipContent>Solo se matricula en titulación a estudiantes desde el 6.º ciclo.</TooltipContent>
                   </Tooltip>
                 )}
               </div>
@@ -803,7 +799,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
                   id="new-student-tutoring"
                   label="Tutoría"
                   optional
-                  tip={isDegreeCycle ? 'En el último ciclo de la carrera los estudiantes solo acceden a titulación, con matrícula vigente.' : undefined}
+                  tip={isDegreeCycle ? 'Desde el 6.º ciclo los estudiantes solo acceden a titulación, con matrícula vigente.' : undefined}
                   error={operation.fieldError('tutoring_id')}
                   value={form.tutoring_id}
                   onValueChange={(value) => setForm({ ...form, tutoring_id: value })}
@@ -853,7 +849,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
           placeholder="Selecciona un ciclo"
           options={[...careerCycles].sort((a, b) => a.number - b.number).map((cycle) => ({
             value: String(cycle.id),
-            label: `${cycle.number}° ciclo${cycle.paralelo_name ? ` · Paralelo ${cycle.paralelo_name}` : ''}${isDegreeCycleNumber(cycle.number, careerMaxCycle) ? ' · Titulación' : ''}`,
+            label: `${cycle.number}° ciclo${cycle.paralelo_name ? ` · Paralelo ${cycle.paralelo_name}` : ''}${isDegreeCycleNumber(cycle.number) ? ' · Titulación' : ''}`,
           }))}
         />
       </FormDialog>

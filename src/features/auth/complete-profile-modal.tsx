@@ -12,7 +12,7 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { PasswordStrength } from '@/components/ui/password-strength'
 import { SelectField } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
-import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
+import { isDegreeCycleNumber } from '@/lib/academic-stage'
 import { api, ApiError, type AcademicFacultyOption } from '@/lib/api'
 import { isPasswordValid } from '@/lib/password-rules'
 import { areNamesValid, normalizeName, splitStoredName } from '@/lib/person-name'
@@ -83,8 +83,6 @@ export function CompleteProfileModal() {
   const career = faculty?.careers.find((option) => String(option.id) === careerId)
   const cycle = career?.cycles.find((option) => String(option.id) === cycleId)
   const academicComplete = !isStudent || cycle !== undefined
-  // Titulación es el último ciclo (número más alto) de la carrera elegida.
-  const careerMaxCycle = career ? maxCycleNumber(career.cycles) : null
 
   const identificationValid = isValidIdentification(identification)
   const datosValid = identificationValid && areNamesValid(firstNames, lastNames) && /^\d{10}$/.test(phone)
@@ -184,14 +182,14 @@ export function CompleteProfileModal() {
               <SelectField
                 id="profile-cycle"
                 label="Ciclo"
-                tip="El último ciclo de tu carrera es de titulación; los anteriores, de tutorías."
+                tip="Desde el 6.º ciclo es titulación; los ciclos anteriores, tutorías."
                 value={cycle ? cycleId : ''}
                 onValueChange={setCycleId}
                 disabled={!career || career.cycles.length === 0}
                 placeholder={!career ? 'Primero selecciona la carrera' : career.cycles.length === 0 ? 'La carrera no tiene ciclos registrados' : 'Selecciona el ciclo que cursas'}
                 options={(career?.cycles ?? []).map((option) => ({
                   value: String(option.id),
-                  label: `${option.number}.º ciclo · ${option.name}${option.section_name ? ` · Paralelo ${option.section_name}` : ''}${isDegreeCycleNumber(option.number, careerMaxCycle) ? ' · Titulación' : ''}`,
+                  label: `${option.number}.º ciclo · ${option.name}${option.section_name ? ` · Paralelo ${option.section_name}` : ''}${isDegreeCycleNumber(option.number) ? ' · Titulación' : ''}`,
                 }))}
               />
             </>
