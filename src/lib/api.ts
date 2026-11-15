@@ -363,7 +363,8 @@ export const api = {
 
   async completeProfile(input: {
     identification: string
-    name: string
+    first_names: string
+    last_names: string
     phone: string
     password?: string
     password_confirmation?: string

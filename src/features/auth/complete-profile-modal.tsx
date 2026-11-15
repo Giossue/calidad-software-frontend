@@ -14,6 +14,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import { api, ApiError, type AcademicFacultyOption } from '@/lib/api'
 import { isPasswordValid } from '@/lib/password-rules'
+import { areNamesValid, firstNamesError, lastNamesError, NAME_PART_MAX_LENGTH, normalizeName, splitStoredName } from '@/lib/person-name'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
@@ -37,7 +38,9 @@ export function CompleteProfileModal() {
   const [identification, setIdentification] = useState(user?.identification ?? '')
   // Si la cuenta ya trae cédula o pasaporte registrado, no puede cambiarse.
   const identificationLocked = Boolean(user?.identification)
-  const [name, setName] = useState(user?.name ?? '')
+  // El nombre se guarda como "apellidos nombres"; se precarga separado cuando se puede.
+  const [firstNames, setFirstNames] = useState(() => splitStoredName(user?.name).firstNames)
+  const [lastNames, setLastNames] = useState(() => splitStoredName(user?.name).lastNames)
   const [phone, setPhone] = useState(user?.phone ?? '')
   // Las cuentas sin contraseña provisional solo registran sus datos faltantes.
   const mustChangePassword = user?.must_change_password ?? true
@@ -83,7 +86,7 @@ export function CompleteProfileModal() {
   const careerMaxCycle = career ? maxCycleNumber(career.cycles) : null
 
   const identificationValid = isValidIdentification(identification)
-  const datosValid = identificationValid && name.trim() !== '' && /^\d{10}$/.test(phone)
+  const datosValid = identificationValid && areNamesValid(firstNames, lastNames) && /^\d{10}$/.test(phone)
   const passwordValid = isPasswordValid(password) && confirmation !== ''
   const canSubmit = datosValid && academicComplete && (!mustChangePassword || passwordValid)
   const stepValid = currentStep.key === 'datos' ? datosValid : currentStep.key === 'academico' ? academicComplete : passwordValid
@@ -103,7 +106,8 @@ export function CompleteProfileModal() {
     try {
       const updated = await api.completeProfile({
         identification,
-        name: name.trim(),
+        first_names: normalizeName(firstNames),
+        last_names: normalizeName(lastNames),
         phone,
         ...(isStudent && faculty && career && cycle ? { faculty_id: faculty.id, career_id: career.id, cycle_id: cycle.id } : {}),
         ...(mustChangePassword ? { password, password_confirmation: confirmation } : {}),
@@ -149,8 +153,11 @@ export function CompleteProfileModal() {
                   )}
                 </div>
               </FormField>
-              <FormField id="profile-name" label="Nombre completo" counter={{ current: name.length, max: 150 }}>
-                <Input id="profile-name" value={name} onChange={(event) => setName(sanitizeLetters(event.target.value, 150))} required maxLength={150} autoComplete="name" placeholder="Apellidos y nombres" />
+              <FormField id="profile-first-names" label="Nombres" tip="Uno o dos nombres." error={firstNamesError(firstNames)} counter={{ current: firstNames.length, max: NAME_PART_MAX_LENGTH }}>
+                <Input id="profile-first-names" value={firstNames} onChange={(event) => setFirstNames(sanitizeLetters(event.target.value, NAME_PART_MAX_LENGTH))} required maxLength={NAME_PART_MAX_LENGTH} autoComplete="given-name" placeholder="Ana María" />
+              </FormField>
+              <FormField id="profile-last-names" label="Apellidos" tip="Tus dos apellidos; uno solo si tu registro civil tiene un único apellido (p. ej., hijos de padres extranjeros o inscritos en el exterior)." error={lastNamesError(lastNames)} counter={{ current: lastNames.length, max: NAME_PART_MAX_LENGTH }}>
+                <Input id="profile-last-names" value={lastNames} onChange={(event) => setLastNames(sanitizeLetters(event.target.value, NAME_PART_MAX_LENGTH))} required maxLength={NAME_PART_MAX_LENGTH} autoComplete="family-name" placeholder="Torres Vera" />
               </FormField>
               <FormField id="profile-phone" label="Teléfono celular">
                 <Input id="profile-phone" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(sanitizeDigits(event.target.value, 10))} required maxLength={10} autoComplete="tel" placeholder="0991234567" />

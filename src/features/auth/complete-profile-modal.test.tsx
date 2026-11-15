@@ -9,7 +9,7 @@ import { api, ApiError, type User } from '@/lib/api'
 vi.mock('@/features/auth/auth-context', () => ({ useAuth: vi.fn() }))
 
 const imported: User = {
-  id: 9, identification: null, name: 'Ana Torres', email: 'ana.torres@ueb.edu.ec', phone: null,
+  id: 9, identification: null, name: 'Torres Vera Ana María', email: 'ana.torres@ueb.edu.ec', phone: null,
   role: 'estudiante', is_active: true, email_verified_at: '2026-10-07T00:00:00Z', has_two_factor: false, must_complete_profile: true,
 }
 
@@ -77,7 +77,10 @@ describe('CompleteProfileModal', () => {
     vi.spyOn(api, 'completeProfile').mockResolvedValue(completed)
 
     render(<CompleteProfileModal />)
-    expect(screen.getByLabelText('Nombre completo')).toHaveValue('Ana Torres')
+    // Nombres primero y luego apellidos, precargados desde el nombre guardado (apellidos y nombres).
+    expect(screen.getByLabelText('Nombres')).toHaveValue('Ana María')
+    expect(screen.getByLabelText('Apellidos')).toHaveValue('Torres Vera')
+    expect(screen.getByLabelText('Nombres').compareDocumentPosition(screen.getByLabelText('Apellidos')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // El paso de contraseña todavía no está visible: solo se ve el paso actual.
     expect(screen.queryByLabelText('Nueva contraseña')).not.toBeInTheDocument()
     const next = screen.getByRole('button', { name: 'Siguiente' })
@@ -108,7 +111,7 @@ describe('CompleteProfileModal', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
 
     await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith({
-      identification: 'AB1234567', name: 'Ana Torres', phone: '0991234567',
+      identification: 'AB1234567', first_names: 'Ana María', last_names: 'Torres Vera', phone: '0991234567',
       faculty_id: 1, career_id: 3, cycle_id: 7,
       password: 'Nueva-Clave-2026', password_confirmation: 'Nueva-Clave-2026',
     }))
@@ -173,7 +176,34 @@ describe('CompleteProfileModal', () => {
     await user.type(screen.getByLabelText('Cédula o pasaporte'), '0926687856')
     await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
 
-    await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith({ identification: '0926687856', name: 'Ana Torres', phone: '0991234567' }))
+    await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith({ identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', phone: '0991234567' }))
+  })
+
+  it('pide uno o dos nombres y dos apellidos, o uno solo como excepción', async () => {
+    const user = userEvent.setup()
+    const account = { ...imported, name: 'Ana Torres', role: 'docente', identification: '0926687856', phone: '0991234567', must_change_password: false }
+    vi.mocked(useAuth).mockReturnValue({ user: account, status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), logout: vi.fn(), replaceUser: vi.fn() })
+    vi.spyOn(api, 'completeProfile').mockResolvedValue({ ...account, must_complete_profile: false })
+
+    render(<CompleteProfileModal />)
+    // Con dos palabras no se sabe cuál es el nombre: los campos empiezan vacíos.
+    expect(screen.getByLabelText('Nombres')).toHaveValue('')
+    const save = screen.getByRole('button', { name: 'Guardar y continuar' })
+    expect(save).toBeDisabled()
+
+    await user.type(screen.getByLabelText('Nombres'), 'Juan Carlos Andrés')
+    await user.type(screen.getByLabelText('Apellidos'), 'Mora Vera Paz')
+    expect(screen.getByText('Ingresa uno o dos nombres.')).toBeInTheDocument()
+    expect(screen.getByText('Ingresa tus dos apellidos, o uno solo si tu registro civil tiene un único apellido.')).toBeInTheDocument()
+    expect(save).toBeDisabled()
+
+    await user.clear(screen.getByLabelText('Nombres'))
+    await user.type(screen.getByLabelText('Nombres'), 'John')
+    await user.clear(screen.getByLabelText('Apellidos'))
+    await user.type(screen.getByLabelText('Apellidos'), 'Smith')
+    await user.click(save)
+
+    await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith({ identification: '0926687856', first_names: 'John', last_names: 'Smith', phone: '0991234567' }))
   })
 
   it('muestra los errores de validación del servidor', async () => {
@@ -211,7 +241,7 @@ describe('CompleteProfileModal', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar y continuar' }))
 
     await waitFor(() => expect(api.completeProfile).toHaveBeenCalledWith({
-      identification: '0926687856', name: 'Ana Torres', phone: '0991234567', faculty_id: 1, career_id: 3, cycle_id: 7,
+      identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', phone: '0991234567', faculty_id: 1, career_id: 3, cycle_id: 7,
     }))
   })
 })
