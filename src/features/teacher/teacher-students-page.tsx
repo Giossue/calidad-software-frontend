@@ -11,9 +11,10 @@ import { FieldDescription } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { IconAction } from '@/components/ui/icon-action'
+import { EnrollmentNumberTag } from '@/components/enrollment-number-tag'
 import { PersonNameFields } from '@/components/person-name-fields'
 import { SearchSelect } from '@/components/ui/search-select'
-import { SelectInput } from '@/components/ui/select-field'
+import { SelectField, SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource, useDegreeSearch } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -22,6 +23,7 @@ import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
+import { DEFAULT_ENROLLMENT_NUMBER, ENROLLMENT_NUMBER_OPTIONS, ENROLLMENT_NUMBER_TIP, parseEnrollmentNumber } from '@/lib/enrollment-number'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
 import { firstNamesError, lastNamesError, normalizeName } from '@/lib/person-name'
 import { sanitizeDigits } from '@/lib/sanitize'
@@ -85,6 +87,9 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const [gradesForm, setGradesForm] = useState(EMPTY_GRADES)
   const [initialGrades, setInitialGrades] = useState(EMPTY_GRADES)
   const [form, setForm] = useState(EMPTY_FORM)
+  // Matrícula elegida al inscribir y la que se edita en el registro del estudiante.
+  const [enrollmentNumber, setEnrollmentNumber] = useState(String(DEFAULT_ENROLLMENT_NUMBER))
+  const [gradingNumber, setGradingNumber] = useState(String(DEFAULT_ENROLLMENT_NUMBER))
   const [mode, setMode] = useState<Mode>('existing')
   const [selected, setSelected] = useState<AvailableStudent | null>(null)
   // La cédula se valida en línea al salir del campo (o al completar su longitud).
@@ -99,13 +104,16 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const settings = settingsResource.data ?? { minimum: 0, maximum: 10, groups: [] }
 
   function openForm() {
-    setForm(EMPTY_FORM); setMode('existing'); setSelected(null); setIdentificationTouched(false); setNamesTouched(NO_NAMES_TOUCHED); search.setInput(''); operation.clearError(); setOpen(true)
+    setForm(EMPTY_FORM); setEnrollmentNumber(String(DEFAULT_ENROLLMENT_NUMBER)); setMode('existing'); setSelected(null); setIdentificationTouched(false); setNamesTouched(NO_NAMES_TOUCHED); search.setInput(''); operation.clearError(); setOpen(true)
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     void operation.run(
-      () => teacherApi.enrollStudent(tutoring.id, mode === 'new' ? { identification: form.identification, first_names: normalizeName(form.first_names), last_names: normalizeName(form.last_names), email: form.email.trim(), phone: form.phone || null } : { student_id: selected?.id ?? 0 }),
+      () => teacherApi.enrollStudent(tutoring.id, {
+        ...(mode === 'new' ? { identification: form.identification, first_names: normalizeName(form.first_names), last_names: normalizeName(form.last_names), email: form.email.trim(), phone: form.phone || null } : { student_id: selected?.id ?? 0 }),
+        enrollment_number: parseEnrollmentNumber(enrollmentNumber),
+      }),
       mode === 'new' ? 'Estudiante creado e inscrito.' : 'Estudiante inscrito.',
       async () => {
         setOpen(false)
@@ -139,6 +147,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       partial_two: student.second_partial_grade ?? '',
     }
     setGradingStudent(student)
+    setGradingNumber(String(student.enrollment_number))
     setGradesForm(current)
     setInitialGrades(current)
     operation.clearError()
@@ -147,17 +156,24 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   function submitGrades(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!gradingStudent || operation.pending) return
+    const student = gradingStudent
+    const gradesChanged = JSON.stringify(gradesForm) !== JSON.stringify(initialGrades)
+    const numberChanged = gradingNumber !== String(student.enrollment_number)
 
     const payload: GradeEntry = {
-      enrollment_id: gradingStudent.id,
+      enrollment_id: student.id,
       diagnostic: gradesForm.diagnostic ? normalizeGrade(gradesForm.diagnostic) : undefined,
       partial: gradesForm.partial ? normalizeGrade(gradesForm.partial) : undefined,
       partial_two: gradesForm.partial_two ? normalizeGrade(gradesForm.partial_two) : undefined,
     }
 
     void operation.run(
-      () => teacherApi.saveGrades(tutoring.id, [payload]),
-      'Calificaciones guardadas.',
+      async () => {
+        // La matrícula solo se envía si cambió; el teléfono registrado se reenvía para conservarlo.
+        if (numberChanged) await teacherApi.updateStudent(tutoring.id, student.id, { phone: student.phone, enrollment_number: parseEnrollmentNumber(gradingNumber) })
+        if (gradesChanged) await teacherApi.saveGrades(tutoring.id, [payload])
+      },
+      numberChanged && gradesChanged ? 'Cambios guardados.' : numberChanged ? 'Matrícula actualizada.' : 'Calificaciones guardadas.',
       async () => {
         setGradingStudent(null)
         await list.reload()
@@ -213,7 +229,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       rowTitle={({ student }) => (canGrade(student) ? `Añadir notas de ${student.name}` : canSeeAbandonment(student) ? `Ver el abandono de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
       empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />}
       columns={[
-        { label: 'Apellidos y nombres', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
+        { label: 'Apellidos y nombres', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span><EnrollmentNumberTag enrollmentNumber={student.enrollment_number} attendanceRequired={student.attendance_required} /></div> },
         { label: 'Contacto', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
         { label: 'Grupo de Conocimiento', span: groupSpan, render: ({ student }) => student.knowledge_group
           ? <span>{student.knowledge_group}</span>
@@ -242,7 +258,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
 
     {/* Modal para registrar un estudiante nuevo o inscribir uno existente */}
-    <FormDialog open={open} title="Registrar estudiante" description={tutoring.subject_name} pending={operation.pending} error={operation.error} errorModal={operation.errorModal} dirty={Boolean(selected) || JSON.stringify(form) !== JSON.stringify(EMPTY_FORM)} requireChanges={false} blockReason={registerBlockReason} onClose={closeForm} onSubmit={submit} submitLabel={mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'} submitIcon={UserPlusIcon}>
+    <FormDialog open={open} title="Registrar estudiante" description={tutoring.subject_name} pending={operation.pending} error={operation.error} errorModal={operation.errorModal} dirty={Boolean(selected) || JSON.stringify(form) !== JSON.stringify(EMPTY_FORM) || enrollmentNumber !== String(DEFAULT_ENROLLMENT_NUMBER)} requireChanges={false} blockReason={registerBlockReason} onClose={closeForm} onSubmit={submit} submitLabel={mode === 'new' ? 'Crear e inscribir' : 'Inscribir estudiante'} submitIcon={UserPlusIcon}>
       <Tabs value={mode} onValueChange={(value) => { setMode(value as Mode); operation.clearError() }}>
         <TabsList aria-label="Cómo registrar al estudiante">
           <TabsTrigger value="existing">Ya registrado</TabsTrigger>
@@ -315,6 +331,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
           />
         </FormField>
       </>}
+      <SelectField id="teacher-student-enrollment-number" label="Matrícula" required tip={ENROLLMENT_NUMBER_TIP} value={enrollmentNumber} onValueChange={setEnrollmentNumber} options={ENROLLMENT_NUMBER_OPTIONS} error={serverFieldError(operation, 'enrollment_number')} />
     </FormDialog>
 
     {/* Modal para añadir o corregir notas del estudiante */}
@@ -324,7 +341,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       description={gradingStudent ? `${gradingStudent.name} (${gradingStudent.identification}) · ${tutoring.subject_name}` : undefined}
       pending={operation.pending}
       error={operation.error}
-      dirty={JSON.stringify(gradesForm) !== JSON.stringify(initialGrades)}
+      dirty={JSON.stringify(gradesForm) !== JSON.stringify(initialGrades) || (gradingStudent !== null && gradingNumber !== String(gradingStudent.enrollment_number))}
       errorModal={operation.errorModal}
       onClose={() => { setGradingStudent(null); operation.clearError() }}
       onSubmit={submitGrades}
@@ -336,6 +353,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       </> : undefined}
     >
       <div className="flex flex-col gap-4">
+        <SelectField id="teacher-grade-enrollment-number" label="Matrícula" tip={ENROLLMENT_NUMBER_TIP} value={gradingNumber} onValueChange={setGradingNumber} options={ENROLLMENT_NUMBER_OPTIONS} error={serverFieldError(operation, 'enrollment_number')} />
         <div className="grid gap-4 sm:grid-cols-3">
           <FormField id="teacher-grade-diagnostic" label="Diagnóstico">
             <Input
@@ -396,6 +414,6 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       onChanged={async () => { setAbandoning(null); setGradingStudent(null); await list.reload() }}
     />
     <ConfirmModal open={Boolean(deactivating)} title="¿Deshabilitar inscripción?" description={`${deactivating?.name ?? 'El estudiante'} dejará de participar en esta tutoría. Se conservarán sus notas y asistencias.`} confirmLabel="Deshabilitar inscripción" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => teacherApi.deactivateStudent(tutoring.id, deactivating.id), 'Inscripción deshabilitada.', async () => { setDeactivating(null); setGradingStudent(null); await list.reload() }) }} />
-    <ConfirmModal open={Boolean(reenrolling)} variant="default" confirmIcon={RotateCcwIcon} title={`¿Reinscribir a ${reenrolling?.name ?? 'el estudiante'}?`} description="Volverá a participar en esta tutoría con sus notas y asistencias anteriores." confirmLabel="Reinscribir estudiante" pending={operation.pending} onClose={() => { if (!operation.pending) setReenrolling(null) }} onConfirm={() => { if (reenrolling) void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: reenrolling.student_id }), 'Estudiante inscrito nuevamente.', async () => { setReenrolling(null); await list.reload() }) }} />
+    <ConfirmModal open={Boolean(reenrolling)} variant="default" confirmIcon={RotateCcwIcon} title={`¿Reinscribir a ${reenrolling?.name ?? 'el estudiante'}?`} description="Volverá a participar en esta tutoría con sus notas y asistencias anteriores." confirmLabel="Reinscribir estudiante" pending={operation.pending} onClose={() => { if (!operation.pending) setReenrolling(null) }} onConfirm={() => { if (reenrolling) void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: reenrolling.student_id, enrollment_number: reenrolling.enrollment_number }), 'Estudiante inscrito nuevamente.', async () => { setReenrolling(null); await list.reload() }) }} />
   </div>
 }

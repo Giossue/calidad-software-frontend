@@ -4,6 +4,7 @@ import { ArrowLeftIcon, CheckCheckIcon, PencilIcon, PlusIcon, SaveIcon } from 'l
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { EnrollmentNumberTag } from '@/components/enrollment-number-tag'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -280,6 +281,7 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
       return (
         <div className="flex flex-col gap-1">
           <span>{row.original.name}</span>
+          <EnrollmentNumberTag enrollmentNumber={row.original.enrollment_number} attendanceRequired={row.original.attendance_required} />
           {notice && <span className="whitespace-normal text-xs text-warning">Avisó que no asistirá: {notice.reason}</span>}
         </div>
       )
@@ -307,7 +309,16 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
 
 const CONSULT_COLUMNS: ColumnDef<TutoringSession['attendance'][number]>[] = [
   { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
-  { id: 'name', header: 'Apellidos y nombres', cell: ({ row }) => row.original.student_name },
+  {
+    id: 'name',
+    header: 'Apellidos y nombres',
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-1">
+        <span>{row.original.student_name}</span>
+        <EnrollmentNumberTag attendanceRequired={row.original.attendance_required} />
+      </div>
+    ),
+  },
   {
     id: 'present',
     header: () => <div className="text-center">Asistencia</div>,

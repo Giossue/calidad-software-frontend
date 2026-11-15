@@ -6,6 +6,7 @@ import type { FinalPaoReportSummary } from '@/lib/final-pao-report'
 import type { FollowUpReportSummary } from '@/lib/follow-up-report'
 import type { TopicFile } from '@/lib/topic-files'
 import type { Attendance, Tutoring, TutoringReport, TutoringSchedule } from '@/lib/tutoring-api'
+import type { EnrollmentNumber } from '@/lib/enrollment-number'
 
 const ROOT = '/api/v1/teacher'
 type Resource<T> = { readonly data: T }
@@ -47,14 +48,20 @@ export interface Enrollment {
   readonly is_abandoned?: boolean
   readonly abandoned_at?: string | null
   readonly abandonment_reason?: string | null
+  /** Número de matrícula (1.ª a 3.ª); desde la 2.ª la asistencia es obligatoria (`attendance_required`). */
+  readonly enrollment_number: EnrollmentNumber
+  readonly attendance_required: boolean
 }
 export type FinalResult = 'approved' | 'failed'
 /** Marcar el abandono exige el motivo; `abandoned: false` lo quita. */
 export type AbandonmentInput = { abandoned: true; reason: string } | { abandoned: false }
 export type AvailableStudent = Pick<Enrollment, 'identification' | 'name' | 'email'> & { readonly id: number }
-export type NewStudentInput = { identification: string; first_names: string; last_names: string; email: string; phone: string | null }
-/** Los nombres y apellidos se envían juntos o no se envían (se conserva el nombre guardado). */
-export type UpdateStudentInput = { phone: string | null } & ({ first_names: string; last_names: string } | { first_names?: never; last_names?: never })
+export type NewStudentInput = { identification: string; first_names: string; last_names: string; email: string; phone: string | null; enrollment_number?: EnrollmentNumber }
+/**
+ * Los nombres y apellidos se envían juntos o no se envían (se conserva el nombre guardado).
+ * `enrollment_number` solo se envía cuando cambia (sin él se conserva la matrícula).
+ */
+export type UpdateStudentInput = { phone: string | null; enrollment_number?: EnrollmentNumber } & ({ first_names: string; last_names: string } | { first_names?: never; last_names?: never })
 export interface Methodology {
   readonly id: number
   readonly activity_id: number
@@ -96,6 +103,8 @@ export interface SessionAttendanceRecord {
   readonly student_identification?: string
   readonly student_email?: string
   readonly present: boolean
+  /** La inscripción está en 2.ª matrícula o más: debe asistir. */
+  readonly attendance_required: boolean
 }
 
 /** Aviso del estudiante de que no asistirá a la clase de una fecha. */
@@ -198,7 +207,7 @@ export const teacherApi = {
   students: (id: number, params?: TeacherListParams) => list<Enrollment>(`tutorings/${id}/students`, params),
   allStudents: (id: number) => collectPages((page) => list<Enrollment>(`tutorings/${id}/students`, { page, per_page: 100 })),
   availableStudents: async (id: number, search = '') => (await request<Collection<AvailableStudent>>(`${ROOT}/tutorings/${id}/available-students${buildQuery({ search })}`)).data,
-  enrollStudent: (id: number, input: NewStudentInput | { student_id: number }) => mutate<Enrollment>(`tutorings/${id}/students`, 'POST', input),
+  enrollStudent: (id: number, input: NewStudentInput | { student_id: number; enrollment_number?: EnrollmentNumber }) => mutate<Enrollment>(`tutorings/${id}/students`, 'POST', input),
   updateStudent: (id: number, enrollmentId: number, input: UpdateStudentInput) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
   setFinalResult: (id: number, enrollmentId: number, result: FinalResult | null) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/final-result`, 'PUT', { result }),
   deactivateStudent: (id: number, enrollmentId: number) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),

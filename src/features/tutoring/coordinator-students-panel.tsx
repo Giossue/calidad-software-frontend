@@ -4,6 +4,7 @@ import { PlusIcon, PowerOffIcon, RotateCcwIcon, UserXIcon } from 'lucide-react'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { AbandonmentDialog } from '@/components/abandonment-dialog'
 import { Badge } from '@/components/ui/badge'
+import { EnrollmentNumberTag } from '@/components/enrollment-number-tag'
 import { PersonNameFields } from '@/components/person-name-fields'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -13,12 +14,14 @@ import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SearchSelect } from '@/components/ui/search-select'
+import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource, useDegreeSearch } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification } from '@/lib/cedula'
+import { DEFAULT_ENROLLMENT_NUMBER, ENROLLMENT_NUMBER_OPTIONS, ENROLLMENT_NUMBER_TIP, parseEnrollmentNumber } from '@/lib/enrollment-number'
 import { firstNamesError, lastNamesError, normalizeName, splitStoredName } from '@/lib/person-name'
 import { sanitizeDigits } from '@/lib/sanitize'
 import { tutoringApi, type CoordinatorAvailableStudent, type CoordinatorEnrollment, type Tutoring } from '@/lib/tutoring-api'
@@ -27,7 +30,7 @@ import { FilterBarSkeleton } from '@/components/ui/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 
-const EMPTY_FORM = { identification: '', first_names: '', last_names: '', email: '', phone: '' }
+const EMPTY_FORM = { identification: '', first_names: '', last_names: '', email: '', phone: '', enrollment_number: String(DEFAULT_ENROLLMENT_NUMBER) }
 type Mode = 'existing' | 'new'
 type StudentForm = typeof EMPTY_FORM
 
@@ -86,12 +89,13 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
     phone: errors.phone,
   }
   const blockReason = Object.values(errors)[0] ?? null
-  const dirty = editing ? JSON.stringify(form) !== JSON.stringify(initial) : mode === 'existing' ? Boolean(selected) : JSON.stringify(form) !== JSON.stringify(EMPTY_FORM)
+  const numberChanged = form.enrollment_number !== initial.enrollment_number
+  const dirty = editing ? JSON.stringify(form) !== JSON.stringify(initial) : mode === 'existing' ? Boolean(selected) || numberChanged : JSON.stringify(form) !== JSON.stringify(EMPTY_FORM)
 
   function openForm(student: CoordinatorEnrollment | null = null) {
     const next = student
       // Hay cuentas importadas sin cédula (o sin teléfono): el formulario trabaja con texto vacío.
-      ? { identification: student.identification ?? '', first_names: splitStoredName(student.name).firstNames, last_names: splitStoredName(student.name).lastNames, email: student.email ?? '', phone: student.phone ?? '' }
+      ? { identification: student.identification ?? '', first_names: splitStoredName(student.name).firstNames, last_names: splitStoredName(student.name).lastNames, email: student.email ?? '', phone: student.phone ?? '', enrollment_number: String(student.enrollment_number) }
       : EMPTY_FORM
     setEditing(student)
     setForm(next)
@@ -106,15 +110,16 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const names = { first_names: normalizeName(form.first_names), last_names: normalizeName(form.last_names) }
+    const enrollmentNumber = parseEnrollmentNumber(form.enrollment_number)
     void operation.run(
-      // Al editar, el nombre registrado se conserva si no se tocan los nombres ni los apellidos.
+      // Al editar, el nombre y la matrícula registrados se conservan si no se cambian.
       () => editing
-        ? tutoringApi.updateStudent(tutoring.id, editing.id, { ...(namesChanged ? names : {}), phone: form.phone || null })
+        ? tutoringApi.updateStudent(tutoring.id, editing.id, { ...(namesChanged ? names : {}), phone: form.phone || null, ...(numberChanged ? { enrollment_number: enrollmentNumber } : {}) })
         : tutoringApi.enrollStudent(
             tutoring.id,
             mode === 'new'
-              ? { identification: form.identification, ...names, email: form.email.trim(), phone: form.phone || null }
-              : { student_id: selected?.id ?? 0 },
+              ? { identification: form.identification, ...names, email: form.email.trim(), phone: form.phone || null, enrollment_number: enrollmentNumber }
+              : { student_id: selected?.id ?? 0, enrollment_number: enrollmentNumber },
           ),
       editing ? 'Datos del estudiante actualizados' : mode === 'new' ? 'Estudiante creado e inscrito' : 'Estudiante inscrito',
       async () => { setOpen(false); await list.reload() },
@@ -169,7 +174,7 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
           ? 'No hay estudiantes con estos filtros.'
           : 'Aún no hay estudiantes inscritos en esta tutoría.'}
         columns={[
-          { label: 'Apellidos y nombres', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
+          { label: 'Apellidos y nombres', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span><EnrollmentNumberTag enrollmentNumber={student.enrollment_number} attendanceRequired={student.attendance_required} /></div> },
           { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
           { label: 'Inscripción', render: (student) => <div className="flex flex-col items-start gap-1">
             <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" />
@@ -258,6 +263,7 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
             </FormField>
           </>
         )}
+        <SelectField id="coord-student-enrollment-number" label="Matrícula" required tip={ENROLLMENT_NUMBER_TIP} value={form.enrollment_number} onValueChange={(value) => setForm({ ...form, enrollment_number: value })} options={ENROLLMENT_NUMBER_OPTIONS} error={operation.fieldError('enrollment_number')} />
       </FormDialog>
       <AbandonmentDialog
         target={abandoning}

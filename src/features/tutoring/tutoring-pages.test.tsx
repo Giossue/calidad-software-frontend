@@ -1358,7 +1358,7 @@ describe('Coordinación de tutorías', () => {
   it('en el panel de estudiantes de la tutoría la fila abre el modal con deshabilitar como icono y guarda solo con cambios', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
-      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01' },
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 1, attendance_required: false },
     ]))
     vi.mocked(tutoringApi.updateStudent).mockResolvedValue({} as never)
     render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
@@ -1381,8 +1381,8 @@ describe('Coordinación de tutorías', () => {
   it('en el panel de estudiantes el coordinador registra el abandono con su motivo desde el modal del estudiante', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
-      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01' },
-      { id: 6, tutoring_id: 40, student_id: 10, identification: '0207654321', name: 'Eva Mora', email: 'eva@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', is_abandoned: true, abandonment_reason: 'Retiro voluntario' },
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 1, attendance_required: false },
+      { id: 6, tutoring_id: 40, student_id: 10, identification: '0207654321', name: 'Eva Mora', email: 'eva@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 1, attendance_required: false, is_abandoned: true, abandonment_reason: 'Retiro voluntario' },
     ]))
     vi.mocked(tutoringApi.setAbandonment).mockResolvedValue({} as never)
     render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
@@ -1408,7 +1408,7 @@ describe('Coordinación de tutorías', () => {
   it('en el panel de estudiantes precarga nombres y apellidos al editar y los envía separados si cambian', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
-      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Torres Vera Ana María', email: 'ana@ueb.edu.ec', phone: '0991234567', is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01' },
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Torres Vera Ana María', email: 'ana@ueb.edu.ec', phone: '0991234567', is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 1, attendance_required: false },
     ]))
     vi.mocked(tutoringApi.updateStudent).mockResolvedValue({} as never)
     render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
@@ -1431,7 +1431,7 @@ describe('Coordinación de tutorías', () => {
   it('en el panel de estudiantes no deja editar nombres ni apellidos de una cuenta que no se edita desde aquí', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
-      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Torres Vera Ana María', email: 'ana@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: false, enrolled_at: '2026-09-01' },
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Torres Vera Ana María', email: 'ana@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: false, enrolled_at: '2026-09-01', enrollment_number: 1, attendance_required: false },
     ]))
     render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
     await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
@@ -1461,13 +1461,63 @@ describe('Coordinación de tutorías', () => {
     await user.clear(within(form).getByLabelText(/^Nombres/))
     await user.type(within(form).getByLabelText(/^Nombres/), 'Ana María')
     await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
-    await waitFor(() => expect(tutoringApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', email: 'ana.torres@ueb.edu.ec', phone: null }))
+    await waitFor(() => expect(tutoringApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', email: 'ana.torres@ueb.edu.ec', phone: null, enrollment_number: 1 }))
+  })
+
+  it('en el panel de estudiantes marca «Asistencia obligatoria» y la matrícula solo desde la 2.ª matrícula', async () => {
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 1, attendance_required: false },
+      { id: 6, tutoring_id: 40, student_id: 10, identification: '0207654321', name: 'Eva Mora', email: 'eva@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 3, attendance_required: true },
+    ]))
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await screen.findByText('Eva Mora')
+    expect(screen.getAllByText('Asistencia obligatoria')).toHaveLength(1)
+    const eva = screen.getAllByRole('row').find((row) => within(row).queryByText('Eva Mora')) as HTMLElement
+    expect(within(eva).getByText('Asistencia obligatoria')).toBeInTheDocument()
+    expect(within(eva).getByText('3.ª matrícula')).toBeInTheDocument()
+    expect(screen.queryByText('1.ª matrícula')).not.toBeInTheDocument()
+  })
+
+  it('en el panel de estudiantes inscribe a un estudiante registrado en la matrícula elegida', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([]))
+    vi.mocked(tutoringApi.availableStudents).mockResolvedValue({ data: [{ id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec' }] } as never)
+    vi.mocked(tutoringApi.enrollStudent).mockResolvedValue({} as never)
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
+    const form = await screen.findByRole('form', { name: 'Registrar estudiante' })
+    expect(within(form).getByRole('combobox', { name: /^Matrícula/ })).toHaveTextContent('1.ª matrícula')
+    await user.click(within(form).getByPlaceholderText('Busca por nombre, cédula o correo…'))
+    await user.click(await screen.findByRole('option', { name: /Luis Pérez/ }))
+    await choose(user, within(form).getByRole('combobox', { name: /^Matrícula/ }), '2.ª matrícula')
+    await user.click(within(form).getByRole('button', { name: 'Inscribir estudiante' }))
+    await waitFor(() => expect(tutoringApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 9, enrollment_number: 2 }))
+  })
+
+  it('en el panel de estudiantes edita la matrícula y solo la envía si cambió', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec', phone: '0991234567', is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 2, attendance_required: true },
+    ]))
+    vi.mocked(tutoringApi.updateStudent).mockResolvedValue({} as never)
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await user.click(await screen.findByTitle('Ver o editar a Luis Pérez'))
+    const form = await screen.findByRole('form', { name: 'Editar estudiante' })
+    const select = within(form).getByRole('combobox', { name: /^Matrícula/ })
+    expect(select).toHaveTextContent('2.ª matrícula')
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    await choose(user, select, '1.ª matrícula')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(tutoringApi.updateStudent).toHaveBeenCalledWith(40, 5, { phone: '0991234567', enrollment_number: 1 }))
   })
 
   it('abre al estudiante sin cédula registrada (cédula nula) sin romper la pantalla', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
-      { id: 6, tutoring_id: 40, student_id: 10, identification: null as unknown as string, name: 'Noemi Aguachela', email: 'noemi@ueb.edu.ec', phone: '0969961116', is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01' },
+      { id: 6, tutoring_id: 40, student_id: 10, identification: null as unknown as string, name: 'Noemi Aguachela', email: 'noemi@ueb.edu.ec', phone: '0969961116', is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', enrollment_number: 1, attendance_required: false },
     ]))
     render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
     await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
@@ -1505,7 +1555,8 @@ describe('Coordinación de tutorías', () => {
     const labels = [...form.querySelectorAll('label[for]')].map((label) => label.textContent ?? '')
     expect(labels[0]).toMatch(/^Nombres/)
     expect(labels[1]).toMatch(/^Apellidos/)
-    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(4)
+    // Nombres, apellidos, cédula, correo y matrícula.
+    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(5)
     expect(within(form).getByRole('button', { name: 'Crear e inscribir' })).toBeInTheDocument()
   })
 

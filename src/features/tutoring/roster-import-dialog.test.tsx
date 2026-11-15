@@ -48,6 +48,8 @@ describe('Cargar listado PDF', () => {
     await user.click(screen.getByRole('button', { name: 'Revisar listado' }))
 
     expect(tutoringApi.importRoster).toHaveBeenLastCalledWith(10, pdf, false, 81)
+    // El listado no trae la matrícula: se avisa que quedan en 1.ª y cómo cambiarla.
+    expect(await screen.findByText('Los estudiantes del listado quedan en 1.ª matrícula; para cambiarla, edita su inscripción en la tutoría.')).toBeInTheDocument()
     expect(await screen.findByText('Perez Mora Luis (se asigna)')).toBeInTheDocument()
     expect(screen.getByText('Se crea al confirmar')).toBeInTheDocument()
     expect(screen.getByText('El listado es de la carrera «TI»; se cargará en Software.')).toBeInTheDocument()

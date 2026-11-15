@@ -133,6 +133,7 @@ export function RosterImportButton({ careerId, mallaId, onFinished }: Readonly<{
               <Notice tone="error" title="No se puede cargar el listado" items={report.errors} />
             )}
             {report.notes.length > 0 && <Notice tone="info" title="Ten en cuenta" items={report.notes} />}
+            <p className="text-xs text-muted-foreground">Los estudiantes del listado quedan en 1.ª matrícula; para cambiarla, edita su inscripción en la tutoría.</p>
 
             <div className="max-h-72 overflow-auto rounded-md ring-1 ring-surface-ring">
               <table className="w-full text-left text-sm">

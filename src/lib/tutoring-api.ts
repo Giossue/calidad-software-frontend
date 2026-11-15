@@ -1,4 +1,5 @@
 import { buildQuery, request, type AcademicPeriod, type Career, type Cycle, type Modality, type PaginatedResourceCollection, type PaginationMeta, type Section } from '@/lib/api'
+import type { EnrollmentNumber } from '@/lib/enrollment-number'
 
 export type { Cycle }
 
@@ -50,6 +51,9 @@ export interface CoordinatorEnrollment {
   readonly is_abandoned?: boolean
   readonly abandoned_at?: string | null
   readonly abandonment_reason?: string | null
+  /** Número de matrícula (1.ª a 3.ª); desde la 2.ª la asistencia es obligatoria (`attendance_required`). */
+  readonly enrollment_number: EnrollmentNumber
+  readonly attendance_required: boolean
 }
 export type CoordinatorAvailableStudent = { readonly id: number; readonly identification: string; readonly name: string; readonly email: string }
 
@@ -345,10 +349,11 @@ export const tutoringApi = {
     request<PaginatedResourceCollection<CoordinatorEnrollment>>(`${ROOT}/tutorings/${id}/students${buildQuery(params ?? {})}`),
   availableStudents: (id: number, search?: string) =>
     request<{ data: readonly CoordinatorAvailableStudent[] }>(`${ROOT}/tutorings/${id}/available-students${buildQuery({ search: search ?? '' })}`),
-  enrollStudent: (id: number, input: { student_id?: number; identification?: string; first_names?: string; last_names?: string; email?: string; phone?: string | null }) =>
+  enrollStudent: (id: number, input: { student_id?: number; identification?: string; first_names?: string; last_names?: string; email?: string; phone?: string | null; enrollment_number?: EnrollmentNumber }) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students`, 'POST', input),
   /** Los nombres y apellidos se envían juntos y solo cuando cambian. */
-  updateStudent: (id: number, enrollmentId: number, input: { first_names?: string; last_names?: string; phone: string | null }) =>
+  /** `enrollment_number` solo se envía cuando cambia (sin él se conserva la matrícula). */
+  updateStudent: (id: number, enrollmentId: number, input: { first_names?: string; last_names?: string; phone: string | null; enrollment_number?: EnrollmentNumber }) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
   deactivateStudent: (id: number, enrollmentId: number) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),
@@ -372,8 +377,8 @@ export const tutoringApi = {
     request<{ data: CoordinatorStudent }>(`${ROOT}/students`, { method: 'POST', body: JSON.stringify(input) }),
   availableTutoringsForStudent: (studentId: number, search?: string) =>
     request<{ data: readonly Tutoring[] }>(`${ROOT}/students/${studentId}/available-tutorings${buildQuery({ search: search ?? '' })}`),
-  enrollStudentInTutoring: (studentId: number, tutoringId: number) =>
-    request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enroll`, { method: 'POST', body: JSON.stringify({ tutoring_id: tutoringId }) }),
+  enrollStudentInTutoring: (studentId: number, tutoringId: number, enrollmentNumber?: EnrollmentNumber) =>
+    request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enroll`, { method: 'POST', body: JSON.stringify({ tutoring_id: tutoringId, enrollment_number: enrollmentNumber }) }),
   unenrollStudentFromTutoring: (studentId: number, enrollmentId: number) =>
     request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enrollments/${enrollmentId}`, { method: 'DELETE' }),
   degreeStudents: (params?: { page?: number; search?: string; career_id?: number; malla_id?: number; cycle_number?: number; enrolled?: boolean }) =>
@@ -446,6 +451,8 @@ export interface CoordinatorStudentTutoring {
   readonly section_name?: string | null
   readonly period_name: string
   readonly is_active: boolean
+  readonly enrollment_number?: EnrollmentNumber
+  readonly attendance_required?: boolean
 }
 
 export interface CoordinatorStudent {

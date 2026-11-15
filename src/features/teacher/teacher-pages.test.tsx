@@ -27,7 +27,7 @@ vi.mock('@/lib/teacher-api', async (importOriginal) => {
 })
 
 const tutoring: TeacherTutoring = { id: 40, subject_id: 30, subject_name: 'Calidad de software', cycle_id: 20, cycle_name: 'Segundo', career_id: 10, career_name: 'Software', period_id: 50, period_name: '2026-2', period_start_date: '2026-01-01', period_end_date: '2026-12-31', modality_id: 60, modality_name: 'Presencial', section_id: 1, section_name: 'A', teacher_id: 5, teacher_name: 'María López', teacher_is_active: true, is_active: true, can_manage: true, active_enrollment_count: 1, schedules: [] }
-const student: Enrollment = { id: 70, tutoring_id: 40, student_id: 80, identification: '0201234567', name: 'Ana Pérez', email: 'ana.perez@ueb.edu.ec', phone: '0991234567', enrolled_at: '2026-09-29', is_active: true, student_is_active: true, can_edit_profile: true, diagnostic_grade: null, partial_grade: null, second_partial_grade: null, knowledge_group: null, knowledge_group_key: null }
+const student: Enrollment = { id: 70, tutoring_id: 40, student_id: 80, identification: '0201234567', name: 'Ana Pérez', email: 'ana.perez@ueb.edu.ec', phone: '0991234567', enrolled_at: '2026-09-29', is_active: true, student_is_active: true, can_edit_profile: true, diagnostic_grade: null, partial_grade: null, second_partial_grade: null, knowledge_group: null, knowledge_group_key: null, enrollment_number: 1, attendance_required: false }
 const topic: TutoringTopic = { id: 90, tutoring_id: 40, name: 'Pruebas', description: 'Casos de prueba', is_active: true, is_covered: false, activities: [] }
 function paginated<T>(data: readonly T[], page = 1, last = 1) {
   return { data, meta: { current_page: page, last_page: last, per_page: 15, total: data.length, from: data.length ? 1 : null, to: data.length || null, active_count: data.length, inactive_count: 0 } }
@@ -281,7 +281,7 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('option', { name: /Ana Pérez/ }))
     fireEvent.submit(form); fireEvent.submit(form)
     expect(teacherApi.enrollStudent).toHaveBeenCalledTimes(1)
-    expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80 })
+    expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80, enrollment_number: 1 })
     await act(async () => reject(new ApiError(422, { message: 'No se pudo inscribir.', errors: { student_id: ['El estudiante ya está inscrito.'] } })))
     expect(await screen.findByText('El estudiante ya está inscrito.')).toBeInTheDocument()
     expect(within(form).getByLabelText(/^Estudiante/)).toHaveValue('Ana Pérez')
@@ -309,7 +309,7 @@ describe('Módulo Docente', () => {
     await user.type(within(form).getByLabelText(/^Apellidos/), 'Mora Vera')
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'luis.mora@ueb.edu.ec')
     await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
-    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', first_names: 'Luis Alberto', last_names: 'Mora Vera', email: 'luis.mora@ueb.edu.ec', phone: null }))
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', first_names: 'Luis Alberto', last_names: 'Mora Vera', email: 'luis.mora@ueb.edu.ec', phone: null, enrollment_number: 1 }))
   })
 
   it('en «Estudiante nuevo» pide Nombres y luego Apellidos, con uno o dos de cada uno', async () => {
@@ -343,7 +343,7 @@ describe('Módulo Docente', () => {
     await user.clear(second); await user.type(second, 'Mora')
     expect(submit).toBeEnabled()
     await user.click(submit)
-    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', first_names: 'Luis', last_names: 'Mora', email: 'luis.mora@ueb.edu.ec', phone: null }))
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', first_names: 'Luis', last_names: 'Mora', email: 'luis.mora@ueb.edu.ec', phone: null, enrollment_number: 1 }))
   })
 
   it('en «Estudiante nuevo» pide primero el nombre, avisa la cédula inválida bajo el campo y devuelve el foco al botón al crear', async () => {
@@ -409,6 +409,67 @@ describe('Módulo Docente', () => {
     await user.type(within(form).getByLabelText('Diagnóstico de Ana Pérez'), '8.5')
     await user.click(within(form).getByRole('button', { name: 'Guardar calificaciones' }))
     await waitFor(() => expect(teacherApi.saveGrades).toHaveBeenCalledWith(40, [{ enrollment_id: 70, diagnostic: '8.50', partial: undefined, partial_two: undefined }]))
+    // Sin cambiar la matrícula no se actualiza la inscripción.
+    expect(teacherApi.updateStudent).not.toHaveBeenCalled()
+  })
+
+  it('marca «Asistencia obligatoria» y la matrícula solo a quien está en 2.ª matrícula o más', async () => {
+    const second = { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222', enrollment_number: 2 as const, attendance_required: true }
+    vi.mocked(teacherApi.students).mockResolvedValue(paginated([student, second]))
+    workspace('students')
+    await screen.findByText('Luis Mora')
+    expect(screen.getAllByText('Asistencia obligatoria')).toHaveLength(1)
+    expect(screen.getByText('Asistencia obligatoria').closest('[data-slot="badge"]')).not.toBeNull()
+    const luis = screen.getAllByRole('row').find((row) => within(row).queryByText('Luis Mora')) as HTMLElement
+    expect(within(luis).getByText('Asistencia obligatoria')).toBeInTheDocument()
+    expect(within(luis).getByText('2.ª matrícula')).toBeInTheDocument()
+    expect(screen.queryByText('1.ª matrícula')).not.toBeInTheDocument()
+  })
+
+  it('inscribe a un estudiante registrado con la matrícula elegida (1.ª por defecto)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.enrollStudent).mockResolvedValue(student)
+    workspace('students')
+    await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
+    const form = screen.getByRole('form', { name: 'Registrar estudiante' })
+    expect(within(form).getByRole('combobox', { name: /^Matrícula/ })).toHaveTextContent('1.ª matrícula')
+    await user.click(within(form).getByLabelText(/^Estudiante/))
+    await user.click(await screen.findByRole('option', { name: /Ana Pérez/ }))
+    await choose(user, within(form).getByRole('combobox', { name: /^Matrícula/ }), '2.ª matrícula')
+    await user.click(within(form).getByRole('button', { name: 'Inscribir estudiante' }))
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80, enrollment_number: 2 }))
+  })
+
+  it('crea e inscribe a un estudiante nuevo en 3.ª matrícula', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.enrollStudent).mockResolvedValue(student)
+    workspace('students')
+    await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
+    const form = screen.getByRole('form', { name: 'Registrar estudiante' })
+    await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Luis')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Mora')
+    await user.type(within(form).getByLabelText(/^Cédula o pasaporte/), '0201234564')
+    await user.type(within(form).getByLabelText(/^Correo institucional/), 'luis.mora@ueb.edu.ec')
+    await choose(user, within(form).getByRole('combobox', { name: /^Matrícula/ }), '3.ª matrícula')
+    await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', first_names: 'Luis', last_names: 'Mora', email: 'luis.mora@ueb.edu.ec', phone: null, enrollment_number: 3 }))
+  })
+
+  it('cambia la matrícula desde el registro del estudiante y solo la envía si cambió', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.updateStudent).mockResolvedValue({ ...student, enrollment_number: 2, attendance_required: true })
+    workspace('students')
+    await user.click(await screen.findByText('Ana Pérez'))
+    const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
+    const select = within(form).getByRole('combobox', { name: /^Matrícula/ })
+    expect(select).toHaveTextContent('1.ª matrícula')
+    expect(within(form).getByRole('button', { name: 'Guardar calificaciones' })).toBeDisabled()
+    await choose(user, select, '2.ª matrícula')
+    await user.click(within(form).getByRole('button', { name: 'Guardar calificaciones' }))
+    // El teléfono registrado se reenvía para no borrarlo.
+    await waitFor(() => expect(teacherApi.updateStudent).toHaveBeenCalledWith(40, 70, { phone: '0991234567', enrollment_number: 2 }))
+    expect(teacherApi.saveGrades).not.toHaveBeenCalled()
   })
 
   it('confirma la baja de la inscripción, que se pide desde el registro del estudiante y no desde una columna de acciones', async () => {
@@ -477,7 +538,7 @@ describe('Módulo Docente', () => {
     const confirm = await screen.findByRole('dialog', { name: '¿Reinscribir a Ana Pérez?' })
     expect(teacherApi.enrollStudent).not.toHaveBeenCalled()
     await user.click(within(confirm).getByRole('button', { name: 'Reinscribir estudiante' }))
-    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80 }))
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80, enrollment_number: 1 }))
   })
 
   it('carga las notas por etapa: todos los estudiantes de una etapa y recién ahí guarda', async () => {
@@ -667,6 +728,29 @@ describe('Módulo Docente', () => {
     expect(sessionStorage.getItem(`attendance-draft:40:${today}`)).toBeNull()
   })
 
+  it('al tomar y consultar la asistencia marca «Asistencia obligatoria» solo a quien la tiene', async () => {
+    const second = { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222', enrollment_number: 2 as const, attendance_required: true }
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([student, second])
+    attendance()
+    await screen.findByRole('checkbox', { name: 'Presente: Luis Mora' })
+    expect(screen.getAllByText('Asistencia obligatoria')).toHaveLength(1)
+    const luis = screen.getAllByRole('row').find((row) => within(row).queryByText('Luis Mora')) as HTMLElement
+    expect(within(luis).getByText('Asistencia obligatoria')).toBeInTheDocument()
+    expect(within(luis).getByText('2.ª matrícula')).toBeInTheDocument()
+    cleanup()
+
+    const saved = { id: 100, tutoring_id: 40, number: 3, date: '2026-09-29', topics_covered: true, topics: [], attendance: [
+      { id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true, attendance_required: false },
+      { id: 2, enrollment_id: 71, student_id: 81, student_name: 'Luis Mora', present: false, attendance_required: true },
+    ] }
+    vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=attendance&consult=2026-09-29')
+    await screen.findByRole('heading', { name: /Sesión 3/ })
+    expect(screen.getAllByText('Asistencia obligatoria')).toHaveLength(1)
+    const consulted = screen.getAllByRole('row').find((row) => within(row).queryByText('Luis Mora')) as HTMLElement
+    expect(within(consulted).getByText('Asistencia obligatoria')).toBeInTheDocument()
+  })
+
   it('la asistencia y la carga de notas por etapa no incluyen a quien abandonó la tutoría', async () => {
     const user = userEvent.setup()
     const abandoned = { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222', is_abandoned: true, abandonment_reason: 'Se mudó de ciudad' }
@@ -808,7 +892,7 @@ describe('Módulo Docente', () => {
 
   it('abre las sesiones anteriores a hoy solo para consulta, sin poder modificarlas', async () => {
     const user = userEvent.setup()
-    const saved = { id: 100, tutoring_id: 40, date: '2026-09-29', topics_covered: true, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false }] }
+    const saved = { id: 100, tutoring_id: 40, date: '2026-09-29', topics_covered: true, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false, attendance_required: false }] }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
     duringClass()
     workspace('attendance')
@@ -825,7 +909,7 @@ describe('Módulo Docente', () => {
   })
 
   it('abre una sesión pasada desde la URL', async () => {
-    const saved = { id: 100, tutoring_id: 40, number: 3, date: '2026-09-29', topics_covered: true, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true }] }
+    const saved = { id: 100, tutoring_id: 40, number: 3, date: '2026-09-29', topics_covered: true, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true, attendance_required: false }] }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
     show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=attendance&consult=2026-09-29')
     expect(await screen.findByRole('heading', { name: /Sesión 3/ })).toBeInTheDocument()
@@ -834,7 +918,7 @@ describe('Módulo Docente', () => {
   })
 
   it('permite corregir la sesión de hoy con sus marcas guardadas', async () => {
-    const saved = { id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false }] }
+    const saved = { id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false, attendance_required: false }] }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
     attendance()
     expect(await screen.findByText(/La lista de hoy ya se tomó/)).toBeInTheDocument()
@@ -843,7 +927,7 @@ describe('Módulo Docente', () => {
 
   it('avisa que la lista de hoy ya se tomó y solo ofrece modificarla, sin registrar una segunda', async () => {
     const user = userEvent.setup()
-    const saved = { id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true }] }
+    const saved = { id: 100, tutoring_id: 40, date: today, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true, attendance_required: false }] }
     vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
     duringClass()
     workspace('attendance')
@@ -873,7 +957,7 @@ describe('Módulo Docente', () => {
       date: '2026-09-28',
       topics_covered: false,
       topics: [],
-      attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true }],
+      attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true, attendance_required: false }],
     }
     // La clase es mañana: hoy no se puede tomar asistencia.
     const tomorrow = DAY_NAMES[(new Date().getDay() + 1) % 7]
@@ -1203,8 +1287,8 @@ describe('Módulo Docente', () => {
       subject: 'Calidad de software', cycle: 2, cycle_name: 'Segundo', academic_period: '2026-2', section: 'A',
       students_listed: 3, students_evaluated: 2, observations: null, coordinator: 'Galuth García',
       groups: [
-        { key: 'low', label: 'Bajo', range_label: '0% - 50%', count: 1, percentage: 50, action_plan: ['Semana de adaptación de Conocimientos', 'Tutorías adicionales obligatorias', 'Estudio Autónomo'] },
-        { key: 'medium', label: 'Medio', range_label: '51% - 69%', count: 0, percentage: 0, action_plan: ['Semana de adaptación de Conocimientos', 'Tutorías adicionales obligatorias'] },
+        { key: 'low', label: 'Bajo', range_label: '0% - 50%', count: 1, percentage: 50, action_plan: ['Semana de adaptación de Conocimientos', 'Tutorías adicionales según el criterio del docente y del coordinador', 'Estudio Autónomo'] },
+        { key: 'medium', label: 'Medio', range_label: '51% - 69%', count: 0, percentage: 0, action_plan: ['Semana de adaptación de Conocimientos', 'Tutorías adicionales según el criterio del docente y del coordinador'] },
         { key: 'high', label: 'Alto', range_label: '70% - 100%', count: 1, percentage: 50, action_plan: ['Semana de adaptación de Conocimientos'] },
       ],
       grades: [
@@ -1428,6 +1512,7 @@ describe('Módulo Docente', () => {
           student_identification: '0201112233',
           student_email: 'ana.perez@ueb.edu.ec',
           present: true,
+          attendance_required: false,
         },
         {
           id: 2,
@@ -1437,6 +1522,7 @@ describe('Módulo Docente', () => {
           student_identification: '0209998877',
           student_email: 'carlos@ueb.edu.ec',
           present: false,
+          attendance_required: false,
         },
       ],
     }
