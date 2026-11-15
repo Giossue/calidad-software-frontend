@@ -8,10 +8,10 @@ export interface PasswordRequirement {
 export const PASSWORD_MIN_LENGTH = 8
 
 export const PASSWORD_REQUIREMENTS: readonly PasswordRequirement[] = [
-  { id: 'length', label: `Al menos ${PASSWORD_MIN_LENGTH} caracteres`, test: (password) => password.length >= PASSWORD_MIN_LENGTH },
+  { id: 'length', label: `Al menos ${PASSWORD_MIN_LENGTH} caracteres`, test: (password) => [...password].length >= PASSWORD_MIN_LENGTH },
   { id: 'letter', label: 'Una letra', test: (password) => /\p{L}/u.test(password) },
   { id: 'number', label: 'Un número', test: (password) => /\d/.test(password) },
-  { id: 'symbol', label: 'Un carácter especial (!@#$%…)', test: (password) => /[^\p{L}\p{N}\s]/u.test(password) },
+  { id: 'symbol', label: 'Un carácter especial (!@#$%…)', test: (password) => /[\p{P}\p{S}]/u.test(password) },
 ]
 
 export type PasswordStrength = 'empty' | 'weak' | 'medium' | 'strong'
