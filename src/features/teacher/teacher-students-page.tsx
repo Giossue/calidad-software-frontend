@@ -9,6 +9,7 @@ import { FieldDescription } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { IconAction } from '@/components/ui/icon-action'
+import { PersonNameFields } from '@/components/person-name-fields'
 import { SearchSelect } from '@/components/ui/search-select'
 import { SelectInput } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -20,7 +21,8 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { firstNamesError, lastNamesError, normalizeName } from '@/lib/person-name'
+import { sanitizeDigits } from '@/lib/sanitize'
 import { teacherApi, type AvailableStudent, type Enrollment, type FinalResult, type GradeEntry, type GradeSettings, type TeacherTutoring } from '@/lib/teacher-api'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterBar } from '@/features/tutoring/filter-bar'
@@ -28,7 +30,8 @@ import { serverFieldError } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
 import { StudentsTabSkeleton } from './teacher-skeletons'
 
-const EMPTY_FORM = { identification: '', name: '', email: '', phone: '' }
+const EMPTY_FORM = { identification: '', first_names: '', last_names: '', email: '', phone: '' }
+const NO_NAMES_TOUCHED = { first_names: false, last_names: false }
 const EMPTY_GRADES = { diagnostic: '', partial: '', partial_two: '' }
 type Mode = 'existing' | 'new'
 
@@ -83,6 +86,8 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const [selected, setSelected] = useState<AvailableStudent | null>(null)
   // La cédula se valida en línea al salir del campo (o al completar su longitud).
   const [identificationTouched, setIdentificationTouched] = useState(false)
+  // Nombres y apellidos vacíos solo se marcan después de pasar por el campo.
+  const [namesTouched, setNamesTouched] = useState(NO_NAMES_TOUCHED)
   const registerButton = useRef<HTMLButtonElement>(null)
   const search = useDegreeSearch()
   const searching = open && mode === 'existing'
@@ -91,13 +96,13 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const settings = settingsResource.data ?? { minimum: 0, maximum: 10, groups: [] }
 
   function openForm() {
-    setForm(EMPTY_FORM); setMode('existing'); setSelected(null); setIdentificationTouched(false); search.setInput(''); operation.clearError(); setOpen(true)
+    setForm(EMPTY_FORM); setMode('existing'); setSelected(null); setIdentificationTouched(false); setNamesTouched(NO_NAMES_TOUCHED); search.setInput(''); operation.clearError(); setOpen(true)
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     void operation.run(
-      () => teacherApi.enrollStudent(tutoring.id, mode === 'new' ? { identification: form.identification, name: form.name.trim(), email: form.email.trim(), phone: form.phone || null } : { student_id: selected?.id ?? 0 }),
+      () => teacherApi.enrollStudent(tutoring.id, mode === 'new' ? { identification: form.identification, first_names: normalizeName(form.first_names), last_names: normalizeName(form.last_names), email: form.email.trim(), phone: form.phone || null } : { student_id: selected?.id ?? 0 }),
       mode === 'new' ? 'Estudiante creado e inscrito.' : 'Estudiante inscrito.',
       async () => {
         setOpen(false)
@@ -162,12 +167,16 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   // Lo que rechaza el servidor va bajo su campo; la validación local tiene prioridad.
   const shownIdentificationError = ((identificationTouched || shouldShowIdentificationStatus(form.identification)) ? identificationError : null) ?? serverFieldError(operation, 'identification')
   const shownEmailError = emailError ?? serverFieldError(operation, 'email')
-  const shownNameError = serverFieldError(operation, 'name')
+  const firstNamesProblem = normalizeName(form.first_names) ? firstNamesError(form.first_names) : 'Los nombres son obligatorios.'
+  const lastNamesProblem = normalizeName(form.last_names) ? lastNamesError(form.last_names) : 'Los apellidos son obligatorios.'
+  const shownFirstNamesError = ((namesTouched.first_names || form.first_names) ? firstNamesProblem : null) ?? serverFieldError(operation, 'first_names')
+  const shownLastNamesError = ((namesTouched.last_names || form.last_names) ? lastNamesProblem : null) ?? serverFieldError(operation, 'last_names')
   const shownPhoneError = serverFieldError(operation, 'phone')
   const shownStudentError = serverFieldError(operation, 'student_id')
   const registerBlockReason = mode === 'existing'
     ? (selected ? null : 'Selecciona un estudiante.')
-    : (form.name.trim() ? null : 'Escribe los nombres y apellidos.')
+    : firstNamesProblem
+      ?? lastNamesProblem
       ?? (!form.identification ? 'Escribe la cédula o pasaporte.' : identificationError)
       ?? (!form.email ? 'Escribe el correo institucional.' : emailError)
 
@@ -250,17 +259,16 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       </>}
       {mode === 'new' && <>
         <p className="text-sm text-muted-foreground">Se creará la cuenta del estudiante, se lo asignará al paralelo {tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.</p>
-        <FormField id="teacher-student-name" label="Nombres y apellidos" required counter={{ current: form.name.length, max: 150 }} error={shownNameError}>
-          <Input
-            id="teacher-student-name"
-            aria-invalid={Boolean(shownNameError)}
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })}
-            maxLength={150}
-            required
-            placeholder="Juan Carlos Pérez Rodríguez"
-          />
-        </FormField>
+        <PersonNameFields
+          idPrefix="teacher-student"
+          firstNames={form.first_names}
+          lastNames={form.last_names}
+          onFirstNamesChange={(value) => setForm({ ...form, first_names: value })}
+          onLastNamesChange={(value) => setForm({ ...form, last_names: value })}
+          onBlur={(field) => setNamesTouched((touched) => ({ ...touched, [field]: true }))}
+          errors={{ first_names: shownFirstNamesError, last_names: shownLastNamesError }}
+          required
+        />
 
         <FormField id="teacher-student-identification" label="Cédula o pasaporte" required counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shownIdentificationError}>
           <Input

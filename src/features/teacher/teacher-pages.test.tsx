@@ -300,15 +300,50 @@ describe('Módulo Docente', () => {
     await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
     expect(within(form).queryByLabelText(/^Estudiante/)).not.toBeInTheDocument()
     // Lo que exige el registro lleva asterisco; el teléfono es opcional.
-    for (const field of ['Cédula o pasaporte', 'Nombres y apellidos', 'Correo institucional']) {
+    for (const field of ['Cédula o pasaporte', 'Nombres', 'Apellidos', 'Correo institucional']) {
       expect(within(within(form).getByText(field).closest('label') as HTMLElement).getByText('(obligatorio)')).toBeInTheDocument()
     }
     expect(within(within(form).getByText('Teléfono').closest('label') as HTMLElement).queryByText('(obligatorio)')).not.toBeInTheDocument()
     await user.type(within(form).getByLabelText(/Cédula/i), '0201234564')
-    await user.type(within(form).getByLabelText(/Nombres y Apellidos/i), 'Luis Mora')
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Luis  Alberto ')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Mora Vera')
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'luis.mora@ueb.edu.ec')
     await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
-    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', name: 'Luis Mora', email: 'luis.mora@ueb.edu.ec', phone: null }))
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', first_names: 'Luis Alberto', last_names: 'Mora Vera', email: 'luis.mora@ueb.edu.ec', phone: null }))
+  })
+
+  it('en «Estudiante nuevo» pide Nombres y luego Apellidos, con uno o dos de cada uno', async () => {
+    const user = userEvent.setup()
+    workspace('students')
+    await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
+    const form = screen.getByRole('form', { name: 'Registrar estudiante' })
+    await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
+    const [first, second] = within(form).getAllByRole('textbox')
+    expect(first).toHaveAccessibleName(/^Nombres/)
+    expect(second).toHaveAccessibleName(/^Apellidos/)
+    expect(within(form).queryByLabelText(/^Nombres y apellidos/)).not.toBeInTheDocument()
+    await user.type(within(form).getByLabelText(/^Cédula o pasaporte/), '0201234564')
+    await user.type(within(form).getByLabelText(/^Correo institucional/), 'luis.mora@ueb.edu.ec')
+    const submit = within(form).getByRole('button', { name: 'Crear e inscribir' })
+
+    // Vacíos: al salir del campo se avisa que son obligatorios.
+    await user.click(first); await user.click(second); await user.tab()
+    expect(within(form).getByText('Los nombres son obligatorios.')).toBeInTheDocument()
+    expect(within(form).getByText('Los apellidos son obligatorios.')).toBeInTheDocument()
+    expect(submit).toBeDisabled()
+
+    await user.type(first, 'Luis Alberto José')
+    await user.type(second, 'Mora Vera Paz')
+    expect(within(form).getByText('Ingresa uno o dos nombres.')).toBeInTheDocument()
+    expect(within(form).getByText('Ingresa tus dos apellidos, o uno solo si tu registro civil tiene un único apellido.')).toBeInTheDocument()
+    expect(submit).toBeDisabled()
+
+    // Un solo apellido es la excepción admitida.
+    await user.clear(first); await user.type(first, 'Luis')
+    await user.clear(second); await user.type(second, 'Mora')
+    expect(submit).toBeEnabled()
+    await user.click(submit)
+    await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0201234564', first_names: 'Luis', last_names: 'Mora', email: 'luis.mora@ueb.edu.ec', phone: null }))
   })
 
   it('en «Estudiante nuevo» pide primero el nombre, avisa la cédula inválida bajo el campo y devuelve el foco al botón al crear', async () => {
@@ -319,7 +354,7 @@ describe('Módulo Docente', () => {
     await user.click(trigger)
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
     await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
-    expect(within(form).getAllByRole('textbox')[0]).toHaveAccessibleName(/^Nombres y apellidos/)
+    expect(within(form).getAllByRole('textbox')[0]).toHaveAccessibleName(/^Nombres/)
     const cedula = within(form).getByLabelText(/^Cédula o pasaporte/)
     await user.type(cedula, '123')
     await user.tab()
@@ -327,7 +362,8 @@ describe('Módulo Docente', () => {
     expect(cedula).toHaveAttribute('aria-invalid', 'true')
     await user.clear(cedula)
     await user.type(cedula, '0201234564')
-    await user.type(within(form).getByLabelText(/^Nombres y apellidos/), 'Luis Mora')
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Luis')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Mora')
     await user.type(within(form).getByLabelText(/^Correo institucional/), 'luis.mora@ueb.edu.ec')
     await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
     await waitFor(() => expect(form).not.toBeInTheDocument())
@@ -341,7 +377,8 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
     await user.click(within(form).getByRole('tab', { name: 'Estudiante nuevo' }))
-    await user.type(within(form).getByLabelText(/^Nombres y apellidos/), 'Luis Mora')
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Luis')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Mora')
     await user.type(within(form).getByLabelText(/^Cédula o pasaporte/), '0201234564')
     const email = within(form).getByLabelText(/^Correo institucional/)
     await user.type(email, 'luis.mora@ueb.edu.ec')

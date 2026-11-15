@@ -46,7 +46,9 @@ export interface Enrollment {
 }
 export type FinalResult = 'approved' | 'failed'
 export type AvailableStudent = Pick<Enrollment, 'identification' | 'name' | 'email'> & { readonly id: number }
-export type NewStudentInput = { identification: string; name: string; email: string; phone: string | null }
+export type NewStudentInput = { identification: string; first_names: string; last_names: string; email: string; phone: string | null }
+/** Los nombres y apellidos se envían juntos o no se envían (se conserva el nombre guardado). */
+export type UpdateStudentInput = { phone: string | null } & ({ first_names: string; last_names: string } | { first_names?: never; last_names?: never })
 export interface Methodology {
   readonly id: number
   readonly activity_id: number
@@ -191,7 +193,7 @@ export const teacherApi = {
   allStudents: (id: number) => collectPages((page) => list<Enrollment>(`tutorings/${id}/students`, { page, per_page: 100 })),
   availableStudents: async (id: number, search = '') => (await request<Collection<AvailableStudent>>(`${ROOT}/tutorings/${id}/available-students${buildQuery({ search })}`)).data,
   enrollStudent: (id: number, input: NewStudentInput | { student_id: number }) => mutate<Enrollment>(`tutorings/${id}/students`, 'POST', input),
-  updateStudent: (id: number, enrollmentId: number, input: { name: string; phone: string | null }) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
+  updateStudent: (id: number, enrollmentId: number, input: UpdateStudentInput) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
   setFinalResult: (id: number, enrollmentId: number, result: FinalResult | null) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/final-result`, 'PUT', { result }),
   deactivateStudent: (id: number, enrollmentId: number) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),
   saveGrades: async (id: number, grades: readonly GradeEntry[]) => (await request<Collection<Enrollment>>(`${ROOT}/tutorings/${id}/grades`, { method: 'PUT', body: JSON.stringify({ grades }) })).data,
