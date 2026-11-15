@@ -7,11 +7,12 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { PrintStructuredReport, StructuredReport } from '@/features/reports/structured-report'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { isStructuredReport } from '@/lib/structured-report'
-import { tutoringApi, type TutoringReport, type TutoringReportMeta } from '@/lib/tutoring-api'
+import { tutoringApi, type TutoringCareer, type TutoringReport, type TutoringReportMeta } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
+import { MallaPicker } from './malla-picker'
 import { ModuleHeader, RecordTable } from './tutoring-shared'
-import { useTutoringCatalogs } from './tutoring-hooks'
+import { useSelectedMalla, useTutoringCatalogs } from './tutoring-hooks'
 import { ListScreenSkeleton } from './tutoring-skeletons'
 
 function formatDate(value: string, time = false): string {
@@ -28,7 +29,7 @@ export function TutoringReportsPage() {
   const selection = useSelectedCareer(catalogs.careers)
 
   if (selection.career) {
-    return <ReportsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
+    return <ReportsWorkspace catalogs={catalogs} career={selection.career} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
   return <CareerPicker catalogs={catalogs} title="Informes" skeleton={<ReportsSkeleton />} rowTitle={(career) => `Ver informes de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
@@ -39,7 +40,10 @@ function ReportsSkeleton() {
   return <ListScreenSkeleton label="Cargando informes" actions={0} filters={1} headers={['Asignatura / Tutoría', 'Tipo de informe', 'Docente', 'Fecha']} />
 }
 
-function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
+function ReportsWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; career: TutoringCareer; onBack?: () => void }>) {
+  const careerId = career.id
+  const malla = useSelectedMalla(careerId, career.mallas)
+  const mallaId = malla.mallaId
   const [cycleFilter, setCycleFilter] = useState('')
   const [readingReport, setReadingReport] = useState<TutoringReport | null>(null)
   const readingStructured = Boolean(readingReport && isStructuredReport(readingReport.summary))
@@ -50,9 +54,10 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
         page,
         search,
         career_id: careerId,
+        malla_id: mallaId,
         cycle_number: Number(cycleFilter) || undefined,
       }),
-    `${careerId}|${cycleFilter}`,
+    `${careerId}|${mallaId ?? ''}|${cycleFilter}`,
   )
 
   const careerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Informes'
@@ -74,6 +79,7 @@ function ReportsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: R
         title="Informes"
         description={`Lee los informes que envían los docentes de las tutorías de ${careerName}. Haz clic en uno para abrirlo.`}
       />
+      <MallaPicker selection={malla} />
 
       <FilterBar
         id="tutoring-reports"

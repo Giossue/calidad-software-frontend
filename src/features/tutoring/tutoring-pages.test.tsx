@@ -19,10 +19,11 @@ vi.mock('@/lib/tutoring-api', async (importOriginal) => {
   return { ...actual, tutoringApi: Object.fromEntries(Object.keys(actual.tutoringApi).map((key) => [key, vi.fn()])) }
 })
 
-const career = { id: 10, faculty_id: 1, modality_id: 60, name: 'Software', code: 'SW', status: true, cycles_count: 2, active_cycles_count: 2, cycle_levels: 2 }
+// La carrera trae sus mallas; con una sola, la malla se muestra como texto y todo se filtra por ella.
+const career = { id: 10, faculty_id: 1, modality_id: 60, name: 'Software', code: 'SW', status: true, cycles_count: 2, active_cycles_count: 2, cycle_levels: 2, mallas: [{ id: 80, name: 'Malla inicial', is_current: true }] }
 const cycle = { id: 20, career_id: 10, name: 'Segundo', number: 2, paralelo_id: 1, paralelo_name: 'A', status: true }
-const subject: Subject = { id: 30, career_id: 10, career_name: 'Software', code: 'MAT', name: 'Matemática', modality_id: 60, modality_name: 'Presencial', is_active: true, cycle_number: 2 }
-const tutoring: Tutoring = { id: 40, subject_id: 30, subject_name: 'Matemática', cycle_id: 20, cycle_name: 'Segundo', career_id: 10, period_id: 50, period_name: '2026-2', modality_id: 60, modality_name: 'Presencial', section_id: 1, section_name: 'A', teacher_id: null, teacher_name: null, teacher_is_active: null, is_active: true }
+const subject: Subject = { id: 30, career_id: 10, career_name: 'Software', malla_id: 80, malla_name: 'Malla inicial', code: 'MAT', name: 'Matemática', modality_id: 60, modality_name: 'Presencial', is_active: true, cycle_number: 2 }
+const tutoring: Tutoring = { id: 40, subject_id: 30, subject_name: 'Matemática', cycle_id: 20, cycle_name: 'Segundo', career_id: 10, malla_id: 80, period_id: 50, period_name: '2026-2', modality_id: 60, modality_name: 'Presencial', section_id: 1, section_name: 'A', teacher_id: null, teacher_name: null, teacher_is_active: null, is_active: true }
 
 function paginated<T>(data: readonly T[], current = 1, last = 1) {
   return { data, meta: { current_page: current, last_page: last, from: 1, to: data.length, total: data.length, per_page: 15, active_count: data.length, inactive_count: 0, enrollment_count: 3, present_count: 2, absent_count: 1 } }
@@ -35,6 +36,7 @@ beforeEach(() => {
   vi.mocked(tutoringApi.periods).mockResolvedValue([{ id: 50, name: '2026-2', start_date: '2026-09-01', end_date: '2027-02-01', is_active: true }])
   vi.mocked(tutoringApi.modalities).mockResolvedValue([{ id: 60, name: 'Presencial', is_active: true }])
   vi.mocked(tutoringApi.sections).mockResolvedValue([{ id: 1, name: 'A', is_active: true }])
+  vi.mocked(tutoringApi.mallas).mockResolvedValue([{ id: 80, career_id: 10, name: 'Malla inicial', is_current: true, subjects_count: 1, students_count: 0, tutorings_count: 1 }])
   vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([subject]))
   vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([]))
   vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([tutoring]))
@@ -145,7 +147,7 @@ describe('Coordinación de tutorías', () => {
     fireEvent.submit(form)
     fireEvent.submit(form)
     expect(tutoringApi.createSubject).toHaveBeenCalledTimes(1)
-    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, code: 'PROG', name: 'PROGRAMACIÓN', cycle_number: 2, modality_id: 60 })
+    expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, malla_id: 80, code: 'PROG', name: 'PROGRAMACIÓN', cycle_number: 2, modality_id: 60 })
     expect(within(form).getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     await act(async () => reject(new ApiError(422, { message: 'No se pudo guardar.', errors: { code: ['El código ya existe.'] } })))
     // El error es del código (paso 1): el formulario vuelve a ese paso, con el error dentro y sin toast.
@@ -192,7 +194,7 @@ describe('Coordinación de tutorías', () => {
     expect(within(form).queryByLabelText('Carrera')).not.toBeInTheDocument()
     await choose(user, within(form).getByLabelText(/^Ciclo/), '3° ciclo · Titulación')
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
-    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, name: 'PROGRAMACIÓN', cycle_number: 3, modality_id: 60 }))
+    await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({ career_id: 10, malla_id: 80, name: 'PROGRAMACIÓN', cycle_number: 3, modality_id: 60 }))
   })
   it('la asignatura es de la malla: sin período ni paralelos, con su modalidad y su número de ciclo', async () => {
     const user = userEvent.setup()
@@ -209,6 +211,7 @@ describe('Coordinación de tutorías', () => {
     await user.click(within(form).getByRole('button', { name: 'Registrar asignatura' }))
     await waitFor(() => expect(tutoringApi.createSubject).toHaveBeenCalledWith({
       career_id: 10,
+      malla_id: 80,
       name: 'ESTRUCTURA DE DATOS',
       cycle_number: 2,
       modality_id: 61,
@@ -261,8 +264,8 @@ describe('Coordinación de tutorías', () => {
     await openCurriculum()
     expect(await screen.findByText('Física')).toBeInTheDocument()
     expect(screen.getByText('Matemática')).toBeInTheDocument()
-    expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: career.id, page: 1, per_page: 100 })
-    expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: career.id, page: 2, per_page: 100 })
+    expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: career.id, malla_id: 80, page: 1, per_page: 100 })
+    expect(tutoringApi.subjects).toHaveBeenCalledWith({ career_id: career.id, malla_id: 80, page: 2, per_page: 100 })
     expect(screen.queryByRole('button', { name: 'Página siguiente' })).not.toBeInTheDocument()
   })
   it('dibuja la malla con un carril por ciclo, sin desplegable de ciclo, tabla, buscador ni filtro de estado', async () => {
@@ -328,7 +331,7 @@ describe('Coordinación de tutorías', () => {
   it('una carrera sin asignaturas invita a importar la malla', async () => {
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([]))
     renderCurriculum()
-    expect(await screen.findByText(/Esta carrera aún no tiene asignaturas\. Usa «Importar malla»/)).toBeInTheDocument()
+    expect(await screen.findByText(/Esta malla aún no tiene asignaturas\. Usa «Importar malla»/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Importar malla' })).toBeInTheDocument()
   })
   it('Malla: título del módulo, códigos en fuente normal, esqueleto de tarjetas y motivo del bloqueo de «Revisar malla» en su tooltip', async () => {
@@ -360,7 +363,7 @@ describe('Coordinación de tutorías', () => {
     vi.mocked(tutoringApi.previewCurriculum).mockResolvedValue([
       { code: 'N-1', name: 'ALGORITMOS', cycle: 1, previous: [], errors: [] },
       { code: 'N-2', name: '', cycle: 3, previous: ['N-1', 'Matemática'], errors: ['Falta el nombre de la asignatura.'] },
-      { code: 'MAT', name: 'CALCULO', cycle: 3, previous: [], errors: ['El código ya existe en la carrera.'] },
+      { code: 'MAT', name: 'CALCULO', cycle: 3, previous: [], errors: ['El código ya existe en la malla.'] },
     ])
     vi.mocked(tutoringApi.importCurriculum)
       .mockRejectedValueOnce(new ApiError(422, { message: 'Hay 1 asignatura con errores; corrígela antes de importar la malla.', errors: { subjects: ['Hay 1 asignatura con errores; corrígela antes de importar la malla.'] } }))
@@ -371,11 +374,11 @@ describe('Coordinación de tutorías', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Importar malla' })
     await user.upload(within(dialog).getByLabelText('Archivo de la malla'), new File(['codigo;nombre'], 'malla.csv', { type: 'text/csv' }))
     await user.click(within(dialog).getByRole('button', { name: 'Revisar malla' }))
-    expect(tutoringApi.previewCurriculum).toHaveBeenCalledWith(10, expect.any(File))
+    expect(tutoringApi.previewCurriculum).toHaveBeenCalledWith(10, expect.any(File), 80)
 
     expect(await within(dialog).findByText('Falta el nombre de la asignatura.')).toBeInTheDocument()
     // El código MAT ya es de Matemática; Matemática (2.° ciclo) sí vale como previa.
-    expect(within(dialog).getByText('El código ya existe en la carrera.')).toBeInTheDocument()
+    expect(within(dialog).getByText('El código ya existe en la malla.')).toBeInTheDocument()
     expect(within(dialog).queryByText(/La previa «Matemática»/)).not.toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Importar' })).toBeDisabled()
     await user.type(within(dialog).getByLabelText('Nombre de N-2'), 'Programación I')
@@ -389,6 +392,7 @@ describe('Coordinación de tutorías', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Importar' }))
     await waitFor(() => expect(tutoringApi.importCurriculum).toHaveBeenLastCalledWith({
       career_id: 10,
+      malla_id: 80,
       subjects: [{ code: 'N-1', name: 'ALGORITMOS', cycle: 1, previous: [] }, { code: 'N-2', name: 'Programación I', cycle: 3, previous: ['N-1', 'Matemática'] }],
     }))
     await waitFor(() => expect(success).toHaveBeenCalledWith('2 asignaturas importadas', undefined))
@@ -418,7 +422,8 @@ describe('Coordinación de tutorías', () => {
 
   it('con varias carreras lista primero las carreras con búsqueda y entra a la elegida; con una sola entra directo', async () => {
     const user = userEvent.setup()
-    vi.mocked(tutoringApi.careers).mockResolvedValue([career, { ...career, id: 11, name: 'Comunicación' }])
+    vi.mocked(tutoringApi.careers).mockResolvedValue([career, { ...career, id: 11, name: 'Comunicación', mallas: [{ id: 81, name: 'Malla inicial', is_current: true }] }])
+    vi.mocked(tutoringApi.mallas).mockImplementation(async (careerId) => [{ id: careerId === 11 ? 81 : 80, career_id: careerId, name: 'Malla inicial', is_current: true, subjects_count: 0, students_count: 0, tutorings_count: 0 }])
     vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Tercero', number: 3 }, { ...cycle, id: 22, career_id: 11, name: 'Primero', number: 1 }])
     renderCurriculum()
     expect(await screen.findByTitle('Ver malla de Software')).toBeInTheDocument()
@@ -429,7 +434,7 @@ describe('Coordinación de tutorías', () => {
     await user.type(screen.getByLabelText('Buscar carrera'), 'comu')
     expect(screen.queryByTitle('Ver malla de Software')).not.toBeInTheDocument()
     await user.click(screen.getByTitle('Ver malla de Comunicación'))
-    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ career_id: 11, page: 1, per_page: 100 }))
+    await waitFor(() => expect(tutoringApi.subjects).toHaveBeenLastCalledWith({ career_id: 11, malla_id: 81, page: 1, per_page: 100 }))
     await user.click(await screen.findByRole('button', { name: 'Malla curricular' }))
     expect(await screen.findByLabelText('Buscar carrera')).toBeInTheDocument()
   })
@@ -1026,14 +1031,14 @@ describe('Coordinación de tutorías', () => {
     const user = userEvent.setup()
     render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
     await screen.findByText('Matemática')
-    expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined })
+    expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, malla_id: 80, cycle_number: undefined, status: undefined })
     expect(screen.queryByLabelText('Carrera')).not.toBeInTheDocument()
     await choose(user, screen.getByLabelText('Filtrar por Ciclo'), '2° ciclo')
-    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 2, status: undefined }))
+    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, malla_id: 80, cycle_number: 2, status: undefined }))
     await choose(user, screen.getByLabelText('Filtrar por Estado'), 'Inactivas')
-    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: 2, status: 'inactive' }))
+    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, malla_id: 80, cycle_number: 2, status: 'inactive' }))
     await user.click(screen.getByRole('button', { name: 'Limpiar' }))
-    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined }))
+    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, malla_id: 80, cycle_number: undefined, status: undefined }))
 
     await user.click(screen.getByTitle('Abrir la tutoría de Matemática'))
     expect(await screen.findByRole('button', { name: 'Volver a tutorías' })).toBeInTheDocument()
@@ -1120,7 +1125,7 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByTitle('Ver tutorías de Comunicación')).toBeInTheDocument()
     expect(tutoringApi.tutorings).not.toHaveBeenCalled()
     await user.click(screen.getByTitle('Ver tutorías de Software'))
-    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined, status: undefined }))
+    await waitFor(() => expect(tutoringApi.tutorings).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, malla_id: 80, cycle_number: undefined, status: undefined }))
     await user.click(screen.getByRole('button', { name: 'Tutorías' }))
     expect(await screen.findByTitle('Ver tutorías de Comunicación')).toBeInTheDocument()
   })
@@ -1497,7 +1502,7 @@ describe('Coordinación de tutorías', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Informes' })).toBeInTheDocument()
     expect(screen.queryByText('Asistencias registradas')).not.toBeInTheDocument()
     expect(await screen.findByText('Mostrando 2 de 2 informes')).toBeInTheDocument()
-    expect(tutoringApi.allReports).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, cycle_number: undefined })
+    expect(tutoringApi.allReports).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: career.id, malla_id: 80, cycle_number: undefined })
 
     expect(screen.getAllByText('Matemática')).toHaveLength(2)
     expect(screen.getByText('Avance')).toBeInTheDocument()
@@ -1701,7 +1706,7 @@ describe('Coordinación de tutorías', () => {
 
     await user.click(submit)
     await waitFor(() => expect(tutoringApi.createCoordinatorStudent).toHaveBeenCalledWith({
-      identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', email: 'ana@ueb.edu.ec', phone: null, cycle_id: 21, tutoring_id: undefined, career_id: 10,
+      identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', email: 'ana@ueb.edu.ec', phone: null, cycle_id: 21, tutoring_id: undefined, career_id: 10, malla_id: 80,
     }))
   })
 

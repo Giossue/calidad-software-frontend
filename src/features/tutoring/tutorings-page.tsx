@@ -21,15 +21,16 @@ import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import type { Section } from '@/lib/api'
 import { sanitizeLetters } from '@/lib/sanitize'
 import { findScheduleConflicts, type ScheduleConflict } from '@/lib/schedule-conflicts'
-import { DAY_LABELS, tutoringApi, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringSchedule } from '@/lib/tutoring-api'
+import { DAY_LABELS, tutoringApi, type AvailableTeacher, type Cycle, type Subject, type Tutoring, type TutoringCareer, type TutoringSchedule } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { TutoringDetail } from './tutoring-detail'
 import { rowsFromSchedules, ScheduleEditor, scheduleSignature, toScheduleItems, validateScheduleRows, type ScheduleRow } from './schedule-editor'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { FilterBar } from './filter-bar'
+import { MallaPicker } from './malla-picker'
 import { RosterImportButton } from './roster-import-dialog'
 import { ModuleHeader, RecordTable } from './tutoring-shared'
-import { describeError, errorFieldOf, useOperation, useTutoringCatalogs } from './tutoring-hooks'
+import { describeError, errorFieldOf, useOperation, useSelectedMalla, useTutoringCatalogs } from './tutoring-hooks'
 import { ListScreenSkeleton } from './tutoring-skeletons'
 
 export interface TutoringRowItem {
@@ -59,7 +60,7 @@ export function TutoringsPage() {
   const selection = useSelectedCareer(catalogs.careers)
 
   if (selection.career) {
-    return <TutoringsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} />
+    return <TutoringsWorkspace catalogs={catalogs} career={selection.career} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
   return <CareerPicker catalogs={catalogs} title="Tutorías" skeleton={<TutoringsSkeleton />} rowTitle={(career) => `Ver tutorías de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
@@ -83,7 +84,11 @@ function serverFieldError(error: string | null, field: string | undefined, ...na
 /** Período elegido en la URL (`?periodo=<id>`); sin él se muestra el período vigente. */
 const PERIOD_PARAM = 'periodo'
 
-function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void }>) {
+function TutoringsWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; career: TutoringCareer; onBack?: () => void }>) {
+  const careerId = career.id
+  // Se trabaja con una malla a la vez: la lista y las asignaturas del formulario son de ella.
+  const malla = useSelectedMalla(careerId, career.mallas)
+  const mallaId = malla.mallaId
   const [cycleFilter, setCycleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'active' | 'inactive'>('')
   const [searchParams, setSearchParams] = useSearchParams()
@@ -95,11 +100,12 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
       page,
       search,
       career_id: careerId,
+      malla_id: mallaId,
       cycle_number: Number(cycleFilter) || undefined,
       status: statusFilter || undefined,
       period_id: selectedPeriodId ?? undefined,
     }),
-    `${careerId}|${cycleFilter}|${statusFilter}|${selectedPeriodId ?? ''}`,
+    `${careerId}|${mallaId ?? ''}|${cycleFilter}|${statusFilter}|${selectedPeriodId ?? ''}`,
   )
   // Período mostrado: el elegido o el vigente (según los catálogos o lo que dice la lista).
   const catalogPeriod = selectedPeriodId === null ? activePeriod : catalogs.periods.find((period) => period.id === selectedPeriodId) ?? null
@@ -190,9 +196,9 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         let page = 1
         let lastPage = 1
         do {
-          const response = await tutoringApi.subjects({ page, per_page: 100, status: 'active' })
+          const response = await tutoringApi.subjects({ page, per_page: 100, status: 'active', malla_id: mallaId })
           if (cancelled) return
-          collected.push(...response.data.filter((s) => s.is_active))
+          collected.push(...response.data.filter((s) => s.is_active && (mallaId === undefined || s.malla_id === mallaId)))
           lastPage = response.meta?.last_page ?? 1
           page += 1
         } while (page <= lastPage)
@@ -203,7 +209,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
     }
     void load()
     return () => { cancelled = true }
-  }, [subjectsRevision])
+  }, [subjectsRevision, mallaId])
 
 
   // Los docentes de la carrera se cargan al abrir el formulario: se eligen junto con la asignatura.
@@ -454,7 +460,7 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
 
   // La asignatura ya trae su ciclo de la malla: solo se elige la asignatura (por ciclo y nombre).
   const chooserSubjects = subjects
-    .filter((subj) => subj.career_id === careerId && subj.is_active && cycleLevels.some((level) => level.number === subj.cycle_number))
+    .filter((subj) => subj.career_id === careerId && subj.is_active && (mallaId === undefined || subj.malla_id === mallaId) && cycleLevels.some((level) => level.number === subj.cycle_number))
     .toSorted((a, b) => (a.cycle_number ?? 0) - (b.cycle_number ?? 0) || a.name.localeCompare(b.name))
 
   function openCreateChooser() {
@@ -650,10 +656,11 @@ function TutoringsWorkspace({ catalogs, careerId, onBack }: Readonly<{ catalogs:
         {...(readOnly || noActivePeriod ? {} : {
           createLabel: 'Crear tutoría',
           onCreate: openCreateChooser,
-          extraActions: <RosterImportButton careerId={careerId} onFinished={list.reload} />,
+          extraActions: <RosterImportButton careerId={careerId} mallaId={mallaId} onFinished={list.reload} />,
         })}
         disabled={operation.pending || catalogs.loading || subjects.length === 0}
       />
+      <MallaPicker selection={malla} />
       <FilterBar
         id="tutorings"
         search={list.searchInput}

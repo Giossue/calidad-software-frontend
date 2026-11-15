@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api, ApiError, challengeStore, SESSION_EXPIRED_EVENT, tokenStore } from './api'
+import { tutoringApi } from './tutoring-api'
 
 const user = {
   id: 1,
@@ -186,6 +187,54 @@ describe('API de administración', () => {
       ['http://localhost:8000/api/v1/admin/modalities/4', 'PATCH'],
       ['http://localhost:8000/api/v1/admin/modalities/4/deactivate', 'PATCH'],
     ])
+  })
+})
+
+describe('API de mallas de la coordinación de tutorías', () => {
+  beforeEach(() => {
+    tokenStore.set('coordinator-token')
+  })
+
+  afterEach(() => {
+    tokenStore.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it('gestiona las mallas de una carrera y cambia la malla de un estudiante', async () => {
+    const malla = { id: 81, career_id: 10, name: 'Malla 2025', is_current: true, subjects_count: 0, students_count: 0, tutorings_count: 0 }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ data: [malla] }))
+      .mockResolvedValueOnce(jsonResponse({ data: malla }, 201))
+      .mockResolvedValueOnce(jsonResponse({ data: malla }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { id: 5 } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await tutoringApi.mallas(10)
+    await tutoringApi.createMalla({ career_id: 10, name: 'Malla 2025', is_current: true })
+    await tutoringApi.updateMalla(81, { is_current: true })
+    await tutoringApi.deleteMalla(80)
+    await tutoringApi.changeStudentMalla(5, 81)
+
+    const root = 'http://localhost:8000/api/v1/tutoring-coordination'
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method, init?.body])).toEqual([
+      [`${root}/mallas?career_id=10`, undefined, undefined],
+      [`${root}/mallas`, 'POST', JSON.stringify({ career_id: 10, name: 'Malla 2025', is_current: true })],
+      [`${root}/mallas/81`, 'PATCH', JSON.stringify({ is_current: true })],
+      [`${root}/mallas/80`, 'DELETE', undefined],
+      [`${root}/students/5/malla`, 'PATCH', JSON.stringify({ malla_id: 81 })],
+    ])
+  })
+
+  it('lee el archivo de la malla para la malla elegida', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: { subjects: [] } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await tutoringApi.previewCurriculum(10, new File(['codigo;nombre'], 'malla.csv', { type: 'text/csv' }), 81)
+
+    const body = fetchMock.mock.calls[0][1]?.body as FormData
+    expect(body.get('career_id')).toBe('10')
+    expect(body.get('malla_id')).toBe('81')
   })
 })
 

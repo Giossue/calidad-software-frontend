@@ -40,14 +40,14 @@ describe('Cargar listado PDF', () => {
     vi.mocked(tutoringApi.importRoster)
       .mockResolvedValueOnce(preview)
       .mockResolvedValueOnce({ ...preview, applied: true, tutoring: { id: 90, exists: true } })
-    render(<RosterImportButton careerId={10} onFinished={onFinished} />)
+    render(<RosterImportButton careerId={10} mallaId={81} onFinished={onFinished} />)
 
     await user.click(screen.getByRole('button', { name: 'Cargar listado PDF' }))
     const pdf = new File(['%PDF'], 'LISTADO.pdf', { type: 'application/pdf' })
     await user.upload(screen.getByLabelText('Listado en PDF'), pdf)
     await user.click(screen.getByRole('button', { name: 'Revisar listado' }))
 
-    expect(tutoringApi.importRoster).toHaveBeenLastCalledWith(10, pdf, false)
+    expect(tutoringApi.importRoster).toHaveBeenLastCalledWith(10, pdf, false, 81)
     expect(await screen.findByText('Perez Mora Luis (se asigna)')).toBeInTheDocument()
     expect(screen.getByText('Se crea al confirmar')).toBeInTheDocument()
     expect(screen.getByText('El listado es de la carrera «TI»; se cargará en Software.')).toBeInTheDocument()
@@ -59,7 +59,7 @@ describe('Cargar listado PDF', () => {
     ])
 
     await user.click(screen.getByRole('button', { name: 'Cargar 2 estudiantes' }))
-    expect(tutoringApi.importRoster).toHaveBeenLastCalledWith(10, pdf, true)
+    expect(tutoringApi.importRoster).toHaveBeenLastCalledWith(10, pdf, true, 81)
     expect(await screen.findByText('Listado cargado: 1 registrados, 1 inscritos, 0 ya estaban y 1 sin inscribir.')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))

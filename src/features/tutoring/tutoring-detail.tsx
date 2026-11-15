@@ -44,7 +44,7 @@ export function TutoringDetail({
   /** Tutoría de un período pasado: solo se consulta (sin editar ni inscribir). */
   readOnly?: boolean
 }>) {
-  const context = [tutoring.cycle_name, tutoring.section_name ? `Paralelo ${tutoring.section_name}` : null, tutoring.modality_name, tutoring.period_name]
+  const context = [tutoring.cycle_name, tutoring.section_name ? `Paralelo ${tutoring.section_name}` : null, tutoring.modality_name, tutoring.period_name, tutoring.malla_name]
     .filter(Boolean)
     .join(' · ')
 

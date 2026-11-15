@@ -11,21 +11,24 @@ import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useDetailParam } from '@/hooks/use-detail-param'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
-import { tutoringApi, type Subject } from '@/lib/tutoring-api'
+import { tutoringApi, type Malla, type Subject, type TutoringCareer } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
 import { CurriculumImportButton } from './curriculum-upload-dialog'
+import { MallaManagement } from './malla-management'
+import { MallaPicker } from './malla-picker'
 import { SubjectDetail } from './subject-detail'
 import { CurriculumCanvas } from './curriculum-canvas/curriculum-canvas'
 import type { CanvasLane } from './curriculum-canvas/layout'
 import { careerCycleNumbers, SubjectFormDialog, type SubjectFormMode } from './subjects-page'
 import { ModuleHeader } from './tutoring-shared'
-import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
+import { useOperation, useSelectedMalla, useTutoringCatalogs } from './tutoring-hooks'
 import { CurriculumScreenSkeleton } from './tutoring-skeletons'
 
 type Catalogs = ReturnType<typeof useTutoringCatalogs>
 
 /**
- * Malla curricular de la carrera: la malla es la carrera. Aquí se importa la malla y se ve
+ * Malla curricular de la carrera: la carrera puede tener varias mallas y se trabaja con una
+ * a la vez (la vigente por defecto). Aquí se gestionan las mallas, se importa la malla y se ve
  * como un lienzo (un carril por ciclo y las previas como flechas, como en sílabos); en
  * «Editar malla» se agregan asignaturas en cada ciclo, se editan y se conectan sus previas.
  */
@@ -34,19 +37,19 @@ export function TutoringCurriculumPage() {
   const selection = useSelectedCareer(catalogs.careers)
 
   if (selection.career) {
-    return <CurriculumWorkspace catalogs={catalogs} careerId={selection.career.id} careerName={selection.career.name} onBack={selection.canChange ? selection.clear : undefined} />
+    return <CurriculumWorkspace catalogs={catalogs} career={selection.career} onBack={selection.canChange ? selection.clear : undefined} />
   }
 
   return <CareerPicker catalogs={catalogs} title="Malla curricular" skeleton={<CurriculumScreenSkeleton />} rowTitle={(career) => `Ver malla de ${career.name}`} onSelect={(career) => selection.select(career.id)} />
 }
 
-/** Todas las asignaturas de la carrera (la malla completa cabe en pocas páginas). */
-async function loadCareerSubjects(careerId: number): Promise<Subject[]> {
+/** Todas las asignaturas de la malla elegida (la malla completa cabe en pocas páginas). */
+async function loadMallaSubjects(careerId: number, mallaId: number | undefined): Promise<Subject[]> {
   const subjects: Subject[] = []
   let page = 1
   let lastPage = 1
   do {
-    const response = await tutoringApi.subjects({ career_id: careerId, page, per_page: 100 })
+    const response = await tutoringApi.subjects({ career_id: careerId, ...(mallaId === undefined ? {} : { malla_id: mallaId }), page, per_page: 100 })
     subjects.push(...response.data)
     lastPage = response.meta?.last_page ?? 1
     page += 1
@@ -54,9 +57,37 @@ async function loadCareerSubjects(careerId: number): Promise<Subject[]> {
   return subjects
 }
 
+/**
+ * Mallas de la carrera con lo que tiene cada una (para saber si se puede eliminar). Mientras
+ * no llegan, el selector usa las mallas que vienen con la carrera.
+ */
+function useCareerMallas(careerId: number) {
+  const [list, setList] = useState<{ careerId: number; data: readonly Malla[] } | null>(null)
+  // Sin la lista se sigue trabajando con las mallas de la carrera; solo no se ofrece eliminar.
+  const fetchList = useCallback(
+    () => Promise.resolve(tutoringApi.mallas(careerId)).then((data) => (Array.isArray(data) ? data : null)).catch(() => null),
+    [careerId],
+  )
+  useEffect(() => {
+    let cancelled = false
+    void fetchList().then((data) => { if (!cancelled && data) setList({ careerId, data }) })
+    return () => { cancelled = true }
+  }, [careerId, fetchList])
+  // Al crear, renombrar o eliminar se espera la lista nueva (p. ej. para elegir la malla creada).
+  const reload = useCallback(async () => {
+    const data = await fetchList()
+    if (data) setList({ careerId, data })
+  }, [careerId, fetchList])
+  return { data: list?.careerId === careerId ? list.data : null, reload }
+}
 
-function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonly<{ catalogs: Catalogs; careerId: number; careerName: string; onBack?: () => void }>) {
-  const resource = useDegreeResource(() => loadCareerSubjects(careerId), `curriculum-${careerId}`)
+function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: Catalogs; career: TutoringCareer; onBack?: () => void }>) {
+  const careerId = career.id
+  const careerName = career.name
+  const careerMallas = useCareerMallas(careerId)
+  const malla = useSelectedMalla(careerId, careerMallas.data ?? career.mallas)
+  const mallaId = malla.mallaId
+  const resource = useDegreeResource(() => loadMallaSubjects(careerId, mallaId), `curriculum-${careerId}-${mallaId ?? ''}`)
   const [editing, setEditing] = useState(false)
   const operation = useOperation()
   // La asignatura abierta vive en la URL (?asignatura=<id>) para que "Atrás" vuelva a la malla.
@@ -117,7 +148,13 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
     await catalogs.reload()
   }
 
-  // Lo que la carrera ya tiene: la vista previa lo marca y lo acepta como previa.
+  // Recarga las mallas (con lo que tiene cada una) y la carrera, que también trae sus mallas.
+  async function refreshMallas() {
+    await careerMallas.reload()
+    catalogs.reload()
+  }
+
+  // Lo que la malla ya tiene: la vista previa lo marca y lo acepta como previa.
   const existing = subjects.map((subject) => ({ code: subject.code, name: subject.name, cycle: subject.cycle_number ?? null }))
 
   const canvas = (
@@ -190,7 +227,7 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
           disabled={operation.pending || catalogs.loading}
           extraActions={
             <>
-              <CurriculumImportButton careerId={careerId} careerName={careerName} existing={existing} onImported={() => refresh()} />
+              <CurriculumImportButton careerId={careerId} careerName={careerName} mallaId={mallaId} mallaName={malla.malla?.name} existing={existing} onImported={() => refresh()} />
               <Button type="button" variant="secondary" className="w-full sm:w-auto" data-tour="curriculum-edit" disabled={operation.pending || catalogs.loading || levels.length === 0} onClick={() => setEditing(true)}>
                 <PencilIcon data-icon="inline-start" />
                 Editar malla
@@ -198,13 +235,16 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
             </>
           }
         />
+        <MallaPicker selection={malla} disabled={operation.pending}>
+          <MallaManagement careerId={careerId} selection={malla} mallas={careerMallas.data} disabled={operation.pending} onChanged={refreshMallas} />
+        </MallaPicker>
         <ErrorNotice message={resource.error} retry={resource.reload} />
 
         {visible.length === 0 ? (
           <EmptyState className="rounded-md ring-1 ring-surface-ring">
             {subjects.length === 0
-              ? 'Esta carrera aún no tiene asignaturas. Usa «Importar malla» para crearlas desde el archivo de la malla o «Editar malla» para agregarlas una a una.'
-              : 'Esta carrera no tiene asignaturas activas.'}
+              ? 'Esta malla aún no tiene asignaturas. Usa «Importar malla» para crearlas desde el archivo de la malla o «Editar malla» para agregarlas una a una.'
+              : 'Esta malla no tiene asignaturas activas.'}
           </EmptyState>
         ) : canvas}
       </>
@@ -218,6 +258,7 @@ function CurriculumWorkspace({ catalogs, careerId, careerName, onBack }: Readonl
         key={form.key}
         catalogs={catalogs}
         careerId={careerId}
+        mallaId={mallaId}
         mode={form.mode}
         subject={form.subject}
         initialCycleNumber={form.cycleNumber}

@@ -31,9 +31,11 @@ export function careerCycleNumbers(catalogs: Pick<TutoringCatalogsState, 'career
  * tiene modalidad (no existe «Sin modalidad»): al registrar parte de la de la carrera.
  * Se monta de nuevo (con `key`) cada vez que se abre, así parte de los datos actuales.
  */
-export function SubjectFormDialog({ catalogs, careerId, mode, subject, initialCycleNumber, operation, onClose, onSaved }: Readonly<{
+export function SubjectFormDialog({ catalogs, careerId, mallaId, mode, subject, initialCycleNumber, operation, onClose, onSaved }: Readonly<{
   catalogs: TutoringCatalogsState
   careerId: number
+  /** Malla elegida: la asignatura nueva se crea en ella. */
+  mallaId?: number
   mode: SubjectFormMode | null
   /** Asignatura que se edita; `null` al registrar una nueva. */
   subject: Subject | null
@@ -71,6 +73,7 @@ export function SubjectFormDialog({ catalogs, careerId, mode, subject, initialCy
           code: trimmedCode || undefined,
           name: form.name.trim(),
           career_id: careerId,
+          ...(mallaId === undefined ? {} : { malla_id: mallaId }),
           ...(cycleNumber ? { cycle_number: cycleNumber } : {}),
           modality_id: Number(form.modality_id),
         })

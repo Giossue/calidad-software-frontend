@@ -5,13 +5,34 @@ export type { Cycle }
 const ROOT = '/api/v1/tutoring-coordination'
 type Collection<T> = { readonly data: readonly T[] }
 type Resource<T> = { readonly data: T }
-export type TutoringListParams = { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; status?: 'active' | 'inactive'; per_page?: number; period_id?: number }
+export type TutoringListParams = { page?: number; search?: string; career_id?: number; malla_id?: number; cycle_id?: number; cycle_number?: number; status?: 'active' | 'inactive'; per_page?: number; period_id?: number }
 
 /** Período que muestra la lista de tutorías (el vigente si no se pidió otro); `null` sin período vigente. */
 export type ListedPeriod = { readonly id: number; readonly name: string; readonly is_active: boolean }
 export interface TutoringListMeta extends PaginationMeta {
   readonly period?: ListedPeriod | null
 }
+
+/** Malla de una carrera tal como llega con la carrera; exactamente una es la vigente. */
+export interface CareerMalla {
+  readonly id: number
+  readonly name: string
+  readonly is_current: boolean
+}
+
+/** Carrera del coordinador con sus mallas (la vigente primero). */
+export type TutoringCareer = Career & { readonly mallas?: readonly CareerMalla[] }
+
+/** Malla con lo que tiene asignado: solo se elimina vacía y si no es la vigente. */
+export interface Malla extends CareerMalla {
+  readonly career_id: number
+  readonly subjects_count: number
+  readonly students_count: number
+  readonly tutorings_count: number
+}
+export type MallaInput = { career_id: number; name: string; is_current?: boolean }
+/** Marcar como vigente desmarca la anterior; no se desmarca la vigente (se marca otra). */
+export type MallaUpdateInput = { name?: string; is_current?: true }
 
 export interface CoordinatorEnrollment {
   readonly id: number
@@ -32,6 +53,8 @@ export interface Subject {
   readonly id: number
   readonly career_id: number
   readonly career_name: string
+  readonly malla_id?: number | null
+  readonly malla_name?: string | null
   readonly code: string | null
   readonly name: string
   readonly modality_id?: number | null
@@ -89,6 +112,8 @@ export interface Tutoring {
   readonly cycle_id: number
   readonly cycle_name: string
   readonly career_id: number
+  readonly malla_id?: number | null
+  readonly malla_name?: string | null
   readonly period_id: number
   readonly period_name: string
   readonly modality_id: number
@@ -140,6 +165,8 @@ export interface TutoringReportMeta extends PaginationMeta {
 }
 export type SubjectInput = {
   career_id: number
+  /** Malla en la que se crea la asignatura (la carrera sale de la malla). */
+  malla_id?: number
   code?: string | null
   name: string
   cycle_number?: number | null
@@ -243,27 +270,36 @@ export interface CurriculumSubjectRow {
   readonly previous: readonly string[]
   readonly errors?: readonly string[]
 }
-export type CurriculumInput = { career_id: number; subjects: readonly CurriculumSubjectRow[] }
+export type CurriculumInput = { career_id: number; malla_id?: number; subjects: readonly CurriculumSubjectRow[] }
 
 export const tutoringApi = {
   /** Lee el archivo de la malla (Excel, CSV o PDF) para revisarla antes de importarla. */
-  previewCurriculum: async (careerId: number, file: File): Promise<readonly CurriculumSubjectRow[]> => {
+  previewCurriculum: async (careerId: number, file: File, mallaId?: number): Promise<readonly CurriculumSubjectRow[]> => {
     const body = new FormData()
     body.append('file', file)
     body.append('career_id', String(careerId))
+    if (mallaId !== undefined) body.append('malla_id', String(mallaId))
     return (await request<Resource<{ subjects: readonly CurriculumSubjectRow[] }>>(`${ROOT}/curricula/preview`, { method: 'POST', body })).data.subjects
   },
-  /** Crea en la carrera las asignaturas de la malla revisada, con sus ciclos y previas. */
+  /** Crea en la malla las asignaturas de la malla revisada, con sus ciclos y previas. */
   importCurriculum: (input: CurriculumInput) => request<{ created: number }>(`${ROOT}/curricula`, { method: 'POST', body: JSON.stringify(input) }),
   /** Lee el listado PDF; con `confirm` crea la tutoría, las cuentas y las inscripciones. */
-  importRoster: async (careerId: number, file: File, confirm: boolean): Promise<RosterImport> => {
+  importRoster: async (careerId: number, file: File, confirm: boolean, mallaId?: number): Promise<RosterImport> => {
     const body = new FormData()
     body.append('file', file)
     body.append('career_id', String(careerId))
+    // La asignatura del listado se busca en esta malla (sin ella, primero en la vigente).
+    if (mallaId !== undefined) body.append('malla_id', String(mallaId))
     body.append('confirm', confirm ? '1' : '0')
     return (await request<Resource<RosterImport>>(`${ROOT}/roster-imports`, { method: 'POST', body })).data
   },
-  careers: () => collection<Career>('careers'),
+  careers: () => collection<TutoringCareer>('careers'),
+  /** Mallas de la carrera con lo que tiene cada una (asignaturas, estudiantes y tutorías). */
+  mallas: (careerId: number) => collection<Malla>(`mallas${buildQuery({ career_id: careerId })}`),
+  createMalla: (input: MallaInput) => mutate<Malla>('mallas', 'POST', input),
+  updateMalla: (id: number, input: MallaUpdateInput) => mutate<Malla>(`mallas/${id}`, 'PATCH', input),
+  /** Solo una malla vacía que no sea la vigente; si no, el backend responde 422. */
+  deleteMalla: (id: number) => request<void>(`${ROOT}/mallas/${id}`, { method: 'DELETE' }),
   cycles: () => collection<Cycle>('cycles'),
   periods: () => collection<AcademicPeriod>('periods'),
   modalities: () => collection<Modality>('modalities'),
@@ -297,7 +333,7 @@ export const tutoringApi = {
   sessions: (id: number, page: number) => list<SupervisionSession>(`tutorings/${id}/sessions`, { page }),
   tutoringGrades: (id: number) => collection<TutoringStudentGrades>(`tutorings/${id}/grades`),
   reports: (id: number, page: number) => request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/tutorings/${id}/reports${buildQuery({ page })}`),
-  allReports: (params?: { page?: number; search?: string; career_id?: number; cycle_id?: number; cycle_number?: number; tutoring_id?: number }) =>
+  allReports: (params?: { page?: number; search?: string; career_id?: number; malla_id?: number; cycle_id?: number; cycle_number?: number; tutoring_id?: number }) =>
     request<PaginatedResourceCollection<TutoringReport, TutoringReportMeta>>(`${ROOT}/reports${buildQuery(params ?? {})}`),
   students: (id: number, params?: { page?: number; search?: string; status?: string }) =>
     request<PaginatedResourceCollection<CoordinatorEnrollment>>(`${ROOT}/tutorings/${id}/students${buildQuery(params ?? {})}`),
@@ -313,13 +349,17 @@ export const tutoringApi = {
   reenrollStudent: (id: number, enrollmentId: number) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/reenroll`, 'PATCH'),
 
-  allStudents: (params?: { page?: number; search?: string; career_id?: number; cycle_number?: number; without_cycle?: boolean; tutoring_status?: 'with' | 'without' }) => {
+  allStudents: (params?: { page?: number; search?: string; career_id?: number; malla_id?: number; cycle_number?: number; without_cycle?: boolean; tutoring_status?: 'with' | 'without' }) => {
     const { without_cycle: withoutCycle, ...rest } = params ?? {}
     return request<PaginatedResourceCollection<CoordinatorStudent>>(`${ROOT}/students${buildQuery({ ...rest, without_cycle: withoutCycle ? 1 : undefined })}`)
   },
+  /** Pasa al estudiante a otra malla de su carrera (422 si tiene tutorías activas de la otra). */
+  changeStudentMalla: (studentId: number, mallaId: number) =>
+    request<{ data: CoordinatorStudent }>(`${ROOT}/students/${studentId}/malla`, { method: 'PATCH', body: JSON.stringify({ malla_id: mallaId }) }),
   updateStudentCycle: (studentId: number, cycleId: number) =>
     request<{ data: CoordinatorStudent }>(`${ROOT}/students/${studentId}/cycle`, { method: 'PATCH', body: JSON.stringify({ cycle_id: cycleId }) }),
-  createCoordinatorStudent: (input: { identification: string; first_names: string; last_names: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number; career_id?: number }) =>
+  /** Sin `malla_id` el estudiante queda en la malla vigente de la carrera. */
+  createCoordinatorStudent: (input: { identification: string; first_names: string; last_names: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number; career_id?: number; malla_id?: number }) =>
     request<{ data: CoordinatorStudent }>(`${ROOT}/students`, { method: 'POST', body: JSON.stringify(input) }),
   availableTutoringsForStudent: (studentId: number, search?: string) =>
     request<{ data: readonly Tutoring[] }>(`${ROOT}/students/${studentId}/available-tutorings${buildQuery({ search: search ?? '' })}`),
@@ -327,12 +367,13 @@ export const tutoringApi = {
     request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enroll`, { method: 'POST', body: JSON.stringify({ tutoring_id: tutoringId }) }),
   unenrollStudentFromTutoring: (studentId: number, enrollmentId: number) =>
     request<{ data: CoordinatorEnrollment }>(`${ROOT}/students/${studentId}/enrollments/${enrollmentId}`, { method: 'DELETE' }),
-  degreeStudents: (params?: { page?: number; search?: string; career_id?: number; cycle_number?: number; enrolled?: boolean }) =>
+  degreeStudents: (params?: { page?: number; search?: string; career_id?: number; malla_id?: number; cycle_number?: number; enrolled?: boolean }) =>
     request<PaginatedResourceCollection<DegreeStudent, DegreePaginationMeta>>(
       `${ROOT}/degree-students${buildQuery({
         page: params?.page,
         search: params?.search,
         career_id: params?.career_id,
+        malla_id: params?.malla_id,
         cycle_number: params?.cycle_number,
         enrolled: params?.enrolled !== undefined ? (params.enrolled ? 1 : 0) : undefined,
       })}`,
@@ -405,6 +446,9 @@ export interface CoordinatorStudent {
   readonly email: string
   readonly phone?: string | null
   readonly is_active: boolean
+  /** Malla que sigue el estudiante (una de su carrera). */
+  readonly malla_id?: number | null
+  readonly malla_name?: string | null
   /** Ciclo que cursa; el último ciclo de la carrera es titulación. */
   readonly cycle_id?: number | null
   readonly cycle_number?: number | null

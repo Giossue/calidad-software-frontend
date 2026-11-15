@@ -28,7 +28,7 @@ const normalize = (value: string) => value.normalize('NFD').replace(/\p{Mn}/gu, 
 const splitPrevious = (value: string) => value.split(/[|;]+/).map((item) => item.trim()).filter(Boolean)
 
 /**
- * Mismas reglas que el servidor: nombre, ciclo, repetidos, lo que ya existe en la carrera
+ * Mismas reglas que el servidor: nombre, ciclo, repetidos, lo que ya existe en la malla
  * y previas (otra fila o una asignatura de la carrera) de un ciclo anterior.
  */
 function rowErrors(rows: readonly Row[], existing: readonly ExistingSubject[]): Map<number, string[]> {
@@ -53,9 +53,9 @@ function rowErrors(rows: readonly Row[], existing: readonly ExistingSubject[]): 
     const cycle = Number(row.cycle)
     if (!row.name.trim()) list.push('Falta el nombre de la asignatura.')
     else if ((names.get(normalize(row.name)) ?? 0) > 1) list.push('El nombre está repetido en la malla.')
-    else if (existingNames.has(normalize(row.name))) list.push('La asignatura ya existe en la carrera.')
+    else if (existingNames.has(normalize(row.name))) list.push('La asignatura ya existe en la malla.')
     if (row.code.trim() && (codes.get(row.code.trim().toUpperCase()) ?? 0) > 1) list.push('El código está repetido en la malla.')
-    else if (row.code.trim() && existingCodes.has(row.code.trim().toUpperCase())) list.push('El código ya existe en la carrera.')
+    else if (row.code.trim() && existingCodes.has(row.code.trim().toUpperCase())) list.push('El código ya existe en la malla.')
     if (!Number.isInteger(cycle) || cycle < 1 || cycle > MAX_CYCLE) list.push(`Indica el ciclo (1 a ${MAX_CYCLE}).`)
     for (const reference of splitPrevious(row.previous)) {
       const previous = find(reference)
@@ -80,7 +80,7 @@ function downloadTemplate() {
  * «Importar malla»: el coordinador sube la malla de la carrera (Excel, CSV o PDF), revisa
  * y corrige cada asignatura y la importa: se crean las asignaturas, sus ciclos y previas.
  */
-export function CurriculumImportButton({ careerId, careerName, existing, onImported }: Readonly<{ careerId: number; careerName: string; existing: readonly ExistingSubject[]; onImported: () => unknown }>) {
+export function CurriculumImportButton({ careerId, careerName, mallaId, mallaName, existing, onImported }: Readonly<{ careerId: number; careerName: string; mallaId?: number; mallaName?: string; existing: readonly ExistingSubject[]; onImported: () => unknown }>) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [rows, setRows] = useState<Row[] | null>(null)
@@ -104,7 +104,7 @@ export function CurriculumImportButton({ careerId, careerName, existing, onImpor
     setPending(true)
     setError(null)
     try {
-      const subjects = await tutoringApi.previewCurriculum(careerId, file)
+      const subjects = await tutoringApi.previewCurriculum(careerId, file, mallaId)
       setRows(subjects.map((subject: CurriculumSubjectRow, index) => ({ key: index, code: subject.code ?? '', name: subject.name, cycle: subject.cycle ? String(subject.cycle) : '', previous: subject.previous.join(' | ') })))
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -120,6 +120,7 @@ export function CurriculumImportButton({ careerId, careerName, existing, onImpor
     try {
       const { created } = await tutoringApi.importCurriculum({
         career_id: careerId,
+        ...(mallaId === undefined ? {} : { malla_id: mallaId }),
         subjects: rows.map((row) => ({ code: row.code.trim() || null, name: row.name.trim(), cycle: Number(row.cycle), previous: splitPrevious(row.previous) })),
       })
       toast.success(created === 1 ? '1 asignatura importada' : `${created} asignaturas importadas`)
@@ -144,7 +145,7 @@ export function CurriculumImportButton({ careerId, careerName, existing, onImpor
         open={open}
         onClose={close}
         title="Importar malla"
-        description={careerName}
+        description={mallaName ? `${careerName} · ${mallaName}` : careerName}
         confirmClose={dirty}
         maxWidth="max-w-4xl"
       >

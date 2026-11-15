@@ -3,8 +3,8 @@ import { toast } from '@/lib/toast'
 
 import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { isFormDialogOpen } from '@/components/ui/form-dialog'
-import { ApiError, type AcademicPeriod, type Career, type Cycle, type Modality, type Section } from '@/lib/api'
-import { tutoringApi } from '@/lib/tutoring-api'
+import { ApiError, type AcademicPeriod, type Cycle, type Modality, type Section } from '@/lib/api'
+import { tutoringApi, type CareerMalla, type TutoringCareer } from '@/lib/tutoring-api'
 
 export function describeError(error: unknown): string {
   const friendly = getFriendlyError(error)
@@ -64,7 +64,7 @@ export function useOperation() {
 }
 
 export function useTutoringCatalogs() {
-  const [careers, setCareers] = useState<readonly Career[]>([])
+  const [careers, setCareers] = useState<readonly TutoringCareer[]>([])
   const [cycles, setCycles] = useState<readonly Cycle[]>([])
   const [periods, setPeriods] = useState<readonly AcademicPeriod[]>([])
   const [modalities, setModalities] = useState<readonly Modality[]>([])
@@ -97,3 +97,27 @@ export function useTutoringCatalogs() {
 }
 
 export type TutoringCatalogs = ReturnType<typeof useTutoringCatalogs>
+
+/**
+ * Malla con la que trabaja el coordinador dentro de la carrera elegida. Parte de la vigente
+ * y, al cambiar de carrera, vuelve a la vigente de esa carrera (la elección es por carrera).
+ * `mallas` suele ser `career.mallas`; la malla curricular pasa la lista recién consultada.
+ */
+export function useSelectedMalla(careerId: number | undefined, mallas: readonly CareerMalla[] = []) {
+  const [choice, setChoice] = useState<{ careerId: number; mallaId: number } | null>(null)
+  const current = mallas.find((malla) => malla.is_current) ?? mallas[0]
+  const chosen = choice && choice.careerId === careerId ? mallas.find((malla) => malla.id === choice.mallaId) : undefined
+  const malla = chosen ?? current
+  return {
+    mallas,
+    malla,
+    /** Id para filtrar en la API; sin mallas (datos previos) no se filtra. */
+    mallaId: malla?.id,
+    canChange: mallas.length > 1,
+    select: (mallaId: number) => { if (careerId !== undefined) setChoice({ careerId, mallaId }) },
+    /** Vuelve a la vigente (p. ej. tras eliminar la malla elegida). */
+    reset: () => setChoice(null),
+  }
+}
+
+export type MallaSelection = ReturnType<typeof useSelectedMalla>

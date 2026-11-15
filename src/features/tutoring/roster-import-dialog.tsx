@@ -31,7 +31,7 @@ function count(report: RosterImport, ...statuses: RosterStudentStatus[]) {
  * «Cargar listado PDF»: sube el listado del sistema académico, muestra qué se va a
  * hacer y, al confirmar, crea la tutoría, las cuentas y las inscripciones.
  */
-export function RosterImportButton({ careerId, onFinished }: Readonly<{ careerId: number; onFinished?: () => unknown }>) {
+export function RosterImportButton({ careerId, mallaId, onFinished }: Readonly<{ careerId: number; /** Malla elegida: la asignatura del listado se busca en ella. */ mallaId?: number; onFinished?: () => unknown }>) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [pending, setPending] = useState(false)
@@ -52,7 +52,7 @@ export function RosterImportButton({ careerId, onFinished }: Readonly<{ careerId
     setPending(true)
     setError(null)
     try {
-      setReport(await tutoringApi.importRoster(careerId, file, confirm))
+      setReport(await tutoringApi.importRoster(careerId, file, confirm, mallaId))
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {

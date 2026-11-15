@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ArrowLeftIcon,
+  ArrowRightLeftIcon,
   GraduationCapIcon,
   ListPlusIcon,
   UserMinusIcon,
@@ -36,14 +37,15 @@ import {
   type DegreeStudent,
   type StudentCycleHistory,
   type Tutoring,
+  type TutoringCareer,
 } from '@/lib/tutoring-api'
 import { FilterBar } from './filter-bar'
 import { CareerBreadcrumb, CareerPicker } from './career-picker'
-import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
+import { MallaPicker } from './malla-picker'
+import { useOperation, useSelectedMalla, useTutoringCatalogs } from './tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { CycleSelect, ModuleHeader, RecordTable, type TabbedScreen } from './tutoring-shared'
 import { CAREER_PARAM } from './tutoring-navigation'
-import type { Career } from '@/lib/api'
 import { ListScreenSkeleton } from './tutoring-skeletons'
 
 /** Esqueleto de Estudiantes: el mismo mientras cargan las carreras y la primera página. */
@@ -55,7 +57,7 @@ function StudentsSkeleton({ tabs }: Readonly<{ tabs?: number }>) {
  * Carrera elegida, guardada en la URL (?carrera=) para que la pestaña Docentes la comparta y
  * la recarga la conserve. Con una sola carrera no hay nada que elegir: se entra directo a ella.
  */
-function useCareerParam(careers: readonly Career[]) {
+function useCareerParam(careers: readonly TutoringCareer[]) {
   const [params, setParams] = useSearchParams()
   const selectedId = Number(params.get(CAREER_PARAM))
   const single = careers.length === 1
@@ -85,7 +87,7 @@ export function TutoringStudentsPage({ screen }: Readonly<{ screen?: TabbedScree
   const selection = useCareerParam(catalogs.careers)
 
   if (selection.career) {
-    return <StudentsWorkspace catalogs={catalogs} careerId={selection.career.id} onBack={selection.canChange ? selection.clear : undefined} screen={screen} />
+    return <StudentsWorkspace catalogs={catalogs} career={selection.career} onBack={selection.canChange ? selection.clear : undefined} screen={screen} />
   }
 
   const picker = <CareerPicker catalogs={catalogs} title="Estudiantes" description={screen ? 'Elige la carrera cuyos estudiantes quieres ver.' : undefined} skeleton={<StudentsSkeleton tabs={screen?.tabCount} />} rowTitle={(career) => `Ver estudiantes de ${career.name}`} onSelect={(career) => selection.select(career.id)} tabs={screen?.tabs} />
@@ -94,7 +96,11 @@ export function TutoringStudentsPage({ screen }: Readonly<{ screen?: TabbedScree
 
 const WITHOUT_CYCLE = 'none'
 
-function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; careerId: number; onBack?: () => void; screen?: TabbedScreen }>) {
+function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ catalogs: ReturnType<typeof useTutoringCatalogs>; career: TutoringCareer; onBack?: () => void; screen?: TabbedScreen }>) {
+  const careerId = career.id
+  // Cada estudiante sigue una malla: la lista muestra los de la malla elegida.
+  const malla = useSelectedMalla(careerId, career.mallas)
+  const mallaId = malla.mallaId
   const careerCycles = catalogs.cycles.filter((cycle) => cycle.status && cycle.career_id === careerId)
   // Una pestaña por ciclo de la carrera (los paralelos de un mismo ciclo comparten pestaña).
   const cycleLevels = Array.from(new Map(careerCycles.map((cycle) => [cycle.number, cycle])).values()).sort((a, b) => a.number - b.number)
@@ -108,8 +114,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
 
   const [tutoringStatus, setTutoringStatus] = useState<'' | 'with' | 'without'>('')
   const list = usePaginatedCatalog(
-    (page, search) => tutoringApi.allStudents({ page, search, career_id: careerId, cycle_number: tabCycleNumber, without_cycle: activeTab === WITHOUT_CYCLE, tutoring_status: tutoringStatus || undefined }),
-    `${careerId}|${activeTab}|${tutoringStatus}`,
+    (page, search) => tutoringApi.allStudents({ page, search, career_id: careerId, malla_id: mallaId, cycle_number: tabCycleNumber, without_cycle: activeTab === WITHOUT_CYCLE, tutoring_status: tutoringStatus || undefined }),
+    `${careerId}|${mallaId ?? ''}|${activeTab}|${tutoringStatus}`,
   )
   const operation = useOperation()
   const careerName = catalogs.careers.find((career) => career.id === careerId)?.name ?? 'Estudiantes'
@@ -118,6 +124,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
   // solo con sus tutorías de cada período.
   const [cycleTarget, setCycleTarget] = useState<{ id: number; name: string; cycle_id?: number | null } | null>(null)
   const [targetCycleId, setTargetCycleId] = useState('')
+
+  // Modal: pasar al estudiante a otra malla de la carrera. Después deja la lista de esta malla.
+  const mallaOperation = useOperation()
+  const [mallaTarget, setMallaTarget] = useState<CoordinatorStudent | null>(null)
+  const [targetMallaId, setTargetMallaId] = useState('')
 
   // Modal: Crear Estudiante
   const [createOpen, setCreateOpen] = useState(false)
@@ -142,7 +153,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
     setLoadingCycles(true)
     Promise.all([
       tutoringApi.cycles().catch(() => []),
-      tutoringApi.tutorings({ per_page: 100 })
+      tutoringApi.tutorings({ per_page: 100, malla_id: mallaId })
         .then((res) => res.data.filter((t) => t.is_active))
         .catch(() => []),
     ])
@@ -181,7 +192,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
     return () => {
       cancelled = true
     }
-  }, [createOpen])
+  }, [createOpen, careerId, mallaId])
 
   function openCreateModal() {
     // Con un solo paralelo en el ciclo de la pestaña, el ciclo queda elegido de antemano.
@@ -217,6 +228,29 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
     )
   }
 
+  function openMallaModal(student: CoordinatorStudent) {
+    setMallaTarget(student)
+    setTargetMallaId('')
+    mallaOperation.clearError()
+  }
+
+  function handleMallaSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const target = mallaTarget
+    const next = malla.mallas.find((item) => String(item.id) === targetMallaId)
+    if (!target || !next) return
+    void mallaOperation.run(
+      () => tutoringApi.changeStudentMalla(target.id, next.id),
+      `${target.name} sigue ahora la ${next.name}`,
+      async () => {
+        setMallaTarget(null)
+        setOpenedStudent(null)
+        detail.close()
+        await list.reload()
+      },
+    )
+  }
+
   function handleCreateSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const input = {
@@ -228,6 +262,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
       cycle_id: Number(form.cycle_id),
       tutoring_id: form.tutoring_id && !isDegreeCycle ? Number(form.tutoring_id) : undefined,
       career_id: careerId,
+      // Queda en la malla elegida (no en la vigente) y sigue en esta lista.
+      ...(mallaId === undefined ? {} : { malla_id: mallaId }),
     }
 
     void operation.run(
@@ -292,10 +328,11 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
         page,
         search,
         career_id: careerId,
+        malla_id: mallaId,
         cycle_number: isDegreeTab ? tabCycleNumber : undefined,
         enrolled: degreeFilter === '' ? undefined : degreeFilter === 'enrolled',
       }),
-    `${careerId}|${isDegreeTab ? tabCycleNumber : ''}|${degreeFilter}`,
+    `${careerId}|${mallaId ?? ''}|${isDegreeTab ? tabCycleNumber : ''}|${degreeFilter}`,
   )
   const degreeOperation = useOperation()
   const [enrollTarget, setEnrollTarget] = useState<DegreeStudent | null>(null)
@@ -450,6 +487,12 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
             actions={
               <div className="flex items-center gap-2">
                 <StatusBadge active={assignStudent.is_active} />
+                {malla.canChange && (
+                  <Button type="button" variant="secondary" onClick={() => openMallaModal(assignStudent)}>
+                    <ArrowRightLeftIcon data-icon="inline-start" />
+                    Cambiar de malla
+                  </Button>
+                )}
                 {!assignStudent.cycle_id && (
                   <Button type="button" variant="tertiary" size="icon" aria-label="Asignar ciclo" onClick={() => openCycleModal(assignStudent)}>
                     <ListPlusIcon />
@@ -488,6 +531,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
                 <StudentDatum label="Correo institucional" value={assignStudent.email} />
                 <StudentDatum label="Teléfono" value={assignStudent.phone || 'Sin teléfono'} />
                 <StudentDatum label="Ciclo" value={studentCycleText(assignStudent)} />
+                {assignStudent.malla_name && <StudentDatum label="Malla" value={assignStudent.malla_name} />}
               </dl>
               <CycleHistory history={assignStudent.cycle_history ?? []} />
             </TabsContent>
@@ -513,6 +557,7 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
             extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
           />
           {screen?.tabs}
+          <MallaPicker selection={malla} />
 
           {!isDegreeTab && (
             <>
@@ -810,6 +855,34 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
             value: String(cycle.id),
             label: `${cycle.number}° ciclo${cycle.paralelo_name ? ` · Paralelo ${cycle.paralelo_name}` : ''}${isDegreeCycleNumber(cycle.number, careerMaxCycle) ? ' · Titulación' : ''}`,
           }))}
+        />
+      </FormDialog>
+
+      <FormDialog
+        open={Boolean(mallaTarget)}
+        title="Cambiar de malla"
+        description={mallaTarget ? `${mallaTarget.name}${mallaTarget.malla_name ? ` · sigue la ${mallaTarget.malla_name}` : ''}` : undefined}
+        pending={mallaOperation.pending}
+        error={mallaOperation.error}
+        errorModal={mallaOperation.errorModal}
+        dirty={targetMallaId !== ''}
+        blockReason={targetMallaId ? null : 'Elige la malla que seguirá el estudiante.'}
+        onClose={() => setMallaTarget(null)}
+        onSubmit={handleMallaSubmit}
+        submitLabel="Cambiar de malla"
+      >
+        <SelectField
+          id="student-malla"
+          label="Nueva malla"
+          required
+          tip="Lo aprobado en una malla no cuenta en otra: sus asignaturas pendientes y su avance son de cada malla."
+          error={mallaOperation.fieldError('malla_id')}
+          value={targetMallaId}
+          onValueChange={setTargetMallaId}
+          placeholder="Selecciona una malla"
+          options={malla.mallas
+            .filter((item) => item.id !== (mallaTarget?.malla_id ?? mallaId))
+            .map((item) => ({ value: String(item.id), label: `${item.name}${item.is_current ? ' · Vigente' : ''}` }))}
         />
       </FormDialog>
 
