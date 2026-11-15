@@ -273,7 +273,7 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
   { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
   {
     id: 'name',
-    header: 'Estudiante',
+    header: 'Apellidos y nombres',
     cell: ({ row, table }) => {
       const meta = table.options.meta as AttendanceTableMeta
       const notice = meta.notices.get(row.original.id)
@@ -307,7 +307,7 @@ const ATTENDANCE_COLUMNS: ColumnDef<Enrollment>[] = [
 
 const CONSULT_COLUMNS: ColumnDef<TutoringSession['attendance'][number]>[] = [
   { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
-  { id: 'name', header: 'Estudiante', cell: ({ row }) => row.original.student_name },
+  { id: 'name', header: 'Apellidos y nombres', cell: ({ row }) => row.original.student_name },
   {
     id: 'present',
     header: () => <div className="text-center">Asistencia</div>,
@@ -334,7 +334,7 @@ function SessionFormSkeleton() {
           <Skeleton className="h-8 w-32" />
         </div>
       </div>
-      <HeadedTableSkeleton headers={['#', 'Estudiante', 'Asistió']} />
+      <HeadedTableSkeleton headers={['#', 'Apellidos y nombres', 'Asistió']} />
       <div className="flex justify-end" aria-hidden="true"><Skeleton className="h-9 w-44" /></div>
     </div>
   )

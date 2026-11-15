@@ -38,7 +38,7 @@ function ContactRows({ label, contact }: Readonly<{ label: string; contact: Fina
     <>
       <tr>
         <th scope="rowgroup" rowSpan={3} className={cn(head, 'w-36 text-left normal-case')}>{label}</th>
-        <th scope="col" rowSpan={2} className={cn(head, 'text-center normal-case')}>Nombre</th>
+        <th scope="col" rowSpan={2} className={cn(head, 'text-center normal-case')}>Apellidos y nombres</th>
         <th scope="col" colSpan={2} className={cn(head, 'text-center normal-case')}>Contacto</th>
         <th scope="col" rowSpan={2} className={cn(head, 'text-center normal-case')}>Cargo</th>
       </tr>
@@ -204,7 +204,7 @@ export function FinalPaoReportDocument({ summary }: Readonly<{ summary: FinalPao
                 <thead>
                   <tr>
                     <th scope="col" className={cn(head, 'w-12 text-center')}>No.</th>
-                    <th scope="col" className={cn(head, 'text-left')}>Estudiante</th>
+                    <th scope="col" className={cn(head, 'text-left')}>Apellidos y nombres</th>
                     <th scope="col" className={cn(head, 'w-32 text-center normal-case')}>Evaluación Primer Parcial</th>
                     <th scope="col" className={cn(head, 'w-32 text-center normal-case')}>Evaluación Segundo Parcial</th>
                   </tr>

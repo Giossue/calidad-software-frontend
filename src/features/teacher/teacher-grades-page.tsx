@@ -45,56 +45,44 @@ type Evolution =
   | { status: 'up'; delta: number; label: string; title: string }
   | { status: 'down'; delta: number; label: string; title: string }
   | { status: 'same'; delta: number; label: string; title: string }
-  | { status: 'partial_one'; delta: number; label: string; title: string }
   | { status: 'pending'; label: string; title: string }
-  | { status: 'no_diag'; label: string; title: string }
+  | { status: 'no_p1'; label: string; title: string }
 
-function computeEvolution(diagnosticStr: string, partialTwoStr: string, partialOneStr?: string): Evolution {
-  const diagNum = Number(diagnosticStr)
-  if (!diagnosticStr || Number.isNaN(diagNum)) {
-    return { status: 'no_diag', label: '—', title: 'Sin calificación de diagnóstico registrada' }
+// La evolución compara solo los parciales: la nota diagnóstica no entra en el cálculo.
+function computeEvolution(partialOneStr: string, partialTwoStr: string): Evolution {
+  const p1Num = Number(partialOneStr)
+  if (!partialOneStr || Number.isNaN(p1Num)) {
+    return { status: 'no_p1', label: '—', title: 'Sin calificación del Parcial 1 registrada' }
   }
 
   const p2Num = Number(partialTwoStr)
-  if (partialTwoStr && !Number.isNaN(p2Num)) {
-    const delta = Math.round((p2Num - diagNum) * 100) / 100
-    if (delta > 0) {
-      return {
-        status: 'up',
-        delta,
-        label: `+${delta.toFixed(2)}`,
-        title: `Evolución positiva: subió ${delta.toFixed(2)} puntos desde Diagnóstico (${diagNum.toFixed(2)}) hasta Parcial 2 (${p2Num.toFixed(2)})`,
-      }
-    }
-    if (delta < 0) {
-      return {
-        status: 'down',
-        delta,
-        label: `${delta.toFixed(2)}`,
-        title: `Evolución negativa: bajó ${Math.abs(delta).toFixed(2)} puntos desde Diagnóstico (${diagNum.toFixed(2)}) hasta Parcial 2 (${p2Num.toFixed(2)})`,
-      }
-    }
-    return {
-      status: 'same',
-      delta: 0,
-      label: '0.00',
-      title: `Sin variación: misma nota en Diagnóstico (${diagNum.toFixed(2)}) y Parcial 2 (${p2Num.toFixed(2)})`,
-    }
+  if (!partialTwoStr || Number.isNaN(p2Num)) {
+    return { status: 'pending', label: 'Pendiente P2', title: 'Pendiente calificación del Parcial 2' }
   }
 
-  const p1Num = Number(partialOneStr)
-  if (partialOneStr && !Number.isNaN(p1Num)) {
-    const delta = Math.round((p1Num - diagNum) * 100) / 100
-    const sign = delta > 0 ? '+' : ''
+  const delta = Math.round((p2Num - p1Num) * 100) / 100
+  if (delta > 0) {
     return {
-      status: 'partial_one',
+      status: 'up',
       delta,
-      label: `P1: ${sign}${delta.toFixed(2)}`,
-      title: `Evolución parcial preliminar: ${sign}${delta.toFixed(2)} en Parcial 1 (${p1Num.toFixed(2)}) respecto a Diagnóstico (${diagNum.toFixed(2)}). Pendiente Parcial 2.`,
+      label: `+${delta.toFixed(2)}`,
+      title: `Evolución positiva: subió ${delta.toFixed(2)} puntos desde Parcial 1 (${p1Num.toFixed(2)}) hasta Parcial 2 (${p2Num.toFixed(2)})`,
     }
   }
-
-  return { status: 'pending', label: 'Pendiente P2', title: 'Pendiente calificación del Parcial 2' }
+  if (delta < 0) {
+    return {
+      status: 'down',
+      delta,
+      label: `${delta.toFixed(2)}`,
+      title: `Evolución negativa: bajó ${Math.abs(delta).toFixed(2)} puntos desde Parcial 1 (${p1Num.toFixed(2)}) hasta Parcial 2 (${p2Num.toFixed(2)})`,
+    }
+  }
+  return {
+    status: 'same',
+    delta: 0,
+    label: '0.00',
+    title: `Sin variación: misma nota en Parcial 1 (${p1Num.toFixed(2)}) y Parcial 2 (${p2Num.toFixed(2)})`,
+  }
 }
 
 // --- Borrador: lo escrito se conserva aunque el docente salga de la página, hasta que guarde. ---
@@ -155,7 +143,7 @@ type GradesTableMeta = { grid: Grid; saved: Grid; stage: GradeType | null; setti
 // Columnas estables: el estado llega por `meta` para que las casillas no se remonten (y pierdan el foco) al escribir.
 const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
   { id: 'number', header: '#', cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.index + 1}</span> },
-  { id: 'name', header: 'Estudiante', cell: ({ row }) => row.original.name },
+  { id: 'name', header: 'Apellidos y nombres', cell: ({ row }) => row.original.name },
   ...GRADE_FIELDS.map(({ type, label }): ColumnDef<Enrollment> => ({
     id: type,
     header: ({ table }) => <div className={`text-center ${(table.options.meta as GradesTableMeta).stage === type ? 'text-foreground' : ''}`}>{label}</div>,
@@ -188,14 +176,13 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
   })),
   {
     id: 'evolution',
-    header: () => <div className="text-center">Evolución (Diag → P2)</div>,
+    header: () => <div className="text-center">Evolución (P1 → P2)</div>,
     cell: ({ row, table }) => {
       const meta = table.options.meta as GradesTableMeta
       // Se calcula con las notas guardadas: lo escrito y no guardado no cuenta como evolución.
-      const diagStr = meta.saved[row.original.id]?.diagnostic ?? ''
-      const p2Str = meta.saved[row.original.id]?.partial_two ?? ''
       const p1Str = meta.saved[row.original.id]?.partial ?? ''
-      const evo = computeEvolution(diagStr, p2Str, p1Str)
+      const p2Str = meta.saved[row.original.id]?.partial_two ?? ''
+      const evo = computeEvolution(p1Str, p2Str)
 
       const icon = evo.status === 'up' ? <TrendingUpIcon aria-hidden="true" /> : evo.status === 'down' ? <TrendingDownIcon aria-hidden="true" /> : evo.status === 'same' ? <MinusIcon aria-hidden="true" /> : null
       const tone = evo.status === 'up' ? 'text-success' : evo.status === 'down' ? 'text-destructive' : 'text-muted-foreground'
@@ -207,7 +194,7 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
             <TooltipTrigger asChild>
               {evo.status === 'pending'
                 ? <span tabIndex={0} className="inline-flex"><Badge variant="warning">{evo.label}</Badge></span>
-                : evo.status === 'no_diag'
+                : evo.status === 'no_p1'
                 ? <span tabIndex={0} className="text-xs text-muted-foreground">{evo.label}</span>
                 : <span tabIndex={0} className={`inline-flex items-center gap-1 text-sm tabular-nums [&>svg]:size-4 ${tone}`}>{icon}<span>{evo.label}</span></span>}
             </TooltipTrigger>

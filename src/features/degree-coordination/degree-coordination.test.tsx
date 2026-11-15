@@ -510,7 +510,7 @@ describe('Carga completa de las pantallas de titulación', () => {
     expect(screen.queryByRole('heading', { level: 1, name: 'Matrícula en titulación' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Buscar estudiante')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: /Paginación/ })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['#', 'Estudiante', 'Cédula', 'Teléfono', 'Ciclo', 'Estado', 'Fecha de matrícula'])
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['#', 'Apellidos y nombres', 'Cédula', 'Teléfono', 'Ciclo', 'Estado', 'Fecha de matrícula'])
     await act(async () => pending.resolve({ data: [], meta: { ...reportMeta, last_page: 1, total: 0, current_period: period } }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Matrícula en titulación' })).toBeInTheDocument()
     expect(screen.getByText(/período 2026-2/)).toBeInTheDocument()

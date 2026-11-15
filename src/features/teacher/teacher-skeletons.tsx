@@ -15,11 +15,11 @@ const TUTORING_HEADERS = ['Asignatura', 'Período y ciclo', 'Estudiantes', 'Esta
 const DEGREE_ASSIGNMENT_HEADERS = ['Tema', 'Estudiante', 'Participación', 'Asignación'] as const
 const DEGREE_TRACKING_HEADERS = ['Tema', 'Estudiante', 'Participación', 'Avance'] as const
 const REPORT_TUTORING_HEADERS = ['Asignatura', 'Ciclo y paralelo', 'Estado'] as const
-const STUDENT_HEADERS = ['#', 'Estudiante', 'Contacto', 'Grupo de Conocimiento', 'Etapa', 'Nota', 'Resultado final', 'Inscripción'] as const
+const STUDENT_HEADERS = ['#', 'Apellidos y nombres', 'Contacto', 'Grupo de Conocimiento', 'Etapa', 'Nota', 'Resultado final', 'Inscripción'] as const
 const SESSION_HEADERS = ['Sesión', 'Día', 'Fecha', 'Asistencia'] as const
 const TOPIC_HEADERS = ['Tema', 'Sesión', 'Recursos', 'Completado', 'Habilitado'] as const
 const SCHEDULE_HEADERS = ['Día', 'Horario', 'Estado'] as const
-const GRADE_HEADERS = ['#', 'Estudiante', 'Diagnóstico', 'Parcial 1', 'Parcial 2', 'Evolución (Diag → P2)'] as const
+const GRADE_HEADERS = ['#', 'Apellidos y nombres', 'Diagnóstico', 'Parcial 1', 'Parcial 2', 'Evolución (P1 → P2)'] as const
 const REPORT_HEADERS = ['Informe', 'Autor', 'Enviado'] as const
 const REVIEW_HEADERS = ['Día', 'Fecha', 'Asistencia', 'Actividades'] as const
 
@@ -139,7 +139,7 @@ export function SessionConsultSkeleton() {
       </div>
       <Skeleton className="h-5 w-24 rounded-full" />
     </div>
-    <HeadedTableSkeleton headers={['#', 'Estudiante', 'Asistencia']} />
+    <HeadedTableSkeleton headers={['#', 'Apellidos y nombres', 'Asistencia']} />
   </Announced>
 }
 

@@ -50,7 +50,7 @@ import { ListScreenSkeleton } from './tutoring-skeletons'
 
 /** Esqueleto de Estudiantes: el mismo mientras cargan las carreras y la primera página. */
 function StudentsSkeleton({ tabs }: Readonly<{ tabs?: number }>) {
-  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} tabs={tabs} headers={['Estudiante', 'Correo', 'Teléfono', 'Estado']} />
+  return <ListScreenSkeleton label="Cargando estudiantes" actions={2} filters={2} tabs={tabs} headers={['Apellidos y nombres', 'Correo', 'Teléfono', 'Estado']} />
 }
 
 /**
@@ -586,7 +586,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
                 }
                 columns={[
                   {
-                    label: 'Estudiante',
+                    label: 'Apellidos y nombres',
                     render: (student) => (
                       <div className="flex flex-col gap-0.5">
                         <span>{student.name}</span>
@@ -661,7 +661,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
                 }
                 columns={[
                   {
-                    label: 'Estudiante',
+                    label: 'Apellidos y nombres',
                     render: (student) => student.name,
                   },
                   { label: 'Correo', render: (student) => student.email },

@@ -554,18 +554,28 @@ describe('Módulo Docente', () => {
     expect(within(rows[3]).getAllByRole('cell')[0]).toHaveTextContent('2')
   })
 
-  it('muestra el grupo de conocimiento en la lista de estudiantes y la evolución diagnóstica en calificaciones', async () => {
+  it('muestra el grupo de conocimiento en la lista de estudiantes y la evolución entre parciales en calificaciones', async () => {
     vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, knowledge_group: 'Alto' }]))
     workspace('students')
     expect(await screen.findByText('Alto')).toBeInTheDocument()
     expect(screen.getByText('Grupo de Conocimiento')).toBeInTheDocument()
 
-    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00', second_partial_grade: '9.50' }])
+    // La nota diagnóstica no entra en el cálculo: solo Parcial 1 y Parcial 2.
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00', partial_grade: '8.00', second_partial_grade: '9.50' }])
     workspace('grades')
-    expect(await screen.findByText('+2.50')).toBeInTheDocument()
-    expect(screen.getByText('Evolución (Diag → P2)')).toBeInTheDocument()
+    expect(await screen.findByText('+1.50')).toBeInTheDocument()
+    expect(screen.queryByText('+2.50')).not.toBeInTheDocument()
+    expect(screen.getByText('Evolución (P1 → P2)')).toBeInTheDocument()
     // La evolución es un valor, no un estado: va como texto, sin badge.
-    expect(screen.getByText('+2.50').closest('.rounded-full')).toBeNull()
+    expect(screen.getByText('+1.50').closest('.rounded-full')).toBeNull()
+  })
+
+  it('no calcula evolución sin la nota del Parcial 1, aunque haya diagnóstico', async () => {
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00', partial_grade: null, second_partial_grade: '9.50' }])
+    workspace('grades')
+    expect(await screen.findByText('9.50')).toBeInTheDocument()
+    expect(screen.queryByText('+2.50')).not.toBeInTheDocument()
+    expect(screen.queryByText('Pendiente P2')).not.toBeInTheDocument()
   })
 
   it('cancela la carga de una etapa y vuelve a modo consulta, descartando lo no guardado tras confirmar', async () => {
@@ -612,7 +622,7 @@ describe('Módulo Docente', () => {
 
   it('al cambiar de etapa con notas sin guardar pide confirmar el descarte, y la consulta muestra solo lo guardado', async () => {
     const user = userEvent.setup()
-    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00' }])
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00', partial_grade: '7.00' }])
     const view = workspace('grades')
     await pickStage(user, /^Parcial 2/)
     await user.type(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' }), '8')
@@ -635,8 +645,7 @@ describe('Módulo Docente', () => {
     expect(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' })).toHaveValue('8.00')
     await pickStage(user, /^Parcial 1/)
     await user.click(within(await screen.findByRole('dialog', { name: '¿Descartar las notas de Parcial 2?' })).getByRole('button', { name: 'Sí, descartar' }))
-    expect(await screen.findByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toHaveValue('')
-    expect(screen.getByText('Falta 1 nota de Parcial 1.')).toBeInTheDocument()
+    expect(await screen.findByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toHaveValue('7.00')
     expect(JSON.parse(sessionStorage.getItem('grades-draft:40') ?? '{}')[70]?.partial_two).toBeUndefined()
   })
 

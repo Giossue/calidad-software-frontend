@@ -199,7 +199,7 @@ function SupervisionPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
   )
 }
 
-const GRADES_HEADERS = ['Estudiante', 'Etapa', 'Nota', 'Resultado final'] as const
+const GRADES_HEADERS = ['Apellidos y nombres', 'Etapa', 'Nota', 'Resultado final'] as const
 const FINAL_RESULT_BADGES: Record<TutoringFinalResult, { label: string; variant: 'success' | 'danger' }> = {
   approved: { label: 'Aprobado', variant: 'success' },
   failed: { label: 'Reprobado', variant: 'danger' },
@@ -239,7 +239,7 @@ function GradesPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
             loading={grades.loading}
             empty="Aún no hay estudiantes inscritos."
             columns={[
-              { label: 'Estudiante', span: groupSpan, render: ({ student }) => student.name },
+              { label: 'Apellidos y nombres', span: groupSpan, render: ({ student }) => student.name },
               { label: 'Etapa', render: ({ grade }) => grade.label },
               { label: 'Nota', render: ({ grade }) => <span className="tabular-nums">{grade.value ?? '—'}</span> },
               { label: 'Resultado final', span: groupSpan, render: ({ student }) => <div className="flex flex-col items-start gap-1">
@@ -284,7 +284,7 @@ function SessionDetail({ session, onClose }: Readonly<{ session: SupervisionSess
         loading={false}
         empty="Esta sesión no tiene estudiantes registrados."
         columns={[
-          { label: 'Estudiante', render: (record) => record.student_name },
+          { label: 'Apellidos y nombres', render: (record) => record.student_name },
           { label: 'Cédula', render: (record) => <span className="text-muted-foreground">{record.student_identification || '—'}</span> },
           { label: 'Asistencia', render: (record) => <StatusBadge active={record.present} activeLabel="Presente" inactiveLabel="Ausente" /> },
         ]}

@@ -140,7 +140,7 @@ export function RosterImportButton({ careerId, mallaId, onFinished }: Readonly<{
                 <thead className="sticky top-0 bg-field">
                   <tr>
                     <th scope="col" className="w-10 px-3 py-2">#</th>
-                    <th scope="col" className="px-3 py-2">Estudiante</th>
+                    <th scope="col" className="px-3 py-2">Apellidos y nombres</th>
                     <th scope="col" className="px-3 py-2">{report.applied ? 'Resultado' : 'Qué se hará'}</th>
                   </tr>
                 </thead>

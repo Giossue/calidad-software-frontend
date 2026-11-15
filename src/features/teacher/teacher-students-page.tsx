@@ -213,7 +213,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       rowTitle={({ student }) => (canGrade(student) ? `Añadir notas de ${student.name}` : canSeeAbandonment(student) ? `Ver el abandono de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
       empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />}
       columns={[
-        { label: 'Estudiante', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
+        { label: 'Apellidos y nombres', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
         { label: 'Contacto', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
         { label: 'Grupo de Conocimiento', span: groupSpan, render: ({ student }) => student.knowledge_group
           ? <span>{student.knowledge_group}</span>

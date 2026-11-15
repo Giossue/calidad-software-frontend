@@ -64,7 +64,7 @@ export function DegreeStudentsPage() {
 
   // Primera carga: la descripción nombra el período, así que encabezado, filtro, tabla y
   // paginación esperan juntos como un solo esqueleto. Al filtrar o paginar solo cargan las filas.
-  if (degreeList.isInitialLoading) return <DegreeListSkeleton label="Cargando estudiantes de titulación" headers={['#', 'Estudiante', 'Cédula', 'Teléfono', 'Ciclo', 'Estado', 'Fecha de matrícula']} filters={1} pagination />
+  if (degreeList.isInitialLoading) return <DegreeListSkeleton label="Cargando estudiantes de titulación" headers={['#', 'Apellidos y nombres', 'Cédula', 'Teléfono', 'Ciclo', 'Estado', 'Fecha de matrícula']} filters={1} pagination />
 
   return (
     <section className="flex flex-col gap-6">
@@ -116,7 +116,7 @@ export function DegreeStudentsPage() {
         rowTitle={(student) => student.is_degree_enrolled ? `Dar de baja a ${student.name}` : `Matricular a ${student.name}`}
         columns={[
           {
-            label: 'Estudiante',
+            label: 'Apellidos y nombres',
             render: (student) => (
               <div className="flex flex-col gap-0.5">
                 <span>{student.name}</span>

@@ -1237,7 +1237,7 @@ describe('Coordinación de tutorías', () => {
       await within(panel).findByText('Ana Torres')
       expect(tutoringApi.tutoringGrades).toHaveBeenCalledWith(40)
       const headers = within(panel).getAllByRole('columnheader').map((header) => header.textContent)
-      expect(headers).toEqual(['Estudiante', 'Etapa', 'Nota', 'Resultado final'])
+      expect(headers).toEqual(['Apellidos y nombres', 'Etapa', 'Nota', 'Resultado final'])
       const rows = within(panel).getAllByRole('row').slice(1)
       expect(rows).toHaveLength(6)
       expect(within(rows[0]).getByText('Ana Torres').closest('td')).toHaveAttribute('rowspan', '3')
@@ -1278,7 +1278,7 @@ describe('Coordinación de tutorías', () => {
       const panel = await screen.findByRole('tabpanel', { name: 'Notas' })
       expect(within(panel).getAllByRole('status')).toHaveLength(1)
       expect(within(panel).getByRole('status')).toHaveAccessibleName('Cargando notas…')
-      expect(within(panel).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Estudiante', 'Etapa', 'Nota', 'Resultado final'])
+      expect(within(panel).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Apellidos y nombres', 'Etapa', 'Nota', 'Resultado final'])
     })
 
     it('dice si aún no hay estudiantes o si aún no hay notas', async () => {
@@ -1631,7 +1631,7 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByText('carlos@ueb.edu.ec')).toBeInTheDocument()
     expect(screen.getByText('Mostrando 1 de 1 estudiante')).toBeInTheDocument()
     // Sin numeración: nombre, correo, teléfono y estado (las tutorías están en Tutorías); sin columna de acciones: la fila abre al estudiante.
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Estudiante', 'Correo', 'Teléfono', 'Estado'])
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Apellidos y nombres', 'Correo', 'Teléfono', 'Estado'])
     const row = screen.getByText('Carlos Estudiante').closest('tr')!
     expect(within(row).getAllByRole('cell')[0]).toHaveTextContent('Carlos Estudiante')
     expect(within(row).queryByRole('button')).not.toBeInTheDocument()
@@ -1962,7 +1962,7 @@ describe('Carga completa de las pantallas de coordinación de carrera', () => {
     onlyLoadingStatus('Cargando estudiantes')
     expect(screen.queryByRole('button', { name: 'Registrar estudiante' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Buscar')).not.toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Estudiante', 'Contacto', 'Inscripción'])
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Apellidos y nombres', 'Contacto', 'Inscripción'])
     await act(async () => students.resolve(paginated([])))
     expect(await screen.findByRole('button', { name: 'Registrar estudiante' })).toBeInTheDocument()
     expect(screen.getByLabelText('Buscar')).toBeInTheDocument()

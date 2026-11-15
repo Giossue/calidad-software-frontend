@@ -130,7 +130,7 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
           <div className="flex-1"><FilterBarSkeleton filters={1} /></div>
           <Skeleton className="h-9 w-44 shrink-0" />
         </div>
-        <HeadedTableSkeleton headers={['#', 'Estudiante', 'Contacto', 'Inscripción']} />
+        <HeadedTableSkeleton headers={['#', 'Apellidos y nombres', 'Contacto', 'Inscripción']} />
       </div>
     )
   }
@@ -169,7 +169,7 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
           ? 'No hay estudiantes con estos filtros.'
           : 'Aún no hay estudiantes inscritos en esta tutoría.'}
         columns={[
-          { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
+          { label: 'Apellidos y nombres', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
           { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
           { label: 'Inscripción', render: (student) => <div className="flex flex-col items-start gap-1">
             <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" />

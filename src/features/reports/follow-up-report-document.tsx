@@ -106,7 +106,7 @@ export function FollowUpReportDocument({ summary }: Readonly<{ summary: FollowUp
               <thead>
                 <tr>
                   <th scope="col" className={cn(head, 'w-12 text-center')}>No.</th>
-                  <th scope="col" className={cn(head, 'text-left')}>Estudiante</th>
+                  <th scope="col" className={cn(head, 'text-left')}>Apellidos y nombres</th>
                   <th scope="col" className={cn(head, 'w-32 text-center normal-case')}>Evaluación Diagnóstica</th>
                   <th scope="col" className={cn(head, 'w-32 text-center normal-case')}>Evaluación {summary.partial_title}</th>
                 </tr>
