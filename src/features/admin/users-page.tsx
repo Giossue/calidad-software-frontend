@@ -19,13 +19,15 @@ import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { PasswordStrength } from '@/components/ui/password-strength'
+import { PersonNameFields } from '@/components/person-name-fields'
 import { getPasswordRequirementHint, PASSWORD_MIN_LENGTH } from '@/lib/password-rules'
 import { SelectField } from '@/components/ui/select-field'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { api, type Career, type Faculty, type User, type UserPaginationMeta } from '@/lib/api'
 import { careerLabel } from '@/lib/career-label'
+import { firstNamesError, lastNamesError, normalizeName, splitStoredName } from '@/lib/person-name'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { sanitizeDigits } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
@@ -33,7 +35,8 @@ import { useTouchedFields, visibleFieldError } from './form-helpers'
 
 type UserForm = {
   identification: string
-  name: string
+  first_names: string
+  last_names: string
   email: string
   phone: string
   role: string
@@ -50,7 +53,8 @@ type ToggleTarget = { user: User; action: 'activate' | 'deactivate' }
 
 type UserFormInput = {
   identification: string
-  name: string
+  first_names: string
+  last_names: string
   email: string
   phone: string | null
   role: string
@@ -70,12 +74,13 @@ const ROLE_OPTIONS = [
 ] as const
 
 // Campos de cada paso del formulario, en el orden en que se muestran.
-const PERSONAL_FIELDS: readonly (keyof UserForm)[] = ['name', 'identification', 'phone', 'email']
+const PERSONAL_FIELDS: readonly (keyof UserForm)[] = ['first_names', 'last_names', 'identification', 'phone', 'email']
 const ROLE_FIELDS: readonly (keyof UserForm)[] = ['role', 'facultyId', 'careerId', 'cycleNumber']
 
 const INITIAL_USER_FORM: UserForm = {
   identification: '',
-  name: '',
+  first_names: '',
+  last_names: '',
   email: '',
   phone: '',
   role: '',
@@ -119,10 +124,11 @@ function UserStatusBadge({ user }: Readonly<{ user: User }>) {
   return <Badge variant="success" title="La cuenta está habilitada y con sus datos completos.">Activo</Badge>
 }
 
-function validateUserForm(form: UserForm, editing: boolean, identificationLocked = false): UserFormErrors {
+function validateUserForm(form: UserForm, editing: boolean, identificationLocked = false, namesChanged = true): UserFormErrors {
   const errors: UserFormErrors = {}
   const identification = form.identification.trim()
-  const name = form.name.trim()
+  const firstNames = normalizeName(form.first_names)
+  const lastNames = normalizeName(form.last_names)
   const email = form.email.trim()
   const phone = form.phone.trim()
 
@@ -133,9 +139,17 @@ function validateUserForm(form: UserForm, editing: boolean, identificationLocked
   } else if (/^\d{10}$/.test(identification) && !isValidIdentification(identification)) errors.identification = 'La cédula ingresada no es válida.'
   else if (!isValidIdentification(identification)) errors.identification = 'Ingresa una cédula de 10 dígitos o un pasaporte de 6 a 9 letras o números.'
 
-  if (!name) errors.name = 'El nombre es obligatorio.'
-  else if (name.length > 150) errors.name = 'El nombre no puede superar 150 caracteres.'
-  else if (!/^[\p{L}\s]+$/u.test(name)) errors.name = 'El nombre solo puede contener letras y espacios.'
+  // Uno o dos nombres; dos apellidos o, como excepción, uno (las mismas reglas que el backend).
+  // Al editar solo se validan si se cambiaron: sin tocarlos se conserva el nombre guardado.
+  if (namesChanged) {
+    const firstNamesInvalid = firstNamesError(firstNames)
+    if (!firstNames) errors.first_names = 'Los nombres son obligatorios.'
+    else if (firstNamesInvalid) errors.first_names = firstNamesInvalid
+
+    const lastNamesInvalid = lastNamesError(lastNames)
+    if (!lastNames) errors.last_names = 'Los apellidos son obligatorios.'
+    else if (lastNamesInvalid) errors.last_names = lastNamesInvalid
+  }
 
   if (!email) errors.email = 'El correo electrónico es obligatorio.'
   else if (email.length > 150) errors.email = 'El correo electrónico no puede superar 150 caracteres.'
@@ -199,6 +213,11 @@ export function UsersPage() {
   const identificationLocked = Boolean(editingUser?.identification)
   const [userForm, setUserForm] = useState<UserForm>(INITIAL_USER_FORM)
   const [initialUserForm, setInitialUserForm] = useState<UserForm>(INITIAL_USER_FORM)
+  // Al editar, los nombres se validan y se envían solo si se cambian respecto de lo precargado
+  // (que queda vacío cuando el nombre guardado no se puede separar); al registrar, siempre.
+  const namesChanged = !editingUser
+    || userForm.first_names !== initialUserForm.first_names
+    || userForm.last_names !== initialUserForm.last_names
   // Errores al enviar (o del servidor); los de validación se ven en cuanto se toca el campo.
   const [userErrors, setUserErrors] = useState<UserFormErrors>({})
   const { touched, touch, reset: resetTouched } = useTouchedFields<keyof UserForm>()
@@ -299,9 +318,12 @@ export function UsersPage() {
       : (matchedCareer ? String(matchedCareer.faculty_id) : '')
     const initialCareerId = userCareerId ? String(userCareerId) : ''
 
+    // El nombre se guarda como "apellidos nombres"; si no se puede separar, ambos quedan vacíos.
+    const storedName = splitStoredName(user.name)
     const initial: UserForm = {
       identification: user.identification ?? '',
-      name: user.name,
+      first_names: storedName.firstNames,
+      last_names: storedName.lastNames,
       email: user.email,
       phone: user.phone ?? '',
       role: user.role,
@@ -333,7 +355,7 @@ export function UsersPage() {
     if (pending !== null) return
 
     // Los errores de validación van solo bajo cada campo, sin otro recuadro.
-    const errors = validateUserForm(userForm, editingUser !== null, identificationLocked)
+    const errors = validateUserForm(userForm, editingUser !== null, identificationLocked, namesChanged)
     setUserErrors(errors)
     if (Object.keys(errors).length > 0) return
 
@@ -347,7 +369,8 @@ export function UsersPage() {
 
       const baseInput: UserFormInput = {
         identification: userForm.identification.trim(),
-        name: userForm.name.trim(),
+        first_names: normalizeName(userForm.first_names),
+        last_names: normalizeName(userForm.last_names),
         email: userForm.email.trim(),
         phone: resolvedPhone,
         role: userForm.role,
@@ -356,9 +379,14 @@ export function UsersPage() {
         ...(userForm.role === 'estudiante' && userForm.cycleNumber ? { cycle_number: Number(userForm.cycleNumber) } : {}),
       }
 
+      // Para los mensajes, el nombre como se guarda y se lista: apellidos y nombres.
+      const displayName = namesChanged ? `${baseInput.last_names} ${baseInput.first_names}` : (editingUser?.name ?? '')
+
       if (editingUser) {
+        const { first_names, last_names, ...otherInput } = baseInput
         const input = {
-          ...baseInput,
+          ...otherInput,
+          ...(namesChanged ? { first_names, last_names } : {}),
           // La cédula ya registrada no se envía; una cuenta importada sin cédula puede registrarla una vez.
           identification: identificationLocked ? undefined : (baseInput.identification || undefined),
           ...(userForm.password
@@ -369,14 +397,14 @@ export function UsersPage() {
             : {}),
         }
         await api.updateUser(editingUser.id, input)
-        toast.success('Usuario actualizado', { description: `Los datos de ${baseInput.name} fueron modificados.` })
+        toast.success('Usuario actualizado', { description: `Los datos de ${displayName} fueron modificados.` })
       } else {
         await api.createUser({
           ...baseInput,
           phone: userForm.phone.trim(),
         })
         toast.success('Usuario registrado', {
-          description: `Se creó la cuenta de ${baseInput.name} y se le envió su contraseña provisional por correo.`,
+          description: `Se creó la cuenta de ${displayName} y se le envió su contraseña provisional por correo.`,
         })
       }
 
@@ -424,7 +452,7 @@ export function UsersPage() {
   )
 
   // "Guardar" se bloquea con el primer error de validación; sin cambios lo bloquea FormDialog.
-  const formErrors = validateUserForm(userForm, editingUser !== null, identificationLocked)
+  const formErrors = validateUserForm(userForm, editingUser !== null, identificationLocked, namesChanged)
   const submitBlockReason = Object.values(formErrors)[0] ?? null
   const fieldError = (field: keyof UserForm) => visibleFieldError(field, userErrors, formErrors, touched)
   // Al editar, el teléfono ya guardado no se puede quitar (si se deja vacío, se conserva): solo es
@@ -475,23 +503,22 @@ export function UsersPage() {
     </FormField>
   )
 
-  // Paso 1: quién es la persona. Lo que la identifica va primero.
+  // Paso 1: quién es la persona. Lo que la identifica va primero: nombres y luego apellidos.
   const personalFields = (
     <>
-      <FormField id="user-name" label="Nombre completo" required counter={{ current: userForm.name.length, max: 150 }} error={fieldError('name')}>
-        <Input
-          id="user-name"
-          name="name"
-          value={userForm.name}
-          onChange={(e) => updateUserField('name', sanitizeLetters(e.target.value, 150))}
-          onBlur={() => touch('name')}
-          maxLength={150}
-          autoComplete="name"
-          placeholder="Ej. Ana Torres"
-          disabled={formDisabled}
+      <div className="grid gap-5 sm:grid-cols-2">
+        <PersonNameFields
+          idPrefix="user"
+          firstNames={userForm.first_names}
+          lastNames={userForm.last_names}
+          onFirstNamesChange={(value) => updateUserField('first_names', value)}
+          onLastNamesChange={(value) => updateUserField('last_names', value)}
+          onBlur={touch}
+          errors={{ first_names: fieldError('first_names'), last_names: fieldError('last_names') }}
           required
+          disabled={formDisabled}
         />
-      </FormField>
+      </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         {identificationField}
@@ -652,7 +679,7 @@ export function UsersPage() {
   // "Siguiente" se bloquea con el primer error de los campos de cada paso (las mismas reglas de validación).
   const firstErrorOf = (fields: readonly (keyof UserForm)[]) => fields.map((field) => formErrors[field]).find(Boolean) ?? null
   const userFormSteps: FormStep[] = [
-    { title: 'Datos personales', blockReason: firstErrorOf(PERSONAL_FIELDS), fields: ['name', 'identification', 'phone', 'email'], content: personalFields },
+    { title: 'Datos personales', blockReason: firstErrorOf(PERSONAL_FIELDS), fields: ['first_names', 'last_names', 'identification', 'phone', 'email'], content: personalFields },
     { title: 'Rol y carrera', blockReason: firstErrorOf(ROLE_FIELDS), fields: ['role', 'faculty_id', 'career_id', 'cycle_number'], content: roleFields },
     ...(editingUser ? [{ title: 'Contraseña', fields: ['password', 'password_confirmation'], content: passwordFields }] : []),
   ]

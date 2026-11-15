@@ -150,7 +150,8 @@ interface LoginData {
 
 export type CreateUserInput = {
   readonly identification: string
-  readonly name: string
+  readonly first_names: string
+  readonly last_names: string
   readonly email: string
   readonly phone: string
   readonly role: string
@@ -163,7 +164,9 @@ export type CreateUserInput = {
 
 export type UpdateUserInput = {
   readonly identification?: string
-  readonly name?: string
+  // Nombres y apellidos van juntos: el backend los guarda como "apellidos nombres".
+  readonly first_names?: string
+  readonly last_names?: string
   readonly email?: string
   readonly phone?: string | null
   readonly role?: string

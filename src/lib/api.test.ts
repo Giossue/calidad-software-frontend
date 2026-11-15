@@ -103,14 +103,15 @@ describe('API de administración', () => {
     await api.listUsers()
     await api.createUser({
       identification: '0201234567',
-      name: 'Ana Torres',
+      first_names: 'Ana',
+      last_names: 'Torres',
       email: 'ana@example.com',
       phone: '',
       role: 'estudiante',
       password: 'password123',
       password_confirmation: 'password123',
     })
-    await api.updateUser(1, { name: 'Ana Torres actualizada' })
+    await api.updateUser(1, { first_names: 'Ana María', last_names: 'Torres' })
     await api.deactivateUser(1)
 
     expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([

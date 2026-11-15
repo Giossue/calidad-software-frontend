@@ -13,9 +13,10 @@ async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLEle
   await user.click(await screen.findByRole('option', { name: option }))
 }
 
-// Paso 1 del registro: datos personales (el nombre va primero).
-async function fillPersonalData(user: ReturnType<typeof userEvent.setup>, scope: Pick<typeof screen, 'getByLabelText'> = screen, email = 'nuevo@ueb.edu.ec', name = 'Docente Nuevo') {
-  await user.type(scope.getByLabelText(/^Nombre completo/), name)
+// Paso 1 del registro: datos personales (nombres y apellidos van primero).
+async function fillPersonalData(user: ReturnType<typeof userEvent.setup>, scope: Pick<typeof screen, 'getByLabelText'> = screen, email = 'nuevo@ueb.edu.ec', firstNames = 'Ana María', lastNames = 'Torres Vera') {
+  await user.type(scope.getByLabelText(/^Nombres/), firstNames)
+  await user.type(scope.getByLabelText(/^Apellidos/), lastNames)
   await user.type(scope.getByLabelText(/^Cédula o pasaporte/), '1710034065')
   await user.type(scope.getByLabelText(/^Correo electrónico institucional/), email)
   await user.type(scope.getByLabelText(/^Teléfono/), '0987654321')
@@ -29,7 +30,7 @@ const mockUsers: readonly User[] = [
   {
     id: 1,
     identification: '1710034065',
-    name: 'Carlos Docente',
+    name: 'Docente Ruiz Carlos',
     email: 'carlos@ueb.edu.ec',
     phone: '0991234567',
     role: 'docente',
@@ -152,7 +153,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
   it('muestra la carrera en el listado para los usuarios que la tienen asignada', async () => {
     render(<UsersPage />)
 
-    expect(await screen.findByText('Carlos Docente')).toBeInTheDocument()
+    expect(await screen.findByText('Docente Ruiz Carlos')).toBeInTheDocument()
     expect(screen.getByText('Ingeniería de Software')).toBeInTheDocument()
   })
 
@@ -171,7 +172,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     render(<UsersPage />)
     const rowOf = async (name: string) => within((await screen.findByText(name)).closest('tr') as HTMLElement)
 
-    expect((await rowOf('Carlos Docente')).getByText('Activo')).toBeInTheDocument()
+    expect((await rowOf('Docente Ruiz Carlos')).getByText('Activo')).toBeInTheDocument()
     expect((await rowOf('Ana Importada')).getByText('Correo enviado')).toBeInTheDocument()
     expect((await rowOf('Luis Sin Cedula')).getByText('Datos pendientes')).toBeInTheDocument()
     expect((await rowOf('Eva Inactiva')).getByText('Inactivo')).toBeInTheDocument()
@@ -181,7 +182,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     const user = userEvent.setup()
     render(<UsersPage />)
 
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     await fillPersonalData(user)
     await next(user)
@@ -211,7 +212,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     const user = userEvent.setup()
     render(<UsersPage />)
 
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     await fillPersonalData(user)
     await next(user)
@@ -251,7 +252,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     const user = userEvent.setup()
     render(<UsersPage />)
 
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     await fillPersonalData(user)
     await next(user)
@@ -282,11 +283,11 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     })
 
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
 
-    await fillPersonalData(user, screen, 'estudiante@ueb.edu.ec', 'Estudiante Nuevo')
+    await fillPersonalData(user, screen, 'estudiante@ueb.edu.ec', 'Lucía', 'Mora Paz')
     await next(user)
     await choose(user, screen.getByLabelText(/^Rol en el sistema/), 'Estudiante')
 
@@ -307,7 +308,8 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
       expect(createSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           identification: '1710034065',
-          name: 'Estudiante Nuevo',
+          first_names: 'Lucía',
+          last_names: 'Mora Paz',
           email: 'estudiante@ueb.edu.ec',
           phone: '0987654321',
           role: 'estudiante',
@@ -329,12 +331,15 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     })
 
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
     // Clic en la fila: el panel de edición se abre bajo la tabla
-    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
+    await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
 
     expect(await screen.findByRole('dialog', { name: 'Editar usuario' })).toBeInTheDocument()
+    // Nombres y apellidos precargados desde el nombre guardado (apellidos y nombres).
+    expect(screen.getByLabelText(/^Nombres/)).toHaveValue('Carlos')
+    expect(screen.getByLabelText(/^Apellidos/)).toHaveValue('Docente Ruiz')
     await next(user)
 
     // Cambiar a Coordinador de carrera y seleccionar otra carrera
@@ -355,28 +360,67 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
         })
       )
     })
+    // Sin cambiar los nombres precargados, no se envían.
+    expect(updateSpy.mock.calls[0][1]).not.toHaveProperty('first_names')
+    expect(updateSpy.mock.calls[0][1]).not.toHaveProperty('last_names')
+  }, 15000)
+
+  it('al editar, envía nombres y apellidos cuando se cambian', async () => {
+    const user = userEvent.setup()
+    const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue(mockUsers[0])
+    render(<UsersPage />)
+    await user.click(await screen.findByRole('row', { name: /Docente Ruiz Carlos/ }))
+    await screen.findByRole('dialog', { name: 'Editar usuario' })
+
+    const firstNames = screen.getByLabelText(/^Nombres/)
+    await user.clear(firstNames)
+    await user.type(firstNames, ' Carlos  Andrés ')
+    await next(user)
+    await next(user)
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(1, expect.objectContaining({ first_names: 'Carlos Andrés', last_names: 'Docente Ruiz' }))
+    })
   }, 15000)
 
   it('bloquea "Siguiente" con un dato inválido y solo habilita "Guardar cambios" cuando hay cambios', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
-    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
+    await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
     await screen.findByRole('dialog', { name: 'Editar usuario' })
     const nextButton = screen.getByRole('button', { name: 'Siguiente' })
     expect(nextButton).toBeEnabled()
 
     // Con un dato inválido: "Siguiente" se bloquea y dice qué falta
-    const name = screen.getByLabelText(/^Nombre completo/)
-    await user.clear(name)
+    const firstNames = screen.getByLabelText(/^Nombres/)
+    await user.clear(firstNames)
     expect(nextButton).toBeDisabled()
     await user.hover(nextButton.parentElement as HTMLElement)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('El nombre es obligatorio.')
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Los nombres son obligatorios.')
+    await user.unhover(nextButton.parentElement as HTMLElement)
+
+    // Más de dos nombres tampoco se aceptan
+    await user.type(firstNames, 'Carlos Andrés José')
+    expect(nextButton).toBeDisabled()
+    await user.hover(nextButton.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Ingresa uno o dos nombres.')
+    await user.unhover(nextButton.parentElement as HTMLElement)
+
+    // Sin apellidos también se bloquea
+    await user.clear(firstNames)
+    await user.type(firstNames, 'Carlos Andrés')
+    const lastNames = screen.getByLabelText(/^Apellidos/)
+    await user.clear(lastNames)
+    expect(nextButton).toBeDisabled()
+    await user.hover(nextButton.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Los apellidos son obligatorios.')
     await user.unhover(nextButton.parentElement as HTMLElement)
 
     // Con un cambio válido llega al último paso con "Guardar cambios" habilitado
-    await user.type(name, 'Carlos Docente Prueba')
+    await user.type(lastNames, 'Docente Ruiz')
     await next(user)
     await next(user)
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
@@ -385,25 +429,28 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
   it('sin cambios, "Guardar cambios" queda bloqueado en el último paso', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
-    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
+    await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
     await screen.findByRole('dialog', { name: 'Editar usuario' })
     await next(user)
     await next(user)
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
   })
 
-  it('registra por pasos, con el nombre primero y los obligatorios marcados', async () => {
+  it('registra por pasos, con nombres y apellidos primero y los obligatorios marcados', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     const dialog = await screen.findByRole('dialog', { name: 'Registrar usuario' })
 
     expect(within(dialog).getByRole('group', { name: 'Datos personales' })).toBeInTheDocument()
-    expect(within(dialog).getAllByRole('textbox')[0]).toHaveAccessibleName('Nombre completo(obligatorio)')
+    expect(within(dialog).queryByLabelText(/^Nombre completo/)).not.toBeInTheDocument()
+    const [firstNames, lastNames] = within(dialog).getAllByRole('textbox')
+    expect(firstNames).toHaveAccessibleName('Nombres(obligatorio)')
+    expect(lastNames).toHaveAccessibleName('Apellidos(obligatorio)')
     expect(within(dialog).getByRole('textbox', { name: 'Cédula o pasaporte(obligatorio)' })).toBeInTheDocument()
     expect(within(dialog).getByRole('textbox', { name: 'Correo electrónico institucional(obligatorio)' })).toBeInTheDocument()
     expect(within(dialog).getByRole('textbox', { name: 'Teléfono(obligatorio)' })).toBeInTheDocument()
@@ -420,9 +467,9 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
   it('permite mostrar y ocultar la nueva contraseña al editar un usuario', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
-    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
+    await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
     expect(await screen.findByRole('dialog', { name: 'Editar usuario' })).toBeInTheDocument()
     await next(user)
     await next(user)
@@ -460,12 +507,12 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     })
 
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     expect(await screen.findByRole('dialog', { name: 'Registrar usuario' })).toBeInTheDocument()
 
-    await fillPersonalData(user, screen, 'docente_nuevo@ueb.edu.ec')
+    await fillPersonalData(user, screen, 'docente_nuevo@ueb.edu.ec', ' Ana  María ', 'Torres Vera')
     await next(user)
     await choose(user, screen.getByLabelText(/^Rol en el sistema/), 'Docente')
 
@@ -477,7 +524,8 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await waitFor(() => {
       expect(createSpy).toHaveBeenCalledWith({
         identification: '1710034065',
-        name: 'Docente Nuevo',
+        first_names: 'Ana María',
+        last_names: 'Torres Vera',
         email: 'docente_nuevo@ueb.edu.ec',
         phone: '0987654321',
         role: 'docente',
@@ -492,9 +540,9 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue(mockUsers[0])
 
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
 
-    await user.click(screen.getByRole('row', { name: /Carlos Docente/ }))
+    await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
 
     expect(await screen.findByRole('dialog', { name: 'Editar usuario' })).toBeInTheDocument()
 
@@ -519,7 +567,69 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
         })
       )
     })
+    expect(updateSpy.mock.calls[0][1]).not.toHaveProperty('name')
   }, 15000)
+
+  it('al editar una cuenta cuyo nombre no se puede separar, cambiar solo el teléfono guarda sin enviar nombres', async () => {
+    const user = userEvent.setup()
+    const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue({ ...mockUsers[0], name: 'Carlos Docente' })
+    vi.mocked(api.listUsers).mockResolvedValue({
+      data: [{ ...mockUsers[0], name: 'Carlos Docente' }],
+      meta: { current_page: 1, last_page: 1, per_page: 15, total: 1, from: 1, to: 1, active_count: 1, inactive_count: 0, admin_count: 0, career_coordinator_count: 0, degree_coordinator_count: 0, teacher_count: 1, student_count: 0 },
+    })
+    render(<UsersPage />)
+    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    await screen.findByRole('dialog', { name: 'Editar usuario' })
+
+    // Con dos palabras no se sabe cuál es el nombre y cuál el apellido: quedan vacíos,
+    // pero sin tocarlos no bloquean (se conserva el nombre guardado).
+    expect(screen.getByLabelText(/^Nombres/)).toHaveValue('')
+    expect(screen.getByLabelText(/^Apellidos/)).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled()
+
+    const phone = screen.getByLabelText(/^Teléfono/)
+    await user.clear(phone)
+    await user.type(phone, '0987654321')
+    await next(user)
+    await next(user)
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(updateSpy).toHaveBeenCalledWith(1, expect.objectContaining({ phone: '0987654321' })))
+    expect(updateSpy.mock.calls[0][1]).not.toHaveProperty('first_names')
+    expect(updateSpy.mock.calls[0][1]).not.toHaveProperty('last_names')
+  }, 15000)
+
+  it('al editar una cuenta cuyo nombre no se puede separar, escribir los nombres exige también los apellidos', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.listUsers).mockResolvedValue({
+      data: [{ ...mockUsers[0], name: 'Carlos Docente' }],
+      meta: { current_page: 1, last_page: 1, per_page: 15, total: 1, from: 1, to: 1, active_count: 1, inactive_count: 0, admin_count: 0, career_coordinator_count: 0, degree_coordinator_count: 0, teacher_count: 1, student_count: 0 },
+    })
+    render(<UsersPage />)
+    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    await screen.findByRole('dialog', { name: 'Editar usuario' })
+
+    await user.type(screen.getByLabelText(/^Nombres/), 'Carlos')
+    const nextButton = screen.getByRole('button', { name: 'Siguiente' })
+    expect(nextButton).toBeDisabled()
+    await user.hover(nextButton.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Los apellidos son obligatorios.')
+  })
+
+  it('al editar, vaciar los apellidos bloquea guardar con "Los apellidos son obligatorios."', async () => {
+    const user = userEvent.setup()
+    const updateSpy = vi.spyOn(api, 'updateUser').mockResolvedValue(mockUsers[0])
+    render(<UsersPage />)
+    await user.click(await screen.findByRole('row', { name: /Docente Ruiz Carlos/ }))
+    await screen.findByRole('dialog', { name: 'Editar usuario' })
+
+    await user.clear(screen.getByLabelText(/^Apellidos/))
+    const nextButton = screen.getByRole('button', { name: 'Siguiente' })
+    expect(nextButton).toBeDisabled()
+    await user.hover(nextButton.parentElement as HTMLElement)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Los apellidos son obligatorios.')
+    expect(updateSpy).not.toHaveBeenCalled()
+  })
 
   it('muestra el error del servidor en línea dentro del formulario, sin otro modal encima', async () => {
     const user = userEvent.setup()
@@ -529,7 +639,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     }))
 
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     const dialog = await screen.findByRole('dialog')
 
@@ -549,7 +659,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
   it('muestra el error de cada campo bajo el campo al salir de él, sin cambiar lo que es válido', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
-    await screen.findByText('Carlos Docente')
+    await screen.findByText('Docente Ruiz Carlos')
     await user.click(screen.getByRole('button', { name: 'Nuevo usuario' }))
     const dialog = await screen.findByRole('dialog', { name: 'Registrar usuario' })
 
@@ -572,7 +682,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
   it('al editar, la cédula registrada y el teléfono ya guardado siguen marcados como obligatorios', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
-    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    await user.click(await screen.findByRole('row', { name: /Docente Ruiz Carlos/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Editar usuario' })
 
     expect(within(dialog).getByLabelText(/^Cédula o pasaporte/)).toHaveAccessibleName('Cédula o pasaporte(obligatorio)')
@@ -587,7 +697,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
       meta: { current_page: 1, last_page: 1, per_page: 15, total: 1, from: 1, to: 1, active_count: 1, inactive_count: 0, admin_count: 0, career_coordinator_count: 0, degree_coordinator_count: 0, teacher_count: 1, student_count: 0 },
     })
     render(<UsersPage />)
-    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    await user.click(await screen.findByRole('row', { name: /Docente Ruiz Carlos/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Editar usuario' })
     expect(within(dialog).getByText(/^Teléfono/).closest('label')).toHaveTextContent('(Opcional)')
   })
@@ -597,7 +707,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     const info = vi.spyOn(toast, 'info')
     vi.spyOn(api, 'deactivateUser').mockResolvedValue({ ...mockUsers[0], is_active: false })
     render(<UsersPage />)
-    await user.click(await screen.findByRole('row', { name: /Carlos Docente/ }))
+    await user.click(await screen.findByRole('row', { name: /Docente Ruiz Carlos/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Editar usuario' })
     await next(user)
     await next(user)
@@ -607,7 +717,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Desactivar cuenta' }))
     const confirm = await screen.findByRole('dialog', { name: '¿Desactivar cuenta de usuario?' })
     await user.click(within(confirm).getByRole('button', { name: 'Desactivar cuenta' }))
-    await waitFor(() => expect(info).toHaveBeenCalledWith('Cuenta desactivada', expect.objectContaining({ description: 'Se desactivó la cuenta de Carlos Docente' })))
+    await waitFor(() => expect(info).toHaveBeenCalledWith('Cuenta desactivada', expect.objectContaining({ description: 'Se desactivó la cuenta de Docente Ruiz Carlos' })))
   })
 })
 
@@ -628,7 +738,7 @@ describe('Carga de la pantalla de usuarios', () => {
     resolve({ data: mockUsers, meta: { current_page: 1, last_page: 1, per_page: 15, total: 2, from: 1, to: 2, active_count: 2, inactive_count: 0, admin_count: 1, career_coordinator_count: 0, degree_coordinator_count: 0, teacher_count: 1, student_count: 0 } })
     expect(await screen.findByRole('heading', { name: 'Usuarios' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Nuevo usuario' })).toBeInTheDocument()
-    expect(screen.getByText('Carlos Docente')).toBeInTheDocument()
+    expect(screen.getByText('Docente Ruiz Carlos')).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: /^Cargando/ })).not.toBeInTheDocument()
   })
 })
