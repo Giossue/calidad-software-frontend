@@ -43,8 +43,14 @@ export interface Enrollment {
   readonly final_result?: FinalResult | null
   /** Sugerencia según el promedio de los dos parciales. */
   readonly suggested_result?: FinalResult | null
+  /** El estudiante abandonó la tutoría; `abandonment_reason` es el motivo que se registró. */
+  readonly is_abandoned?: boolean
+  readonly abandoned_at?: string | null
+  readonly abandonment_reason?: string | null
 }
 export type FinalResult = 'approved' | 'failed'
+/** Marcar el abandono exige el motivo; `abandoned: false` lo quita. */
+export type AbandonmentInput = { abandoned: true; reason: string } | { abandoned: false }
 export type AvailableStudent = Pick<Enrollment, 'identification' | 'name' | 'email'> & { readonly id: number }
 export type NewStudentInput = { identification: string; first_names: string; last_names: string; email: string; phone: string | null }
 /** Los nombres y apellidos se envían juntos o no se envían (se conserva el nombre guardado). */
@@ -196,6 +202,7 @@ export const teacherApi = {
   updateStudent: (id: number, enrollmentId: number, input: UpdateStudentInput) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
   setFinalResult: (id: number, enrollmentId: number, result: FinalResult | null) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/final-result`, 'PUT', { result }),
   deactivateStudent: (id: number, enrollmentId: number) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),
+  setAbandonment: (id: number, enrollmentId: number, input: AbandonmentInput) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/abandonment`, 'PUT', input),
   saveGrades: async (id: number, grades: readonly GradeEntry[]) => (await request<Collection<Enrollment>>(`${ROOT}/tutorings/${id}/grades`, { method: 'PUT', body: JSON.stringify({ grades }) })).data,
   registerGrade: (id: number, enrollmentId: number, type: GradeType, value: string) => mutate<Enrollment>(`tutorings/${id}/students/${enrollmentId}/grades/${type}`, 'PUT', { value }),
   topics: (id: number, params?: TeacherListParams) => list<TutoringTopic>(`tutorings/${id}/topics`, params),

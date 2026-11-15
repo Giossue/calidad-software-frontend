@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/lib/api'
@@ -288,12 +288,12 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByRole('button', { name: 'Abrir MATEMATICA' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Abrir FISICA' })).toBeInTheDocument()
   })
-  it('la pantalla de la asignatura muestra sus datos sin pestañas, con previas, en cuál continúa y su modalidad', async () => {
+  it('el modal de la asignatura muestra sus datos sin pestañas, con previas, en cuál continúa y su modalidad', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([{ ...subject, next_subjects: [], previous_subjects: [{ id: 5, code: 'AL', name: 'ALGEBRA' }, { id: 6, code: 'LO', name: 'LOGICA' }] }]))
     await openCurriculum()
     await user.click(await screen.findByText('Matemática'))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Matemática' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Matemática' })).toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Malla' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Editar secuencia' })).not.toBeInTheDocument()
@@ -305,28 +305,28 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByRole('definition', { name: 'Código' })).toHaveTextContent('MAT')
     expect(screen.queryByText('Sin modalidad')).not.toBeInTheDocument()
   })
-  it('al pulsar una tarjeta de la malla abre la pantalla de la asignatura con su secuencia', async () => {
+  it('al pulsar una tarjeta de la malla abre el modal de la asignatura con su secuencia, sobre la malla', async () => {
     const user = userEvent.setup()
     const math = { ...subject, name: 'MATEMATICA', next_subjects: [{ id: 31, code: 'FIS', name: 'FISICA' }], previous_subjects: [] }
     vi.mocked(tutoringApi.subjects).mockResolvedValue(paginated([math]))
     renderCurriculum()
     await user.click(await screen.findByRole('button', { name: 'Abrir MATEMATICA' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'MATEMATICA' })).toBeInTheDocument()
-    expect(screen.getByRole('definition', { name: 'Previas' })).toHaveTextContent('Ninguna')
-    expect(screen.getByRole('definition', { name: 'Continúa en' })).toHaveTextContent('FISICA')
-    await user.click(screen.getByRole('button', { name: 'Volver a la malla' }))
+    const modal = await screen.findByRole('dialog', { name: 'MATEMATICA' })
+    expect(within(modal).getByRole('definition', { name: 'Previas' })).toHaveTextContent('Ninguna')
+    expect(within(modal).getByRole('definition', { name: 'Continúa en' })).toHaveTextContent('FISICA')
+    expect(screen.getByRole('region', { name: 'Vista de la malla' })).toBeInTheDocument()
+    await user.click(within(modal).getByRole('button', { name: 'Cerrar modal' }))
+    expect(screen.queryByRole('dialog', { name: 'MATEMATICA' })).not.toBeInTheDocument()
     expect(await screen.findByRole('region', { name: 'Vista de la malla' })).toBeInTheDocument()
   })
 
-  it('abre la asignatura desde la URL y, si no existe en la carrera, lo dice con un camino de vuelta', async () => {
+  it('abrir una asignatura en el modal no cambia la URL', async () => {
     const user = userEvent.setup()
-    renderCurriculum(['/?asignatura=30'])
-    expect(await screen.findByRole('heading', { level: 1, name: 'Matemática' })).toBeInTheDocument()
-    cleanup()
-    renderCurriculum(['/?asignatura=99'])
-    expect(await screen.findByText('No encontramos esta asignatura en la carrera.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Volver a la malla' }))
-    expect(await screen.findByRole('button', { name: 'Editar malla' })).toBeInTheDocument()
+    function Search() { return <output data-testid="search">{useLocation().search}</output> }
+    render(<MemoryRouter><TutoringCurriculumPage /><Search /></MemoryRouter>)
+    await user.click(await screen.findByRole('button', { name: 'Abrir Matemática' }))
+    expect(await screen.findByRole('dialog', { name: 'Matemática' })).toBeInTheDocument()
+    expect(screen.getByTestId('search')).toBeEmptyDOMElement()
   })
 
   it('una carrera sin asignaturas invita a importar la malla', async () => {
@@ -1172,7 +1172,7 @@ describe('Coordinación de tutorías', () => {
     expect(tutoringApi.createSchedule).not.toHaveBeenCalled()
   })
 
-  it('al pulsar la tarjeta abre la pantalla de la asignatura (en la URL), sin columna de acciones, y edita en un modal con el nombre primero', async () => {
+  it('al pulsar la tarjeta abre el modal de la asignatura, sin columna de acciones, y edita en un modal con el nombre primero', async () => {
     const user = userEvent.setup()
     vi.mocked(tutoringApi.updateSubject).mockResolvedValue({ ...subject, name: 'MATEMATICA I' })
     await openCurriculum()
@@ -1180,7 +1180,7 @@ describe('Coordinación de tutorías', () => {
     expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Abrir Matemática' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Matemática' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Matemática' })).toBeInTheDocument()
     expect(screen.getByRole('definition', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Editar asignatura' })).not.toBeInTheDocument()
@@ -1195,9 +1195,9 @@ describe('Coordinación de tutorías', () => {
     await user.type(within(form).getByLabelText(/^Nombre/), 'Matemática I')
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
     await waitFor(() => expect(tutoringApi.updateSubject).toHaveBeenCalledWith(30, { code: 'MAT', name: 'MATEMÁTICA I', modality_id: 60 }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'MATEMATICA I' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'MATEMATICA I' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Volver a la malla' }))
+    await user.click(screen.getByRole('button', { name: 'Cerrar modal' }))
     expect(await screen.findByRole('button', { name: 'Editar malla' })).toBeInTheDocument()
   })
 
@@ -1253,6 +1253,20 @@ describe('Coordinación de tutorías', () => {
       expect(within(panel).queryAllByRole('button')).toHaveLength(0)
       expect(within(panel).queryAllByRole('textbox')).toHaveLength(0)
       expect(within(panel).queryAllByRole('combobox')).toHaveLength(0)
+    })
+
+    it('marca en Notas al estudiante que abandonó y muestra el motivo', async () => {
+      const user = userEvent.setup()
+      vi.mocked(tutoringApi.tutoringGrades).mockResolvedValue([
+        { enrollment_id: 5, student_id: 9, identification: '0201234567', name: 'Ana Torres', grades: stages('8.50', null, null), final_result: null, suggested_result: null, is_abandoned: true, abandonment_reason: 'Se mudó de ciudad' },
+        { enrollment_id: 6, student_id: 10, identification: '0207654321', name: 'Beto Ruiz', grades: stages(null, null, null), final_result: null, suggested_result: null, is_abandoned: false, abandonment_reason: null },
+      ])
+      render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} readOnly />)
+      await user.click(screen.getByRole('tab', { name: 'Notas' }))
+      const panel = await screen.findByRole('tabpanel', { name: 'Notas' })
+      await within(panel).findByText('Ana Torres')
+      expect(within(panel).getAllByText('Abandonó')).toHaveLength(1)
+      expect(within(panel).getByText('Se mudó de ciudad')).toBeInTheDocument()
     })
 
     it('mientras carga muestra un solo estado «Cargando…» con la tabla esbozada', async () => {
@@ -1362,6 +1376,33 @@ describe('Coordinación de tutorías', () => {
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
     // Sin tocar los nombres ni los apellidos, se conserva el nombre registrado.
     await waitFor(() => expect(tutoringApi.updateStudent).toHaveBeenCalledWith(40, 5, { phone: '0991234567' }))
+  })
+
+  it('en el panel de estudiantes el coordinador registra el abandono con su motivo desde el modal del estudiante', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Luis Pérez', email: 'luis@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01' },
+      { id: 6, tutoring_id: 40, student_id: 10, identification: '0207654321', name: 'Eva Mora', email: 'eva@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01', is_abandoned: true, abandonment_reason: 'Retiro voluntario' },
+    ]))
+    vi.mocked(tutoringApi.setAbandonment).mockResolvedValue({} as never)
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await screen.findByText('Luis Pérez')
+    expect(screen.getAllByText('Abandonó')).toHaveLength(1)
+
+    await user.click(screen.getByTitle('Ver o editar a Luis Pérez'))
+    await screen.findByRole('form', { name: 'Editar estudiante' })
+    await user.click(screen.getByRole('button', { name: 'Registrar abandono' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abandono' })
+    await user.type(within(dialog).getByLabelText(/^Motivo/), 'Problemas de salud')
+    await user.click(within(dialog).getByRole('button', { name: 'Registrar abandono' }))
+    await waitFor(() => expect(tutoringApi.setAbandonment).toHaveBeenCalledWith(40, 5, { abandoned: true, reason: 'Problemas de salud' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrar abandono' })).not.toBeInTheDocument())
+
+    await user.click(screen.getByTitle('Ver o editar a Eva Mora'))
+    await screen.findByRole('form', { name: 'Editar estudiante' })
+    await user.click(screen.getByRole('button', { name: 'Ver abandono' }))
+    expect(await screen.findByLabelText(/^Motivo/)).toHaveValue('Retiro voluntario')
   })
 
   it('en el panel de estudiantes precarga nombres y apellidos al editar y los envía separados si cambian', async () => {

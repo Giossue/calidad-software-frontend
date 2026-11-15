@@ -242,9 +242,13 @@ function GradesPanel({ tutoring }: Readonly<{ tutoring: Tutoring }>) {
               { label: 'Estudiante', span: groupSpan, render: ({ student }) => student.name },
               { label: 'Etapa', render: ({ grade }) => grade.label },
               { label: 'Nota', render: ({ grade }) => <span className="tabular-nums">{grade.value ?? '—'}</span> },
-              { label: 'Resultado final', span: groupSpan, render: ({ student }) => student.final_result
-                ? <Badge variant={FINAL_RESULT_BADGES[student.final_result].variant}>{FINAL_RESULT_BADGES[student.final_result].label}</Badge>
-                : <Badge variant="neutral">Sin registrar</Badge> },
+              { label: 'Resultado final', span: groupSpan, render: ({ student }) => <div className="flex flex-col items-start gap-1">
+                {student.final_result
+                  ? <Badge variant={FINAL_RESULT_BADGES[student.final_result].variant}>{FINAL_RESULT_BADGES[student.final_result].label}</Badge>
+                  : <Badge variant="neutral">Sin registrar</Badge>}
+                {student.is_abandoned && <Badge variant="warning">Abandonó</Badge>}
+                {student.is_abandoned && student.abandonment_reason && <span className="max-w-64 text-xs text-muted-foreground [overflow-wrap:anywhere]">{student.abandonment_reason}</span>}
+              </div> },
             ]}
           />
         )}

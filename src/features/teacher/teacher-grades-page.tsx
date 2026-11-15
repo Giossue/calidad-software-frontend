@@ -228,7 +228,7 @@ function focusNextRow(event: KeyboardEvent<HTMLInputElement>, type: GradeType) {
 }
 
 const activeStudents = (students: readonly Enrollment[]) =>
-  students.filter((student) => student.is_active && student.student_is_active).sort((a, b) => compareNames(a.name, b.name))
+  students.filter((student) => student.is_active && student.student_is_active && !student.is_abandoned).sort((a, b) => compareNames(a.name, b.name))
 
 function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
   tutoring: TeacherTutoring

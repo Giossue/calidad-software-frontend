@@ -1,7 +1,9 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { PlusIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon } from 'lucide-react'
+import { PlusIcon, PowerOffIcon, RotateCcwIcon, UserPlusIcon, UserXIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { AbandonmentDialog } from '@/components/abandonment-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -79,6 +81,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const [deactivating, setDeactivating] = useState<Enrollment | null>(null)
   const [reenrolling, setReenrolling] = useState<Enrollment | null>(null)
   const [gradingStudent, setGradingStudent] = useState<Enrollment | null>(null)
+  const [abandoning, setAbandoning] = useState<Enrollment | null>(null)
   const [gradesForm, setGradesForm] = useState(EMPTY_GRADES)
   const [initialGrades, setInitialGrades] = useState(EMPTY_GRADES)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -119,11 +122,13 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
 
   // La fila abre el registro del estudiante: sus notas si la inscripción está activa,
   // o la confirmación para reinscribirlo si está deshabilitada (sin columna de acciones).
-  const canGrade = (student: Enrollment) => tutoring.can_manage && student.is_active && !operation.pending
+  const canGrade = (student: Enrollment) => tutoring.can_manage && student.is_active && !student.is_abandoned && !operation.pending
+  const canSeeAbandonment = (student: Enrollment) => tutoring.can_manage && student.is_active && Boolean(student.is_abandoned) && !operation.pending
   const canReenroll = (student: Enrollment) => tutoring.can_manage && !student.is_active && student.student_is_active && !operation.pending
 
   function openStudent(student: Enrollment) {
     if (canGrade(student)) openGrades(student)
+    else if (canSeeAbandonment(student)) { operation.clearError(); setAbandoning(student) }
     else if (canReenroll(student)) { operation.clearError(); setReenrolling(student) }
   }
 
@@ -205,7 +210,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       numberFrom={list.meta?.from}
       loading={list.isFetching}
       onRowClick={({ student }) => openStudent(student)}
-      rowTitle={({ student }) => (canGrade(student) ? `Añadir notas de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
+      rowTitle={({ student }) => (canGrade(student) ? `Añadir notas de ${student.name}` : canSeeAbandonment(student) ? `Ver el abandono de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
       empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />}
       columns={[
         { label: 'Estudiante', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
@@ -224,11 +229,14 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
             onValueChange={(value) => recordFinalResult(student, (value || null) as FinalResult | null)}
             emptyLabel="Sin registrar"
             options={FINAL_RESULT_OPTIONS}
-            disabled={!tutoring.can_manage || !student.is_active || operation.pending}
+            disabled={!tutoring.can_manage || !student.is_active || Boolean(student.is_abandoned) || operation.pending}
           />
           {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
         </div> },
-        { label: 'Inscripción', span: groupSpan, render: ({ student }) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
+        { label: 'Inscripción', span: groupSpan, render: ({ student }) => <div className="flex flex-col items-start gap-1">
+          <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" />
+          {student.is_abandoned && <Badge variant="warning">Abandonó</Badge>}
+        </div> },
       ]}
     />
     <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
@@ -322,7 +330,10 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       onSubmit={submitGrades}
       submitLabel="Guardar calificaciones"
       blockReason={gradesBlockReason}
-      headerActions={gradingStudent ? <IconAction label="Deshabilitar inscripción" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(gradingStudent) }} /> : undefined}
+      headerActions={gradingStudent ? <>
+        <IconAction label="Registrar abandono" icon={UserXIcon} disabled={operation.pending} onClick={() => { operation.clearError(); setAbandoning(gradingStudent) }} />
+        <IconAction label="Deshabilitar inscripción" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(gradingStudent) }} />
+      </> : undefined}
     >
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -375,6 +386,15 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       </div>
     </FormDialog>
 
+    <AbandonmentDialog
+      target={abandoning}
+      subject={tutoring.subject_name}
+      operation={operation}
+      onClose={() => setAbandoning(null)}
+      onSave={(reason) => teacherApi.setAbandonment(tutoring.id, abandoning?.id ?? 0, { abandoned: true, reason })}
+      onClear={() => teacherApi.setAbandonment(tutoring.id, abandoning?.id ?? 0, { abandoned: false })}
+      onChanged={async () => { setAbandoning(null); setGradingStudent(null); await list.reload() }}
+    />
     <ConfirmModal open={Boolean(deactivating)} title="¿Deshabilitar inscripción?" description={`${deactivating?.name ?? 'El estudiante'} dejará de participar en esta tutoría. Se conservarán sus notas y asistencias.`} confirmLabel="Deshabilitar inscripción" pending={operation.pending} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={() => { if (deactivating) void operation.run(() => teacherApi.deactivateStudent(tutoring.id, deactivating.id), 'Inscripción deshabilitada.', async () => { setDeactivating(null); setGradingStudent(null); await list.reload() }) }} />
     <ConfirmModal open={Boolean(reenrolling)} variant="default" confirmIcon={RotateCcwIcon} title={`¿Reinscribir a ${reenrolling?.name ?? 'el estudiante'}?`} description="Volverá a participar en esta tutoría con sus notas y asistencias anteriores." confirmLabel="Reinscribir estudiante" pending={operation.pending} onClose={() => { if (!operation.pending) setReenrolling(null) }} onConfirm={() => { if (reenrolling) void operation.run(() => teacherApi.enrollStudent(tutoring.id, { student_id: reenrolling.student_id }), 'Estudiante inscrito nuevamente.', async () => { setReenrolling(null); await list.reload() }) }} />
   </div>

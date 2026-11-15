@@ -46,6 +46,10 @@ export interface CoordinatorEnrollment {
   readonly student_is_active: boolean
   readonly can_edit_profile: boolean
   readonly enrolled_at: string
+  /** El estudiante abandonó la tutoría; `abandonment_reason` es el motivo que se registró. */
+  readonly is_abandoned?: boolean
+  readonly abandoned_at?: string | null
+  readonly abandonment_reason?: string | null
 }
 export type CoordinatorAvailableStudent = { readonly id: number; readonly identification: string; readonly name: string; readonly email: string }
 
@@ -260,6 +264,8 @@ export interface TutoringStudentGrades {
   readonly grades: readonly { readonly stage: TutoringGradeStage; readonly label: string; readonly value: string | null }[]
   readonly final_result: TutoringFinalResult | null
   readonly suggested_result: TutoringFinalResult | null
+  readonly is_abandoned?: boolean
+  readonly abandonment_reason?: string | null
 }
 
 /** Asignatura de la malla leída del archivo o corregida en la vista previa. */
@@ -348,6 +354,9 @@ export const tutoringApi = {
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),
   reenrollStudent: (id: number, enrollmentId: number) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/reenroll`, 'PATCH'),
+  /** Marcar el abandono exige el motivo; `abandoned: false` lo quita. */
+  setAbandonment: (id: number, enrollmentId: number, input: { abandoned: true; reason: string } | { abandoned: false }) =>
+    mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/abandonment`, 'PUT', input),
 
   allStudents: (params?: { page?: number; search?: string; career_id?: number; malla_id?: number; cycle_number?: number; without_cycle?: boolean; tutoring_status?: 'with' | 'without' }) => {
     const { without_cycle: withoutCycle, ...rest } = params ?? {}

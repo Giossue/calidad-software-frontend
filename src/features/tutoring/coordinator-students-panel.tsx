@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { PlusIcon, PowerOffIcon, RotateCcwIcon } from 'lucide-react'
+import { PlusIcon, PowerOffIcon, RotateCcwIcon, UserXIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { AbandonmentDialog } from '@/components/abandonment-dialog'
+import { Badge } from '@/components/ui/badge'
 import { PersonNameFields } from '@/components/person-name-fields'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -60,6 +62,7 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<CoordinatorEnrollment | null>(null)
   const [deactivating, setDeactivating] = useState<CoordinatorEnrollment | null>(null)
+  const [abandoning, setAbandoning] = useState<CoordinatorEnrollment | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [initial, setInitial] = useState(EMPTY_FORM)
   const [mode, setMode] = useState<Mode>('existing')
@@ -168,7 +171,10 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
         columns={[
           { label: 'Estudiante', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span></div> },
           { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
-          { label: 'Inscripción', render: (student) => <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" /> },
+          { label: 'Inscripción', render: (student) => <div className="flex flex-col items-start gap-1">
+            <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" />
+            {student.is_abandoned && <Badge variant="warning">Abandonó</Badge>}
+          </div> },
         ]}
       />
       <CatalogPagination label="estudiantes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
@@ -183,7 +189,10 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
         noChangesReason={editing && !editing.can_edit_profile ? 'Los datos de este estudiante no se pueden editar desde aquí.' : undefined}
         headerActions={editing ? (
           editing.is_active
-            ? <IconAction label="Deshabilitar inscripción" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} />
+            ? <>
+              <IconAction label={editing.is_abandoned ? 'Ver abandono' : 'Registrar abandono'} icon={UserXIcon} disabled={operation.pending} onClick={() => { operation.clearError(); setAbandoning(editing) }} />
+              <IconAction label="Deshabilitar inscripción" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(editing) }} />
+            </>
             : <IconAction label="Reinscribir estudiante" icon={RotateCcwIcon} disabled={!editing.student_is_active || operation.pending} onClick={() => void operation.run(() => tutoringApi.reenrollStudent(tutoring.id, editing.id), 'Estudiante inscrito nuevamente', async () => { setOpen(false); await list.reload() })} />
         ) : undefined}
         onClose={() => setOpen(false)}
@@ -250,6 +259,15 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
           </>
         )}
       </FormDialog>
+      <AbandonmentDialog
+        target={abandoning}
+        subject={tutoring.subject_name}
+        operation={operation}
+        onClose={() => setAbandoning(null)}
+        onSave={(reason) => tutoringApi.setAbandonment(tutoring.id, abandoning?.id ?? 0, { abandoned: true, reason })}
+        onClear={() => tutoringApi.setAbandonment(tutoring.id, abandoning?.id ?? 0, { abandoned: false })}
+        onChanged={async () => { setAbandoning(null); setOpen(false); await list.reload() }}
+      />
       <ConfirmModal
         open={Boolean(deactivating)}
         title="¿Deshabilitar inscripción?"

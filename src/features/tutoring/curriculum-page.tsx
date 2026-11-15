@@ -7,9 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { DetailPageSkeleton } from '@/components/ui/loading-skeletons'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
-import { useDetailParam } from '@/hooks/use-detail-param'
 import { isDegreeCycleNumber } from '@/lib/academic-stage'
 import { tutoringApi, type Malla, type Subject, type TutoringCareer } from '@/lib/tutoring-api'
 import { CareerBreadcrumb, CareerPicker, useSelectedCareer } from './career-picker'
@@ -90,8 +88,7 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
   const resource = useDegreeResource(() => loadMallaSubjects(careerId, mallaId), `curriculum-${careerId}-${mallaId ?? ''}`)
   const [editing, setEditing] = useState(false)
   const operation = useOperation()
-  // La asignatura abierta vive en la URL (?asignatura=<id>) para que "Atrás" vuelva a la malla.
-  const detail = useDetailParam('asignatura')
+  // La asignatura abierta en el modal; la URL no cambia.
   const [openedSubject, setOpenedSubject] = useState<Subject | null>(null)
   const [form, setForm] = useState<{ key: number; mode: SubjectFormMode | null; subject: Subject | null; cycleNumber: number | null }>({ key: 0, mode: null, subject: null, cycleNumber: null })
   const [deactivating, setDeactivating] = useState<Subject | null>(null)
@@ -122,14 +119,8 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
     return () => { document.body.style.overflow = previous }
   }, [editing])
 
-  const detailSubject = detail.id === null
-    ? null
-    : (openedSubject?.id === detail.id ? openedSubject : null) ?? subjects.find((item) => item.id === detail.id) ?? null
-
-  function openSubject(subject: Subject) {
-    setOpenedSubject(subject)
-    detail.open(subject.id)
-  }
+  const detailSubject = openedSubject
+  const closeDetail = () => setOpenedSubject(null)
 
   function openForm(mode: SubjectFormMode, subject: Subject | null, cycleNumber: number | null = null) {
     operation.clearError()
@@ -166,7 +157,7 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
       fullScreen={editing}
       operation={operation}
       canAdd={(cycle) => cycleNumbers.has(cycle)}
-      onOpen={openSubject}
+      onOpen={setOpenedSubject}
       onEdit={(subject) => openForm('edit', subject)}
       onAdd={(cycle) => openForm('create', null, cycle)}
       onDeactivate={askDeactivate}
@@ -175,26 +166,7 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
   )
 
   let content
-  if (detailSubject) {
-    content = (
-      <SubjectDetail
-        subject={detailSubject}
-        operation={operation}
-        onBack={detail.close}
-        onEdit={() => openForm('edit', detailSubject)}
-        onDeactivate={() => askDeactivate(detailSubject)}
-      />
-    )
-  } else if (detail.id !== null && resource.settled) {
-    content = (
-      <div className="flex flex-col items-start gap-4">
-        <p className="text-sm text-muted-foreground">No encontramos esta asignatura en la carrera.</p>
-        <Button type="button" variant="secondary" onClick={detail.close}>Volver a la malla</Button>
-      </div>
-    )
-  } else if (detail.id !== null) {
-    content = <DetailPageSkeleton label="Cargando asignatura" />
-  } else if (!resource.settled) {
+  if (!resource.settled) {
     // Primera carga: el mismo esqueleto que mientras cargaban las carreras. Al recargar
     // después se mantiene el lienzo con lo último cargado.
     content = <CurriculumScreenSkeleton />
@@ -222,7 +194,7 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
         <CareerBreadcrumb root="Malla curricular" career={careerName} onBack={onBack} />
         <ModuleHeader
           title="Malla curricular"
-          description={`Asignaturas de ${careerName} por ciclo y sus previas. Haz clic en una para abrirla.`}
+          description={`Asignaturas de ${careerName} por ciclo y sus previas. Haz clic en una para ver su detalle.`}
           disabled={operation.pending || catalogs.loading}
           extraActions={
             <>
@@ -253,6 +225,16 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
   return (
     <section className="flex flex-col gap-6">
       {content}
+      {/* La asignatura se abre en un modal sobre la malla; mientras se edita o se desactiva, cede su lugar. */}
+      {detailSubject && !form.mode && !deactivating && (
+        <SubjectDetail
+          subject={detailSubject}
+          operation={operation}
+          onClose={closeDetail}
+          onEdit={() => openForm('edit', detailSubject)}
+          onDeactivate={() => askDeactivate(detailSubject)}
+        />
+      )}
       <SubjectFormDialog
         key={form.key}
         catalogs={catalogs}

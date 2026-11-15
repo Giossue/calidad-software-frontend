@@ -117,7 +117,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step(HEADER, 'Malla curricular', 'La malla de la carrera como en la malla oficial: un carril por ciclo y las previas como flechas. Aquí la administras.'),
     step('[data-tour="curriculum-import"]', 'Importar malla', 'Sube la malla en Excel, CSV o PDF, revisa y corrige cada asignatura e impórtala: se crean las asignaturas con su ciclo y sus previas.'),
     step('[data-tour="curriculum-edit"]', 'Editar malla', 'Abre la malla a pantalla completa para agregar asignaturas en cada ciclo, editarlas y conectar sus previas.'),
-    step('[data-tour="curriculum-canvas"]', 'Malla', 'Cada flecha va de una previa a la asignatura que la requiere. Usa los controles de zoom o la leyenda de arriba y haz clic en una asignatura para abrirla.'),
+    step('[data-tour="curriculum-canvas"]', 'Malla', 'Cada flecha va de una previa a la asignatura que la requiere. Usa los controles de zoom o la leyenda de arriba y haz clic en una asignatura para ver su detalle en un modal.'),
   ],
   'tutoring-curriculum/editor': [
     step('[data-tour="curriculum-back"]', 'Volver a la vista', 'Termina de editar y regresa a la vista de la malla.'),
@@ -125,8 +125,6 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     step('[data-tour="curriculum-canvas"]', 'Conectar previas', 'Arrastra desde el círculo verde de una asignatura hasta otra de un ciclo posterior para conectar su previa; pulsa una flecha para quitarla. El menú «⋯» de cada asignatura la edita o la desactiva.'),
   ],
   'tutoring-curriculum/detail': [
-    back('Volver a la malla', 'Regresa a la malla curricular.'),
-    step(HEADER, 'Asignatura', 'Su código, ciclo y estado.'),
     step({ button: 'Editar asignatura' }, 'Editar asignatura', 'Cambia el nombre, el código o la modalidad.'),
     step({ button: 'Desactivar asignatura' }, 'Desactivar asignatura', 'Deja de ofrecer la asignatura.'),
     step('[data-tour="subject-data"]', 'Datos', 'Su código, ciclo, modalidad, previas y en cuál continúa. Las previas se conectan en «Editar malla»; los paralelos se eligen al crear cada tutoría del período.'),

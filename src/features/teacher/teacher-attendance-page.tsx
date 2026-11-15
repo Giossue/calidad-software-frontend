@@ -426,7 +426,7 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
 type JointClass = Readonly<{ group: ClassGroup; students: readonly Enrollment[]; session: TutoringSession | null; notices: readonly TeacherAbsenceNotice[] }>
 
 const activeStudents = (students: readonly Enrollment[]) =>
-  students.filter((student) => student.is_active && student.student_is_active).sort((a, b) => compareNames(a.name, b.name))
+  students.filter((student) => student.is_active && student.student_is_active && !student.is_abandoned).sort((a, b) => compareNames(a.name, b.name))
 
 function SessionForm({
   tutoring,

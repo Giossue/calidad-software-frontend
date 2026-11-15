@@ -110,11 +110,11 @@ describe('Malla visual (lienzo como en sílabos)', () => {
     expect(within(canvas).getByRole('button', { name: 'Ajustar la malla al ancho disponible' })).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('al pulsar una asignatura abre su pantalla', async () => {
+  it('al pulsar una asignatura abre su modal', async () => {
     const user = userEvent.setup()
     renderCurriculum()
     await user.click(await screen.findByRole('button', { name: 'Abrir Matemática' }))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Matemática' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Matemática' })).toBeInTheDocument()
   })
 
   it('«Editar malla» abre la edición a pantalla completa con «Agregar asignatura» en cada ciclo, que registra en ese ciclo', async () => {

@@ -426,6 +426,47 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(form).not.toBeInTheDocument())
   })
 
+  it('registra el abandono con su motivo desde el modal del estudiante y lo marca en la lista', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.setAbandonment).mockResolvedValue({ ...student, is_abandoned: true, abandonment_reason: 'Consiguió trabajo' })
+    workspace('students')
+    await user.click(await screen.findByText('Ana Pérez'))
+    await user.click(within(screen.getByRole('dialog', { name: 'Calificaciones del estudiante' })).getByRole('button', { name: 'Registrar abandono' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Registrar abandono' })
+    const submit = within(dialog).getByRole('button', { name: 'Registrar abandono' })
+    expect(submit).toBeDisabled()
+    await user.type(within(dialog).getByLabelText(/^Motivo/), 'Consiguió trabajo')
+    expect(submit).toBeEnabled()
+    await user.click(submit)
+
+    await waitFor(() => expect(teacherApi.setAbandonment).toHaveBeenCalledWith(40, 70, { abandoned: true, reason: 'Consiguió trabajo' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrar abandono' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
+  })
+
+  it('un estudiante que abandonó se marca, no admite notas ni resultado final y su fila muestra el motivo para quitarlo', async () => {
+    const user = userEvent.setup()
+    const abandoned = { ...student, is_abandoned: true, abandoned_at: '2026-09-29T12:00:00Z', abandonment_reason: 'Se mudó de ciudad' }
+    vi.mocked(teacherApi.students).mockResolvedValue(paginated([abandoned]))
+    vi.mocked(teacherApi.setAbandonment).mockResolvedValue({ ...student, is_abandoned: false })
+    workspace('students')
+    expect(await screen.findByText('Abandonó')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Resultado final de Ana Pérez' })).toBeDisabled()
+
+    await user.click(screen.getByText('Ana Pérez'))
+    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Abandono de la tutoría' })
+    expect(within(dialog).getByLabelText(/^Motivo/)).toHaveValue('Se mudó de ciudad')
+    expect(within(dialog).getByRole('button', { name: 'Guardar motivo' })).toBeDisabled()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar abandono' }))
+    const confirm = await screen.findByRole('dialog', { name: '¿Quitar el abandono?' })
+    expect(teacherApi.setAbandonment).not.toHaveBeenCalled()
+    await user.click(within(confirm).getByRole('button', { name: 'Quitar abandono' }))
+    await waitFor(() => expect(teacherApi.setAbandonment).toHaveBeenCalledWith(40, 70, { abandoned: false }))
+  })
+
   it('reinscribe con clic en la fila de una inscripción deshabilitada, tras confirmar', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, is_active: false }]))
@@ -615,6 +656,20 @@ describe('Módulo Docente', () => {
     await user.click(save)
     await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledWith(40, { date: today, topics_covered: false, topic_ids: [], attendance: [{ enrollment_id: 70, present: false }] }))
     expect(sessionStorage.getItem(`attendance-draft:40:${today}`)).toBeNull()
+  })
+
+  it('la asistencia y la carga de notas por etapa no incluyen a quien abandonó la tutoría', async () => {
+    const user = userEvent.setup()
+    const abandoned = { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222', is_abandoned: true, abandonment_reason: 'Se mudó de ciudad' }
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([student, abandoned])
+    attendance()
+    await screen.findByRole('checkbox', { name: 'Presente: Ana Pérez' })
+    expect(screen.queryByRole('checkbox', { name: 'Presente: Luis Mora' })).not.toBeInTheDocument()
+    cleanup()
+    workspace('grades')
+    await pickStage(user, /^Diagnóstico/)
+    expect(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Diagnóstico de Luis Mora' })).not.toBeInTheDocument()
   })
 
   it('muestra el aviso de inasistencia del estudiante y el docente decide presente o ausente', async () => {
