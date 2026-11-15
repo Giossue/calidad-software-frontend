@@ -416,7 +416,7 @@ input[type='search']::-webkit-search-decoration {
 
   table[data-stacked] tbody tr {
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: calc(var(--radius) - 2px);
     background: var(--card);
     padding: 0.25rem 0;
   }
@@ -597,7 +597,7 @@ input[type='search']::-webkit-search-decoration {
   --xy-controls-button-color-hover: var(--foreground);
   --xy-controls-button-border-color: var(--border);
   --xy-controls-box-shadow: var(--shadow-menu);
-  --xy-node-border-radius: var(--radius);
+  --xy-node-border-radius: calc(var(--radius) - 2px);
 }
 
 .dark .curriculum-canvas {
@@ -621,7 +621,7 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .curriculum-canvas .react-flow__controls {
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) - 2px);
   overflow: hidden;
 }
 

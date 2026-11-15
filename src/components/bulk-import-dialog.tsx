@@ -176,7 +176,7 @@ function ImportRowsTable({ tone, title, description, rows }: Readonly<{ tone: 'w
         {title} ({rows.length})
       </h3>
       {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      <div className={cn('max-h-56 overflow-auto rounded-lg border', tone === 'warning' && 'border-amber-200 dark:border-amber-900')}>
+      <div className={cn('max-h-56 overflow-auto rounded-md border', tone === 'warning' && 'border-amber-200 dark:border-amber-900')}>
         <table className="w-full text-left text-sm">
           <caption className="sr-only">{title}</caption>
           <thead className={cn('sticky top-0', tone === 'warning' ? 'bg-amber-50 dark:bg-amber-950/60' : 'bg-muted')}>

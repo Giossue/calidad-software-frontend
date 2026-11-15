@@ -70,7 +70,7 @@ export function FilterBar({ id, search, onSearch, searchPlaceholder, searchLabel
         return filter.disabled && filter.disabledReason ? (
           <Tooltip key={filter.id}>
             <TooltipTrigger asChild>
-              <div tabIndex={0} className="min-w-40 flex-1 cursor-not-allowed rounded-lg focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:w-48 sm:flex-none [&_button]:pointer-events-none">
+              <div tabIndex={0} className="min-w-40 flex-1 cursor-not-allowed rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:w-48 sm:flex-none [&_button]:pointer-events-none">
                 {select}
               </div>
             </TooltipTrigger>

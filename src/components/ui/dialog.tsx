@@ -115,15 +115,15 @@ export function Dialog({
   return (
     <DialogContext.Provider value={{ requestClose: handleAttemptClose }}>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-        {/* Fondo negro casi opaco, igual que en sílabos. Clic fuera no cierra. */}
-        <div className="fixed inset-0 bg-overlay/95 animate-in fade-in-0 duration-200" />
+        {/* Fondo difuminado con un oscurecido suave: no tapa del todo la pantalla. Clic fuera no cierra. */}
+        <div className="fixed inset-0 bg-overlay/40 backdrop-blur-sm animate-in fade-in-0 duration-200" />
 
         <div
           role="dialog"
           aria-modal="true"
           aria-label={title}
           className={cn(
-            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-md bg-card text-card-foreground shadow-modal ring-1 ring-surface-ring animate-in fade-in-0 zoom-in-95 duration-200',
+            'relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-md bg-card text-card-foreground shadow-modal ring-1 ring-surface-ring animate-in fade-in-0 zoom-in-95 duration-200',
             maxWidth,
           )}
         >
@@ -145,7 +145,7 @@ export function Dialog({
           {/* Modal de confirmación emergente para descartar cambios en curso */}
           {showConfirm && (
             <div
-              className="absolute inset-0 z-30 flex items-center justify-center rounded-md bg-overlay/95 p-6 animate-in fade-in duration-150"
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-md bg-overlay/40 p-6 backdrop-blur-sm animate-in fade-in duration-150"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex w-full max-w-md flex-col gap-4 rounded-md bg-card p-6 text-center shadow-modal ring-1 ring-surface-ring animate-in zoom-in-95 duration-150">

@@ -44,7 +44,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-bg": "var(--foreground)",
           "--normal-text": "var(--background)",
           "--normal-border": "var(--foreground)",
-          "--border-radius": "var(--radius)",
+          "--border-radius": "calc(var(--radius) - 2px)",
         } as React.CSSProperties
       }
       {...props}

@@ -67,11 +67,11 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
     >
       <div className="flex flex-col gap-5 py-2">
         {/* Banner de la aplicación */}
-        <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/40 p-4">
+        <div className="flex items-center gap-4 rounded-md border border-border bg-muted/40 p-4">
           <img
             src="/ueb-logo.png"
             alt="Logo UEB"
-            className="size-14 rounded-lg object-contain bg-white p-1 shadow-2xs"
+            className="size-14 rounded-md object-contain bg-white p-1 shadow-2xs"
           />
           <div className="flex flex-col">
             <h4 className="text-sm font-semibold text-foreground">
@@ -114,7 +114,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
         {/* Acciones principales */}
         <div className="flex flex-col gap-3 pt-2">
           {isInstalled ? (
-            <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
+            <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
               <CheckCircle2Icon className="size-4 shrink-0" />
               <span>
                 {isMobile
@@ -137,7 +137,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
                   : 'Instalar en el Escritorio ahora'}
             </Button>
           ) : isIos ? (
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+            <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-2 font-semibold text-foreground">
                 <ShareIcon className="size-4 text-foreground" />
                 <span>Cómo instalar en iPhone / iPad:</span>
@@ -149,7 +149,7 @@ export function PwaInstallDialog({ open, onClose }: PwaInstallDialogProps) {
               </ol>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+            <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-2 font-semibold text-foreground">
                 {isMobile ? (
                   <SmartphoneIcon className="size-4 text-foreground" />

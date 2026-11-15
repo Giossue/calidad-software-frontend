@@ -121,7 +121,7 @@ export function SearchSelect({ id, query, onQueryChange, options, selected, onSe
             if (anchorRef.current?.contains(event.target as Node)) event.preventDefault()
           }}
           style={{ width: 'var(--radix-popover-trigger-width)' }}
-          className="z-[100] rounded-lg border border-input bg-popover p-1 text-popover-foreground shadow-md"
+          className="z-[100] rounded-md border border-input bg-popover p-1 text-popover-foreground shadow-md"
         >
           <ul id={listId} role="listbox" className="max-h-56 overflow-y-auto">
             {options.length === 0 ? (

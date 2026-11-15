@@ -53,7 +53,7 @@ export function TopicFileList<T extends TopicFileItem>({ files, onDownload, onRe
         const Icon = kind.icon
         const pending = pendingLabel?.(file)
         return (
-          <li key={file.key} className="flex min-w-0 items-center gap-3 rounded-lg border bg-card px-3 py-2">
+          <li key={file.key} className="flex min-w-0 items-center gap-3 rounded-md border bg-card px-3 py-2">
             <Icon aria-hidden="true" className={cn('size-5 shrink-0', kind.className)} />
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-sm font-medium text-foreground" title={file.name}>{file.name}</span>

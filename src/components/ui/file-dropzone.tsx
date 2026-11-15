@@ -67,7 +67,7 @@ export function FileDropzone({
         onDragLeave={() => setDragging(false)}
         onDrop={drop}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-input bg-muted/30 px-6 py-8 text-center transition-colors',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-input bg-muted/30 px-6 py-8 text-center transition-colors',
           'hover:bg-muted/60 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
           dragging && 'border-primary bg-primary/5',
           disabled && 'pointer-events-none opacity-50',
@@ -89,7 +89,7 @@ export function FileDropzone({
       </label>
 
       {file && (
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+        <div className="flex items-center gap-3 rounded-md border bg-card p-3">
           <FileSpreadsheetIcon className="size-5 shrink-0 text-primary" aria-hidden="true" />
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-sm font-medium">{file.name}</span>
