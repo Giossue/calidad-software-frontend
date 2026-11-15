@@ -27,7 +27,9 @@ import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import type { Cycle } from '@/lib/api'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
-import { formatSubjectName, sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { formatSubjectName, sanitizeDigits } from '@/lib/sanitize'
+import { firstNamesError, lastNamesError, normalizeName } from '@/lib/person-name'
+import { PersonNameFields } from '@/components/person-name-fields'
 import {
   tutoringApi,
   type CoordinatorStudent,
@@ -69,7 +71,8 @@ function useCareerParam(careers: readonly Career[]) {
 
 const EMPTY_STUDENT_FORM = {
   identification: '',
-  name: '',
+  first_names: '',
+  last_names: '',
   email: '',
   phone: '',
   cycle_id: '',
@@ -218,7 +221,8 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
     event.preventDefault()
     const input = {
       identification: form.identification.trim(),
-      name: form.name.trim(),
+      first_names: normalizeName(form.first_names),
+      last_names: normalizeName(form.last_names),
       email: form.email.trim().toLowerCase(),
       phone: form.phone.trim() || null,
       cycle_id: Number(form.cycle_id),
@@ -255,9 +259,10 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
   const isEmailValid = isInstitutionalEmail(form.email)
 
   // Primer error de validación: bloquea "Registrar estudiante" y se muestra en su tooltip.
-  // En el orden de los campos: nombre, cédula y correo.
+  // En el orden de los campos: nombres, apellidos, cédula y correo.
   const dataBlockReason =
-    (!form.name.trim() ? 'El nombre es obligatorio.' : null) ??
+    (!normalizeName(form.first_names) ? 'Los nombres son obligatorios.' : firstNamesError(form.first_names)) ??
+    (!normalizeName(form.last_names) ? 'Los apellidos son obligatorios.' : lastNamesError(form.last_names)) ??
     (!form.identification ? 'La cédula o pasaporte es obligatoria.' : !isCedulaValid ? 'La cédula o pasaporte no es válido.' : null) ??
     (!form.email ? 'El correo institucional es obligatorio.' : !isEmailValid ? `El correo debe terminar en ${institutionalEmailDomainsLabel}.` : null)
   const createBlockReason = dataBlockReason ?? (!form.cycle_id ? 'Selecciona el ciclo que cursa el estudiante.' : null)
@@ -663,20 +668,18 @@ function StudentsWorkspace({ catalogs, careerId, onBack, screen }: Readonly<{ ca
           {
             title: 'Datos del estudiante',
             blockReason: dataBlockReason,
-            fields: ['name', 'identification', 'email', 'phone'],
+            fields: ['first_names', 'last_names', 'identification', 'email', 'phone'],
             content: (
               <>
-                <FormField id="new-student-name" label="Nombres y apellidos" required counter={{ current: form.name.length, max: 150 }} error={operation.fieldError('name')}>
-                  <Input
-                    id="new-student-name"
-                    aria-invalid={Boolean(operation.fieldError('name'))}
-                    required
-                    maxLength={150}
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: sanitizeLetters(e.target.value, 150) })}
-                    placeholder="Juan Carlos Pérez Rodríguez"
-                  />
-                </FormField>
+                <PersonNameFields
+                  idPrefix="new-student"
+                  firstNames={form.first_names}
+                  lastNames={form.last_names}
+                  onFirstNamesChange={(value) => setForm({ ...form, first_names: value })}
+                  onLastNamesChange={(value) => setForm({ ...form, last_names: value })}
+                  errors={{ first_names: operation.fieldError('first_names'), last_names: operation.fieldError('last_names') }}
+                  required
+                />
 
                 <FormField
                   id="new-student-cedula"

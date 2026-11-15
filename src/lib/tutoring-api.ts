@@ -147,7 +147,9 @@ export type SubjectInput = {
   /** Asignaturas que continúan a esta en la malla. */
   next_subject_ids?: readonly number[]
 }
-export type TeacherInput = { career_id: number; identification: string; name: string; email: string; phone: string }
+export type TeacherInput = { career_id: number; identification: string; first_names: string; last_names: string; email: string; phone: string }
+/** Al editar, los nombres y apellidos se envían juntos y solo cuando cambian. */
+export type TeacherUpdateInput = Omit<TeacherInput, 'career_id' | 'first_names' | 'last_names'> & Partial<Pick<TeacherInput, 'first_names' | 'last_names'>>
 export type TutoringInput = {
   subject_id: number
   /**
@@ -276,7 +278,7 @@ export const tutoringApi = {
   linkTeacherToCareer: (teacherId: number, careerId: number) => mutate<Teacher>(`teachers/${teacherId}/careers`, 'POST', { career_id: careerId }),
   unlinkTeacherFromCareer: (teacherId: number, careerId: number) => mutate<Teacher>(`teachers/${teacherId}/careers/${careerId}`, 'DELETE'),
   createTeacher: (input: TeacherInput) => mutate<Teacher>('teachers', 'POST', input),
-  updateTeacher: (id: number, input: Omit<TeacherInput, 'career_id'>) => mutate<Teacher>(`teachers/${id}`, 'PATCH', input),
+  updateTeacher: (id: number, input: TeacherUpdateInput) => mutate<Teacher>(`teachers/${id}`, 'PATCH', input),
   tutorings: (params?: TutoringListParams) => request<PaginatedResourceCollection<Tutoring, TutoringListMeta>>(`${ROOT}/tutorings${buildQuery(params ?? {})}`),
   createTutoring: (input: TutoringInput) => mutate<Tutoring>('tutorings', 'POST', input),
   updateTutoring: (id: number, input: Pick<TutoringInput, 'period_id' | 'modality_id'>) => mutate<Tutoring>(`tutorings/${id}`, 'PATCH', input),
@@ -301,9 +303,10 @@ export const tutoringApi = {
     request<PaginatedResourceCollection<CoordinatorEnrollment>>(`${ROOT}/tutorings/${id}/students${buildQuery(params ?? {})}`),
   availableStudents: (id: number, search?: string) =>
     request<{ data: readonly CoordinatorAvailableStudent[] }>(`${ROOT}/tutorings/${id}/available-students${buildQuery({ search: search ?? '' })}`),
-  enrollStudent: (id: number, input: { student_id?: number; identification?: string; name?: string; email?: string; phone?: string | null }) =>
+  enrollStudent: (id: number, input: { student_id?: number; identification?: string; first_names?: string; last_names?: string; email?: string; phone?: string | null }) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students`, 'POST', input),
-  updateStudent: (id: number, enrollmentId: number, input: { name: string; phone: string | null }) =>
+  /** Los nombres y apellidos se envían juntos y solo cuando cambian. */
+  updateStudent: (id: number, enrollmentId: number, input: { first_names?: string; last_names?: string; phone: string | null }) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}`, 'PATCH', input),
   deactivateStudent: (id: number, enrollmentId: number) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/deactivate`, 'PATCH'),
@@ -316,7 +319,7 @@ export const tutoringApi = {
   },
   updateStudentCycle: (studentId: number, cycleId: number) =>
     request<{ data: CoordinatorStudent }>(`${ROOT}/students/${studentId}/cycle`, { method: 'PATCH', body: JSON.stringify({ cycle_id: cycleId }) }),
-  createCoordinatorStudent: (input: { identification: string; name: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number; career_id?: number }) =>
+  createCoordinatorStudent: (input: { identification: string; first_names: string; last_names: string; email: string; phone?: string | null; cycle_id: number; tutoring_id?: number; career_id?: number }) =>
     request<{ data: CoordinatorStudent }>(`${ROOT}/students`, { method: 'POST', body: JSON.stringify(input) }),
   availableTutoringsForStudent: (studentId: number, search?: string) =>
     request<{ data: readonly Tutoring[] }>(`${ROOT}/students/${studentId}/available-tutorings${buildQuery({ search: search ?? '' })}`),

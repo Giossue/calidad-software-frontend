@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { CheckCircle2Icon, LinkIcon, XCircleIcon } from 'lucide-react'
 
 import { BulkImportButton } from '@/components/bulk-import-dialog'
+import { PersonNameFields } from '@/components/person-name-fields'
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -14,7 +15,8 @@ import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { firstNamesError, lastNamesError, normalizeName, splitStoredName } from '@/lib/person-name'
+import { sanitizeDigits } from '@/lib/sanitize'
 import { tutoringApi, type AvailableTeacher, type Teacher } from '@/lib/tutoring-api'
 import { cn } from '@/lib/utils'
 import { FilterBar } from './filter-bar'
@@ -29,7 +31,7 @@ import { useOperation, useTutoringCatalogs } from './tutoring-hooks'
 
 const TEACHER_HEADERS = ['Docente', 'Correo', 'Teléfono', 'Estado'] as const
 
-const EMPTY_FORM = { career_id: '', identification: '', name: '', email: '', phone: '' }
+const EMPTY_FORM = { career_id: '', identification: '', first_names: '', last_names: '', email: '', phone: '' }
 
 /** `screen`: se muestra como pestaña de «Usuarios» (su título y sus pestañas). */
 export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScreen }> = {}) {
@@ -113,8 +115,9 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
     const defaultCareerId = (careerFilter && catalogs.careers.some((c) => String(c.id) === careerFilter))
       ? careerFilter
       : (catalogs.careers[0] ? String(catalogs.careers[0].id) : '')
+    const storedName = splitStoredName(teacher?.name)
     const next = teacher
-      ? { career_id: String(teacher.career_ids[0] ?? defaultCareerId), identification: teacher.identification ?? '', name: teacher.name ?? '', email: teacher.email ?? '', phone: teacher.phone ?? '' }
+      ? { career_id: String(teacher.career_ids[0] ?? defaultCareerId), identification: teacher.identification ?? '', first_names: storedName.firstNames, last_names: storedName.lastNames, email: teacher.email ?? '', phone: teacher.phone ?? '' }
       : { ...EMPTY_FORM, career_id: defaultCareerId }
     setEditing(teacher)
     setForm(next)
@@ -129,15 +132,16 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
     // Si el docente ya completó su perfil, su cédula y su correo no se modifican.
     const input = {
       identification: editing && identityLocked ? (editing.identification ?? '') : form.identification.trim(),
-      name: form.name.trim(),
       email: editing && identityLocked ? editing.email : form.email.trim().toLowerCase(),
       phone: form.phone.trim(),
     }
+    const names = { first_names: normalizeName(form.first_names), last_names: normalizeName(form.last_names) }
     let updated: Teacher | null = null
     void operation.run(
       async () => {
-        if (editing) updated = await tutoringApi.updateTeacher(editing.id, input)
-        else await tutoringApi.createTeacher({ ...input, career_id: careerId })
+        // Al editar, el nombre registrado se conserva si no se tocan los nombres ni los apellidos.
+        if (editing) updated = await tutoringApi.updateTeacher(editing.id, namesChanged ? { ...input, ...names } : input)
+        else await tutoringApi.createTeacher({ career_id: careerId, identification: input.identification, ...names, email: input.email, phone: input.phone })
       },
       editing ? 'Docente actualizado' : 'Docente registrado',
       async () => { setOpen(false); if (updated) setOpenedTeacher(updated); await list.reload() },
@@ -150,13 +154,20 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
   }
 
   // Errores de validación en vivo; el primero bloquea "Guardar" y se explica en su tooltip.
-  const teacherErrors: Partial<Record<'identification' | 'name' | 'email' | 'phone', string>> = {}
+  const teacherErrors: Partial<Record<'identification' | 'first_names' | 'last_names' | 'email' | 'phone', string>> = {}
+  const namesChanged = !editing || form.first_names !== initialForm.first_names || form.last_names !== initialForm.last_names
   // Al editar solo se valida la cédula si cambió (los datos ya registrados no bloquean «Guardar»).
   if (!identityLocked && (!editing || form.identification.trim() !== editing.identification)) {
     if (!form.identification.trim()) teacherErrors.identification = 'La cédula o pasaporte es obligatoria.'
     else if (!isValidIdentification(form.identification)) teacherErrors.identification = 'La cédula o pasaporte no es válida.'
   }
-  if (!form.name.trim()) teacherErrors.name = 'El nombre es obligatorio.'
+  // Al editar, los nombres y apellidos ya registrados no bloquean «Guardar»; solo se validan si cambian.
+  if (namesChanged) {
+    const firstNamesProblem = normalizeName(form.first_names) ? firstNamesError(form.first_names) : 'Los nombres son obligatorios.'
+    const lastNamesProblem = normalizeName(form.last_names) ? lastNamesError(form.last_names) : 'Los apellidos son obligatorios.'
+    if (firstNamesProblem) teacherErrors.first_names = firstNamesProblem
+    if (lastNamesProblem) teacherErrors.last_names = lastNamesProblem
+  }
   if (!form.email.trim()) teacherErrors.email = 'El correo institucional es obligatorio.'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) teacherErrors.email = 'Escribe un correo electrónico válido.'
   if (!form.phone.trim()) teacherErrors.phone = 'El teléfono es obligatorio.'
@@ -253,9 +264,16 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
       onSubmit={submit}
       submitLabel={editing ? 'Guardar cambios' : 'Registrar docente'}
     >
-      <FormField id="teacher-name" label="Nombre completo" required counter={{ current: form.name.length, max: 150 }} error={operation.fieldError('name')}>
-        <Input id="teacher-name" aria-invalid={Boolean(operation.fieldError('name'))} value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} required maxLength={150} autoComplete="name" placeholder="Nombre y apellido del docente" />
-      </FormField>
+      <PersonNameFields
+        idPrefix="teacher"
+        firstNames={form.first_names}
+        lastNames={form.last_names}
+        onFirstNamesChange={(value) => setForm({ ...form, first_names: value })}
+        onLastNamesChange={(value) => setForm({ ...form, last_names: value })}
+        errors={{ first_names: operation.fieldError('first_names'), last_names: operation.fieldError('last_names') }}
+        // Al editar solo son obligatorios si se cambian (un nombre que no se puede separar queda vacío).
+        required={namesChanged}
+      />
       <FormField
         id="teacher-identification"
         label="Cédula o pasaporte"

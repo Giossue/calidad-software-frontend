@@ -544,19 +544,21 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar docente nuevo' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Registrar docente nuevo' }))
     const form = screen.getByRole('form', { name: 'Registrar docente' })
-    // Primero el nombre; los cuatro datos son obligatorios.
+    // Primero los nombres y luego los apellidos; los cinco datos son obligatorios.
     const labels = [...form.querySelectorAll('label')].map((label) => label.textContent ?? '')
-    expect(labels[0]).toMatch(/^Nombre completo/)
-    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(4)
+    expect(labels[0]).toMatch(/^Nombres/)
+    expect(labels[1]).toMatch(/^Apellidos/)
+    expect(within(form).queryByLabelText(/^Nombre completo/)).not.toBeInTheDocument()
+    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(5)
 
     const identification = within(form).getByLabelText(/^Cédula o pasaporte/)
     await user.type(identification, '17-1003 4065.')
     expect(identification).toHaveValue('1710034065')
     expect(within(form).getByLabelText('Identificación válida')).toBeInTheDocument()
 
-    const name = within(form).getByLabelText(/^Nombre completo/)
-    await user.type(name, 'Ana123 Torres')
-    expect(name).toHaveValue('Ana Torres')
+    const firstNames = within(form).getByLabelText(/^Nombres/)
+    await user.type(firstNames, 'Ana123 María')
+    expect(firstNames).toHaveValue('Ana María')
 
     const phone = within(form).getByLabelText(/^Teléfono/)
     await user.type(phone, 'abc0991234567xyz')
@@ -584,14 +586,87 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByRole('tablist', { name: 'Secciones del docente' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Editar docente' }))
     const form = screen.getByRole('form', { name: 'Editar docente' })
-    await user.clear(within(form).getByLabelText(/^Nombre completo/))
-    await user.type(within(form).getByLabelText(/^Nombre completo/), 'Ana María Torres')
+    // «Ana Torres» no se puede separar con seguridad: los campos empiezan vacíos.
+    expect(within(form).getByLabelText(/^Nombres/)).toHaveValue('')
+    expect(within(form).getByLabelText(/^Apellidos/)).toHaveValue('')
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana María')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Torres')
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
-    await waitFor(() => expect(tutoringApi.updateTeacher).toHaveBeenCalledWith(1, { identification: '0201234567', name: 'Ana María Torres', email: 'ana@ueb.edu.ec', phone: '0999999999' }))
+    await waitFor(() => expect(tutoringApi.updateTeacher).toHaveBeenCalledWith(1, { identification: '0201234567', first_names: 'Ana María', last_names: 'Torres', email: 'ana@ueb.edu.ec', phone: '0999999999' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Ana María Torres' })).toBeInTheDocument()
 
     // Desactivar la cuenta es tarea del administrador: el coordinador solo lo quita de su carrera.
     expect(screen.queryByRole('button', { name: 'Desactivar docente' })).not.toBeInTheDocument()
+  })
+
+  it('registra un docente con nombres y apellidos por separado y no deja guardar tres nombres', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.createTeacher).mockResolvedValue({ id: 9, name: 'Torres Vera Ana María', identification: '1710034065', email: 'ana.torres@ueb.edu.ec', phone: '0991234567', is_active: true, career_ids: [career.id], can_manage: true })
+    renderTeachers()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar docente nuevo' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Registrar docente nuevo' }))
+    const form = screen.getByRole('form', { name: 'Registrar docente' })
+    await user.type(within(form).getByLabelText(/^Cédula o pasaporte/), '1710034065')
+    await user.type(within(form).getByLabelText(/^Correo institucional/), 'ana.torres@ueb.edu.ec')
+    await user.type(within(form).getByLabelText(/^Teléfono/), '0991234567')
+    const submit = within(form).getByRole('button', { name: 'Registrar docente' })
+    expect(submit).toBeDisabled()
+
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana María José')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Torres Vera')
+    expect(within(form).getByText('Ingresa uno o dos nombres.')).toBeInTheDocument()
+    expect(submit).toBeDisabled()
+
+    await user.clear(within(form).getByLabelText(/^Nombres/))
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana  María ')
+    await user.click(submit)
+    await waitFor(() => expect(tutoringApi.createTeacher).toHaveBeenCalledWith({ career_id: career.id, identification: '1710034065', first_names: 'Ana María', last_names: 'Torres Vera', email: 'ana.torres@ueb.edu.ec', phone: '0991234567' }))
+  })
+
+  it('al editar un docente precarga sus nombres y apellidos y, si no cambian, guarda los demás datos sin enviarlos', async () => {
+    const user = userEvent.setup()
+    const teacher = { id: 1, name: 'Torres Vera Ana María', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [10], can_manage: true }
+    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher]))
+    vi.mocked(tutoringApi.updateTeacher).mockResolvedValue({ ...teacher, phone: '0988888888' })
+    renderTeachers()
+    await user.click(await screen.findByTitle('Abrir a Torres Vera Ana María'))
+    await user.click(await screen.findByRole('button', { name: 'Editar docente' }))
+    const form = screen.getByRole('form', { name: 'Editar docente' })
+    expect(within(form).getByLabelText(/^Nombres/)).toHaveValue('Ana María')
+    expect(within(form).getByLabelText(/^Apellidos/)).toHaveValue('Torres Vera')
+    await user.clear(within(form).getByLabelText(/^Teléfono/))
+    await user.type(within(form).getByLabelText(/^Teléfono/), '0988888888')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(tutoringApi.updateTeacher).toHaveBeenCalledWith(1, { identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0988888888' }))
+  })
+
+  it('al editar un docente cuyo nombre no se puede separar guarda los demás datos sin pedir nombres', async () => {
+    const user = userEvent.setup()
+    const teacher = { id: 1, name: 'Ana Torres', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [10], can_manage: true }
+    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher]))
+    vi.mocked(tutoringApi.updateTeacher).mockResolvedValue({ ...teacher, phone: '0988888888' })
+    renderTeachers()
+    await user.click(await screen.findByTitle('Abrir a Ana Torres'))
+    await user.click(await screen.findByRole('button', { name: 'Editar docente' }))
+    const form = screen.getByRole('form', { name: 'Editar docente' })
+    expect(within(form).getByLabelText(/^Nombres/)).toHaveValue('')
+    await user.clear(within(form).getByLabelText(/^Teléfono/))
+    await user.type(within(form).getByLabelText(/^Teléfono/), '0988888888')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(tutoringApi.updateTeacher).toHaveBeenCalledWith(1, { identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0988888888' }))
+  })
+
+  it('al editar un docente no deja guardar si se borran los apellidos', async () => {
+    const user = userEvent.setup()
+    const teacher = { id: 1, name: 'Torres Vera Ana María', identification: '0201234567', email: 'ana@ueb.edu.ec', phone: '0999999999', is_active: true, career_ids: [10], can_manage: true }
+    vi.mocked(tutoringApi.teachers).mockResolvedValue(paginated([teacher]))
+    renderTeachers()
+    await user.click(await screen.findByTitle('Abrir a Torres Vera Ana María'))
+    await user.click(await screen.findByRole('button', { name: 'Editar docente' }))
+    const form = screen.getByRole('form', { name: 'Editar docente' })
+    await user.clear(within(form).getByLabelText(/^Apellidos/))
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    expect(tutoringApi.updateTeacher).not.toHaveBeenCalled()
   })
 
   it('filtra docentes por estado', async () => {
@@ -1279,7 +1354,67 @@ describe('Coordinación de tutorías', () => {
     await user.type(within(form).getByLabelText(/^Teléfono/), '0991234567')
     expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
-    await waitFor(() => expect(tutoringApi.updateStudent).toHaveBeenCalledWith(40, 5, { name: 'Luis Pérez', phone: '0991234567' }))
+    // Sin tocar los nombres ni los apellidos, se conserva el nombre registrado.
+    await waitFor(() => expect(tutoringApi.updateStudent).toHaveBeenCalledWith(40, 5, { phone: '0991234567' }))
+  })
+
+  it('en el panel de estudiantes precarga nombres y apellidos al editar y los envía separados si cambian', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Torres Vera Ana María', email: 'ana@ueb.edu.ec', phone: '0991234567', is_active: true, student_is_active: true, can_edit_profile: true, enrolled_at: '2026-09-01' },
+    ]))
+    vi.mocked(tutoringApi.updateStudent).mockResolvedValue({} as never)
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await user.click(await screen.findByTitle('Ver o editar a Torres Vera Ana María'))
+    const form = await screen.findByRole('form', { name: 'Editar estudiante' })
+    const labels = [...form.querySelectorAll('label[for]')].map((label) => label.textContent ?? '')
+    expect(labels[0]).toMatch(/^Nombres/)
+    expect(labels[1]).toMatch(/^Apellidos/)
+    expect(within(form).getByLabelText(/^Nombres/)).toHaveValue('Ana María')
+    expect(within(form).getByLabelText(/^Apellidos/)).toHaveValue('Torres Vera')
+
+    await user.clear(within(form).getByLabelText(/^Apellidos/))
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Torres  Mora')
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(tutoringApi.updateStudent).toHaveBeenCalledWith(40, 5, { first_names: 'Ana María', last_names: 'Torres Mora', phone: '0991234567' }))
+  })
+
+  it('en el panel de estudiantes no deja editar nombres ni apellidos de una cuenta que no se edita desde aquí', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([
+      { id: 5, tutoring_id: 40, student_id: 9, identification: '0201234567', name: 'Torres Vera Ana María', email: 'ana@ueb.edu.ec', phone: null, is_active: true, student_is_active: true, can_edit_profile: false, enrolled_at: '2026-09-01' },
+    ]))
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await user.click(await screen.findByTitle('Ver o editar a Torres Vera Ana María'))
+    const form = await screen.findByRole('form', { name: 'Editar estudiante' })
+    expect(within(form).getByLabelText(/^Nombres/)).toBeDisabled()
+    expect(within(form).getByLabelText(/^Apellidos/)).toBeDisabled()
+  })
+
+  it('en el panel de estudiantes crea e inscribe a un estudiante nuevo con nombres y apellidos separados', async () => {
+    const user = userEvent.setup()
+    vi.mocked(tutoringApi.students).mockResolvedValue(paginated([]))
+    vi.mocked(tutoringApi.availableStudents).mockResolvedValue({ data: [] } as never)
+    vi.mocked(tutoringApi.enrollStudent).mockResolvedValue({} as never)
+    render(<TutoringDetail tutoring={tutoring} onBack={vi.fn()} />)
+    await user.click(screen.getByRole('tab', { name: 'Estudiantes' }))
+    await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
+    const form = await screen.findByRole('form', { name: 'Registrar estudiante' })
+    await user.click(within(form).getByRole('radio', { name: 'Estudiante nuevo' }))
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana María José')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Torres Vera')
+    await user.type(within(form).getByLabelText(/^Cédula o pasaporte/), '0926687856')
+    await user.type(within(form).getByLabelText(/^Correo institucional/), 'ana.torres@ueb.edu.ec')
+    expect(within(form).getByText('Ingresa uno o dos nombres.')).toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Crear e inscribir' })).toBeDisabled()
+
+    await user.clear(within(form).getByLabelText(/^Nombres/))
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana María')
+    await user.click(within(form).getByRole('button', { name: 'Crear e inscribir' }))
+    await waitFor(() => expect(tutoringApi.enrollStudent).toHaveBeenCalledWith(40, { identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', email: 'ana.torres@ueb.edu.ec', phone: null }))
   })
 
   it('abre al estudiante sin cédula registrada (cédula nula) sin romper la pantalla', async () => {
@@ -1292,7 +1427,9 @@ describe('Coordinación de tutorías', () => {
     await user.click(await screen.findByTitle('Ver o editar a Noemi Aguachela'))
     const form = await screen.findByRole('form', { name: 'Editar estudiante' })
     expect(within(form).getByLabelText(/^Cédula o pasaporte/)).toHaveValue('')
-    expect(within(form).getByLabelText(/^Nombre completo/)).toHaveValue('Noemi Aguachela')
+    // «Noemi Aguachela» no se puede separar con seguridad: los campos empiezan vacíos.
+    expect(within(form).getByLabelText(/^Nombres/)).toHaveValue('')
+    expect(within(form).getByLabelText(/^Apellidos/)).toHaveValue('')
   })
 
   it('abre el formulario de un docente sin cédula registrada sin romper la pantalla', async () => {
@@ -1317,10 +1454,11 @@ describe('Coordinación de tutorías', () => {
     expect(within(form).queryByLabelText(/Cédula o pasaporte/)).not.toBeInTheDocument()
     await user.click(within(form).getByRole('radio', { name: 'Estudiante nuevo' }))
     expect(within(form).getByLabelText(/Cédula o pasaporte/)).toBeInTheDocument()
-    // El nombre va primero y los datos obligatorios llevan asterisco.
+    // Primero los nombres y luego los apellidos; los datos obligatorios llevan asterisco.
     const labels = [...form.querySelectorAll('label[for]')].map((label) => label.textContent ?? '')
-    expect(labels[0]).toMatch(/^Nombre completo/)
-    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(3)
+    expect(labels[0]).toMatch(/^Nombres/)
+    expect(labels[1]).toMatch(/^Apellidos/)
+    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(4)
     expect(within(form).getByRole('button', { name: 'Crear e inscribir' })).toBeInTheDocument()
   })
 
@@ -1481,14 +1619,17 @@ describe('Coordinación de tutorías', () => {
     const newBtn = screen.getByRole('button', { name: 'Registrar estudiante' })
     await user.click(newBtn)
 
-    // Por pasos: primero sus datos (el nombre arriba; obligatorios con asterisco), después ciclo y tutoría.
+    // Por pasos: primero sus datos (nombres y luego apellidos arriba; obligatorios con asterisco), después ciclo y tutoría.
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
     const labels = [...form.querySelectorAll('label')].map((label) => label.textContent ?? '')
-    expect(labels[0]).toMatch(/^Nombres y apellidos/)
-    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(3)
+    expect(labels[0]).toMatch(/^Nombres/)
+    expect(labels[1]).toMatch(/^Apellidos/)
+    expect(within(form).queryByLabelText(/Nombres y apellidos/i)).not.toBeInTheDocument()
+    expect(labels.filter((label) => label.includes('(obligatorio)'))).toHaveLength(4)
     expect(within(form).queryByLabelText(/^Ciclo/)).not.toBeInTheDocument()
     expect(within(form).getByRole('button', { name: 'Siguiente' })).toBeDisabled()
-    await user.type(within(form).getByLabelText(/Nombres y Apellidos/i), 'Ana Nueva')
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Nueva')
     await user.type(within(form).getByLabelText(/Cédula o pasaporte/i), '0926687856')
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'ana@ueb.edu.ec')
     expect(within(form).getByLabelText(/Teléfono/i)).toBeInTheDocument()
@@ -1538,8 +1679,14 @@ describe('Coordinación de tutorías', () => {
     await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
     await user.type(within(form).getByLabelText(/Cédula o pasaporte/i), '0926687856')
-    await user.type(within(form).getByLabelText(/Nombres y Apellidos/i), 'Ana Nueva')
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana María José')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Torres Vera')
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'ana@ueb.edu.ec')
+    // Tres nombres no pasan del primer paso.
+    expect(within(form).getByText('Ingresa uno o dos nombres.')).toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Siguiente' })).toBeDisabled()
+    await user.clear(within(form).getByLabelText(/^Nombres/))
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana  María')
     await user.click(within(form).getByRole('button', { name: 'Siguiente' }))
 
     // Sin ciclo no se puede registrar.
@@ -1554,7 +1701,7 @@ describe('Coordinación de tutorías', () => {
 
     await user.click(submit)
     await waitFor(() => expect(tutoringApi.createCoordinatorStudent).toHaveBeenCalledWith({
-      identification: '0926687856', name: 'Ana Nueva', email: 'ana@ueb.edu.ec', phone: null, cycle_id: 21, tutoring_id: undefined, career_id: 10,
+      identification: '0926687856', first_names: 'Ana María', last_names: 'Torres Vera', email: 'ana@ueb.edu.ec', phone: null, cycle_id: 21, tutoring_id: undefined, career_id: 10,
     }))
   })
 
@@ -1681,7 +1828,8 @@ describe('Coordinación de tutorías', () => {
     render(<MemoryRouter><TutoringStudentsPage /></MemoryRouter>)
     await user.click(await screen.findByRole('button', { name: 'Registrar estudiante' }))
     const form = screen.getByRole('form', { name: 'Registrar estudiante' })
-    await user.type(within(form).getByLabelText(/Nombres y Apellidos/i), 'Ana Nueva')
+    await user.type(within(form).getByLabelText(/^Nombres/), 'Ana')
+    await user.type(within(form).getByLabelText(/^Apellidos/), 'Nueva')
     await user.type(within(form).getByLabelText(/Cédula o pasaporte/i), '0926687856')
     await user.type(within(form).getByLabelText(/Correo Institucional/i), 'ana@ueb.edu.ec')
     await user.click(within(form).getByRole('button', { name: 'Siguiente' }))

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { PlusIcon, PowerOffIcon, RotateCcwIcon } from 'lucide-react'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
+import { PersonNameFields } from '@/components/person-name-fields'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
@@ -16,26 +17,33 @@ import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification } from '@/lib/cedula'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { firstNamesError, lastNamesError, normalizeName, splitStoredName } from '@/lib/person-name'
+import { sanitizeDigits } from '@/lib/sanitize'
 import { tutoringApi, type CoordinatorAvailableStudent, type CoordinatorEnrollment, type Tutoring } from '@/lib/tutoring-api'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { FilterBarSkeleton } from '@/components/ui/loading-skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
 
-const EMPTY_FORM = { identification: '', name: '', email: '', phone: '' }
+const EMPTY_FORM = { identification: '', first_names: '', last_names: '', email: '', phone: '' }
 type Mode = 'existing' | 'new'
 type StudentForm = typeof EMPTY_FORM
 
 // Errores de validación por campo; el primero bloquea "Guardar" en el diálogo.
-function validateStudentForm(form: StudentForm, editing: boolean, mode: Mode, selected: unknown): Partial<Record<keyof StudentForm | 'selected', string>> {
+// Al editar, los nombres y apellidos ya registrados no bloquean: solo se validan si cambian.
+function validateStudentForm(form: StudentForm, editing: boolean, mode: Mode, selected: unknown, namesChanged: boolean): Partial<Record<keyof StudentForm | 'selected', string>> {
   const errors: Partial<Record<keyof StudentForm | 'selected', string>> = {}
   if (!editing && mode === 'existing') {
     if (!selected) errors.selected = 'Selecciona al estudiante que quieres inscribir.'
     return errors
   }
+  if (namesChanged) {
+    const firstNamesProblem = normalizeName(form.first_names) ? firstNamesError(form.first_names) : 'Los nombres son obligatorios.'
+    const lastNamesProblem = normalizeName(form.last_names) ? lastNamesError(form.last_names) : 'Los apellidos son obligatorios.'
+    if (firstNamesProblem) errors.first_names = firstNamesProblem
+    if (lastNamesProblem) errors.last_names = lastNamesProblem
+  }
   if (!editing && !isValidIdentification(form.identification)) errors.identification = /^\d{10}$/.test(form.identification) ? 'La cédula ingresada no es válida.' : 'Ingresa una cédula de 10 dígitos o un pasaporte de 6 a 9 letras o números.'
-  if (!form.name.trim()) errors.name = 'El nombre completo es obligatorio.'
   if (!editing && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = 'Escribe un correo electrónico válido.'
   if (form.phone && !/^\d{10}$/.test(form.phone)) errors.phone = 'El teléfono debe tener 10 dígitos numéricos.'
   return errors
@@ -64,11 +72,13 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
   )
 
   const canEditFields = !editing || editing.can_edit_profile
-  const errors = validateStudentForm(form, Boolean(editing), mode, selected)
+  const namesChanged = !editing || form.first_names !== initial.first_names || form.last_names !== initial.last_names
+  const errors = validateStudentForm(form, Boolean(editing), mode, selected, namesChanged)
   // Los errores por campo solo se muestran cuando el campo ya tiene contenido.
   const shown = {
     identification: form.identification ? errors.identification : undefined,
-    name: form.name ? errors.name : undefined,
+    first_names: form.first_names ? errors.first_names : undefined,
+    last_names: form.last_names ? errors.last_names : undefined,
     email: form.email ? errors.email : undefined,
     phone: errors.phone,
   }
@@ -78,7 +88,7 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
   function openForm(student: CoordinatorEnrollment | null = null) {
     const next = student
       // Hay cuentas importadas sin cédula (o sin teléfono): el formulario trabaja con texto vacío.
-      ? { identification: student.identification ?? '', name: student.name ?? '', email: student.email ?? '', phone: student.phone ?? '' }
+      ? { identification: student.identification ?? '', first_names: splitStoredName(student.name).firstNames, last_names: splitStoredName(student.name).lastNames, email: student.email ?? '', phone: student.phone ?? '' }
       : EMPTY_FORM
     setEditing(student)
     setForm(next)
@@ -92,13 +102,15 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const names = { first_names: normalizeName(form.first_names), last_names: normalizeName(form.last_names) }
     void operation.run(
+      // Al editar, el nombre registrado se conserva si no se tocan los nombres ni los apellidos.
       () => editing
-        ? tutoringApi.updateStudent(tutoring.id, editing.id, { name: form.name.trim(), phone: form.phone || null })
+        ? tutoringApi.updateStudent(tutoring.id, editing.id, { ...(namesChanged ? names : {}), phone: form.phone || null })
         : tutoringApi.enrollStudent(
             tutoring.id,
             mode === 'new'
-              ? { identification: form.identification, name: form.name.trim(), email: form.email.trim(), phone: form.phone || null }
+              ? { identification: form.identification, ...names, email: form.email.trim(), phone: form.phone || null }
               : { student_id: selected?.id ?? 0 },
           ),
       editing ? 'Datos del estudiante actualizados' : mode === 'new' ? 'Estudiante creado e inscrito' : 'Estudiante inscrito',
@@ -215,9 +227,17 @@ export function CoordinatorStudentsPanel({ tutoring, readOnly = false }: Readonl
         )}
         {(editing || mode === 'new') && (
           <>
-            <FormField id="coord-student-name" label="Nombre completo" required={canEditFields} counter={{ current: form.name.length, max: 150 }} error={shown.name}>
-              <Input id="coord-student-name" value={form.name} onChange={(event) => setForm({ ...form, name: sanitizeLetters(event.target.value, 150) })} maxLength={150} required disabled={!canEditFields} aria-invalid={Boolean(shown.name)} placeholder="Apellidos y nombres" />
-            </FormField>
+            <PersonNameFields
+              idPrefix="coord-student"
+              firstNames={form.first_names}
+              lastNames={form.last_names}
+              onFirstNamesChange={(value) => setForm({ ...form, first_names: value })}
+              onLastNamesChange={(value) => setForm({ ...form, last_names: value })}
+              errors={{ first_names: shown.first_names ?? operation.fieldError('first_names'), last_names: shown.last_names ?? operation.fieldError('last_names') }}
+              // Al editar solo son obligatorios si se cambian (un nombre que no se puede separar queda vacío).
+              required={canEditFields && namesChanged}
+              disabled={!canEditFields}
+            />
             <FormField id="coord-student-identification" label="Cédula o pasaporte" required={!editing} counter={{ current: form.identification.length, max: identificationMaxLength(form.identification) }} error={shown.identification} tip={!editing ? `Se creará la cuenta del estudiante, se lo asignará al paralelo ${tutoring.section_name ?? ''} y se lo inscribirá en esta tutoría. Recibirá una contraseña provisional en su correo.` : undefined}>
               <Input id="coord-student-identification" value={form.identification} onChange={(event) => setForm({ ...form, identification: sanitizeIdentification(event.target.value) })} pattern="[0-9]{10}|[A-Z0-9]{6,9}" maxLength={10} required disabled={Boolean(editing)} aria-invalid={Boolean(shown.identification)} placeholder="Cédula (10 dígitos) o pasaporte" />
             </FormField>
