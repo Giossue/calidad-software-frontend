@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircle2Icon, SaveIcon, XCircleIcon } from 'lucide-react'
 import { toast } from '@/lib/toast'
 
+import { PersonNameFields } from '@/components/person-name-fields'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { FieldGroup } from '@/components/ui/field'
@@ -14,9 +15,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { isDegreeCycleNumber, maxCycleNumber } from '@/lib/academic-stage'
 import { api, ApiError, type AcademicFacultyOption } from '@/lib/api'
 import { isPasswordValid } from '@/lib/password-rules'
-import { areNamesValid, firstNamesError, lastNamesError, NAME_PART_MAX_LENGTH, normalizeName, splitStoredName } from '@/lib/person-name'
+import { areNamesValid, normalizeName, splitStoredName } from '@/lib/person-name'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
-import { sanitizeDigits, sanitizeLetters } from '@/lib/sanitize'
+import { sanitizeDigits } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
 import { useAuth } from './auth-context'
 import { AuthFeedback } from './auth-feedback'
@@ -153,12 +154,7 @@ export function CompleteProfileModal() {
                   )}
                 </div>
               </FormField>
-              <FormField id="profile-first-names" label="Nombres" tip="Uno o dos nombres." error={firstNamesError(firstNames)} counter={{ current: firstNames.length, max: NAME_PART_MAX_LENGTH }}>
-                <Input id="profile-first-names" value={firstNames} onChange={(event) => setFirstNames(sanitizeLetters(event.target.value, NAME_PART_MAX_LENGTH))} required maxLength={NAME_PART_MAX_LENGTH} autoComplete="given-name" placeholder="Ana María" />
-              </FormField>
-              <FormField id="profile-last-names" label="Apellidos" tip="Tus dos apellidos; uno solo si tu registro civil tiene un único apellido (p. ej., hijos de padres extranjeros o inscritos en el exterior)." error={lastNamesError(lastNames)} counter={{ current: lastNames.length, max: NAME_PART_MAX_LENGTH }}>
-                <Input id="profile-last-names" value={lastNames} onChange={(event) => setLastNames(sanitizeLetters(event.target.value, NAME_PART_MAX_LENGTH))} required maxLength={NAME_PART_MAX_LENGTH} autoComplete="family-name" placeholder="Torres Vera" />
-              </FormField>
+              <PersonNameFields idPrefix="profile" firstNames={firstNames} lastNames={lastNames} onFirstNamesChange={setFirstNames} onLastNamesChange={setLastNames} />
               <FormField id="profile-phone" label="Teléfono celular">
                 <Input id="profile-phone" type="tel" inputMode="numeric" value={phone} onChange={(event) => setPhone(sanitizeDigits(event.target.value, 10))} required maxLength={10} autoComplete="tel" placeholder="0991234567" />
               </FormField>
