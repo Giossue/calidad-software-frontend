@@ -5,12 +5,11 @@ export interface PasswordRequirement {
   readonly test: (password: string) => boolean
 }
 
-export const PASSWORD_MIN_LENGTH = 12
+export const PASSWORD_MIN_LENGTH = 8
 
 export const PASSWORD_REQUIREMENTS: readonly PasswordRequirement[] = [
   { id: 'length', label: `Al menos ${PASSWORD_MIN_LENGTH} caracteres`, test: (password) => password.length >= PASSWORD_MIN_LENGTH },
-  { id: 'lowercase', label: 'Una letra minúscula', test: (password) => /\p{Ll}/u.test(password) },
-  { id: 'uppercase', label: 'Una letra mayúscula', test: (password) => /\p{Lu}/u.test(password) },
+  { id: 'letter', label: 'Una letra', test: (password) => /\p{L}/u.test(password) },
   { id: 'number', label: 'Un número', test: (password) => /\d/.test(password) },
   { id: 'symbol', label: 'Un carácter especial (!@#$%…)', test: (password) => /[^\p{L}\p{N}\s]/u.test(password) },
 ]
@@ -29,7 +28,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
   if (password === '') return 'empty'
   const met = PASSWORD_REQUIREMENTS.length - getUnmetPasswordRequirements(password).length
   if (met === PASSWORD_REQUIREMENTS.length) return 'strong'
-  if (met >= 3) return 'medium'
+  if (met >= 2) return 'medium'
   return 'weak'
 }
 
