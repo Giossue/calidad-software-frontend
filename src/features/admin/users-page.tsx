@@ -12,7 +12,7 @@ import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Badge } from '@/components/ui/badge'
 import { getFriendlyError, type FriendlyErrorInfo } from '@/components/ui/error-modal'
 import { ErrorNotice } from '@/components/ui/error-notice'
-import { FieldDescription } from '@/components/ui/field'
+import { FieldDescription, FieldGroup, FieldLegend, FieldSet } from '@/components/ui/field'
 import { FormDialog, type FormStep } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
@@ -793,8 +793,16 @@ export function UsersPage() {
             </>
           ) : undefined
         }
-        steps={userFormSteps}
-      />
+        // Registrar va por pasos; al editar, todo el formulario se ve de una vez.
+        steps={editingUser ? undefined : userFormSteps}
+      >
+        {editingUser && userFormSteps.map((step) => (
+          <FieldSet key={step.title}>
+            <FieldLegend>{step.title}</FieldLegend>
+            <FieldGroup>{step.content}</FieldGroup>
+          </FieldSet>
+        ))}
+      </FormDialog>
 
       <ConfirmModal
         open={Boolean(userToToggle)}

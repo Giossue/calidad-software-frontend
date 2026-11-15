@@ -340,13 +340,15 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     // Nombres y apellidos precargados desde el nombre guardado (apellidos y nombres).
     expect(screen.getByLabelText(/^Nombres/)).toHaveValue('Carlos')
     expect(screen.getByLabelText(/^Apellidos/)).toHaveValue('Docente Ruiz')
-    await next(user)
+    // Al editar no hay pasos: datos, rol y contraseña se ven juntos.
+    expect(screen.queryByRole('button', { name: 'Siguiente' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/^Rol en el sistema/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Nueva contraseña/)).toBeInTheDocument()
 
     // Cambiar a Coordinador de carrera y seleccionar otra carrera
     await choose(user, screen.getByLabelText(/^Rol en el sistema/), 'Coordinador de carrera')
     await choose(user, screen.getByLabelText(/^Facultad/), 'Facultad de Ingeniería')
     await choose(user, screen.getByLabelText(/^Carrera/), 'Ingeniería Civil')
-    await next(user)
 
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
@@ -375,8 +377,6 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     const firstNames = screen.getByLabelText(/^Nombres/)
     await user.clear(firstNames)
     await user.type(firstNames, ' Carlos  Andrés ')
-    await next(user)
-    await next(user)
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
@@ -384,17 +384,18 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     })
   }, 15000)
 
-  it('bloquea "Siguiente" con un dato inválido y solo habilita "Guardar cambios" cuando hay cambios', async () => {
+  it('al editar, bloquea "Guardar cambios" con un dato inválido y solo lo habilita cuando hay cambios', async () => {
     const user = userEvent.setup()
     render(<UsersPage />)
     await screen.findByText('Docente Ruiz Carlos')
 
     await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
     await screen.findByRole('dialog', { name: 'Editar usuario' })
-    const nextButton = screen.getByRole('button', { name: 'Siguiente' })
-    expect(nextButton).toBeEnabled()
+    const nextButton = screen.getByRole('button', { name: 'Guardar cambios' })
+    // Sin cambios no hay nada que guardar.
+    expect(nextButton).toBeDisabled()
 
-    // Con un dato inválido: "Siguiente" se bloquea y dice qué falta
+    // Con un dato inválido: "Guardar cambios" se bloquea y dice qué falta
     const firstNames = screen.getByLabelText(/^Nombres/)
     await user.clear(firstNames)
     expect(nextButton).toBeDisabled()
@@ -419,10 +420,8 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Los apellidos son obligatorios.')
     await user.unhover(nextButton.parentElement as HTMLElement)
 
-    // Con un cambio válido llega al último paso con "Guardar cambios" habilitado
+    // Con un cambio válido, "Guardar cambios" se habilita
     await user.type(lastNames, 'Docente Ruiz')
-    await next(user)
-    await next(user)
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
   })
 
@@ -433,8 +432,6 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
     await screen.findByRole('dialog', { name: 'Editar usuario' })
-    await next(user)
-    await next(user)
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
   })
 
@@ -471,8 +468,6 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     await user.click(screen.getByRole('row', { name: /Docente Ruiz Carlos/ }))
     expect(await screen.findByRole('dialog', { name: 'Editar usuario' })).toBeInTheDocument()
-    await next(user)
-    await next(user)
 
     const password = screen.getByLabelText(/^Nueva contraseña/)
     const confirmation = screen.getByLabelText(/^Confirmar nueva contraseña/)
@@ -554,8 +549,6 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     expect(phoneInput).toHaveAccessibleName('Teléfono(obligatorio)')
     expect(phoneInput).toHaveAttribute('placeholder', 'Anterior: 0991234567')
 
-    await next(user)
-    await next(user)
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
@@ -585,13 +578,11 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     // pero sin tocarlos no bloquean (se conserva el nombre guardado).
     expect(screen.getByLabelText(/^Nombres/)).toHaveValue('')
     expect(screen.getByLabelText(/^Apellidos/)).toHaveValue('')
-    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled()
 
     const phone = screen.getByLabelText(/^Teléfono/)
     await user.clear(phone)
     await user.type(phone, '0987654321')
-    await next(user)
-    await next(user)
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => expect(updateSpy).toHaveBeenCalledWith(1, expect.objectContaining({ phone: '0987654321' })))
@@ -610,7 +601,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await screen.findByRole('dialog', { name: 'Editar usuario' })
 
     await user.type(screen.getByLabelText(/^Nombres/), 'Carlos')
-    const nextButton = screen.getByRole('button', { name: 'Siguiente' })
+    const nextButton = screen.getByRole('button', { name: 'Guardar cambios' })
     expect(nextButton).toBeDisabled()
     await user.hover(nextButton.parentElement as HTMLElement)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Los apellidos son obligatorios.')
@@ -624,7 +615,7 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     await screen.findByRole('dialog', { name: 'Editar usuario' })
 
     await user.clear(screen.getByLabelText(/^Apellidos/))
-    const nextButton = screen.getByRole('button', { name: 'Siguiente' })
+    const nextButton = screen.getByRole('button', { name: 'Guardar cambios' })
     expect(nextButton).toBeDisabled()
     await user.hover(nextButton.parentElement as HTMLElement)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Los apellidos son obligatorios.')
@@ -687,7 +678,8 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
 
     expect(within(dialog).getByLabelText(/^Cédula o pasaporte/)).toHaveAccessibleName('Cédula o pasaporte(obligatorio)')
     expect(within(dialog).getByLabelText(/^Teléfono/)).toHaveAccessibleName('Teléfono(obligatorio)')
-    expect(within(dialog).queryByText('(Opcional)')).not.toBeInTheDocument()
+    // La contraseña (opcional) también se ve al editar; los datos personales no tienen opcionales.
+    expect(within(within(dialog).getByRole('group', { name: 'Datos personales' })).queryByText('(Opcional)')).not.toBeInTheDocument()
   })
 
   it('al editar una cuenta sin teléfono, el teléfono es opcional', async () => {
@@ -709,8 +701,6 @@ describe('Gestión de Usuarios - Selección de Facultad y Carrera', () => {
     render(<UsersPage />)
     await user.click(await screen.findByRole('row', { name: /Docente Ruiz Carlos/ }))
     const dialog = await screen.findByRole('dialog', { name: 'Editar usuario' })
-    await next(user)
-    await next(user)
     const help = within(dialog).getByText('Déjala en blanco para conservar la actual.')
     expect(help.closest('[data-slot="field"]')).toContainElement(within(dialog).getByLabelText(/^Nueva contraseña/))
 
