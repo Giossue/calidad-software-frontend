@@ -21,6 +21,8 @@ export interface StudentTutoring {
   readonly id: number
   readonly enrolled_at: string | null
   readonly is_active: boolean
+  /** Resultado final que registró el docente; null mientras no lo define. */
+  readonly final_result?: 'approved' | 'failed' | null
   readonly subject: {
     readonly id: number
     readonly name: string
@@ -29,7 +31,7 @@ export interface StudentTutoring {
     readonly section: Named | null
     readonly modality: Named | null
     readonly cycle: (Named & { readonly number: number | null }) | null
-    readonly teacher: Teacher | null
+    readonly teacher: (Named & { readonly email: string }) | null
     readonly schedules: readonly StudentSchedule[]
   } | null
 }

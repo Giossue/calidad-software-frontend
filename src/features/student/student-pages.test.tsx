@@ -18,7 +18,7 @@ vi.mock('@/lib/student-api', async (importOriginal) => {
 vi.mock('@/lib/degree-coordination-api', () => ({ degreeCoordinationApi: { studentTopics: vi.fn() } }))
 
 const summary = { id: 40, name: 'Calidad de software', is_active: true, academic_period: { id: 1, name: '2026-2' }, section: { id: 1, name: 'A' }, cycle: { id: 2, name: 'Segundo' }, teacher: { id: 5, name: 'María López', email: 'maria@ueb.edu.ec' } }
-const tutoring: StudentTutoring = { id: 1, enrolled_at: '2026-09-01', is_active: true, subject: { ...summary, academic_period: { id: 1, name: '2026-2', is_active: true }, modality: { id: 1, name: 'Presencial' }, cycle: { id: 2, name: 'Segundo', number: 2 }, teacher: { ...summary.teacher, phone: '0991234567' }, schedules: [{ id: 1, day_of_week: 'lunes', start_time: '08:00:00', end_time: '10:00:00', room: 'Laboratorio 1', is_active: true }] } }
+const tutoring: StudentTutoring = { id: 1, enrolled_at: '2026-09-01', is_active: true, subject: { ...summary, academic_period: { id: 1, name: '2026-2', is_active: true }, modality: { id: 1, name: 'Presencial' }, cycle: { id: 2, name: 'Segundo', number: 2 }, teacher: summary.teacher, schedules: [{ id: 1, day_of_week: 'lunes', start_time: '08:00:00', end_time: '10:00:00', room: 'Laboratorio 1', is_active: true }] } }
 const grades: StudentGrades = { enrollment_id: 1, enrolled_at: '2026-09-01', is_active: true, tutoring: summary, grades: { diagnostic: { id: 1, value: 4, formatted_value: '4.00', registered_at: '2026-09-05' }, partial: null, second_partial: null }, knowledge_metric: { id: 1, group: 'Medio', group_key: 'medium', min_score: 4, max_score: 6.99 }, scale_settings: { minimum: 0, maximum: 10 } }
 const attendance: StudentAttendance = { enrollment_id: 1, enrolled_at: '2026-09-01', is_active: true, tutoring: summary, summary: { total_sessions: 2, present_count: 1, absent_count: 1, attendance_percentage: 50 }, records: [{ id: 1, date: '2026-09-10', present: true, status: 'presente', topics_covered: true, topics: [{ id: 1, name: 'Pruebas unitarias' }] }, { id: 2, date: '2026-09-17', present: false, status: 'ausente', topics_covered: false, topics: [] }] }
 const content: StudentContent = { tutoring: summary, progress: { total_topics: 2, covered_topics: 1, pending_topics: 1, progress_percentage: 50 }, topics: [{ id: 1, tutoring_id: 40, name: 'Pruebas unitarias', description: 'Introducción', is_active: true, is_covered: true, activities_count: 1, activities: [{ id: 1, topic_id: 1, name: 'Taller', duration: '2 horas', is_active: true, methodologies: [{ id: 1, activity_id: 1, description: 'Trabajo en parejas', is_active: true }] }] }, { id: 2, tutoring_id: 40, name: 'Integración', description: null, is_active: true, is_covered: false, activities_count: 0, activities: [] }] }
@@ -145,6 +145,9 @@ describe('Módulo Estudiante', () => {
     const picker = await screen.findByRole('combobox', { name: 'Filtrar por clase' })
     expect(picker).toHaveTextContent('Todas las clases')
     expect(screen.queryByRole('button', { name: /sept 2026/ })).not.toBeInTheDocument()
+    // En "Todas las clases", cada tema indica en qué sesión y fecha se vio.
+    expect(screen.getByRole('button', { name: 'Ver detalle de Pruebas unitarias' })).toHaveTextContent('Sesión 1 · 10 sept 2026')
+    expect(screen.getByRole('button', { name: 'Ver detalle de Integración' })).toHaveTextContent('Sesión 2 · 17 sept 2026')
     await user.click(picker)
     const options = screen.getAllByRole('option').map((option) => option.textContent)
     expect(options).toEqual(['Todas las clases', 'Sesión 2 · 17 sept 2026 · 1 tema', 'Sesión 1 · 10 sept 2026 · 1 tema'])
@@ -283,7 +286,9 @@ describe('Módulo Estudiante', () => {
     workspace('schedules')
     const teacherCard = await screen.findByRole('region', { name: 'Docente' })
     expect(within(teacherCard).getByRole('link', { name: 'maria@ueb.edu.ec' })).toHaveAttribute('href', 'mailto:maria@ueb.edu.ec')
-    expect(within(teacherCard).getByRole('link', { name: '0991234567' })).toHaveAttribute('href', 'tel:0991234567')
+    // El celular del docente ya no se muestra en Horarios.
+    expect(within(teacherCard).getAllByRole('link')).toHaveLength(1)
+    expect(teacherCard.querySelector('a[href^="tel:"]')).toBeNull()
     expect(within(teacherCard).queryByText(/Inscrito el/)).not.toBeInTheDocument()
     expect(screen.getByText(/Inscrito el/)).toBeInTheDocument()
     const row = screen.getByText('Lunes').closest('tr') as HTMLElement
@@ -297,6 +302,24 @@ describe('Módulo Estudiante', () => {
     expect(screen.getAllByText(/Presencial/)).toHaveLength(1)
     expect(screen.queryByText('Frecuencia de clases')).not.toBeInTheDocument()
     expect(screen.queryByText('Información de contacto de tu tutor.')).not.toBeInTheDocument()
+  })
+
+  it('muestra el resultado final que registró el docente', async () => {
+    vi.mocked(studentApi.content).mockResolvedValue(content)
+    vi.mocked(studentApi.tutorings).mockResolvedValue([{ ...tutoring, final_result: 'approved' }])
+    workspace('content')
+    expect(await screen.findByText('Aprobado')).toBeInTheDocument()
+    expect(screen.queryByText('Reprobado')).not.toBeInTheDocument()
+    cleanup()
+    vi.mocked(studentApi.tutorings).mockResolvedValue([{ ...tutoring, final_result: 'failed' }])
+    workspace('content')
+    expect(await screen.findByText('Reprobado')).toBeInTheDocument()
+    cleanup()
+    vi.mocked(studentApi.tutorings).mockResolvedValue([{ ...tutoring, final_result: null }])
+    workspace('content')
+    expect(await screen.findByText('En curso')).toBeInTheDocument()
+    expect(screen.queryByText('Aprobado')).not.toBeInTheDocument()
+    expect(screen.queryByText('Reprobado')).not.toBeInTheDocument()
   })
 
   it('avisa cuando la tutoría abierta ya finalizó', async () => {

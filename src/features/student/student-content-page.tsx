@@ -17,7 +17,7 @@ import { ContentSkeleton } from './student-skeletons'
 
 type TopicFilter = '' | 'covered' | 'pending'
 
-function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: number }>) {
+function TopicRow({ topic, number, sessions = [] }: Readonly<{ topic: StudentTopic; number: number; sessions?: readonly string[] }>) {
   const [open, setOpen] = useState(false)
   const files = (topic.files ?? []).map((file) => ({ key: file.id, name: file.name, size: file.size, file }))
   return <li className="rounded-md bg-card shadow-surface ring-1 ring-surface-ring">
@@ -28,6 +28,7 @@ function TopicRow({ topic, number }: Readonly<{ topic: StudentTopic; number: num
         <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{topic.activities_count === 1 ? '1 actividad' : `${topic.activities_count} actividades`}</span>
           {files.length > 0 && <span>{files.length === 1 ? '1 recurso' : `${files.length} recursos`}</span>}
+          {sessions.map((label) => <span key={label}>{label}</span>)}
         </span>
       </span>
       <Badge variant={topic.is_covered ? 'success' : 'secondary'} className="hidden sm:inline-flex">{topic.is_covered ? 'Completado' : 'Pendiente'}</Badge>
@@ -64,6 +65,8 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
     ? (activeSession.topics.length > 0 ? activeSession.topics : fallbackTopics)
     : topics
   const sessionLabel = (session: StudentClassSession) => `Sesión ${sessions.length - sessions.indexOf(session)} · ${formatDate(session.date)}`
+  // Sesiones en que se vio cada tema, de la primera a la más reciente.
+  const topicSessions = (topic: StudentTopic) => sessions.filter((s) => s.topics.some((item) => item.id === topic.id)).map(sessionLabel).reverse()
   const topicCount = (session: StudentClassSession) => {
     const count = session.topics.length > 0 ? session.topics.length : fallbackTopics.length
     return count === 1 ? '1 tema' : `${count} temas`
@@ -129,7 +132,7 @@ function ContentView({ content }: Readonly<{ content: StudentContent }>) {
         ) : (
           <ul className="flex flex-col gap-3">
             {pager.rows.map((topic) => (
-              <TopicRow key={topic.id} topic={topic} number={currentTopics.indexOf(topic) + 1} />
+              <TopicRow key={topic.id} topic={topic} number={currentTopics.indexOf(topic) + 1} sessions={activeSession ? [] : topicSessions(topic)} />
             ))}
           </ul>
         )}

@@ -1,8 +1,9 @@
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon, MailIcon, PhoneIcon } from 'lucide-react'
+import { ArrowLeftIcon, MailIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -58,7 +59,10 @@ export function StudentTutoringWorkspace({ subjectId, onBack }: Readonly<{ subje
         <AdminSectionHeader
           title={formatSubjectName(subject.name)}
           description={[subject.cycle?.name ?? 'Sin ciclo', subject.section ? `Paralelo ${subject.section.name}` : null, subject.teacher?.name ?? 'Sin docente', enrollment.enrolled_at ? `Inscrito el ${formatDate(enrollment.enrolled_at)}` : null].filter(Boolean).join(' · ')}
-          actions={<StatusBadge active={enrollment.is_active && subject.is_active} activeLabel="En curso" inactiveLabel="Finalizada" />}
+          actions={<div className="flex flex-wrap items-center gap-2">
+            {enrollment.final_result && <Badge variant={enrollment.final_result === 'approved' ? 'success' : 'danger'}>{enrollment.final_result === 'approved' ? 'Aprobado' : 'Reprobado'}</Badge>}
+            <StatusBadge active={enrollment.is_active && subject.is_active} activeLabel="En curso" inactiveLabel="Finalizada" />
+          </div>}
         />
         {!(enrollment.is_active && subject.is_active) && <p className="rounded-md border border-notice-border bg-notice px-4 py-3 text-sm text-notice-foreground">Esta tutoría ya finalizó. Puedes consultar su información, pero no tendrá nuevas sesiones.</p>}
         <Tabs value={tab} onValueChange={selectTab}>
@@ -127,7 +131,6 @@ function SchedulesPanel({ enrollment }: Readonly<{ enrollment: StudentTutoring }
           </div>
           <ul className="flex flex-col gap-2.5 text-sm">
             <li><a href={`mailto:${teacher.email}`} className="flex items-center gap-3 break-all text-foreground hover:underline"><MailIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />{teacher.email}</a></li>
-            {teacher.phone && <li><a href={`tel:${teacher.phone}`} className="flex items-center gap-3 text-foreground hover:underline"><PhoneIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />{teacher.phone}</a></li>}
           </ul>
         </> : <p className="text-sm text-muted-foreground">Sin docente asignado.</p>}
       </CardContent>
