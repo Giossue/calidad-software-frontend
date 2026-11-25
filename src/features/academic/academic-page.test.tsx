@@ -162,11 +162,25 @@ describe('Edición de carreras', () => {
     const user = userEvent.setup()
     render(<MemoryRouter><AcademicPage /></MemoryRouter>)
     const row = await screen.findByRole('row', { name: /Software/ })
-    expect(screen.getByRole('columnheader', { name: 'Código' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Código' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Ciclos' })).toBeInTheDocument()
     expect(within(row).getByText('SW-2020')).toBeInTheDocument()
     await user.click(row)
     await user.click(await screen.findByRole('tab', { name: 'Datos' }))
     expect(screen.getByText('Código de carrera').nextElementSibling).toHaveTextContent('SW-2020')
+  })
+
+  it('muestra la cantidad de ciclos en su propia columna y avisa cuántos están activos si no lo están todos', async () => {
+    const partial = { ...career, id: 12, name: 'Agronomía', code: null, cycles_count: 9, active_cycles_count: 7 }
+    vi.mocked(api.listCareers).mockResolvedValue({ data: [career, partial], meta })
+    render(<MemoryRouter><AcademicPage /></MemoryRouter>)
+    const full = await screen.findByRole('row', { name: /Software/ })
+    expect(within(full).getByText('4')).toBeInTheDocument()
+    expect(within(full).queryByText(/activo/)).not.toBeInTheDocument()
+    const row = screen.getByRole('row', { name: /Agronomía/ })
+    expect(within(row).getByText('9')).toBeInTheDocument()
+    expect(within(row).getByText('7 activos')).toBeInTheDocument()
+    expect(within(row).getByText('Sin código')).toBeInTheDocument()
   })
 
   it('conserva comas, puntos, guiones y paréntesis en el nombre de la carrera y del ciclo', async () => {
