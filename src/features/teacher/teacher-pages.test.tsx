@@ -26,7 +26,7 @@ vi.mock('@/lib/teacher-api', async (importOriginal) => {
   return { ...actual, teacherApi: Object.fromEntries(Object.keys(actual.teacherApi).map((key) => [key, vi.fn()])) }
 })
 
-const tutoring: TeacherTutoring = { id: 40, subject_id: 30, subject_name: 'Calidad de software', cycle_id: 20, cycle_name: 'Segundo', career_id: 10, career_name: 'Software', period_id: 50, period_name: '2026-2', period_start_date: '2026-01-01', period_end_date: '2026-12-31', modality_id: 60, modality_name: 'Presencial', section_id: 1, section_name: 'A', teacher_id: 5, teacher_name: 'María López', teacher_is_active: true, is_active: true, can_manage: true, active_enrollment_count: 1, schedules: [] }
+const tutoring: TeacherTutoring = { id: 40, subject_id: 30, subject_name: 'Calidad de software', cycle_id: 20, cycle_name: 'Segundo', career_id: 10, career_name: 'Software', period_id: 50, period_name: '2026-2', period_start_date: '2026-01-01', period_end_date: '2099-12-31', modality_id: 60, modality_name: 'Presencial', section_id: 1, section_name: 'A', teacher_id: 5, teacher_name: 'María López', teacher_is_active: true, is_active: true, can_manage: true, active_enrollment_count: 1, schedules: [] }
 const student: Enrollment = { id: 70, tutoring_id: 40, student_id: 80, identification: '0201234567', name: 'Ana Pérez', email: 'ana.perez@ueb.edu.ec', phone: '0991234567', enrolled_at: '2026-09-29', is_active: true, student_is_active: true, can_edit_profile: true, diagnostic_grade: null, partial_grade: null, second_partial_grade: null, knowledge_group: null, knowledge_group_key: null, enrollment_number: 1, attendance_required: false }
 const topic: TutoringTopic = { id: 90, tutoring_id: 40, name: 'Pruebas', description: 'Casos de prueba', is_active: true, is_covered: false, activities: [] }
 function paginated<T>(data: readonly T[], page = 1, last = 1) {
@@ -54,7 +54,16 @@ function show(component: React.ReactNode, path = '/panel/teacher-tutorings?tutor
 const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
 const todayName = DAY_NAMES[new Date().getDay()]
-// Clase en curso todo el día de hoy: la asistencia solo se toma durante el horario.
+// Una semana atrás: el mismo día de la semana que hoy, con clase.
+const lastWeek = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+const MONTH_NAMES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+/** Nombre accesible del día en el calendario: «lunes 28 de septiembre de 2026». */
+function dayLabel(date: string) {
+  const [year, month, day] = date.split('-').map(Number)
+  return `${WEEKDAY_NAMES[new Date(year, month - 1, day).getDay()]} ${day} de ${MONTH_NAMES[month - 1]} de ${year}`
+}
+// Clase todo el día de hoy (y cada semana ese mismo día).
 const inClass: TeacherTutoring = { ...tutoring, schedules: [{ id: 9, tutoring_id: 40, day: todayName, start_time: '00:00', end_time: '23:59', room: 'Aula 1', is_active: true }] }
 
 function duringClass() {
@@ -83,6 +92,7 @@ beforeEach(() => {
   vi.mocked(teacherApi.topics).mockResolvedValue(paginated([topic]))
   vi.mocked(teacherApi.allTopics).mockResolvedValue([topic])
   vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([]))
+  vi.mocked(teacherApi.allSessions).mockResolvedValue([])
   vi.mocked(teacherApi.absenceNotices).mockResolvedValue([])
   vi.mocked(teacherApi.jointTutorings).mockResolvedValue([])
   vi.mocked(teacherApi.attendance).mockResolvedValue(paginated([]))
@@ -890,22 +900,65 @@ describe('Módulo Docente', () => {
     expect(screen.queryByText(/Recuperamos/)).not.toBeInTheDocument()
   })
 
-  it('abre las sesiones anteriores a hoy solo para consulta, sin poder modificarlas', async () => {
+  it('abre una sesión anterior del período en el mismo formulario para modificarla, conservando sus temas', async () => {
     const user = userEvent.setup()
-    const saved = { id: 100, tutoring_id: 40, date: '2026-09-29', topics_covered: true, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false, attendance_required: false }] }
-    vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
+    const saved = { id: 100, tutoring_id: 40, number: 1, date: lastWeek, topics_covered: true, linked_topic_ids: [90], topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false, attendance_required: false }] }
+    vi.mocked(teacherApi.sessions).mockImplementation(async (_id, params) => paginated(params?.date && params.date !== lastWeek ? [] : [saved]))
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([saved])
+    vi.mocked(teacherApi.saveSession).mockResolvedValue(saved)
     duringClass()
     workspace('attendance')
-    expect(await screen.findByText('0 de 1 presentes')).toBeInTheDocument()
+    await user.click(await screen.findByText('0 de 1 presentes'))
+
+    const form = await screen.findByRole('form', { name: 'Registrar asistencia' })
+    expect(screen.queryByText('Solo consulta')).not.toBeInTheDocument()
+    expect(within(form).getByText(/La sesión de esta fecha ya está registrada/)).toBeInTheDocument()
+    const checkbox = within(form).getByRole('checkbox', { name: 'Presente: Ana Pérez' })
+    expect(checkbox).not.toBeChecked()
+    await user.click(checkbox)
+    await user.click(within(form).getByRole('button', { name: 'Guardar asistencia' }))
+    await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledWith(40, { date: lastWeek, topics_covered: true, topic_ids: [90], attendance: [{ enrollment_id: 70, present: true }] }))
+  })
+
+  it('el calendario marca los días con sesión y al elegir un día con clase registra la sesión de esa fecha', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([])
+    vi.mocked(teacherApi.saveSession).mockResolvedValue({ id: 100, tutoring_id: 40, date: lastWeek, topics_covered: false, topics: [], attendance: [] })
+    duringClass()
+    workspace('attendance')
+    const calendar = await screen.findByRole('group', { name: 'Calendario de sesiones' })
+    if (lastWeek.slice(0, 7) !== today.slice(0, 7)) await user.click(within(calendar).getByRole('button', { name: 'Mes anterior' }))
+    await user.click(within(calendar).getByRole('button', { name: dayLabel(lastWeek) }))
+
+    const form = await screen.findByRole('form', { name: 'Registrar asistencia' })
+    expect(teacherApi.sessions).toHaveBeenCalledWith(40, { date: lastWeek })
+    await user.click(within(form).getByRole('checkbox', { name: 'Presente: Ana Pérez' }))
+    await user.click(within(form).getByRole('button', { name: 'Guardar asistencia' }))
+    await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledWith(40, { date: lastWeek, topics_covered: false, topic_ids: [], attendance: [{ enrollment_id: 70, present: true }] }))
+  })
+
+  it('en una tutoría de un período cerrado las sesiones solo se consultan', async () => {
+    const user = userEvent.setup()
+    const closed: TeacherTutoring = { ...inClass, can_manage: false }
+    const saved = { id: 100, tutoring_id: 40, number: 1, date: lastWeek, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: false, attendance_required: false }] }
+    vi.mocked(teacherApi.tutorings).mockResolvedValue(paginated([closed]))
+    vi.mocked(teacherApi.allTutorings).mockResolvedValue([closed])
+    vi.mocked(teacherApi.sessions).mockResolvedValue(paginated([saved]))
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([saved])
+    workspace('attendance')
+    // La cabecera de la tutoría ya dice «Solo consulta»; la sesión abierta lleva su propia insignia.
+    expect(await screen.findAllByText('Solo consulta')).toHaveLength(1)
     await user.click(screen.getByText('0 de 1 presentes'))
-    expect((await screen.findByText('Solo consulta')).closest('[data-slot="badge"]')).not.toBeNull()
+    expect(await screen.findByRole('heading', { name: /Sesión 1/ })).toBeInTheDocument()
+    expect(screen.getAllByText('Solo consulta')).toHaveLength(2)
+    expect(screen.getAllByText('Solo consulta').every((element) => element.closest('[data-slot="badge"]') !== null)).toBe(true)
     expect(screen.getByText('Ausente')).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Modificar|Guardar|Marcar todos/ })).not.toBeInTheDocument()
     // La sesión abierta va en la URL: «atrás» del navegador vuelve a la lista de sesiones.
     await user.click(screen.getByRole('button', { name: 'Atrás del navegador' }))
     expect(await screen.findByText('0 de 1 presentes')).toBeInTheDocument()
-    expect(screen.queryByText('Solo consulta')).not.toBeInTheDocument()
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Continuar|Guardar|Marcar todos/ })).not.toBeInTheDocument()
+    expect(screen.getAllByText('Solo consulta')).toHaveLength(1)
   })
 
   it('abre una sesión pasada desde la URL', async () => {
@@ -950,7 +1003,7 @@ describe('Módulo Docente', () => {
     expect(screen.queryByText('La lista de hoy ya se tomó')).not.toBeInTheDocument()
   })
 
-  it('muestra las sesiones sin pestañas internas y solo permite tomar asistencia durante el horario de la clase', async () => {
+  it('muestra las sesiones sin pestañas internas y no ofrece registrar hoy si no hay clase', async () => {
     const savedMonday = {
       id: 101,
       tutoring_id: 40,
@@ -979,12 +1032,13 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('tab', { name: /Consultar asistencia|Registrar asistencia/i })).not.toBeInTheDocument()
 
     // En consultar asistencia: muestra el día (Lunes), la fecha y el resumen
-    const table = await screen.findByRole('table')
+    // La tabla de sesiones (el calendario es otra tabla, dentro de su grupo).
+    const table = (await screen.findAllByRole('table')).find((element) => !element.closest('[role="group"]')) as HTMLElement
     expect(within(table).getByText('Lunes')).toBeInTheDocument()
     expect(within(table).getByText(/28 sept/i)).toBeInTheDocument()
     expect(within(table).getByText('1 de 1 presentes')).toBeInTheDocument()
 
-    // Fuera del horario no se ofrece registrar
+    // Hoy no hay clase: no se ofrece registrar la de hoy
     expect(screen.getByText(/Hoy no hay clase de esta tutoría/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Registrar asistencia' })).toBeDisabled())
     // El motivo del bloqueo se lee en el tooltip del botón.
@@ -995,7 +1049,7 @@ describe('Módulo Docente', () => {
     view.unmount()
     show(<TeacherTutoringsPage />, `/panel/teacher-tutorings?tutoring=40&tab=attendance&session=${today}`)
     const form = await screen.findByRole('form', { name: 'Registrar asistencia' })
-    expect(within(form).getByText(/Hoy no hay clase de esta tutoría/)).toBeInTheDocument()
+    expect(within(form).getByText('La tutoría no tiene clase ese día.')).toBeInTheDocument()
     expect(within(form).getByRole('button', { name: 'Guardar asistencia' })).toBeDisabled()
     expect(within(form).getByRole('checkbox', { name: 'Presente: Ana Pérez' })).toBeDisabled()
   })

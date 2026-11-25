@@ -63,7 +63,10 @@ function AttendanceShape() {
       </div>
       <Skeleton className="h-9 w-48 shrink-0" />
     </div>
-    <HeadedTableSkeleton headers={SESSION_HEADERS} />
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+      <Skeleton className="h-80 w-full shrink-0 rounded-lg lg:w-80" aria-hidden="true" />
+      <div className="min-w-0 flex-1"><HeadedTableSkeleton headers={SESSION_HEADERS} /></div>
+    </div>
   </div>
 }
 

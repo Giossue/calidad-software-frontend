@@ -23,16 +23,17 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { compareNames, formatDate } from '@/lib/format'
 import { DAY_LABELS } from '@/lib/tutoring-api'
 import { teacherApi, type Enrollment, type TeacherAbsenceNotice, type TeacherTutoring, type TutoringSession } from '@/lib/teacher-api'
-import { classWindow, closedReason, hoursLabel, useNow } from './class-hours'
+import { DATE_PATTERN, todayIso } from '@/lib/date'
+import { NO_CLASS_THAT_DAY, SessionCalendar, sessionDateIssue } from './session-calendar'
 import { jointGroup, ownGroup, type ClassGroup } from './joint-groups'
 import { JointNotice } from './joint-notice'
 import { TeacherEmpty } from './teacher-shared'
 import { SessionConsultSkeleton, SessionsTabSkeleton } from './teacher-skeletons'
 
+/** Fecha de la sesión que se registra o modifica: va en la URL para que «atrás» vuelva a la lista. */
 const SESSION_PARAM = 'session'
-/** Sesión pasada abierta para consulta (su fecha): va en la URL para que «atrás» vuelva a la lista. */
+/** Sesión abierta para consulta (su fecha). */
 const CONSULT_PARAM = 'consult'
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 export const DAY_OF_WEEK_MAP: Record<number, string> = {
   0: 'domingo',
@@ -49,11 +50,6 @@ export function getDayOfWeekFromDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
   const d = new Date(year, month - 1, day, 12, 0, 0)
   return DAY_OF_WEEK_MAP[d.getDay()] ?? ''
-}
-
-function todayDate(): string {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 // --- Borrador: el avance se guarda solo para no perder nada si el docente retrocede o recarga. ---
@@ -78,7 +74,7 @@ function clearDraft(tutoringId: number, date: string) {
   try { sessionStorage.removeItem(draftKey(tutoringId, date)) } catch { /* nada que limpiar */ }
 }
 
-// --- Panel: la lista de sesiones; desde ella se toma la lista de hoy o se consulta una sesión ---
+// --- Panel: el calendario y la lista de sesiones; desde ellos se registra o modifica la sesión de un día ---
 
 export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [params, setParams] = useSearchParams()
@@ -93,9 +89,8 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
     return Array.from(new Set(active.map((s) => s.day)))
   }, [tutoring.schedules])
 
-  // La asistencia solo se toma el día de la clase: la lista que se registra es siempre la de hoy.
-  const targetDate = todayDate()
-  const registering = Boolean(sessionDate && DATE_PATTERN.test(sessionDate))
+  // La sesión de cualquier día con clase del período, hasta hoy, se registra o modifica en el mismo formulario.
+  const targetDate = sessionDate && DATE_PATTERN.test(sessionDate) ? sessionDate : null
 
   // Cada sub-vista (toma de lista o consulta) es una entrada del historial: «atrás» vuelve a las sesiones.
   function openView(param: string | null, value: string | null) {
@@ -106,12 +101,32 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
     setParams(next)
   }
 
-  if (registering) {
+  // Una tutoría de un período cerrado solo se consulta; en el período vigente cada sesión se abre para editarla.
+  function openSession(session: TutoringSession) {
+    if (tutoring.can_manage) {
+      openView(SESSION_PARAM, session.date)
+    } else {
+      setPicked(session)
+      openView(CONSULT_PARAM, session.date)
+    }
+  }
+  function openDate(date: string, session: TutoringSession | null) {
+    if (tutoring.can_manage && sessionDateIssue(tutoring, date, todayIso()) === null) {
+      openView(SESSION_PARAM, date)
+    } else {
+      setPicked(session)
+      openView(CONSULT_PARAM, date)
+    }
+  }
+
+  if (targetDate) {
     return (
       <div className="flex flex-col gap-4" data-tour-view="register">
         <div className="flex items-center gap-2">
           <IconAction label="Volver a las sesiones" icon={ArrowLeftIcon} onClick={() => openView(null, null)} />
-          <h3 className="text-xl font-semibold tracking-tight">Registrar asistencia</h3>
+          <h3 className="text-xl font-semibold tracking-tight">
+            {targetDate === todayIso() ? 'Registrar asistencia' : `Sesión del ${formatDate(targetDate)}`}
+          </h3>
         </div>
         <SessionFlow
           key={`${tutoring.id}:${targetDate}`}
@@ -124,21 +139,30 @@ export function AttendancePanel({ tutoring }: Readonly<{ tutoring: TeacherTutori
   }
 
   if (consultDate) {
-    return <SessionConsultView tutoring={tutoring} date={consultDate} picked={picked?.date === consultDate ? picked : null} onClose={() => openView(null, null)} />
+    return (
+      <SessionConsultView
+        tutoring={tutoring}
+        date={consultDate}
+        picked={picked?.date === consultDate ? picked : null}
+        onClose={() => openView(null, null)}
+        onEdit={() => openView(SESSION_PARAM, consultDate)}
+      />
+    )
   }
 
   return (
     <SessionsList
       tutoring={tutoring}
       scheduleDays={activeScheduleDays.map((day) => DAY_LABELS[day] ?? day)}
-      onOpenConsult={(session) => { setPicked(session); openView(CONSULT_PARAM, session.date) }}
+      onOpenSession={openSession}
+      onOpenDate={openDate}
       onOpenRegister={(date) => openView(SESSION_PARAM, date)}
     />
   )
 }
 
 /** Sesión abierta por la URL: la elegida en la lista o, si no, la que se consulta por su fecha. */
-function SessionConsultView({ tutoring, date, picked, onClose }: Readonly<{ tutoring: TeacherTutoring; date: string; picked: TutoringSession | null; onClose: () => void }>) {
+function SessionConsultView({ tutoring, date, picked, onClose, onEdit }: Readonly<{ tutoring: TeacherTutoring; date: string; picked: TutoringSession | null; onClose: () => void; onEdit: () => void }>) {
   const resource = useDegreeResource(
     async () => picked ?? (await teacherApi.sessions(tutoring.id, { date })).data[0] ?? null,
     `consult:${tutoring.id}:${date}:${picked ? picked.id : 'url'}`,
@@ -156,7 +180,8 @@ function SessionConsultView({ tutoring, date, picked, onClose }: Readonly<{ tuto
       </div>
     )
   }
-  return <SessionConsult session={resource.data} onClose={onClose} />
+  const editable = tutoring.can_manage && sessionDateIssue(tutoring, date, todayIso()) === null
+  return <SessionConsult session={resource.data} readOnly={!tutoring.can_manage} onClose={onClose} onEdit={editable ? onEdit : undefined} />
 }
 
 function attendanceSummary(session: TutoringSession): string {
@@ -167,29 +192,35 @@ function attendanceSummary(session: TutoringSession): string {
 function SessionsList({
   tutoring,
   scheduleDays,
-  onOpenConsult,
+  onOpenSession,
+  onOpenDate,
   onOpenRegister,
 }: Readonly<{
   tutoring: TeacherTutoring
   /** Días de clase de la tutoría, ya con su nombre. */
   scheduleDays: readonly string[]
-  onOpenConsult: (session: TutoringSession) => void
+  onOpenSession: (session: TutoringSession) => void
+  /** Día elegido en el calendario, con su sesión si ya está registrada. */
+  onOpenDate: (date: string, session: TutoringSession | null) => void
   onOpenRegister: (date: string) => void
 }>) {
   const list = usePaginatedCatalog((page) => teacherApi.sessions(tutoring.id, { page }), String(tutoring.id))
+  // Todas las sesiones del período, para marcarlas en el calendario.
+  const all = useDegreeResource(() => teacherApi.allSessions(tutoring.id), `calendar:${tutoring.id}`)
 
-  // Una tutoría tiene un solo grupo: la lista se toma una vez al día. Si ya existe la de hoy, solo se modifica.
-  const today = todayDate()
+  // Una tutoría tiene un solo grupo: hay una sesión por día. Si ya existe la de hoy, solo se modifica.
+  const today = todayIso()
   const todaySession = useDegreeResource(
     async () => (await teacherApi.sessions(tutoring.id, { date: today })).data[0] ?? null,
     `${tutoring.id}:${today}`,
   )
   const taken = todaySession.data
-  const classTime = classWindow(tutoring.schedules, useNow())
-  const closed = closedReason(classTime)
+  const issue = sessionDateIssue(tutoring, today, today)
+  const todayIssue = issue === NO_CLASS_THAT_DAY ? 'Hoy no hay clase de esta tutoría.' : issue
+  const sessions = all.data ?? []
 
-  // Primera carga: el aviso de hoy, su botón y la tabla de sesiones son un solo esqueleto.
-  if (list.isInitialLoading || todaySession.loading) return <SessionsTabSkeleton />
+  // Primera carga: el aviso de hoy, su botón, el calendario y la tabla de sesiones son un solo esqueleto.
+  if (list.isInitialLoading || todaySession.loading || all.loading) return <SessionsTabSkeleton />
 
   return (
     <div className="flex flex-col gap-5">
@@ -197,11 +228,11 @@ function SessionsList({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col">
             <p className="text-sm font-medium">La lista de hoy ya se tomó</p>
-            <p className="text-sm text-muted-foreground">{attendanceSummary(taken)}. Puedes modificarla solo durante el horario de la clase.</p>
+            <p className="text-sm text-muted-foreground">{attendanceSummary(taken)}.{tutoring.can_manage ? ' Puedes modificarla durante todo el período.' : ''}</p>
           </div>
           {tutoring.can_manage && (
-            <BlockedReason reason={closed}>
-              <Button variant="secondary" className="shrink-0" disabled={closed !== null} onClick={() => onOpenRegister(today)}>
+            <BlockedReason reason={todayIssue}>
+              <Button variant="secondary" className="shrink-0" disabled={todayIssue !== null} onClick={() => onOpenRegister(today)}>
                 <PencilIcon data-icon="inline-start" />Modificar lista de hoy
               </Button>
             </BlockedReason>
@@ -210,55 +241,68 @@ function SessionsList({
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col">
-            <p className="text-sm text-muted-foreground">
-              {closed ?? `Clase en curso (${classTime.current ? hoursLabel(classTime.current) : ''}): registra la asistencia de hoy.`}
-            </p>
+            <p className="text-sm text-muted-foreground">{todayIssue ?? 'Hoy hay clase: registra la asistencia de hoy.'}</p>
             {scheduleDays.length > 0 && <p className="text-sm text-muted-foreground">Días de clase: <span className="text-foreground">{scheduleDays.join(', ')}</span></p>}
           </div>
-          <BlockedReason reason={!tutoring.can_manage ? 'Esta tutoría está en modo consulta.' : todaySession.loading ? null : closed}>
-            <Button
-              className="shrink-0"
-              disabled={!tutoring.can_manage || todaySession.loading || closed !== null}
-              onClick={() => onOpenRegister(today)}
-            >
+          <BlockedReason reason={!tutoring.can_manage ? 'Esta tutoría está en modo consulta.' : todayIssue}>
+            <Button className="shrink-0" disabled={!tutoring.can_manage || todayIssue !== null} onClick={() => onOpenRegister(today)}>
               <PlusIcon data-icon="inline-start" />Registrar asistencia
             </Button>
           </BlockedReason>
         </div>
       )}
 
-      <ErrorNotice message={list.error} retry={list.reload} />
+      <ErrorNotice message={list.error ?? all.error} retry={list.error ? list.reload : all.reload} />
 
-      <RecordTable
-        rows={list.data}
-        loading={list.isFetching}
-        onRowClick={(session) => onOpenConsult(session)}
-        rowTitle={(session) => `Abrir la ${session.number ? `sesión ${session.number}` : 'sesión'} del ${formatDate(session.date)}`}
-        empty={
-          <TeacherEmpty
-            title="Aún no hay sesiones registradas"
-            description="Pulsa «Registrar asistencia» durante la clase para crear la primera sesión."
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <section aria-labelledby="session-calendar-title" className="flex shrink-0 flex-col gap-2 rounded-lg border p-3 lg:w-80">
+          <h4 id="session-calendar-title" className="text-sm font-medium">Calendario</h4>
+          <p className="text-xs text-muted-foreground">
+            {tutoring.can_manage
+              ? 'Elige un día con clase del período para registrar o modificar su sesión. Los días marcados ya tienen sesión.'
+              : 'Elige un día marcado para consultar su sesión.'}
+          </p>
+          <SessionCalendar
+            tutoring={tutoring}
+            sessions={sessions}
+            today={today}
+            onSelect={(date) => onOpenDate(date, sessions.find((session) => session.date === date) ?? null)}
           />
-        }
-        columns={[
-          { label: 'Sesión', render: (session) => (session.number ? `Sesión ${session.number}` : 'Sesión') },
-          {
-            label: 'Día',
-            render: (session) => {
-              const day = getDayOfWeekFromDate(session.date)
-              return (
-                <span>{DAY_LABELS[day] ?? day}</span>
-              )
-            },
-          },
-          {
-            label: 'Fecha',
-            render: (session) => formatDate(session.date),
-          },
-          { label: 'Asistencia', render: (session) => attendanceSummary(session) },
-        ]}
-      />
-      <CatalogPagination label="sesiones" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
+        </section>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <RecordTable
+            rows={list.data}
+            loading={list.isFetching}
+            onRowClick={onOpenSession}
+            rowTitle={(session) => `Abrir la ${session.number ? `sesión ${session.number}` : 'sesión'} del ${formatDate(session.date)}`}
+            empty={
+              <TeacherEmpty
+                title="Aún no hay sesiones registradas"
+                description="Registra la asistencia de hoy o elige en el calendario un día con clase del período."
+              />
+            }
+            columns={[
+              { label: 'Sesión', render: (session) => (session.number ? `Sesión ${session.number}` : 'Sesión') },
+              {
+                label: 'Día',
+                render: (session) => {
+                  const day = getDayOfWeekFromDate(session.date)
+                  return (
+                    <span>{DAY_LABELS[day] ?? day}</span>
+                  )
+                },
+              },
+              {
+                label: 'Fecha',
+                render: (session) => formatDate(session.date),
+              },
+              { label: 'Asistencia', render: (session) => attendanceSummary(session) },
+            ]}
+          />
+          <CatalogPagination label="sesiones" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
+        </div>
+      </div>
     </div>
   )
 }
@@ -399,8 +443,9 @@ function SessionFlow({
   )
 }
 
-// Las sesiones de fechas anteriores a hoy son un registro histórico: solo se consultan.
-function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSession; onClose: () => void }>) {
+// Consulta de una sesión: en un período cerrado es un registro histórico de solo consulta;
+// en el período vigente se puede abrir para modificarla.
+function SessionConsult({ session, readOnly, onClose, onEdit }: Readonly<{ session: TutoringSession; readOnly: boolean; onClose: () => void; onEdit?: () => void }>) {
   const sessionDay = getDayOfWeekFromDate(session.date)
   const dayLabel = DAY_LABELS[sessionDay] ?? sessionDay
 
@@ -418,10 +463,18 @@ function SessionConsult({ session, onClose }: Readonly<{ session: TutoringSessio
                 <span className="text-sm text-muted-foreground">{dayLabel}</span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">Registro histórico · {attendanceSummary(session)}</p>
+            <p className="text-sm text-muted-foreground">{readOnly ? 'Registro histórico · ' : ''}{attendanceSummary(session)}</p>
           </div>
         </div>
-        <Badge variant="inactive">Solo consulta</Badge>
+        {readOnly ? (
+          <Badge variant="inactive">Solo consulta</Badge>
+        ) : (
+          onEdit && (
+            <Button variant="secondary" onClick={onEdit}>
+              <PencilIcon data-icon="inline-start" />Modificar sesión
+            </Button>
+          )
+        )}
       </div>
       <DataTable
         dense
@@ -467,8 +520,9 @@ function SessionForm({
   const active = useMemo(() => [...own, ...jointGroups.flatMap((item) => item.active)], [own, jointGroups])
 
   const selectedDay = getDayOfWeekFromDate(date)
-  const classTime = classWindow(tutoring.schedules, useNow())
-  const closed = closedReason(classTime)
+  const isToday = date === todayIso()
+  // La misma regla del servidor: un día con clase del período, desde su inicio hasta hoy.
+  const closed = tutoring.can_manage ? sessionDateIssue(tutoring, date, todayIso()) : null
 
   // El borrador local tiene prioridad sobre lo guardado en el servidor
   const [draft] = useState(() => readDraft(tutoring.id, date))
@@ -509,10 +563,12 @@ function SessionForm({
     void operation.run(
       async () => {
         for (const group of groups) {
+          // Los temas de la sesión se asignan en Contenido: al guardar la asistencia se conservan.
+          const saved = group.id === tutoring.id ? session : jointGroups.find((item) => item.group.id === group.id)?.session ?? null
           await teacherApi.saveSession(group.id, {
             date,
-            topics_covered: false,
-            topic_ids: [],
+            topics_covered: saved?.topics_covered ?? false,
+            topic_ids: saved?.topics_covered ? saved.topics.map((topic) => topic.id) : [],
             attendance: group.active.map((student) => ({ enrollment_id: student.id, present: marks[student.id] === true })),
           })
         }
@@ -555,7 +611,7 @@ function SessionForm({
       {session && !draft && (
         <Alert>
           <AlertDescription>
-            La lista de hoy ya se tomó. Estás modificándola: al guardar se reemplaza ese registro.
+            {isToday ? 'La lista de hoy ya se tomó.' : 'La sesión de esta fecha ya está registrada.'} Estás modificándola: al guardar se reemplaza ese registro.
           </AlertDescription>
         </Alert>
       )}
@@ -572,8 +628,7 @@ function SessionForm({
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <p className="text-sm">
-            <span className="font-medium">Hoy, {DAY_LABELS[selectedDay] ?? selectedDay} {formatDate(date)}</span>
-            {classTime.current && <span className="text-muted-foreground"> · Clase de {hoursLabel(classTime.current)}</span>}
+            <span className="font-medium">{isToday ? 'Hoy, ' : ''}{DAY_LABELS[selectedDay] ?? selectedDay} {formatDate(date)}</span>
           </p>
           <div className="flex items-center gap-3">
             <p className="text-sm text-muted-foreground" aria-live="polite">
