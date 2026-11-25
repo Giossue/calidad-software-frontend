@@ -478,8 +478,9 @@ describe('Coordinación de tutorías', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Vincular docente existente' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Vincular docente existente' }))
     const form = await screen.findByRole('form', { name: 'Vincular docente existente' })
-    // Con una sola carrera queda elegida de antemano.
-    expect(within(form).getByLabelText(/^Carrera/)).toHaveTextContent(career.name)
+    // Con una sola carrera no se pregunta: el docente se vincula a esa carrera.
+    expect(within(form).queryByLabelText(/^Carrera/)).not.toBeInTheDocument()
+    expect(form).not.toHaveTextContent('varias carreras')
     await user.type(within(form).getByLabelText(/^Docente/), 'ana')
     await user.click(await screen.findByRole('option', { name: /Ana Torres/ }))
     await user.click(within(form).getByRole('button', { name: 'Vincular docente' }))
@@ -685,6 +686,17 @@ describe('Coordinación de tutorías', () => {
     expect(screen.getByRole('button', { name: 'Limpiar' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Limpiar' }))
     await waitFor(() => expect(tutoringApi.teachers).toHaveBeenLastCalledWith({ page: 1, search: '', career_id: undefined, status: undefined }))
+  })
+
+  it('con una sola malla no muestra la malla en Tutorías; en la malla curricular se rotula «Nombre de la malla»', async () => {
+    render(<MemoryRouter><TutoringsPage /></MemoryRouter>)
+    await screen.findByText('Matemática')
+    expect(screen.queryByText('Malla inicial')).not.toBeInTheDocument()
+    cleanup()
+
+    await openCurriculum()
+    expect(screen.getByText('Nombre de la malla')).toBeInTheDocument()
+    expect(screen.getByText('Malla inicial')).toBeInTheDocument()
   })
 
   it('si no hay ningún paralelo (ni en el ciclo ni en el catálogo), pide crear uno y no deja crear la tutoría', async () => {

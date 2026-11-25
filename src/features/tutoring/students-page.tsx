@@ -553,7 +553,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
             extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
           />
           {screen?.tabs}
-          <MallaPicker selection={malla} />
+          <MallaPicker selection={malla} onlyWhenChoice />
 
           {!isDegreeTab && (
             <>

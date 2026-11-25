@@ -8,15 +8,22 @@ import type { MallaSelection } from './tutoring-hooks'
 const mallaOptionLabel = (malla: CareerMalla) => `${malla.name}${malla.is_current ? ' · Vigente' : ''}`
 
 /**
- * Selector «Malla» junto a la carrera. Con una sola malla no hay nada que elegir: se muestra
- * como texto, igual que la carrera única. `children` son acciones sobre la malla elegida.
+ * Selector de la malla junto a la carrera. Con una sola malla no hay nada que elegir: se muestra
+ * como texto, salvo con `onlyWhenChoice`, que lo oculta (las pantallas que solo filtran por malla).
+ * `children` son acciones sobre la malla elegida.
  */
-export function MallaPicker({ selection, disabled = false, children }: Readonly<{ selection: MallaSelection; disabled?: boolean; children?: ReactNode }>) {
+export function MallaPicker({ selection, label = 'Malla', onlyWhenChoice = false, disabled = false, children }: Readonly<{
+  selection: MallaSelection
+  label?: string
+  onlyWhenChoice?: boolean
+  disabled?: boolean
+  children?: ReactNode
+}>) {
   const { malla, mallas } = selection
-  if (!malla) return null
+  if (!malla || (onlyWhenChoice && !selection.canChange)) return null
   return (
     <div className="flex flex-wrap items-center gap-2" data-tour="page-malla">
-      <span className="text-sm text-muted-foreground">Malla</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       {selection.canChange ? (
         <SelectInput
           id="tutoring-malla"

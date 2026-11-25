@@ -206,7 +206,7 @@ function CurriculumWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: 
             </>
           }
         />
-        <MallaPicker selection={malla} disabled={operation.pending}>
+        <MallaPicker selection={malla} label="Nombre de la malla" disabled={operation.pending}>
           <MallaManagement careerId={careerId} selection={malla} mallas={careerMallas.data} disabled={operation.pending} onChanged={refreshMallas} />
         </MallaPicker>
         <ErrorNotice message={resource.error} retry={resource.reload} />
