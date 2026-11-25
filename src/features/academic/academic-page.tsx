@@ -183,6 +183,22 @@ function cyclesSummary(career: Career): string {
     : `${career.active_cycles_count} de ${career.cycles_count} ciclo${career.cycles_count === 1 ? '' : 's'} activo${career.active_cycles_count === 1 ? '' : 's'}`
 }
 
+/** Cantidad de ciclos de la carrera para la tabla; si no todos están activos, indica cuántos lo están. */
+function CyclesCount({ career }: Readonly<{ career: Career }>) {
+  if (career.cycles_count === 0) return <span className="text-muted-foreground">Sin ciclos</span>
+
+  return (
+    <div className="flex flex-col">
+      <span>{career.cycles_count}</span>
+      {career.active_cycles_count < career.cycles_count && (
+        <span className="text-sm text-muted-foreground">
+          {career.active_cycles_count} activo{career.active_cycles_count === 1 ? '' : 's'}
+        </span>
+      )}
+    </div>
+  )
+}
+
 /**
  * Modal para registrar una carrera o editarla. `siblings` son las carreras de la lista
  * cargada, contra las que se revisa el nombre duplicado antes de enviar.
@@ -435,7 +451,7 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
 
   // Primera carga: toda la pantalla en esqueleto; después, solo las filas al filtrar o paginar.
   if (isInitialLoading) {
-    return <AdminListSkeleton label="Cargando carreras" filters={2} headers={['Carrera', 'Código', 'Facultad', 'Modalidad', 'Estado']} />
+    return <AdminListSkeleton label="Cargando carreras" filters={2} headers={['Carrera', 'Ciclos', 'Facultad', 'Modalidad', 'Estado']} />
   }
 
   return (
@@ -482,11 +498,11 @@ function CareersPage({ onSelectCareer }: Readonly<{ onSelectCareer: (career: Car
               render: (career) => (
                 <div className="flex flex-col">
                   <span>{career.name}</span>
-                  <span className="text-sm text-muted-foreground">{cyclesSummary(career)}</span>
+                  <span className="text-sm text-muted-foreground">{career.code ?? 'Sin código'}</span>
                 </div>
               ),
             },
-            { label: 'Código', render: (career) => career.code ?? <span className="text-muted-foreground">Sin código</span> },
+            { label: 'Ciclos', render: (career) => <CyclesCount career={career} /> },
             { label: 'Facultad', render: (career) => <span className="text-muted-foreground">{career.faculty_name ?? `Facultad #${career.faculty_id}`}</span> },
             { label: 'Modalidad', render: (career) => <span className="text-muted-foreground">{career.modality_name ?? '—'}</span> },
             { label: 'Estado', render: (career) => <StatusBadge active={career.status} activeLabel="Activa" inactiveLabel="Inactiva" /> },
