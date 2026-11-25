@@ -14,6 +14,7 @@ import { TeacherDegreeAssignmentsPage } from './teacher-degree-assignments-page'
 import { TeacherDegreeTrackingPage } from './teacher-degree-tracking-page'
 import { TeacherReportsStandalonePage } from './teacher-reports-standalone-page'
 import { TeacherTutoringsPage } from './teacher-tutorings-page'
+import { formatDate } from '@/lib/format'
 
 vi.mock('@/features/auth/auth-context', () => ({
   useAuth: () => ({
@@ -78,6 +79,11 @@ function attendance() {
 
 function workspace(tab: string) {
   return show(<TeacherTutoringsPage />, `/panel/teacher-tutorings?tutoring=40&tab=${tab}`)
+}
+
+/** Contenido abierto en la fila «Temas sin sesión» (donde quedan los temas aún no tratados). */
+function contentWithoutSession() {
+  return show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&content-session=none')
 }
 
 beforeEach(() => {
@@ -1054,46 +1060,54 @@ describe('Módulo Docente', () => {
     expect(within(form).getByRole('checkbox', { name: 'Presente: Ana Pérez' })).toBeDisabled()
   })
 
-  it('muestra el contenido por sesión: cada sesión con sus temas y la sesión de cada tema', async () => {
+  it('muestra el contenido por sesiones con su fecha; al abrir una se ven sus temas, recursos y estado', async () => {
     const user = userEvent.setup()
-    const other = { ...topic, id: 91, name: 'Integración' }
+    const other = { ...topic, id: 91, name: 'Integración', is_covered: true, files: [{ id: 3, name: 'guia.pdf', mime_type: 'application/pdf', size: 1024, uploaded_at: null }] }
     const loose = { ...topic, id: 92, name: 'Despliegue' }
-    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([topic, other, loose]))
+    const disabled = { ...topic, id: 93, name: 'Tema viejo', is_active: false }
+    vi.mocked(teacherApi.allTopics).mockResolvedValue([topic, other, loose, disabled])
     vi.mocked(teacherApi.allSessions).mockResolvedValue([
       { id: 2, tutoring_id: 40, number: 2, date: '2026-09-28', topics_covered: true, topics: [{ id: 91, name: 'Integración', is_active: true }], attendance: [] },
-      { id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: false, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [] },
+      { id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: false, topics: [{ id: 90, name: 'Pruebas', is_active: true }, { id: 91, name: 'Integración', is_active: true }], attendance: [] },
     ])
     workspace('content')
 
-    // La sesión se elige con un desplegable, no con una fila de botones.
-    const sessionSelect = await screen.findByRole('combobox', { name: 'Filtrar por Sesión' })
-    expect(sessionSelect).toHaveTextContent('Todas las sesiones')
-    expect(screen.getByRole('columnheader', { name: 'Sesión' })).toBeInTheDocument()
-    expect(within(screen.getByRole('row', { name: /Despliegue/ })).getByText('Sin sesión')).toBeInTheDocument()
-    expect(within(screen.getByRole('row', { name: /Integración/ })).getByText('Sesión 2')).toBeInTheDocument()
+    const first = await screen.findByRole('row', { name: /Sesión 1/ }, { timeout: 5000 })
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Sesión', 'Fecha', 'Temas', 'Completados'])
+    expect(within(first).getByText(formatDate('2026-09-21'))).toBeInTheDocument()
+    expect(within(first).getByText('1 de 2')).toBeInTheDocument()
+    // Los temas sin sesión son una fila más; los deshabilitados no se cuentan.
+    const pending = screen.getByRole('row', { name: /Temas sin sesión/ })
+    expect(within(pending).getByText('0 de 1')).toBeInTheDocument()
+    // Sin filtros de sesión ni de estado.
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por Sesión' })).not.toBeInTheDocument()
 
-    await user.click(sessionSelect)
-    const options = (await screen.findAllByRole('option')).map((option) => option.textContent)
-    expect(options[1]).toMatch(/^Sesión 1 · .*1 tema$/)
-    expect(options[2]).toMatch(/^Sesión 2 · /)
-    await user.click(screen.getByRole('option', { name: /^Sesión 2/ }))
-    expect(screen.getByRole('combobox', { name: 'Filtrar por Sesión' })).toHaveTextContent(/^Sesión 2/)
-    expect(screen.getByRole('button', { name: 'Asignar temas a esta sesión' })).toBeInTheDocument()
-    expect(screen.getByRole('row', { name: /Integración/ })).toBeInTheDocument()
+    await user.click(within(screen.getByRole('row', { name: /Sesión 2/ })).getByText('Sesión 2'))
+    expect(await screen.findByRole('heading', { name: `Sesión 2 · ${formatDate('2026-09-28')}` })).toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Tema', 'Recursos', 'Completado'])
+    const row = screen.getByRole('row', { name: /Integración/ })
+    expect(within(row).getByText('1 archivo')).toBeInTheDocument()
+    expect(within(row).getByRole('checkbox', { name: 'Completado: Integración' })).toBeChecked()
     expect(screen.queryByRole('row', { name: /Pruebas/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('row', { name: /Despliegue/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Habilitado')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Sesiones' }))
+    await user.click(within(await screen.findByRole('row', { name: /Temas sin sesión/ })).getByText('Temas sin sesión'))
+    expect(await screen.findByRole('row', { name: /Despliegue/ })).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /Tema viejo/ })).not.toBeInTheDocument()
   })
 
   it('sin sesiones avisa que se habilitan al tomar asistencia', async () => {
     vi.mocked(teacherApi.allSessions).mockResolvedValue([])
     workspace('content')
     expect(await screen.findByText(/Las sesiones se habilitan al tomar asistencia/)).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /Temas sin sesión/ })).toBeInTheDocument()
   })
 
   it('registra un tema nuevo en contenido solicitando solo el nombre, sin campo de descripción', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.createTopic).mockResolvedValue({ ...topic, id: 95, name: 'Introducción' })
-    workspace('content')
+    contentWithoutSession()
     await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
     expect(screen.queryByLabelText(/Descripción/i)).not.toBeInTheDocument()
     // El nombre es obligatorio: asterisco y aviso para lectores de pantalla.
@@ -1102,13 +1116,37 @@ describe('Módulo Docente', () => {
     await user.type(screen.getByLabelText(/^Nombre/), 'Introducción')
     await user.click(within(screen.getByRole('form', { name: 'Registrar tema' })).getByRole('button', { name: 'Registrar tema' }))
     await waitFor(() => expect(teacherApi.createTopic).toHaveBeenCalledWith(40, { name: 'Introducción', description: '' }))
+    // Fuera de una sesión, el tema queda sin sesión.
+    expect(teacherApi.updateSessionTopics).not.toHaveBeenCalled()
+  })
+
+  it('dentro de una sesión registra el tema ya en esa sesión y asigna temas existentes', async () => {
+    const user = userEvent.setup()
+    const loose = { ...topic, id: 92, name: 'Despliegue' }
+    vi.mocked(teacherApi.allTopics).mockResolvedValue([topic, loose])
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([{ id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: false, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [] }])
+    vi.mocked(teacherApi.createTopic).mockResolvedValue({ ...topic, id: 95, name: 'Introducción' })
+    vi.mocked(teacherApi.updateSessionTopics).mockResolvedValue({ id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: true, topics: [], attendance: [] })
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&content-session=1')
+
+    await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
+    const form = screen.getByRole('form', { name: 'Registrar tema' })
+    await user.type(within(form).getByLabelText(/^Nombre/), 'Introducción')
+    await user.click(within(form).getByRole('button', { name: 'Registrar tema' }))
+    await waitFor(() => expect(teacherApi.updateSessionTopics).toHaveBeenCalledWith(40, 1, [90, 95]))
+
+    await user.click(await screen.findByRole('button', { name: 'Asignar temas' }))
+    const assign = await screen.findByRole('form', { name: /^Asignar temas a la Sesión 1/ })
+    await user.click(within(assign).getByText('Despliegue'))
+    await user.click(within(assign).getByRole('button', { name: 'Guardar temas de la sesión' }))
+    await waitFor(() => expect(teacherApi.updateSessionTopics).toHaveBeenLastCalledWith(40, 1, [90, 92]))
   })
 
   it('adjunta recursos al registrar un tema y rechaza los archivos no permitidos', async () => {
     const user = userEvent.setup({ applyAccept: false })
     vi.mocked(teacherApi.createTopic).mockResolvedValue({ ...topic, id: 95, name: 'Introducción', files: [] })
     vi.mocked(teacherApi.uploadTopicFile).mockResolvedValue({ id: 1, name: 'guia.pdf', mime_type: 'application/pdf', size: 2048, uploaded_at: null })
-    workspace('content')
+    contentWithoutSession()
     await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
     const form = screen.getByRole('form', { name: 'Registrar tema' })
     await user.type(within(form).getByLabelText(/^Nombre/), 'Introducción')
@@ -1131,11 +1169,11 @@ describe('Módulo Docente', () => {
     const user = userEvent.setup()
     const stored = { id: 7, name: 'Clase 1.pptx', mime_type: 'application/vnd.ms-powerpoint', size: 3 * 1024 * 1024, uploaded_at: null }
     const withFiles = { ...topic, files: [stored, { ...stored, id: 8, name: 'Lectura.docx' }] }
-    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([withFiles]))
+    vi.mocked(teacherApi.allTopics).mockResolvedValue([withFiles])
     vi.mocked(teacherApi.updateTopic).mockResolvedValue(withFiles)
     vi.mocked(teacherApi.deleteTopicFile).mockResolvedValue(undefined)
     vi.mocked(teacherApi.downloadTopicFile).mockResolvedValue(undefined)
-    workspace('content')
+    contentWithoutSession()
     expect(await screen.findByText('2 archivos')).toBeInTheDocument()
 
     await user.click(screen.getByText('Pruebas'))
@@ -1155,12 +1193,12 @@ describe('Módulo Docente', () => {
   it('permite al docente marcar un tema como completado o pendiente directamente desde la tabla', async () => {
     const user = userEvent.setup()
     let currentTopic = { ...topic, is_covered: false }
-    vi.mocked(teacherApi.topics).mockImplementation(async () => paginated([currentTopic]))
+    vi.mocked(teacherApi.allTopics).mockImplementation(async () => [currentTopic])
     vi.mocked(teacherApi.toggleTopicCovered).mockImplementation(async (_tutoringId, _topicId, isCovered) => {
       currentTopic = { ...currentTopic, is_covered: Boolean(isCovered) }
       return currentTopic
     })
-    workspace('content')
+    contentWithoutSession()
     await screen.findByText('Pruebas')
     // Una sola casilla por tema, sin un ícono repetido en "Acciones".
     const done = screen.getByRole('checkbox', { name: 'Completado: Pruebas' })
@@ -1176,10 +1214,9 @@ describe('Módulo Docente', () => {
 
   it('abre el tema con clic en la fila, lo edita desde su pantalla y lo deshabilita desde la cabecera del modal', async () => {
     const user = userEvent.setup()
-    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([topic]))
     vi.mocked(teacherApi.updateTopic).mockResolvedValue({ ...topic, name: 'Pruebas 2' })
     vi.mocked(teacherApi.deactivateTopic).mockResolvedValue({ ...topic, is_active: false })
-    workspace('content')
+    contentWithoutSession()
     await screen.findByText('Pruebas')
     expect(screen.queryByRole('button', { name: /^Editar/ })).not.toBeInTheDocument()
     // Sin columna de acciones: la fila abre la pantalla del tema.
@@ -1199,12 +1236,14 @@ describe('Módulo Docente', () => {
     await user.click(await screen.findByRole('button', { name: 'Deshabilitar tema' }))
     await user.click(within(await screen.findByRole('dialog', { name: '¿Deshabilitar tema?' })).getByRole('button', { name: 'Deshabilitar tema' }))
     await waitFor(() => expect(teacherApi.deactivateTopic).toHaveBeenCalledWith(40, 90))
+    // Deshabilitado, ya no se lista: se vuelve a los temas sin sesión.
+    expect(await screen.findByRole('heading', { name: 'Temas sin sesión' })).toBeInTheDocument()
   })
 
   it('recorre temas, actividades y metodologías con formularios integrados', async () => {
     const user = userEvent.setup()
     let topics = [topic]
-    vi.mocked(teacherApi.topics).mockImplementation(async () => paginated(topics))
+    vi.mocked(teacherApi.allTopics).mockImplementation(async () => topics)
     vi.mocked(teacherApi.createActivity).mockImplementation(async () => {
       const activity = { id: 91, topic_id: 90, name: 'Diseñar casos', duration: '30 minutos', is_active: true, methodologies: [] }
       topics = [{ ...topic, activities: [activity] }]
@@ -1215,7 +1254,7 @@ describe('Módulo Docente', () => {
       topics = [{ ...topics[0], activities: [{ ...topics[0].activities[0], methodologies: [method] }] }]
       return method
     })
-    workspace('content')
+    contentWithoutSession()
     await user.click(await screen.findByText('Pruebas'))
     await user.click(await screen.findByRole('button', { name: 'Registrar actividad' }))
     await user.type(screen.getByLabelText(/^Nombre/), 'Diseñar casos')
@@ -1231,12 +1270,17 @@ describe('Módulo Docente', () => {
     await user.click(within(screen.getByRole('form', { name: 'Registrar metodología' })).getByRole('button', { name: 'Registrar metodología' }))
     expect(await screen.findByText('Trabajo colaborativo')).toBeInTheDocument()
     expect(teacherApi.createMethodology).toHaveBeenCalledWith(40, 90, 91, { description: 'Trabajo colaborativo' })
+    // Desde la actividad se vuelve al tema y a la sesión de la que se abrió.
+    await user.click(screen.getByRole('button', { name: 'Actividades' }))
+    expect(await screen.findByRole('heading', { name: 'Actividades de Pruebas' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Temas sin sesión' }))
+    expect(await screen.findByRole('heading', { name: 'Temas sin sesión' })).toBeInTheDocument()
   })
 
   it('muestra bajo el nombre el error del servidor y lo quita al cerrar el formulario', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.createTopic).mockRejectedValue(new ApiError(422, { message: 'Ya existe un tema con ese nombre.', errors: { name: ['Ya existe un tema con ese nombre.'] } }))
-    workspace('content')
+    contentWithoutSession()
     await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
     const form = screen.getByRole('form', { name: 'Registrar tema' })
     const name = within(form).getByLabelText(/^Nombre/)
@@ -1257,22 +1301,12 @@ describe('Módulo Docente', () => {
     expect(screen.queryByText('Ya existe un tema con ese nombre.')).not.toBeInTheDocument()
   })
 
-  it('la sesión es un filtro más: «Limpiar» la quita junto con la búsqueda y el estado', async () => {
-    const user = userEvent.setup()
-    vi.mocked(teacherApi.allSessions).mockResolvedValue([{ id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: false, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [] }])
-    workspace('content')
-    await choose(user, await screen.findByRole('combobox', { name: 'Filtrar por Sesión' }), /^Sesión 1/)
-    await user.click(screen.getByRole('button', { name: 'Limpiar' }))
-    expect(screen.getByRole('combobox', { name: 'Filtrar por Sesión' })).toHaveTextContent('Todas las sesiones')
-    expect(screen.queryByRole('button', { name: 'Limpiar' })).not.toBeInTheDocument()
-  })
-
   it('nombra cada metodología, la duración por horas y minutos, y confirma con un texto propio de cada contenido', async () => {
     const user = userEvent.setup()
     const success = vi.spyOn(sonnerToast, 'success')
     const method = { id: 92, activity_id: 91, description: 'Trabajo colaborativo', is_active: true }
     const activity = { id: 91, topic_id: 90, name: 'Diseñar casos', duration: '30 minutos', is_active: true, methodologies: [method] }
-    vi.mocked(teacherApi.topics).mockResolvedValue(paginated([{ ...topic, activities: [activity] }]))
+    vi.mocked(teacherApi.allTopics).mockResolvedValue([{ ...topic, activities: [activity] }])
     vi.mocked(teacherApi.updateActivity).mockResolvedValue(activity)
     vi.mocked(teacherApi.deactivateMethodology).mockResolvedValue({ ...method, is_active: false })
     show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
@@ -1293,12 +1327,12 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(success.mock.calls.at(-1)?.[0]).toMatch(/^Metodología deshabilitada\.?$/))
   })
 
-  it('abre la pantalla de un tema desde la URL y vuelve a la lista de temas', async () => {
+  it('abre la pantalla de un tema desde la URL y vuelve a la lista de sesiones', async () => {
     const user = userEvent.setup()
     show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
     expect(await screen.findByRole('heading', { name: 'Actividades de Pruebas' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Temas' }))
-    expect(await screen.findByRole('row', { name: /Pruebas/ })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sesiones' }))
+    expect(await screen.findByRole('row', { name: /Temas sin sesión/ })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Actividades de Pruebas' })).not.toBeInTheDocument()
   })
 
@@ -1852,7 +1886,6 @@ describe('Módulo Docente', () => {
     it.each([
       { tab: 'students', api: 'students' as const, value: paginated([student]), loading: 'Cargando estudiantes', action: 'Registrar estudiante' },
       { tab: 'attendance', api: 'sessions' as const, value: paginated([]), loading: 'Cargando sesiones', action: 'Registrar asistencia' },
-      { tab: 'content', api: 'topics' as const, value: paginated([topic]), loading: 'Cargando temas', action: 'Registrar tema' },
     ])('pestaña $tab: el cuerpo completo es un esqueleto mientras carga', async ({ tab, api, value, loading, action }) => {
       let resolve: (data: unknown) => void = () => undefined
       vi.mocked(teacherApi[api]).mockReturnValue(new Promise((done) => { resolve = done as (data: unknown) => void }) as never)
@@ -1863,6 +1896,19 @@ describe('Módulo Docente', () => {
       expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument()
       await act(async () => resolve(value))
       expect(await screen.findByRole('button', { name: action })).toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('pestaña content: la lista de sesiones es un esqueleto mientras cargan los temas', async () => {
+      let resolve: (data: unknown) => void = () => undefined
+      vi.mocked(teacherApi.allTopics).mockReturnValue(new Promise((done) => { resolve = done as (data: unknown) => void }) as never)
+      workspace('content')
+      await screen.findByRole('status', { name: 'Cargando sesiones' })
+      expectOneLoading('Cargando sesiones')
+      expect(screen.getByRole('heading', { level: 1, name: 'Calidad de software' })).toBeInTheDocument()
+      expect(screen.queryByRole('row', { name: /Temas sin sesión/ })).not.toBeInTheDocument()
+      await act(async () => resolve([topic]))
+      expect(await screen.findByRole('row', { name: /Temas sin sesión/ })).toBeInTheDocument()
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 

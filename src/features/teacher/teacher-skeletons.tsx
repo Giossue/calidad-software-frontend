@@ -17,7 +17,7 @@ const DEGREE_TRACKING_HEADERS = ['Tema', 'Estudiante', 'Participación', 'Avance
 const REPORT_TUTORING_HEADERS = ['Asignatura', 'Ciclo y paralelo', 'Estado'] as const
 const STUDENT_HEADERS = ['#', 'Apellidos y nombres', 'Contacto', 'Grupo de Conocimiento', 'Etapa', 'Nota', 'Resultado final', 'Inscripción'] as const
 const SESSION_HEADERS = ['Sesión', 'Día', 'Fecha', 'Asistencia'] as const
-const TOPIC_HEADERS = ['Tema', 'Sesión', 'Recursos', 'Completado', 'Habilitado'] as const
+const CONTENT_SESSION_HEADERS = ['Sesión', 'Fecha', 'Temas', 'Completados'] as const
 const SCHEDULE_HEADERS = ['Día', 'Horario', 'Estado'] as const
 const GRADE_HEADERS = ['#', 'Apellidos y nombres', 'Diagnóstico', 'Parcial 1', 'Parcial 2', 'Evolución (P1 → P2)'] as const
 const REPORT_HEADERS = ['Informe', 'Autor', 'Enviado'] as const
@@ -70,11 +70,9 @@ function AttendanceShape() {
   </div>
 }
 
+/** Contenido: la lista de sesiones (más la fila de temas sin sesión). */
 function ContentShape() {
-  return <div className="flex flex-col gap-5">
-    <FiltersWithActionShape filters={2} />
-    <HeadedTableSkeleton headers={TOPIC_HEADERS} />
-  </div>
+  return <HeadedTableSkeleton headers={CONTENT_SESSION_HEADERS} rows={4} />
 }
 
 function SchedulesShape() {
@@ -125,7 +123,7 @@ export function SessionsTabSkeleton() {
 }
 
 export function ContentTabSkeleton() {
-  return <Announced label="Cargando temas"><ContentShape /></Announced>
+  return <Announced label="Cargando sesiones"><ContentShape /></Announced>
 }
 
 export function GradesTabSkeleton() {
