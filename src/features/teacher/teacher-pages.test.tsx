@@ -230,6 +230,33 @@ describe('Módulo Docente', () => {
     expect(await screen.findByText('09:00 – 11:00')).toBeInTheDocument()
   })
 
+  it('el horario quitado por error desaparece de la tabla y solo se listan los vigentes', async () => {
+    const user = userEvent.setup()
+    const tuesday = { id: 8, tutoring_id: 40, day: 'martes', start_time: '08:00:00', end_time: '10:00:00', room: 'Aula 2', is_active: true }
+    const monday = { id: 9, tutoring_id: 40, day: 'lunes', start_time: '10:00:00', end_time: '12:00:00', room: 'Aula 1', is_active: true }
+    const removed = { ...tuesday, is_active: false }
+    vi.mocked(teacherApi.allTutorings).mockResolvedValue([{ ...tutoring, schedules: [tuesday, monday] }])
+    vi.mocked(teacherApi.syncSchedules).mockImplementation(async () => {
+      vi.mocked(teacherApi.allTutorings).mockResolvedValue([{ ...tutoring, schedules: [removed, monday] }])
+      return [monday]
+    })
+    workspace('schedules')
+    expect(await screen.findByText('08:00 – 10:00')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Editar horarios' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Editar horarios de tutoría' })
+    // Filas ordenadas por día: Lunes, Martes. Se quita el martes ingresado por error.
+    await user.click(within(dialog).getAllByRole('button', { name: 'Quitar horario' })[1])
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar horarios' }))
+
+    await waitFor(() => expect(teacherApi.syncSchedules).toHaveBeenCalledWith(40, [
+      { day: 'lunes', start_time: '10:00', end_time: '12:00', room: 'Aula 1' },
+    ]))
+    await waitFor(() => expect(screen.queryByText('08:00 – 10:00')).not.toBeInTheDocument())
+    expect(screen.getByText('10:00 – 12:00')).toBeInTheDocument()
+    expect(screen.queryByText('Inactivo')).not.toBeInTheDocument()
+  })
+
   it('al editar el horario conserva el aula de cada día y envía lo mismo que antes', async () => {
     const user = userEvent.setup()
     const monday = { id: 9, tutoring_id: 40, day: 'lunes', start_time: '08:00:00', end_time: '10:00:00', room: 'Aula 1', is_active: true }

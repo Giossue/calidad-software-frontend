@@ -3,13 +3,14 @@ import { CalendarClockIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { FormDialog } from '@/components/ui/form-dialog'
-import { StatusBadge } from '@/components/ui/status-badge'
 import { rowsFromSchedules, ScheduleEditor, scheduleSignature, toScheduleItems, validateScheduleRows, type ScheduleRow } from '@/features/tutoring/schedule-editor'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
-import { DAY_LABELS, type TutoringSchedule } from '@/lib/tutoring-api'
+import { DAY_LABELS, WEEK_DAYS, type TutoringSchedule } from '@/lib/tutoring-api'
 import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
 import { TeacherEmpty } from './teacher-shared'
+
+const dayOrder = (day: string) => (WEEK_DAYS as readonly string[]).indexOf(day)
 
 interface SchedulesPanelProps {
   tutoring: TeacherTutoring
@@ -24,6 +25,11 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
   const [initialSignature, setInitialSignature] = useState('')
   const [attempted, setAttempted] = useState(false)
 
+  // Un horario quitado queda inactivo en el sistema; aquí solo se listan los vigentes.
+  const activeSchedules = schedules
+    .filter((s) => s.is_active)
+    .sort((a, b) => dayOrder(a.day) - dayOrder(b.day) || a.start_time.localeCompare(b.start_time))
+
   // Sync state if tutoring or schedules changes
   useEffect(() => {
     setSchedules(tutoring.schedules ?? [])
@@ -32,7 +38,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
   function openEditModal() {
     operation.clearError()
     // El docente parte de su horario vigente; sin horario, sin filas (lo agrega con «Agregar horario»).
-    const initialRows = rowsFromSchedules(schedules.filter((s) => s.is_active))
+    const initialRows = rowsFromSchedules(activeSchedules)
     setRows(initialRows)
     setInitialSignature(scheduleSignature(initialRows))
     setAttempted(false)
@@ -85,7 +91,7 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
       </div>
 
       <RecordTable
-        rows={schedules}
+        rows={activeSchedules}
         loading={false}
         empty={
           <TeacherEmpty
@@ -99,7 +105,6 @@ export function SchedulesPanel({ tutoring, onReload }: Readonly<SchedulesPanelPr
             label: 'Horario',
             render: (item) => `${item.start_time.slice(0, 5)} – ${item.end_time.slice(0, 5)}`,
           },
-          { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
         ]}
       />
 
