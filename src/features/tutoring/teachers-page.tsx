@@ -66,6 +66,8 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
   const [unlinking, setUnlinking] = useState<{ teacher: Teacher; careerId: number; careerName: string } | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkCareerId, setLinkCareerId] = useState('')
+  // Carreras activas del coordinador a las que puede vincular un docente; con una sola no se pregunta.
+  const linkCareers = catalogs.careers.filter((career) => career.status)
   const [linkSearch, setLinkSearch] = useState('')
   const [linkSelected, setLinkSelected] = useState<AvailableTeacher | null>(null)
   const [linkCandidates, setLinkCandidates] = useState<readonly AvailableTeacher[]>([])
@@ -97,8 +99,7 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
   }, [linkOpen, linkCareerId, linkSearch])
 
   function openLink() {
-    const activeCareers = catalogs.careers.filter((career) => career.status)
-    setLinkCareerId(activeCareers.length === 1 ? String(activeCareers[0].id) : '')
+    setLinkCareerId(linkCareers.length === 1 ? String(linkCareers[0].id) : '')
     setLinkSearch('')
     setLinkSelected(null)
     setLinkCandidates([])
@@ -224,18 +225,20 @@ export function TutoringTeachersPage({ screen }: Readonly<{ screen?: TabbedScree
     ]} />
     <CatalogPagination label="docentes" page={list.page} lastPage={list.meta?.last_page ?? 1} disabled={list.isFetching} onChange={list.setPage} />
     </>}
-    <FormDialog open={linkOpen} title="Vincular docente existente" description="Busca un docente ya registrado y agrégalo a una de tus carreras. Un docente puede pertenecer a varias carreras." pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={Boolean(linkSelected)} requireChanges={false} blockReason={!linkCareerId ? 'Selecciona la carrera.' : !linkSelected ? 'Selecciona el docente que vas a vincular.' : null} onClose={() => setLinkOpen(false)} onSubmit={submitLink} submitIcon={LinkIcon} submitLabel="Vincular docente">
-      <SelectField
-        id="link-teacher-career"
-        label="Carrera"
-        required
-        value={linkCareerId}
-        onValueChange={(value) => { setLinkCareerId(value); setLinkSelected(null) }}
-        placeholder="Selecciona una carrera"
-        error={operation.fieldError('career_id')}
-        options={catalogs.careers.filter((career) => career.status).map((career) => ({ value: String(career.id), label: career.name }))}
-      />
-      <FormField id="link-teacher-search" label="Docente" required error={operation.fieldError('teacher_id')} tip="Solo aparecen docentes activos que todavía no pertenecen a la carrera elegida. Si no existe, regístralo como docente nuevo.">
+    <FormDialog open={linkOpen} title="Vincular docente existente" description={linkCareers.length > 1 ? 'Busca un docente ya registrado y agrégalo a una de tus carreras.' : 'Busca un docente ya registrado y agrégalo a tu carrera.'} pending={operation.pending} error={operation.error} errorModal={operation.errorModal} onCloseErrorModal={operation.clearErrorModal} dirty={Boolean(linkSelected)} requireChanges={false} blockReason={!linkCareerId ? 'Selecciona la carrera.' : !linkSelected ? 'Selecciona el docente que vas a vincular.' : null} onClose={() => setLinkOpen(false)} onSubmit={submitLink} submitIcon={LinkIcon} submitLabel="Vincular docente">
+      {linkCareers.length > 1 && (
+        <SelectField
+          id="link-teacher-career"
+          label="Carrera"
+          required
+          value={linkCareerId}
+          onValueChange={(value) => { setLinkCareerId(value); setLinkSelected(null) }}
+          placeholder="Selecciona una carrera"
+          error={operation.fieldError('career_id')}
+          options={linkCareers.map((career) => ({ value: String(career.id), label: career.name }))}
+        />
+      )}
+      <FormField id="link-teacher-search" label="Docente" required error={operation.fieldError('teacher_id')} tip={`Solo aparecen docentes activos que todavía no pertenecen a ${linkCareers.length > 1 ? 'la carrera elegida' : 'tu carrera'}. Si no existe, regístralo como docente nuevo.`}>
         <SearchSelect
           id="link-teacher-search"
           query={linkSearch}

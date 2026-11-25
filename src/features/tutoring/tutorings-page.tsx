@@ -660,7 +660,7 @@ function TutoringsWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: R
         })}
         disabled={operation.pending || catalogs.loading || subjects.length === 0}
       />
-      <MallaPicker selection={malla} />
+      <MallaPicker selection={malla} onlyWhenChoice />
       <FilterBar
         id="tutorings"
         search={list.searchInput}

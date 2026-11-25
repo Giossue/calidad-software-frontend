@@ -79,7 +79,7 @@ function ReportsWorkspace({ catalogs, career, onBack }: Readonly<{ catalogs: Ret
         title="Informes"
         description={`Lee los informes que envían los docentes de las tutorías de ${careerName}. Haz clic en uno para abrirlo.`}
       />
-      <MallaPicker selection={malla} />
+      <MallaPicker selection={malla} onlyWhenChoice />
 
       <FilterBar
         id="tutoring-reports"
