@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon, CheckCheckIcon, PencilIcon, PlusIcon, SaveIcon } from 'lucide-react'
+import { ArrowLeftIcon, BookOpenIcon, CheckCheckIcon, PencilIcon, PlusIcon, SaveIcon } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { CatalogPagination } from '@/components/admin/catalog-pagination'
@@ -510,6 +510,7 @@ function SessionForm({
   joint: readonly JointClass[]
 }>) {
   const operation = useOperation()
+  const [params, setParams] = useSearchParams()
   const own = useMemo(() => activeStudents(students), [students])
   const [includeJoint, setIncludeJoint] = useState(true)
   const jointGroups = useMemo(
@@ -553,6 +554,14 @@ function SessionForm({
   function markAll(present: boolean) {
     setMarks(Object.fromEntries(active.map((student) => [student.id, present])))
     setTouched(true)
+  }
+  // Los temas de una sesión se asignan en Contenido, abriendo esa misma sesión.
+  function openSessionContent(saved: TutoringSession) {
+    const next = new URLSearchParams(params)
+    next.delete(SESSION_PARAM)
+    next.set('tab', 'content')
+    next.set('content-session', String(saved.id))
+    setParams(next)
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -666,7 +675,15 @@ function SessionForm({
 
         <ErrorNotice message={operation.error} />
 
-        <div className="flex items-center justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {readOnly ? <span /> : session ? (
+            <Button type="button" variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openSessionContent(session)}>
+              <BookOpenIcon data-icon="inline-start" />
+              Asignar temas en Contenido
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Después de guardar, asigna los temas de esta sesión en «Contenido».</p>
+          )}
           <BlockedReason reason={operation.pending ? null : saveBlockReason}>
             <Button type="submit" disabled={saveBlockReason !== null || operation.pending}>
               {operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}

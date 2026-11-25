@@ -953,6 +953,35 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(teacherApi.saveSession).toHaveBeenCalledWith(40, { date: lastWeek, topics_covered: true, topic_ids: [90], attendance: [{ enrollment_id: 70, present: true }] }))
   })
 
+  it('desde una sesión ya registrada lleva a Contenido para asignar sus temas', async () => {
+    const user = userEvent.setup()
+    const saved = { id: 100, tutoring_id: 40, number: 1, date: lastWeek, topics_covered: false, topics: [], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true, attendance_required: false }] }
+    vi.mocked(teacherApi.sessions).mockImplementation(async (_id, params) => paginated(params?.date && params.date !== lastWeek ? [] : [saved]))
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([saved])
+    duringClass()
+    workspace('attendance')
+    await user.click(await screen.findByText('1 de 1 presentes'))
+
+    const form = await screen.findByRole('form', { name: 'Registrar asistencia' })
+    await user.click(within(form).getByRole('button', { name: 'Asignar temas en Contenido' }))
+    expect(await screen.findByRole('tab', { name: 'Contenido', selected: true })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Asignar temas' })).toBeInTheDocument()
+  })
+
+  it('en una sesión nueva avisa que los temas se asignan en Contenido después de guardar', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([])
+    duringClass()
+    workspace('attendance')
+    const calendar = await screen.findByRole('group', { name: 'Calendario de sesiones' })
+    if (lastWeek.slice(0, 7) !== today.slice(0, 7)) await user.click(within(calendar).getByRole('button', { name: 'Mes anterior' }))
+    await user.click(within(calendar).getByRole('button', { name: dayLabel(lastWeek) }))
+
+    const form = await screen.findByRole('form', { name: 'Registrar asistencia' })
+    expect(within(form).getByText('Después de guardar, asigna los temas de esta sesión en «Contenido».')).toBeInTheDocument()
+    expect(within(form).queryByRole('button', { name: 'Asignar temas en Contenido' })).not.toBeInTheDocument()
+  })
+
   it('el calendario marca los días con sesión y al elegir un día con clase registra la sesión de esa fecha', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.allSessions).mockResolvedValue([])

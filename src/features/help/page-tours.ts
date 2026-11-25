@@ -245,13 +245,14 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   ],
   'teacher-tutorings/attendance': [
     step('[aria-label="Secciones de la tutoría"]', 'Secciones de la tutoría', 'Cambia entre asistencia, contenido, horarios, estudiantes y calificaciones. Cada pestaña tiene su propia guía.'),
-    step({ button: 'Registrar asistencia' }, 'Registrar asistencia', 'Toma lista de la clase de hoy. Se habilita solo durante el horario de la clase.'),
-    table('Sesiones registradas con su fecha y asistencia. Haz clic en una para consultarla.'),
+    step({ button: 'Registrar asistencia' }, 'Registrar asistencia', 'Toma lista de la clase de hoy. Se habilita solo los días con clase según el horario.'),
+    step('[aria-label="Calendario de sesiones"]', 'Calendario', 'Elige cualquier día con clase del PAO, hasta hoy, para registrar o corregir su sesión. Los días marcados ya tienen sesión.'),
+    table('Sesiones registradas con su fecha y asistencia. Haz clic en una para abrirla y corregirla.'),
   ],
   'teacher-tutorings/attendance/register': [
     step([{ button: 'Marcar todos' }, { button: 'Desmarcar todos' }], 'Marcar todos', 'Marca a todos como presentes y luego corrige a quienes faltaron.'),
     table('Haz clic en un estudiante para marcarlo presente o ausente. Los avisos de inasistencia aparecen junto a su nombre.'),
-    step({ button: 'Guardar asistencia' }, 'Guardar asistencia', 'Guarda la lista. Mientras dure la clase puedes corregirla; después queda cerrada.'),
+    step({ button: 'Guardar asistencia' }, 'Guardar asistencia', 'Guarda la lista. Puedes corregirla durante todo el PAO. Los temas de la sesión se asignan en «Contenido».'),
     step({ button: 'Volver a las sesiones' }, 'Volver', 'Regresa a la lista de sesiones.'),
   ],
   'teacher-tutorings/attendance/session': [

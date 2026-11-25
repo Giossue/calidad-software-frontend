@@ -44,7 +44,7 @@ export function buildTeacherGuideSteps(): DriveStep[] {
     ),
     step(
       'Paso 2 · Tomar asistencia',
-      'En la pestaña «Asistencia», pulsa «Registrar asistencia». Solo se habilita el día de la clase y durante su horario. Marca a cada estudiante como presente o ausente (o usa «Marcar todos») y pulsa «Guardar asistencia». Mientras dure la clase puedes corregir la lista; después queda cerrada.',
+      'En la pestaña «Asistencia», pulsa «Registrar asistencia» el día de la clase, o elige en el calendario cualquier día con clase del PAO, hasta hoy, para registrar o corregir esa sesión. Marca a cada estudiante como presente o ausente (o usa «Marcar todos») y pulsa «Guardar asistencia». Puedes corregir la lista durante todo el PAO; los temas de cada sesión se asignan en «Contenido».',
       tutoringTab('Asistencia'),
     ),
     step(
