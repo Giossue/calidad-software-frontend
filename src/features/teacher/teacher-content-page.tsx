@@ -2,7 +2,6 @@ import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } fr
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeftIcon, CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
 
-import { CatalogPagination } from '@/components/admin/catalog-pagination'
 import { TopicFileList } from '@/components/topic-file-list'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,11 +19,9 @@ import { ErrorNotice } from '@/components/ui/error-notice'
 import { RecordTable } from '@/features/tutoring/tutoring-shared'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HeadedTableSkeleton } from '@/features/tutoring/tutoring-skeletons'
-import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { formatDate } from '@/lib/format'
 import { TOPIC_FILE_ACCEPT, TOPIC_FILES_PER_TOPIC, topicFileError, type TopicFile } from '@/lib/topic-files'
 import { teacherApi, type Activity, type Methodology, type TeacherTutoring, type TutoringSession, type TutoringTopic } from '@/lib/teacher-api'
-import { FilterBar } from '@/features/tutoring/filter-bar'
 import { serverFieldError } from './teacher-labels'
 import { TeacherEmpty } from './teacher-shared'
 import { ContentTabSkeleton } from './teacher-skeletons'
@@ -74,36 +71,48 @@ function formatTimer(hours: number, minutes: number): string {
   return `${hours} ${hours === 1 ? 'hora' : 'horas'} y ${minutes} minutos`
 }
 
+/** Fila de la lista de Contenido: una sesión, o los temas que aún no se trataron en ninguna. */
+type SessionRow = { readonly id: string; readonly session: TutoringSession | null; readonly topics: readonly TutoringTopic[] }
+const NO_SESSION = 'none'
+
 export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
-  const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
-  const list = usePaginatedCatalog((page, search) => teacherApi.topics(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
+  const topicsRes = useDegreeResource(() => teacherApi.allTopics(tutoring.id), `teacher-topics-${tutoring.id}`)
   const sessionsRes = useDegreeResource(() => teacherApi.allSessions(tutoring.id), `teacher-sessions-${tutoring.id}`)
-  // Solo la primera carga de sesiones (que define el filtro «Sesión») espera en el esqueleto; las recargas no.
-  const [sessionsSeen, setSessionsSeen] = useState(false)
-  if (!sessionsSeen && !sessionsRes.loading) setSessionsSeen(true)
+  // Solo la primera carga espera en el esqueleto; las recargas mantienen los datos a la vista.
+  const [loadedOnce, setLoadedOnce] = useState(false)
+  if (!loadedOnce && topicsRes.settled && sessionsRes.settled) setLoadedOnce(true)
+  const allTopics = topicsRes.data ?? topicsRes.previous ?? []
+  // Los temas deshabilitados no se listan; se deshabilitan desde «Editar tema».
+  const topics = allTopics.filter((item) => item.is_active)
   // Cada vez que se toma asistencia nace una sesión; se listan de la primera a la última.
-  const sessions = [...(sessionsRes.data ?? [])].sort((a, b) => a.date.localeCompare(b.date))
+  const sessions = [...(sessionsRes.data ?? sessionsRes.previous ?? [])].sort((a, b) => a.date.localeCompare(b.date))
   const sessionLabel = (session: TutoringSession) => `Sesión ${session.number ?? sessions.indexOf(session) + 1}`
-  /** Sesiones en que se trató cada tema. */
-  const topicSessions = (topicItem: TutoringTopic) => sessions.filter((session) => session.topics.some((item) => item.id === topicItem.id))
-  const [selectedSessionDate, setSelectedSessionDate] = useState<string>('all')
+  const topicsOf = (session: TutoringSession) => topics.filter((item) => session.topics.some((covered) => covered.id === item.id))
+  const withoutSession = topics.filter((item) => !sessions.some((session) => session.topics.some((covered) => covered.id === item.id)))
+  const rows: SessionRow[] = [
+    ...sessions.map((session) => ({ id: String(session.id), session, topics: topicsOf(session) })),
+    { id: NO_SESSION, session: null, topics: withoutSession },
+  ]
   const [assigningSession, setAssigningSession] = useState<TutoringSession | null>(null)
   const [selectedTopicIds, setSelectedTopicIds] = useState<number[]>([])
 
-  const activeSession = selectedSessionDate !== 'all' ? sessions.find((s) => s.date === selectedSessionDate) : null
-
   const operation = useOperation()
-  // Tema y actividad abiertos van en la URL: son pantallas dentro de la pestaña y
+  // Sesión, tema y actividad abiertos van en la URL: son pantallas dentro de la pestaña y
   // el botón "atrás" del navegador vuelve al nivel anterior.
   const [params, setParams] = useSearchParams()
+  const sessionParam = params.get('content-session')
+  const openRow = sessionParam === null ? null : rows.find((row) => row.id === sessionParam) ?? null
+  const openSession = openRow?.session ?? null
   const topicId = Number(params.get('topic')) || null
   const activityId = Number(params.get('activity')) || null
-  function openLevel(nextTopic: number | null, nextActivity: number | null = null) {
+  function openLevel(nextSession: string | null, nextTopic: number | null = null, nextActivity: number | null = null) {
     const next = new URLSearchParams(params)
+    if (nextSession) next.set('content-session', nextSession); else next.delete('content-session')
     if (nextTopic) next.set('topic', String(nextTopic)); else next.delete('topic')
     if (nextTopic && nextActivity) next.set('activity', String(nextActivity)); else next.delete('activity')
     setParams(next)
   }
+  const reloadAll = () => Promise.all([topicsRes.reload(), sessionsRes.reload()])
   const [editing, setEditing] = useState<Editing | null>(null)
   const [deactivating, setDeactivating] = useState<Editing | null>(null)
   const [form, setForm] = useState(EMPTY)
@@ -115,7 +124,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const [removedFileIds, setRemovedFileIds] = useState<number[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
-  const topic = list.data.find((item) => item.id === topicId)
+  const topic = allTopics.find((item) => item.id === topicId)
   const activity = topic?.activities.find((item) => item.id === activityId)
   const kind: Kind = activity ? 'methodology' : topic ? 'activity' : 'topic'
   const canManage = tutoring.can_manage && (!topic || topic.is_active) && (!activity || activity.is_active)
@@ -145,7 +154,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       'Temas de la sesión guardados.',
       async () => {
         setAssigningSession(null)
-        await Promise.all([sessionsRes.reload(), list.reload()])
+        await reloadAll()
       }
     )
   }
@@ -174,7 +183,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       if (!activity) throw new Error('Selecciona una actividad.')
       return id ? teacherApi.updateMethodology(tutoring.id, topic.id, activity.id, id, { description: form.description.trim() }) : teacherApi.createMethodology(tutoring.id, topic.id, activity.id, { description: form.description.trim() })
     }
-    void operation.run(command, SAVED[editing.kind], async () => { setEditing(null); await list.reload(); await sessionsRes.reload() })
+    void operation.run(command, SAVED[editing.kind], async () => { setEditing(null); await reloadAll() })
   }
   // Al cerrar un formulario, su error del servidor se va con él (no queda en la pestaña).
   function closeEditor() {
@@ -192,6 +201,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     for (const file of pendingFiles) {
       await teacherApi.uploadTopicFile(tutoring.id, saved.id, file)
       setPendingFiles((current) => current.filter((item) => item !== file))
+    }
+    // Un tema nuevo registrado dentro de una sesión queda en esa sesión.
+    if (!id && openSession && !topic) {
+      await teacherApi.updateSessionTopics(tutoring.id, openSession.id, [...openSession.topics.map((item) => item.id), saved.id])
     }
     return saved
   }
@@ -230,24 +243,17 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       if (!activity) throw new Error('Selecciona una actividad.')
       return teacherApi.deactivateMethodology(tutoring.id, topic.id, activity.id, record.id)
     }
-    void operation.run(command, DISABLED[deactivating.kind], async () => { setDeactivating(null); setEditing(null); await list.reload(); await sessionsRes.reload() })
+    // Un tema deshabilitado ya no se lista: se vuelve a la sesión de la que se abrió.
+    const leaveTopic = deactivating.kind === 'topic'
+    void operation.run(command, DISABLED[deactivating.kind], async () => { setDeactivating(null); setEditing(null); if (leaveTopic) openLevel(sessionParam); await reloadAll() })
   }
   function toggleTopicCoverage(topicItem: TutoringTopic) {
     if (!canManage || !topicItem.is_active || operation.pending) return
     const nextCovered = !topicItem.is_covered
     void operation.run(
-      async () => {
-        await teacherApi.toggleTopicCovered(tutoring.id, topicItem.id, nextCovered)
-        if (selectedSessionDate !== 'all' && activeSession) {
-          const currentIds = activeSession.topics.map((t) => t.id)
-          const nextIds = nextCovered
-            ? (currentIds.includes(topicItem.id) ? currentIds : [...currentIds, topicItem.id])
-            : currentIds.filter((id) => id !== topicItem.id)
-          await teacherApi.updateSessionTopics(tutoring.id, activeSession.id, nextIds)
-        }
-      },
+      () => teacherApi.toggleTopicCovered(tutoring.id, topicItem.id, nextCovered),
       nextCovered ? 'Tema marcado como completado.' : 'Tema marcado como pendiente.',
-      async () => { await Promise.all([list.reload(), sessionsRes.reload()]) }
+      reloadAll,
     )
   }
 
@@ -261,7 +267,13 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   }
   const methodologyTitle = (record: Methodology) => canManage && record.is_active ? `Editar la metodología «${shorten(record.description)}»` : ''
   const openTitle = (record: TutoringTopic | Activity) => `Abrir ${record.name}`
-  const title = activity ? `Metodologías de ${activity.name}` : topic ? `Actividades de ${topic.name}` : 'Temas de la tutoría'
+  const rowName = (row: SessionRow) => (row.session ? sessionLabel(row.session) : 'Temas sin sesión')
+  const openRowTitle = (row: SessionRow) => (row.session ? `Abrir la ${sessionLabel(row.session)}` : 'Abrir los temas sin sesión')
+  const title = activity
+    ? `Metodologías de ${activity.name}`
+    : topic
+      ? `Actividades de ${topic.name}`
+      : openSession ? `${sessionLabel(openSession)} · ${formatDate(openSession.date)}` : 'Temas sin sesión'
   const contentBlockReason = editing?.kind === 'methodology'
     ? (form.description.trim() ? null : 'Escribe la descripción de la metodología.')
     : (form.name.trim() ? null : `Escribe el nombre del ${LABELS[editing?.kind ?? 'topic']}.`)
@@ -269,10 +281,6 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const assignDirty = selectedTopicIds.length !== assignedIds.length || selectedTopicIds.some((id) => !assignedIds.includes(id))
   const dialogTitle = editing ? `${editing.record ? 'Editar' : 'Registrar'} ${LABELS[editing.kind]}` : ''
 
-  const sessionOptions = sessions.map((item) => ({
-    value: item.date,
-    label: `${sessionLabel(item)} · ${formatDate(item.date)} · ${item.topics.length === 0 ? 'sin temas' : `${item.topics.length} ${item.topics.length === 1 ? 'tema' : 'temas'}`}`,
-  }))
   const registerButton = (
     <Button className="shrink-0" disabled={!canManage || operation.pending} onClick={() => openForm(kind)}>
       <PlusIcon data-icon="inline-start" />
@@ -287,53 +295,32 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       <PencilIcon />
     </Button>
   )
+  const showingList = !topic && !openRow
 
-  // Al abrir un tema (o una actividad) desde la URL, mientras llega la lista se muestra su forma, no la de la lista de temas.
-  if (topicId !== null && !topic && list.isInitialLoading) return <ContentLevelSkeleton activity={activityId !== null} />
-  // Primera carga de la lista de temas: filtros, botón y tabla son un solo esqueleto.
-  if (topicId === null && (list.isInitialLoading || !sessionsSeen)) return <ContentTabSkeleton />
+  // Al abrir un tema (o una actividad) desde la URL, mientras llega la lista se muestra su forma, no la de la lista.
+  if (topicId !== null && !topic && !loadedOnce) return <ContentLevelSkeleton activity={activityId !== null} />
+  // Primera carga de la lista de sesiones: un solo esqueleto.
+  if (!loadedOnce) return <ContentTabSkeleton />
 
   return <div className="flex flex-col gap-5">
-    {topic && <div className="flex flex-wrap items-center gap-2"><Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(null)}><ArrowLeftIcon data-icon="inline-start" />Temas</Button>{activity && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(topic.id)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}<span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span></div>}
+    {!showingList && (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(null)}><ArrowLeftIcon data-icon="inline-start" />Sesiones</Button>
+        {topic && openRow && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(openRow.id)}><ArrowLeftIcon data-icon="inline-start" />{rowName(openRow)}</Button>}
+        {activity && topic && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(sessionParam, topic.id)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}
+        {topic && <span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span>}
+      </div>
+    )}
 
-    {!topic && !activity && (
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="flex-1">
-          <FilterBar
-            id="teacher-content"
-            search={list.searchInput}
-            onSearch={list.setSearchInput}
-            searchPlaceholder="Busca por tema…"
-            onClear={() => { setStatus(''); setSelectedSessionDate('all') }}
-            filters={[
-              // La sesión es opcional («Todas las sesiones»): es un filtro más y «Limpiar» la quita.
-              ...(sessions.length > 0 ? [{
-                id: 'session',
-                label: 'Sesión',
-                value: selectedSessionDate === 'all' ? '' : selectedSessionDate,
-                onChange: (value: string) => setSelectedSessionDate(value || 'all'),
-                allLabel: 'Todas las sesiones',
-                options: sessionOptions,
-              }] : []),
-              {
-                id: 'status',
-                label: 'Estado',
-                value: status,
-                onChange: (value) => setStatus(value as '' | 'active' | 'inactive'),
-                allLabel: 'Todos los estados',
-                options: [
-                  { value: 'active', label: 'Activos' },
-                  { value: 'inactive', label: 'Inactivos' },
-                ],
-              },
-            ]}
-          />
-        </div>
+    {!showingList && (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
         <div className="flex shrink-0 flex-wrap gap-2">
-          {activeSession && canManage && (
-            <Button variant="secondary" disabled={operation.pending} onClick={() => openAssignModal(activeSession)}>
+          {editParentButton}
+          {!topic && openSession && canManage && (
+            <Button variant="secondary" disabled={operation.pending} onClick={() => openAssignModal(openSession)}>
               <CheckCircle2Icon data-icon="inline-start" />
-              Asignar temas a esta sesión
+              Asignar temas
             </Button>
           )}
           {registerButton}
@@ -341,28 +328,18 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       </div>
     )}
 
-    {topic && (
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          {editParentButton}
-          {registerButton}
-        </div>
-      </div>
-    )}
-
-    {!topic && !activity && !sessionsRes.loading && sessions.length === 0 && (
+    {showingList && sessions.length === 0 && (
       <p className="text-sm text-muted-foreground">
         Las sesiones se habilitan al tomar asistencia. Luego podrás ver aquí el contenido de cada una.
       </p>
     )}
 
-    <ErrorNotice message={list.error} retry={list.reload} />
+    <ErrorNotice message={topicsRes.error ?? sessionsRes.error} retry={() => void reloadAll()} />
 
     {activity ? (
       <RecordTable
         rows={activity.methodologies}
-        loading={list.isFetching}
+        loading={topicsRes.loading}
         empty={<TeacherEmpty title="Esta actividad aún no tiene metodologías" />}
         onRowClick={(item) => editRecord(item, 'methodology')}
         rowTitle={methodologyTitle}
@@ -374,8 +351,8 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     ) : topic ? (
       <RecordTable
         rows={topic.activities}
-        loading={list.isFetching}
-        onRowClick={(item) => { if (!operation.pending) openLevel(topic.id, item.id) }}
+        loading={topicsRes.loading}
+        onRowClick={(item) => { if (!operation.pending) openLevel(sessionParam, topic.id, item.id) }}
         rowTitle={openTitle}
         empty={<TeacherEmpty title="Este tema aún no tiene actividades" />}
         columns={[
@@ -385,72 +362,63 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
         ]}
       />
+    ) : openRow ? (
+      <RecordTable
+        rows={openRow.topics}
+        loading={topicsRes.loading || sessionsRes.loading}
+        onRowClick={(item) => { if (!operation.pending) openLevel(openRow.id, item.id) }}
+        rowTitle={openTitle}
+        empty={
+          openSession ? (
+            <TeacherEmpty
+              title={`La ${sessionLabel(openSession)} aún no tiene temas`}
+              description={canManage ? 'Registra un tema o pulsa «Asignar temas» para elegir los que trataste.' : undefined}
+            />
+          ) : (
+            <TeacherEmpty title="No hay temas sin sesión" description={canManage ? 'Registra aquí los temas que planificas tratar.' : undefined} />
+          )
+        }
+        columns={[
+          { label: 'Tema', render: (item) => item.name },
+          {
+            label: 'Recursos',
+            render: (item) => (item.files?.length ?? 0) > 0
+              ? <span className="text-sm text-muted-foreground">{item.files?.length === 1 ? '1 archivo' : `${item.files?.length} archivos`}</span>
+              : <span className="text-sm text-muted-foreground">—</span>,
+          },
+          {
+            label: 'Completado',
+            render: (item) => stopRow(
+              <Checkbox
+                className="size-5"
+                aria-label={`Completado: ${item.name}`}
+                checked={item.is_covered}
+                disabled={!canManage || !item.is_active || operation.pending}
+                onCheckedChange={() => toggleTopicCoverage(item)}
+              />,
+            ),
+          },
+        ]}
+      />
     ) : (
-      <>
-        <RecordTable
-          rows={
-            selectedSessionDate === 'all'
-              ? list.data
-              : list.data.filter((item) => activeSession?.topics.some((st) => st.id === item.id))
-          }
-          loading={list.isFetching}
-          onRowClick={(item) => { if (!operation.pending) openLevel(item.id) }}
-          rowTitle={openTitle}
-          empty={
-            selectedSessionDate !== 'all' && activeSession ? (
-              <TeacherEmpty
-                title={`La ${sessionLabel(activeSession)} aún no tiene temas`}
-                description={canManage ? 'Pulsa «Asignar temas a esta sesión» para asociar los temas que trataste.' : undefined}
-              />
-            ) : (
-              <TeacherEmpty
-                title="Aún no hay temas en esta tutoría"
-                description="Registra el primer tema para planificar sus actividades y metodologías."
-              />
-            )
-          }
-          columns={[
-            { label: 'Tema', render: (item) => item.name },
-            ...(selectedSessionDate === 'all' && sessions.length > 0 ? [{
-              label: 'Sesión',
-              render: (item: TutoringTopic) => {
-                const found = topicSessions(item)
-                return found.length > 0
-                  ? <span className="whitespace-nowrap text-sm">{found.map(sessionLabel).join(', ')}</span>
-                  : <span className="text-sm text-muted-foreground">Sin sesión</span>
-              },
-            }] : []),
-            {
-              label: 'Recursos',
-              render: (item) => (item.files?.length ?? 0) > 0
-                ? <span className="text-sm text-muted-foreground">{item.files?.length === 1 ? '1 archivo' : `${item.files?.length} archivos`}</span>
-                : <span className="text-sm text-muted-foreground">—</span>,
-            },
-            {
-              label: 'Completado',
-              render: (item) => stopRow(
-                <Checkbox
-                  className="size-5"
-                  aria-label={`Completado: ${item.name}`}
-                  checked={item.is_covered}
-                  disabled={!canManage || !item.is_active || operation.pending}
-                  onCheckedChange={() => toggleTopicCoverage(item)}
-                />,
-              ),
-            },
-            { label: 'Habilitado', render: (item) => <StatusBadge active={item.is_active} /> },
-          ]}
-        />
-        {selectedSessionDate === 'all' && (
-          <CatalogPagination
-            label="temas"
-            page={list.page}
-            lastPage={list.meta?.last_page ?? 1}
-            disabled={list.isFetching}
-            onChange={list.setPage}
-          />
-        )}
-      </>
+      <RecordTable
+        rows={rows}
+        loading={topicsRes.loading || sessionsRes.loading}
+        onRowClick={(row) => { if (!operation.pending) openLevel(row.id) }}
+        rowTitle={openRowTitle}
+        empty={null}
+        columns={[
+          { label: 'Sesión', render: (row) => row.session ? sessionLabel(row.session) : <span className="text-muted-foreground">Temas sin sesión</span> },
+          { label: 'Fecha', render: (row) => row.session ? formatDate(row.session.date) : <span className="text-muted-foreground">—</span> },
+          { label: 'Temas', render: (row) => row.topics.length === 0 ? <span className="text-muted-foreground">Sin temas</span> : row.topics.length },
+          {
+            label: 'Completados',
+            render: (row) => row.topics.length === 0
+              ? <span className="text-muted-foreground">—</span>
+              : `${row.topics.filter((item) => item.is_covered).length} de ${row.topics.length}`,
+          },
+        ]}
+      />
     )}
     <FormDialog
       open={Boolean(editing)}
@@ -553,11 +521,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       submitLabel="Guardar temas de la sesión"
     >
       <div className="flex max-h-80 flex-col gap-3 overflow-y-auto pr-1">
-        {list.data.length === 0 ? (
+        {topics.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aún no hay temas registrados en esta tutoría.</p>
         ) : (
-          list.data
-            .filter((t) => t.is_active)
+          topics
             .map((t) => (
               <label key={t.id} className="flex cursor-pointer items-start gap-3 text-sm">
                 <Checkbox
