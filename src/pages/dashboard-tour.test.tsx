@@ -20,6 +20,10 @@ vi.mock('@/features/teacher/teacher-tutorings-page', () => ({
   TeacherTutoringsPage: () => <div><div data-tour="page-header">Mis tutorías</div><div data-tour="page-table" /></div>,
 }))
 vi.mock('@/components/notification-bell', () => ({ NotificationBell: () => null }))
+vi.mock('@/lib/teacher-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/teacher-api')>()
+  return { ...actual, teacherApi: { ...actual.teacherApi, degreeAssignments: vi.fn(async () => ({ data: [{ id: 1 }] })) } }
+})
 
 const teacher: User = {
   id: 7, name: 'Luis Mora', email: 'luis@ueb.edu.ec', identification: '0201234567', role: 'docente', phone: null,

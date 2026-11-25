@@ -72,6 +72,7 @@ import { TeacherDegreeAssignmentsPage } from '@/features/teacher/teacher-degree-
 import { TEACHER_TRACKING_TABS, TeacherDegreeTrackingPage } from '@/features/teacher/teacher-degree-tracking-page'
 import { TeacherReportsStandalonePage } from '@/features/teacher/teacher-reports-standalone-page'
 import { tutoringApi } from '@/lib/tutoring-api'
+import { teacherApi } from '@/lib/teacher-api'
 
 type NavItem = {
   readonly id: AdminSection | TutoringSection | DegreeSection | TeacherSection | StudentSection
@@ -198,6 +199,30 @@ export function DashboardPage() {
   const [accessibilityOpen, setAccessibilityOpen] = useState(false)
   const [pwaInstallOpen, setPwaInstallOpen] = useState(false)
   const [studentDegreeEnrolled, setStudentDegreeEnrolled] = useState<boolean | null>(null)
+  // Un docente ve Titulación solo si coordinación le asignó algún tema (tutor o par).
+  const [teacherHasDegree, setTeacherHasDegree] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (user?.role !== 'docente') {
+      setTeacherHasDegree(null)
+      return
+    }
+
+    let isCurrent = true
+    teacherApi
+      .degreeAssignments({ per_page: 1 })
+      .then((page) => {
+        if (isCurrent) setTeacherHasDegree(page.data.length > 0)
+      })
+      .catch(() => {
+        // Si no se pudo consultar, se conserva el acceso a Titulación.
+        if (isCurrent) setTeacherHasDegree(true)
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [user?.role])
 
   useEffect(() => {
     if (user?.role !== 'estudiante') {
@@ -245,15 +270,17 @@ export function DashboardPage() {
     ...(user?.role === 'docente'
       ? [
           { label: 'Tutorías', items: TEACHER_TUTORING_NAV_ITEMS },
-          { label: 'Titulación', items: TEACHER_DEGREE_NAV_ITEMS },
+          ...(teacherHasDegree ? [{ label: 'Titulación', items: TEACHER_DEGREE_NAV_ITEMS }] : []),
         ]
       : []),
   ]
 
   const moduleIds = navGroups.flatMap((group) => group.items.map((item) => item.id))
 
-  // Los estudiantes sin ciclo esperan a saber si están en titulación para tener el menú completo.
-  const menuReady = user?.role !== 'estudiante' || studentStage !== null || studentDegreeEnrolled !== null
+  // Los estudiantes sin ciclo y los docentes esperan a saber si tienen titulación para tener el menú completo.
+  const menuReady = user?.role === 'docente'
+    ? teacherHasDegree !== null
+    : user?.role !== 'estudiante' || studentStage !== null || studentDegreeEnrolled !== null
   const { openPageTour, openGeneralTour, openTeacherGuide } = useSystemTours({ section: activeSection, moduleIds, menuReady })
 
   const trackingTopicId = Number(searchParams.get('topic'))
@@ -283,6 +310,12 @@ export function DashboardPage() {
       navigate('/panel/student-tutorings', { replace: true })
     }
   }, [user?.role, studentStage, studentDegreeEnrolled, activeSection, navigate])
+
+  useEffect(() => {
+    if (user?.role === 'docente' && teacherHasDegree === false && (activeSection === 'teacher-degree-assignments' || activeSection === 'teacher-degree-tracking')) {
+      navigate('/panel/teacher-tutorings', { replace: true })
+    }
+  }, [user?.role, teacherHasDegree, activeSection, navigate])
 
   async function signOut() {
     setPending(true)

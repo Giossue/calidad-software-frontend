@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAuth } from '@/features/auth/auth-context'
+import { teacherApi } from '@/lib/teacher-api'
 import { tutoringApi } from '@/lib/tutoring-api'
 import { DashboardPage } from './dashboard-page'
 
@@ -20,6 +21,15 @@ vi.mock('@/lib/tutoring-api', async (importOriginal) => {
     },
   }
 })
+
+vi.mock('@/lib/teacher-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/teacher-api')>()
+  return { ...actual, teacherApi: { ...actual.teacherApi, degreeAssignments: vi.fn() } }
+})
+
+vi.mock('@/features/teacher/teacher-tutorings-page', () => ({
+  TeacherTutoringsPage: () => <div>Vista Mis Tutorías Docente</div>,
+}))
 
 vi.mock('@/features/student/student-tutorings-page', () => ({
   StudentTutoringsPage: () => <div>Vista Mis Tutorías</div>,
@@ -216,5 +226,67 @@ describe('DashboardPage - Usuarios del coordinador de carrera', () => {
     renderAt('/panel/tutoring-teachers?docente=5')
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/panel/tutoring-users?docente=5&pestana=docentes'))
+  })
+})
+
+describe('DashboardPage - Titulación solo para docentes con titulación asignada', () => {
+  const teacherUser = {
+    id: 20,
+    name: 'Docente Prueba',
+    email: 'docente@ueb.edu.ec',
+    identification: '0201234568',
+    role: 'docente',
+    phone: null,
+    email_verified_at: null,
+    has_two_factor: false,
+    is_active: true,
+  }
+
+  function TeacherLocation() {
+    const location = useLocation()
+    return <output data-testid="location">{location.pathname}</output>
+  }
+
+  function renderTeacher() {
+    vi.mocked(useAuth).mockReturnValue({ user: teacherUser, logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), replaceUser: vi.fn() })
+    render(
+      <MemoryRouter initialEntries={['/panel/teacher-tutorings']}>
+        <Routes>
+          <Route path="/panel/:section" element={<DashboardPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('no muestra Titulación ni Seguimiento al docente sin titulación asignada', async () => {
+    vi.mocked(teacherApi.degreeAssignments).mockResolvedValue({ data: [] })
+    renderTeacher()
+
+    await waitFor(() => expect(teacherApi.degreeAssignments).toHaveBeenCalledWith({ per_page: 1 }))
+    expect(screen.getByRole('button', { name: 'Mis tutorías' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Titulación' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Seguimiento' })).not.toBeInTheDocument()
+  })
+
+  it('lleva a Mis tutorías al docente sin titulación que abre Titulación por enlace', async () => {
+    vi.mocked(teacherApi.degreeAssignments).mockResolvedValue({ data: [] })
+    vi.mocked(useAuth).mockReturnValue({ user: teacherUser, logout: vi.fn(), status: 'authenticated', login: vi.fn(), completeTwoFactor: vi.fn(), replaceUser: vi.fn() })
+    render(
+      <MemoryRouter initialEntries={['/panel/teacher-degree-assignments']}>
+        <Routes>
+          <Route path="/panel/:section" element={<><DashboardPage /><TeacherLocation /></>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/panel/teacher-tutorings'))
+  })
+
+  it('muestra Titulación y Seguimiento al docente con titulación asignada', async () => {
+    vi.mocked(teacherApi.degreeAssignments).mockResolvedValue({ data: [{ id: 1 } as never] })
+    renderTeacher()
+
+    expect(await screen.findByRole('button', { name: 'Titulación' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Seguimiento' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mis tutorías' })).toBeInTheDocument()
   })
 })
