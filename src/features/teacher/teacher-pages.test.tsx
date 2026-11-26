@@ -1344,8 +1344,12 @@ describe('Módulo Docente', () => {
     await user.click(within(screen.getByRole('form', { name: 'Registrar metodología' })).getByRole('button', { name: 'Registrar metodología' }))
     expect(await screen.findByText('Trabajo colaborativo')).toBeInTheDocument()
     expect(teacherApi.createMethodology).toHaveBeenCalledWith(40, 90, 91, { description: 'Trabajo colaborativo' })
+    // La ruta muestra los niveles anteriores como enlaces y la pantalla actual sin enlace.
+    const route = screen.getByRole('navigation', { name: 'Ruta' })
+    expect(within(route).getByText('Diseñar casos')).toHaveAttribute('aria-current', 'page')
+    expect(within(route).queryByRole('button', { name: 'Diseñar casos' })).not.toBeInTheDocument()
     // Desde la actividad se vuelve al tema y a la sesión de la que se abrió.
-    await user.click(screen.getByRole('button', { name: 'Actividades' }))
+    await user.click(within(route).getByRole('button', { name: 'Pruebas' }))
     expect(await screen.findByRole('heading', { name: 'Actividades de Pruebas' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Temas sin sesión' }))
     expect(await screen.findByRole('heading', { name: 'Temas sin sesión' })).toBeInTheDocument()

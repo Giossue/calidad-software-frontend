@@ -266,14 +266,14 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
     table('Temas de la tutoría con sus recursos. Haz clic en uno para abrirlo y registrar sus actividades.'),
   ],
   'teacher-tutorings/content/topic': [
-    step({ button: 'Temas' }, 'Volver', 'Regresa a la lista de temas.'),
+    step('[aria-label="Ruta"]', 'Ruta', 'Muestra dónde estás. Pulsa «Sesiones» o el nombre de la sesión para volver.'),
     step({ button: 'Editar tema' }, 'Editar tema', 'Cambia el nombre o los recursos del tema.'),
     step({ button: 'Eliminar tema' }, 'Eliminar tema', 'Si lo registraste por error, elimínalo con sus actividades, metodologías y archivos. No se puede deshacer.'),
     step({ button: 'Registrar actividad' }, 'Registrar actividad', 'Agrega una actividad del tema con su duración.'),
     table('Actividades del tema. Haz clic en una para registrar sus metodologías.'),
   ],
   'teacher-tutorings/content/activity': [
-    step({ button: 'Actividades' }, 'Volver', 'Regresa a las actividades del tema.'),
+    step('[aria-label="Ruta"]', 'Ruta', 'Muestra dónde estás. Pulsa el nombre del tema para volver a sus actividades.'),
     step({ button: 'Editar actividad' }, 'Editar actividad', 'Cambia el nombre o la duración de la actividad.'),
     step({ button: 'Registrar metodología' }, 'Registrar metodología', 'Describe cómo trabajas la actividad con tus estudiantes.'),
     table('Metodologías de la actividad. Haz clic en una para editarla.'),

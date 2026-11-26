@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon, CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon, Trash2Icon } from 'lucide-react'
+import { CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon, Trash2Icon } from 'lucide-react'
 
 import { TopicFileList } from '@/components/topic-file-list'
 import { Button } from '@/components/ui/button'
@@ -311,12 +311,24 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
 
   return <div className="flex flex-col gap-5">
     {!showingList && (
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(null)}><ArrowLeftIcon data-icon="inline-start" />Sesiones</Button>
-        {topic && openRow && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(openRow.id)}><ArrowLeftIcon data-icon="inline-start" />{rowName(openRow)}</Button>}
-        {activity && topic && <Button variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openLevel(sessionParam, topic.id)}><ArrowLeftIcon data-icon="inline-start" />Actividades</Button>}
-        {topic && <span className="text-sm text-muted-foreground">{topic.name}{activity ? ` / ${activity.name}` : ''}</span>}
-      </div>
+      // Ruta de la pantalla: cada nivel anterior es un enlace y el último es la pantalla actual.
+      <nav aria-label="Ruta" className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+        <Button type="button" variant="tertiary" size="sm" className="-ml-1.5 h-auto px-1.5 py-0.5" disabled={operation.pending} onClick={() => openLevel(null)}>Sesiones</Button>
+        <span aria-hidden="true">/</span>
+        {topic && openRow ? (
+          <>
+            <Button type="button" variant="tertiary" size="sm" className="h-auto px-1.5 py-0.5" disabled={operation.pending} onClick={() => openLevel(openRow.id)}>{rowName(openRow)}</Button>
+            <span aria-hidden="true">/</span>
+            {activity ? (
+              <>
+                <Button type="button" variant="tertiary" size="sm" className="h-auto px-1.5 py-0.5" disabled={operation.pending} onClick={() => openLevel(sessionParam, topic.id)}>{topic.name}</Button>
+                <span aria-hidden="true">/</span>
+                <span className="px-1.5 text-foreground" aria-current="page">{activity.name}</span>
+              </>
+            ) : <span className="px-1.5 text-foreground" aria-current="page">{topic.name}</span>}
+          </>
+        ) : <span className="px-1.5 text-foreground" aria-current="page">{openRow ? rowName(openRow) : ''}</span>}
+      </nav>
     )}
 
     {!showingList && (
