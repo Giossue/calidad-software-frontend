@@ -268,6 +268,7 @@ export const PAGE_TOURS: Readonly<Record<string, readonly PageTourStep[]>> = {
   'teacher-tutorings/content/topic': [
     step({ button: 'Temas' }, 'Volver', 'Regresa a la lista de temas.'),
     step({ button: 'Editar tema' }, 'Editar tema', 'Cambia el nombre o los recursos del tema.'),
+    step({ button: 'Eliminar tema' }, 'Eliminar tema', 'Si lo registraste por error, elimínalo con sus actividades, metodologías y archivos. No se puede deshacer.'),
     step({ button: 'Registrar actividad' }, 'Registrar actividad', 'Agrega una actividad del tema con su duración.'),
     table('Actividades del tema. Haz clic en una para registrar sus metodologías.'),
   ],

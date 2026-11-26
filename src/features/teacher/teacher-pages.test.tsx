@@ -1153,6 +1153,24 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('row', { name: /Tema viejo/ })).not.toBeInTheDocument()
   })
 
+  it('elimina, previa confirmación, un tema registrado por error en una sesión', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.allTopics).mockResolvedValue([topic])
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([{ id: 1, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: true, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [] }])
+    vi.mocked(teacherApi.deleteTopic).mockResolvedValue(undefined)
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&content-session=1')
+
+    await user.click(await screen.findByText('Pruebas'))
+    await user.click(await screen.findByRole('button', { name: 'Eliminar tema' }))
+    const dialog = await screen.findByRole('dialog', { name: '¿Eliminar el tema?' })
+    expect(within(dialog).getByText(/Se eliminará «Pruebas»/)).toBeInTheDocument()
+    expect(teacherApi.deleteTopic).not.toHaveBeenCalled()
+    await user.click(within(dialog).getByRole('button', { name: 'Eliminar tema' }))
+    await waitFor(() => expect(teacherApi.deleteTopic).toHaveBeenCalledWith(40, 90))
+    // Vuelve a la sesión de la que se abrió el tema.
+    expect(await screen.findByRole('heading', { name: 'Sesión 1 · 21 sept 2026' })).toBeInTheDocument()
+  })
+
   it('sin sesiones avisa que se habilitan al tomar asistencia', async () => {
     vi.mocked(teacherApi.allSessions).mockResolvedValue([])
     workspace('content')

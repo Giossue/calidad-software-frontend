@@ -220,6 +220,7 @@ export const teacherApi = {
   updateTopic: (id: number, topicId: number, input: { name?: string; description?: string; is_covered?: boolean }) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}`, 'PATCH', input),
   toggleTopicCovered: (id: number, topicId: number, is_covered?: boolean) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}/toggle-covered`, 'PATCH', is_covered !== undefined ? { is_covered } : {}),
   deactivateTopic: (id: number, topicId: number) => mutate<TutoringTopic>(`tutorings/${id}/topics/${topicId}/deactivate`, 'PATCH'),
+  deleteTopic: (id: number, topicId: number) => request<void>(`${ROOT}/tutorings/${id}/topics/${topicId}`, { method: 'DELETE' }),
   uploadTopicFile: async (id: number, topicId: number, file: File) => {
     const body = new FormData()
     body.append('file', file)

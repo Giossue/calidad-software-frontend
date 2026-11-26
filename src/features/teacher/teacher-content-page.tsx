@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeftIcon, CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon } from 'lucide-react'
+import { ArrowLeftIcon, CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon, Trash2Icon } from 'lucide-react'
 
 import { TopicFileList } from '@/components/topic-file-list'
 import { Button } from '@/components/ui/button'
@@ -115,6 +115,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const reloadAll = () => Promise.all([topicsRes.reload(), sessionsRes.reload()])
   const [editing, setEditing] = useState<Editing | null>(null)
   const [deactivating, setDeactivating] = useState<Editing | null>(null)
+  const [deletingTopic, setDeletingTopic] = useState<TutoringTopic | null>(null)
   const [form, setForm] = useState(EMPTY)
   const [initial, setInitial] = useState(EMPTY)
   const [timerHours, setTimerHours] = useState(0)
@@ -233,6 +234,12 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     if (stored) setRemovedFileIds((current) => [...current, stored.id])
     else setPendingFiles((current) => current.filter((item) => item !== file.upload))
   }
+  // Un tema registrado por error se elimina por completo, con sus actividades, metodologías y archivos.
+  function deleteTopic() {
+    if (!deletingTopic) return
+    const removed = deletingTopic
+    void operation.run(() => teacherApi.deleteTopic(tutoring.id, removed.id), 'Tema eliminado', async () => { setDeletingTopic(null); openLevel(sessionParam); await reloadAll() })
+  }
   function deactivate() {
     const record = deactivating?.record
     if (!record || !deactivating) return
@@ -317,6 +324,12 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         <h3 className="text-xl font-semibold tracking-tight">{title}</h3>
         <div className="flex shrink-0 flex-wrap gap-2">
           {editParentButton}
+          {topic && !activity && canManage && (
+            <Button variant="secondary" tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeletingTopic(topic) }}>
+              <Trash2Icon data-icon="inline-start" />
+              Eliminar tema
+            </Button>
+          )}
           {!topic && openSession && canManage && (
             <Button variant="secondary" disabled={operation.pending} onClick={() => openAssignModal(openSession)}>
               <CheckCircle2Icon data-icon="inline-start" />
@@ -543,6 +556,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         )}
       </div>
     </FormDialog>
+    <ConfirmModal open={Boolean(deletingTopic)} title="¿Eliminar el tema?" description={`Se eliminará «${deletingTopic?.name ?? ''}» con sus actividades, metodologías y archivos, y se quitará de las sesiones. No se puede deshacer.`} pending={operation.pending} confirmLabel="Eliminar tema" onClose={() => { if (!operation.pending) setDeletingTopic(null) }} onConfirm={deleteTopic} />
     <ConfirmModal open={Boolean(deactivating)} title={`¿Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}?`} description={`${deactivating ? SUBJECTS[deactivating.kind] : 'El contenido'} dejará de estar disponible para nuevas sesiones. Su historial se conservará.`} pending={operation.pending} confirmLabel={`Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}`} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={deactivate} />
   </div>
 }
