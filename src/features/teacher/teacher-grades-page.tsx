@@ -105,12 +105,6 @@ function normalize(value: string): string {
   return /^\d{1,2}(\.\d{0,2})?$/.test(value) ? Number(value).toFixed(2) : value
 }
 
-function groupFor(value: string, settings: GradeSettings): string | null {
-  if (!isValidGrade(value, settings.maximum)) return null
-  const number = Number(value)
-  return settings.groups.find((group) => number >= group.min && number <= group.max)?.label ?? null
-}
-
 // --- Panel ---
 
 /** La tabla de notas (#, estudiante, tres notas, evolución y estado), siempre editable. */
@@ -176,9 +170,6 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
           onBlur={() => { if (value !== '') meta.onChange(row.original.id, type, normalize(value)) }}
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => focusNextRow(event, type)}
         />
-        {type === 'diagnostic' && value && groupFor(value, meta.settings) && (
-          <span className="text-xs text-success">{groupFor(value, meta.settings)}</span>
-        )}
       </div>
     },
   })),
