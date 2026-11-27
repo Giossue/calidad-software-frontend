@@ -638,11 +638,15 @@ describe('Módulo Docente', () => {
     ]))
     workspace('students')
     await screen.findByText('Luis Mora')
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Apellidos y nombres', 'Contacto', 'Grupo de Conocimiento', 'Inscripción'])
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Apellidos y nombres', 'Correo', 'Grupo de Conocimiento', 'Inscripción'])
     expect(screen.queryByText('7.40')).not.toBeInTheDocument()
     const rows = screen.getAllByRole('row').slice(1)
     expect(rows).toHaveLength(2)
     expect(within(rows[1]).getAllByRole('cell')[0]).toHaveTextContent('2')
+    // Solo el correo: ni la cédula ni el teléfono.
+    expect(screen.queryByText('0201111111')).not.toBeInTheDocument()
+    expect(screen.queryByText(student.phone as string)).not.toBeInTheDocument()
+    expect(screen.queryByText('Sin teléfono')).not.toBeInTheDocument()
   })
 
   it('muestra el grupo de conocimiento en la lista de estudiantes y la evolución entre parciales en calificaciones', async () => {
@@ -1116,14 +1120,14 @@ describe('Módulo Docente', () => {
     workspace('content')
 
     const first = await screen.findByRole('row', { name: /Sesión 1/ }, { timeout: 5000 })
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Sesión', 'Fecha', 'Temas', 'Acciones'])
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Sesión', 'Fecha', 'Acciones'])
     expect(within(first).getByText(formatDate('2026-09-21'))).toBeInTheDocument()
-    expect(within(first).getByText('2')).toBeInTheDocument()
+    // Sin columna de temas.
+    expect(within(first).queryByText('2')).not.toBeInTheDocument()
     expect(within(first).getByRole('button', { name: 'Editar la Sesión 1' })).toBeInTheDocument()
     expect(within(first).getByRole('button', { name: 'Eliminar la Sesión 1' })).toBeInTheDocument()
-    // Los temas sin sesión son una fila más (sin acciones); los deshabilitados no se cuentan.
+    // Los temas sin sesión son una fila más (sin acciones).
     const pending = screen.getByRole('row', { name: /Temas sin sesión/ })
-    expect(within(pending).getByText('1')).toBeInTheDocument()
     expect(within(pending).queryByRole('button')).not.toBeInTheDocument()
     // Sin filtros de sesión ni de estado.
     expect(screen.queryByRole('combobox', { name: 'Filtrar por Sesión' })).not.toBeInTheDocument()
@@ -1305,6 +1309,8 @@ describe('Módulo Docente', () => {
     // Solo lo habilitado; la ruta no suma niveles.
     const activityGroup = within(section).getByRole('group', { name: 'Actividad Diseñar casos' })
     expect(within(section).queryByRole('group', { name: 'Actividad Deshabilitada' })).not.toBeInTheDocument()
+    // Las actividades van numeradas.
+    expect(within(activityGroup).getByText('1. Diseñar casos')).toBeInTheDocument()
     expect(within(activityGroup).getByText('Trabajo colaborativo')).toBeInTheDocument()
     expect(within(activityGroup).queryByText('Vieja')).not.toBeInTheDocument()
     expect(within(screen.getByRole('navigation', { name: 'Ruta' })).getAllByRole('button').map((item) => item.textContent)).toEqual(['Sesiones'])

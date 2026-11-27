@@ -499,11 +499,11 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               {open && (
                 <div id={`topic-content-${item.id}`} className="flex flex-col gap-4 border-t border-border px-3 py-3 sm:pl-10">
                   {activities.length === 0 && <p className="text-sm text-muted-foreground">Este tema aún no tiene actividades.</p>}
-                  {activities.map((each) => {
+                  {activities.map((each, index) => {
                     const methods = each.methodologies.filter((method) => method.is_active)
                     return <div key={each.id} className="flex flex-col gap-1.5" aria-label={`Actividad ${each.name}`} role="group">
                       <div className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 text-sm"><span className="font-medium">{each.name}</span> <span className="text-muted-foreground">· {each.duration}</span></span>
+                        <span className="min-w-0 flex-1 text-sm"><span className="font-medium">{index + 1}. {each.name}</span> <span className="text-muted-foreground">· {each.duration}</span></span>
                         {rowActions(`la actividad ${each.name}`, () => editRecord(each, 'activity', { topicId: item.id }), () => setDeletingActivity({ topicId: item.id, activity: each }))}
                       </div>
                       <ul className="flex flex-col gap-1 border-l-2 border-border pl-3">
@@ -545,7 +545,6 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         columns={[
           { label: 'Sesión', render: (row) => row.session ? sessionLabel(row.session) : <span className="text-muted-foreground">Temas sin sesión</span> },
           { label: 'Fecha', render: (row) => row.session ? formatDate(row.session.date) : <span className="text-muted-foreground">—</span> },
-          { label: 'Temas', render: (row) => row.topics.length === 0 ? <span className="text-muted-foreground">Sin temas</span> : row.topics.length },
           { label: 'Acciones', render: (row) => (row.session ? rowActions(`la ${sessionLabel(row.session)}`, () => editSession(row.session as TutoringSession), () => setDeletingSession(row.session)) : null) },
         ]}
       />
