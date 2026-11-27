@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/data-table'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { Input } from '@/components/ui/input'
-import { SelectInput } from '@/components/ui/select-field'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
@@ -28,14 +27,11 @@ const GRADE_FIELDS = [
   { type: 'partial_two', label: 'Parcial 2' },
 ] as const satisfies readonly { type: GradeType; label: string }[]
 
-const GRADE_LABELS: Readonly<Record<string, string>> = { diagnostic: 'Diagnóstico', partial: 'Parcial 1', partial_two: 'Parcial 2' }
-
-// Las notas se cargan por etapa (diagnóstico, parcial 1, parcial 2), cada una en su momento del ciclo.
+// Las tres notas quedan abiertas: el docente carga o corrige cualquiera cuando la tiene.
 type Values = Readonly<Record<GradeType, string>>
 type Grid = Readonly<Record<number, Values>>
 
 const EMPTY_VALUES: Values = { diagnostic: '', partial: '', partial_two: '' }
-const stageLabel = (type: GradeType) => GRADE_LABELS[type] ?? type
 
 function serverValues(student: Enrollment): Values {
   return { diagnostic: student.diagnostic_grade ?? '', partial: student.partial_grade ?? '', partial_two: student.second_partial_grade ?? '' }
@@ -100,14 +96,8 @@ function readDraft(tutoringId: number): Grid | null {
 function writeDraft(tutoringId: number, grid: Grid) {
   try { sessionStorage.setItem(draftKey(tutoringId), JSON.stringify(grid)) } catch { /* sin almacenamiento: el formulario sigue funcionando */ }
 }
-// Al guardar una etapa se descartan solo sus valores del borrador; las otras etapas conservan lo escrito.
-function clearDraft(tutoringId: number, stage: GradeType) {
-  try {
-    const draft = readDraft(tutoringId)
-    if (!draft) return
-    const rest = Object.fromEntries(Object.entries(draft).map(([studentId, values]) => [studentId, { ...values, [stage]: undefined }]))
-    sessionStorage.setItem(draftKey(tutoringId), JSON.stringify(rest))
-  } catch { /* nada que limpiar */ }
+function clearDraft(tutoringId: number) {
+  try { sessionStorage.removeItem(draftKey(tutoringId)) } catch { /* nada que limpiar */ }
 }
 
 // "9" o "9.4" se completan a dos decimales al salir de la casilla ("9.00", "9.40").
@@ -123,7 +113,7 @@ function groupFor(value: string, settings: GradeSettings): string | null {
 
 // --- Panel ---
 
-/** La etapa a calificar y la tabla de notas (#, estudiante, tres notas y evolución). */
+/** La tabla de notas (#, estudiante, tres notas, evolución y estado), siempre editable. */
 export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const resource = useDegreeResource(async () => {
     const [students, settings, joints] = await Promise.all([teacherApi.allStudents(tutoring.id), teacherApi.gradeSettings(), teacherApi.jointTutorings(tutoring.id)])
@@ -141,17 +131,19 @@ export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
 type GradesTableMeta = {
   grid: Grid
   saved: Grid
-  stage: GradeType | null
   settings: GradeSettings
+  editable: boolean
   disabled: boolean
   onChange: (studentId: number, type: GradeType, value: string) => void
-  /** Resultado final (aprobó o reprobó): se registra aquí, junto a las notas. */
-  finalResultDisabled: (student: Enrollment) => boolean
-  onFinalResult: (student: Enrollment, result: FinalResult | null) => void
 }
 
-const FINAL_RESULT_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', failed: 'Reprobó' }
-const FINAL_RESULT_OPTIONS = [{ value: 'approved', label: 'Aprobó' }, { value: 'failed', label: 'Reprobó' }]
+/** Problema de una casilla: fuera de la escala, o vacía cuando ya tenía una nota guardada (no se borra). */
+function cellProblem(value: string, savedValue: string, maximum: number): string | null {
+  if (value === '') return savedValue ? 'Una nota guardada no se puede dejar vacía.' : null
+  return isValidGrade(value, maximum) ? null : `Escribe una nota de 0 a ${maximum}, con hasta dos decimales.`
+}
+
+const STATE_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', failed: 'Reprobó' }
 
 // Columnas estables: el estado llega por `meta` para que las casillas no se remonten (y pierdan el foco) al escribir.
 const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
@@ -159,22 +151,25 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
   { id: 'name', header: 'Apellidos y nombres', cell: ({ row }) => row.original.name },
   ...GRADE_FIELDS.map(({ type, label }): ColumnDef<Enrollment> => ({
     id: type,
-    header: ({ table }) => <div className={`text-center ${(table.options.meta as GradesTableMeta).stage === type ? 'text-foreground' : ''}`}>{label}</div>,
+    header: () => <div className="text-center">{label}</div>,
     cell: ({ row, table }) => {
       const meta = table.options.meta as GradesTableMeta
-      // Solo la etapa elegida se edita; las otras muestran lo guardado (nunca un borrador).
-      if (meta.stage !== type) return <div className="text-center tabular-nums text-muted-foreground">{meta.saved[row.original.id]?.[type] || '—'}</div>
+      if (!meta.editable) return <div className="text-center tabular-nums text-muted-foreground">{meta.saved[row.original.id]?.[type] || '—'}</div>
       const value = meta.grid[row.original.id]?.[type] ?? ''
+      const savedValue = meta.saved[row.original.id]?.[type] ?? ''
+      const problem = cellProblem(value, savedValue, meta.settings.maximum)
       return <div className="flex flex-col items-center gap-1">
         <Input
           className="h-9 w-24 text-center tabular-nums"
           inputMode="decimal"
           autoComplete="off"
           maxLength={5}
-          placeholder="0.00"
+          placeholder="—"
           data-grade-column={type}
+          data-changed={value !== savedValue ? 'true' : undefined}
           aria-label={`${label} de ${row.original.name}`}
-          aria-invalid={value !== '' && !isValidGrade(value, meta.settings.maximum)}
+          aria-invalid={problem !== null}
+          title={problem ?? undefined}
           value={value}
           disabled={meta.disabled}
           onChange={(event) => meta.onChange(row.original.id, type, sanitizeGradeInput(event.target.value, value, meta.settings.maximum))}
@@ -218,23 +213,17 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
     },
   },
   {
-    id: 'final-result',
-    header: 'Resultado final',
-    cell: ({ row, table }) => {
-      const meta = table.options.meta as GradesTableMeta
+    id: 'state',
+    header: 'Estado',
+    cell: ({ row }) => {
+      // Se calcula solo con los dos parciales guardados (promedio frente a la nota mínima); no se elige a mano.
       const student = row.original
-      return <div className="flex min-w-36 flex-col gap-1">
-        <SelectInput
-          ariaLabel={`Resultado final de ${student.name}`}
-          value={student.final_result ?? ''}
-          onValueChange={(value) => meta.onFinalResult(student, (value || null) as FinalResult | null)}
-          emptyLabel="Sin registrar"
-          options={FINAL_RESULT_OPTIONS}
-          disabled={meta.finalResultDisabled(student)}
-        />
-        {/* Al guardar los dos parciales el resultado se ajusta solo; si el docente lo cambió a mano, se avisa lo que indican las notas. */}
-        {student.suggested_result && student.final_result !== student.suggested_result && <span className="text-xs text-muted-foreground">Según las notas: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
-      </div>
+      const state = student.suggested_result ?? student.final_result ?? null
+      if (!state) return <Tooltip>
+        <TooltipTrigger asChild><span tabIndex={0} className="inline-flex"><Badge variant="neutral">Pendiente</Badge></span></TooltipTrigger>
+        <TooltipContent>Se calcula al guardar el Parcial 1 y el Parcial 2.</TooltipContent>
+      </Tooltip>
+      return <Badge variant={state === 'approved' ? 'success' : 'danger'}>{STATE_LABELS[state]}</Badge>
     },
   },
 ]
@@ -271,10 +260,7 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
     // El borrador se mezcla campo a campo: lo no escrito conserva el valor guardado en el servidor.
     return Object.fromEntries(Object.entries(saved).map(([id, values]) => [id, { ...values, ...(draft[Number(id)] ?? {}) }]))
   })
-  // Sin etapa elegida la tabla es solo de consulta; se elige una etapa únicamente para cargar o corregir notas.
-  const [stage, setStage] = useState<GradeType | null>(null)
-  // Etapa a la que se quiere pasar (o 'all' para volver a la consulta) mientras se confirma descartar lo no guardado.
-  const [confirmTarget, setConfirmTarget] = useState<GradeType | 'all' | null>(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const readOnly = !tutoring.can_manage
 
   function setValue(studentId: number, type: GradeType, value: string) {
@@ -285,92 +271,47 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
     })
   }
 
-  const total = active.length
   const valueOf = (studentId: number, type: GradeType) => grid[studentId]?.[type] ?? ''
-  const filled = stage ? active.filter((student) => isValidGrade(valueOf(student.id, stage), settings.maximum)).length : 0
-  const hasInvalid = stage ? active.some((student) => { const value = valueOf(student.id, stage); return value !== '' && !isValidGrade(value, settings.maximum) }) : false
-  const complete = total > 0 && filled === total
-  const changed = stage ? active.some((student) => valueOf(student.id, stage) !== (saved[student.id]?.[stage] ?? '')) : false
-  const label = stage ? stageLabel(stage) : ''
+  const savedOf = (studentId: number, type: GradeType) => saved[studentId]?.[type] ?? ''
+  const changedCells = active.flatMap((student) => GRADE_FIELDS.filter(({ type }) => valueOf(student.id, type) !== savedOf(student.id, type)).map(({ type }) => ({ student, type })))
+  const changed = changedCells.length > 0
+  const invalid = changedCells.filter(({ student, type }) => cellProblem(valueOf(student.id, type), savedOf(student.id, type), settings.maximum) !== null).length
 
-  // Salir de una etapa descarta lo escrito (y no guardado) en ella y pasa a otra etapa o a la consulta.
-  function leaveStage(next: GradeType | null = null) {
-    if (stage) {
-      setGrid((current) => Object.fromEntries(Object.entries(current).map(([id, values]) => [id, { ...values, [stage]: saved[Number(id)]?.[stage] ?? '' }])))
-      clearDraft(tutoring.id, stage)
-    }
-    setConfirmTarget(null)
-    setStage(next)
+  function discard() {
+    setGrid(saved)
+    clearDraft(tutoring.id)
+    setConfirmDiscard(false)
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!stage || !complete || hasInvalid || !changed || readOnly || operation.pending) return
+    if (!changed || invalid > 0 || readOnly || operation.pending) return
     const batches = groups.filter((item) => item.active.length > 0)
     void operation.run(async () => {
       for (const { group, active: groupStudents } of batches) {
-        await teacherApi.saveGrades(group.id, groupStudents.map((student) => ({ enrollment_id: student.id, [stage]: valueOf(student.id, stage) })))
+        // Van todos los estudiantes, con solo las notas que cambiaron: así el backend también ajusta
+        // el estado de quien ya tenía sus dos parciales.
+        await teacherApi.saveGrades(group.id, groupStudents.map((student) => ({
+          enrollment_id: student.id,
+          ...Object.fromEntries(GRADE_FIELDS.filter(({ type }) => valueOf(student.id, type) !== savedOf(student.id, type)).map(({ type }) => [type, valueOf(student.id, type)])),
+        })))
       }
-    }, batches.length > 1 ? `${label} guardado en los ${batches.length} grupos.` : `${label} guardado para todos los estudiantes.`, () => {
-      clearDraft(tutoring.id, stage)
+    }, changedCells.length === 1 ? 'Nota guardada.' : `${changedCells.length} notas guardadas.`, () => {
+      clearDraft(tutoring.id)
       onSaved()
     })
   }
 
-  // Cada etapa indica en el desplegable si ya tiene todas sus notas guardadas.
-  const stageOptions = GRADE_FIELDS.map(({ type, label: name }) => ({
-    value: type,
-    label: `${name} · ${active.every((student) => saved[student.id]?.[type]) ? 'Completo' : 'Pendiente'}`,
-  }))
-  // Salir de la etapa con notas sin guardar (a otra etapa o a «Todas las etapas») pide confirmar el descarte.
-  function chooseStage(value: string) {
-    const next = value === '' ? null : value as GradeType
-    if (next === stage) return
-    if (stage && changed) setConfirmTarget(next ?? 'all')
-    else leaveStage(next)
-  }
-  // Notas escritas y no guardadas de otra visita (borrador): se avisan, nunca se muestran como guardadas.
-  const draftStages = stage ? [] : GRADE_FIELDS.filter(({ type }) => active.some((student) => valueOf(student.id, type) !== (saved[student.id]?.[type] ?? '')))
-
-  // Cada estudiante se registra en su tutoría (en una clase conjunta, la de su grupo).
-  const tutoringOf = new Map(groups.flatMap(({ group, active: groupStudents }) => groupStudents.map((student) => [student.id, group.id] as const)))
-  function recordFinalResult(student: Enrollment, result: FinalResult | null) {
-    void operation.run(
-      () => teacherApi.setFinalResult(tutoringOf.get(student.id) ?? tutoring.id, student.id, result),
-      result === 'approved'
-        ? `${student.name} aprobó. Si existe la tutoría de la asignatura siguiente, quedó inscrito en ella.`
-        : result === 'failed' ? `${student.name} reprobó.` : 'Resultado final quitado.',
-      onSaved,
-    )
-  }
-  const tableMeta: GradesTableMeta = {
-    grid, saved, stage, settings, disabled: readOnly || operation.pending, onChange: setValue,
-    finalResultDisabled: (student) => readOnly || stage !== null || !student.is_active || Boolean(student.is_abandoned) || operation.pending,
-    onFinalResult: recordFinalResult,
-  }
-  const saveBlocked = readOnly || !complete || hasInvalid || !changed
-  const missing = total - filled
-  const hint = readOnly ? '' : hasInvalid ? 'Hay notas incompletas o fuera de la escala.' : missing > 0 ? `${missing === 1 ? 'Falta 1 nota' : `Faltan ${missing} notas`} de ${label}.` : !changed ? 'No hay cambios por guardar.' : 'Todo listo para guardar.'
+  const tableMeta: GradesTableMeta = { grid, saved, settings, editable: !readOnly, disabled: operation.pending, onChange: setValue }
+  const hint = invalid > 0 ? (invalid === 1 ? 'Hay 1 nota por corregir.' : `Hay ${invalid} notas por corregir.`) : 'Todo listo para guardar.'
 
   if (active.length === 0) return <TeacherEmpty title="No hay estudiantes para evaluar" description="Inscribe estudiantes en la pestaña Estudiantes para cargar sus calificaciones." />
 
   return <>
   <form onSubmit={submit} aria-label="Calificaciones" className="flex flex-col gap-4">
-    {readOnly && <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>}
-    {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2">
-      <label htmlFor={`grades-stage-${tutoring.id}`} className="text-sm text-muted-foreground">{stage ? 'Ingresando notas de:' : 'Para ingresar o corregir notas, elige la etapa:'}</label>
-      <SelectInput
-        id={`grades-stage-${tutoring.id}`}
-        ariaLabel="Etapa"
-        value={stage ?? ''}
-        onValueChange={chooseStage}
-        emptyLabel="Todas las etapas"
-        options={stageOptions}
-        disabled={operation.pending}
-        className="w-56"
-      />
-    </div>}
-    {draftStages.length > 0 && <Alert><AlertDescription>Tienes notas sin guardar de {draftStages.map((item) => item.label).join(', ')}. Elige la etapa para revisarlas y guardarlas; mientras tanto se muestran las notas guardadas.</AlertDescription></Alert>}
+    {readOnly
+      ? <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>
+      : <p className="text-sm text-muted-foreground">Escribe o corrige cualquier nota y guarda. El estado se calcula solo con el Parcial 1 y el Parcial 2 (promedio desde {settings.passing_grade ?? 7}).</p>}
     <JointNotice groups={joint.map((item) => item.group)} include={includeJoint} onIncludeChange={setIncludeJoint} action="calificar" />
     {groups.map(({ group, active: groupStudents }) => (
       <section key={group.id} aria-label={groups.length > 1 ? `Grupo ${group.label}` : undefined} className="flex flex-col gap-2">
@@ -379,24 +320,17 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
       </section>
     ))}
     <ErrorNotice message={operation.error} />
-    {stage && <div data-carbon-actions className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background py-3">
+    {changed && !readOnly && <div data-carbon-actions className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background py-3">
       <div className="flex flex-col">
-        <p className="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">{filled} de {total} notas de {label} ingresadas{changed && <Badge variant="warning">Sin guardar</Badge>}</p>
+        <p className="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">{changedCells.length === 1 ? '1 nota cambiada' : `${changedCells.length} notas cambiadas`}<Badge variant="warning">Sin guardar</Badge></p>
         <p className="text-xs text-muted-foreground"><span>{hint}</span> <span>Escala de 0 a {settings.maximum}, hasta dos decimales (ej. 9.42).</span></p>
       </div>
       <div className="flex items-center gap-2">
-        <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => (changed ? setConfirmTarget('all') : leaveStage())}>Cancelar</Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span tabIndex={saveBlocked ? 0 : -1}>
-              <Button type="submit" disabled={saveBlocked || operation.pending}>{operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}{operation.pending ? 'Guardando…' : `Guardar ${label}`}</Button>
-            </span>
-          </TooltipTrigger>
-          {saveBlocked && !operation.pending && <TooltipContent>{hint || 'No hay cambios por guardar.'}</TooltipContent>}
-        </Tooltip>
+        <Button type="button" variant="secondary" disabled={operation.pending} onClick={() => setConfirmDiscard(true)}>Descartar</Button>
+        <Button type="submit" disabled={invalid > 0 || operation.pending}>{operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}{operation.pending ? 'Guardando…' : 'Guardar notas'}</Button>
       </div>
     </div>}
   </form>
-    <ConfirmModal open={confirmTarget !== null} title={`¿Descartar las notas de ${label}?`} description={`Lo que escribiste y no guardaste se perderá y ${confirmTarget && confirmTarget !== 'all' ? `pasarás a ${stageLabel(confirmTarget)}` : 'volverás al modo consulta'}.`} confirmLabel="Sí, descartar" cancelLabel="Seguir editando" variant="destructive" onClose={() => setConfirmTarget(null)} onConfirm={() => leaveStage(confirmTarget && confirmTarget !== 'all' ? confirmTarget : null)} />
+    <ConfirmModal open={confirmDiscard} title="¿Descartar los cambios?" description="Las notas que escribiste y no guardaste volverán a su valor guardado." confirmLabel="Sí, descartar" cancelLabel="Seguir editando" variant="destructive" onClose={() => setConfirmDiscard(false)} onConfirm={discard} />
   </>
 }
