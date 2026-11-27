@@ -170,7 +170,9 @@ describe('Módulo Docente', () => {
       { ...student, id: 72, student_id: 82, name: 'Mía Ríos', partial_grade: '9.00', final_result: null, suggested_result: null },
     ])
     workspace('grades')
-    expect(await screen.findByRole('columnheader', { name: 'Estado' }, { timeout: 5000 })).toBeInTheDocument()
+    // Primero los datos: el esqueleto de carga también tiene la cabecera «Estado».
+    await screen.findByText('Mía Ríos', undefined, { timeout: 5000 })
+    expect(screen.getByRole('columnheader', { name: 'Estado' })).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Resultado final' })).not.toBeInTheDocument()
     const rowOf = (name: string) => screen.getByText(name).closest('tr') as HTMLElement
     // Manda lo que dicen las notas, aunque antes se hubiera registrado otra cosa.
@@ -599,7 +601,8 @@ describe('Módulo Docente', () => {
     const other = screen.getByRole('textbox', { name: 'Parcial 2 de Luis Mora' })
     await user.type(other, 'a8,5x')
     expect(other).toHaveValue('8.5')
-    expect(screen.getAllByText('Alto')).toHaveLength(1)
+    // Bajo la nota diagnóstica no se muestra el nivel.
+    expect(screen.queryByText('Alto')).not.toBeInTheDocument()
     await user.tab()
     expect(other).toHaveValue('8.50')
     expect(screen.getByText('2 notas cambiadas')).toBeInTheDocument()
