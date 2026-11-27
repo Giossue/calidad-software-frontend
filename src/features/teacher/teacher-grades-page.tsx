@@ -232,7 +232,8 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
           options={FINAL_RESULT_OPTIONS}
           disabled={meta.finalResultDisabled(student)}
         />
-        {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
+        {/* Al guardar los dos parciales el resultado se ajusta solo; si el docente lo cambió a mano, se avisa lo que indican las notas. */}
+        {student.suggested_result && student.final_result !== student.suggested_result && <span className="text-xs text-muted-foreground">Según las notas: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
       </div>
     },
   },
