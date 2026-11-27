@@ -37,6 +37,7 @@ import { ActivitiesReviewSkeleton, ReportsListSkeleton } from './teacher-skeleto
 
 
 // Pestaña, informe abierto y fecha revisada van en la URL: «atrás» del navegador vuelve a cada lista.
+/** Parámetro de la URL de las subpestañas; dentro de la tutoría se usa otro, porque `tab` ya es su pestaña. */
 const TAB_PARAM = 'tab'
 const REPORT_PARAM = 'report'
 const REVIEW_PARAM = 'review'
@@ -53,13 +54,13 @@ function useSubView() {
   return { params, update }
 }
 
-export function ReportsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
+export function ReportsPanel({ tutoring, tabParam = TAB_PARAM }: Readonly<{ tutoring: TeacherTutoring; tabParam?: string }>) {
   const { params, update } = useSubView()
-  const tab = params.get(TAB_PARAM) === 'activities' ? 'activities' : 'reports'
+  const tab = params.get(tabParam) === 'activities' ? 'activities' : 'reports'
 
   return (
     <div className="flex flex-col gap-5">
-      <Tabs value={tab} onValueChange={(val) => update({ [TAB_PARAM]: val === 'activities' ? 'activities' : null, [REPORT_PARAM]: null, [REVIEW_PARAM]: null }, true)}>
+      <Tabs value={tab} onValueChange={(val) => update({ [tabParam]: val === 'activities' ? 'activities' : null, [REPORT_PARAM]: null, [REVIEW_PARAM]: null }, true)}>
         <TabsList aria-label="Secciones de informes">
           <TabsTrigger value="reports">Informes enviados</TabsTrigger>
           <TabsTrigger value="activities">Revisión de actividades</TabsTrigger>

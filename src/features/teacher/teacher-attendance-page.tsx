@@ -675,7 +675,8 @@ function SessionForm({
 
         <ErrorNotice message={operation.error} />
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Barra de guardar fija al pie: con muchos estudiantes no hay que bajar toda la lista para encontrarla. */}
+        <div data-carbon-actions className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:mx-0 sm:px-0">
           {readOnly ? <span /> : session ? (
             <Button type="button" variant="tertiary" size="sm" disabled={operation.pending} onClick={() => openSessionContent(session)}>
               <BookOpenIcon data-icon="inline-start" />
@@ -684,12 +685,15 @@ function SessionForm({
           ) : (
             <p className="text-sm text-muted-foreground">Después de guardar, asigna los temas de esta sesión en «Contenido».</p>
           )}
+          <div className="flex items-center gap-3">
+          {!readOnly && <span className="text-sm text-muted-foreground" aria-hidden="true">Presentes: {presentCount} de {active.length}</span>}
           <BlockedReason reason={operation.pending ? null : saveBlockReason}>
             <Button type="submit" disabled={saveBlockReason !== null || operation.pending}>
               {operation.pending ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
               {operation.pending ? 'Guardando…' : 'Guardar asistencia'}
             </Button>
           </BlockedReason>
+          </div>
         </div>
       </div>
     </form>

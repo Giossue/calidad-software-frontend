@@ -7,14 +7,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { FormDialog } from '@/components/ui/form-dialog'
-import { FieldDescription } from '@/components/ui/field'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { IconAction } from '@/components/ui/icon-action'
 import { EnrollmentNumberTag } from '@/components/enrollment-number-tag'
 import { PersonNameFields } from '@/components/person-name-fields'
 import { SearchSelect } from '@/components/ui/search-select'
-import { SelectField, SelectInput } from '@/components/ui/select-field'
+import { SelectField } from '@/components/ui/select-field'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useDegreeResource, useDegreeSearch } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -24,10 +23,9 @@ import { usePaginatedCatalog } from '@/hooks/use-paginated-catalog'
 import { identificationMaxLength, isValidIdentification, sanitizeIdentification, shouldShowIdentificationStatus } from '@/lib/cedula'
 import { institutionalEmailDomainsLabel, isInstitutionalEmail } from '@/lib/institutional-email'
 import { DEFAULT_ENROLLMENT_NUMBER, ENROLLMENT_NUMBER_OPTIONS, ENROLLMENT_NUMBER_TIP, parseEnrollmentNumber } from '@/lib/enrollment-number'
-import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
 import { firstNamesError, lastNamesError, normalizeName } from '@/lib/person-name'
 import { sanitizeDigits } from '@/lib/sanitize'
-import { teacherApi, type AvailableStudent, type Enrollment, type FinalResult, type GradeEntry, type GradeSettings, type TeacherTutoring } from '@/lib/teacher-api'
+import { teacherApi, type AvailableStudent, type Enrollment, type TeacherTutoring } from '@/lib/teacher-api'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FilterBar } from '@/features/tutoring/filter-bar'
 import { serverFieldError } from './teacher-labels'
@@ -36,56 +34,20 @@ import { StudentsTabSkeleton } from './teacher-skeletons'
 
 const EMPTY_FORM = { identification: '', first_names: '', last_names: '', email: '', phone: '' }
 const NO_NAMES_TOUCHED = { first_names: false, last_names: false }
-const EMPTY_GRADES = { diagnostic: '', partial: '', partial_two: '' }
+
 type Mode = 'existing' | 'new'
 
-function normalizeGrade(value: string): string {
-  return /^\d{1,2}(\.\d{0,2})?$/.test(value) ? Number(value).toFixed(2) : value
-}
-
-function groupFor(value: string, settings: GradeSettings): string | null {
-  if (!isValidGrade(value, settings.maximum)) return null
-  const number = Number(value)
-  return settings.groups.find((group) => number >= group.min && number <= group.max)?.label ?? null
-}
-
-const FINAL_RESULT_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', failed: 'Reprobó' }
-const GRADE_STAGES = ['diagnostic', 'partial', 'second_partial'] as const
-const GRADE_STAGE_LABELS: Record<(typeof GRADE_STAGES)[number], string> = { diagnostic: 'Diagnóstico', partial: 'Parcial 1', second_partial: 'Parcial 2' }
-const groupSpan = ({ first }: { first: boolean }) => (first ? GRADE_STAGES.length : 0)
-
-const FINAL_RESULT_OPTIONS = [{ value: 'approved', label: 'Aprobó' }, { value: 'failed', label: 'Reprobó' }]
-
-/** Grupo de conocimiento con un color semántico (alto, medio, bajo). */
+/** Estudiantes de la tutoría: datos, grupo e inscripción. Las notas se registran en «Calificaciones». */
 export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
   const [status, setStatus] = useState<'' | 'active' | 'inactive'>('')
   const list = usePaginatedCatalog((page, search) => teacherApi.students(tutoring.id, { page, search, status: status || undefined }), `${tutoring.id}:${status}`)
-  // Cada estudiante ocupa una fila por etapa (diagnóstico, parcial 1, parcial 2).
-  const gradeRows = list.data.flatMap((student) => GRADE_STAGES.map((stage, index) => ({
-    id: `${student.id}-${stage}`,
-    student,
-    stage,
-    grade: stage === 'diagnostic' ? student.diagnostic_grade : stage === 'partial' ? student.partial_grade : student.second_partial_grade,
-    first: index === 0,
-  })))
   const operation = useOperation()
 
-  function recordFinalResult(student: Enrollment, result: FinalResult | null) {
-    void operation.run(
-      () => teacherApi.setFinalResult(tutoring.id, student.id, result),
-      result === 'approved'
-        ? `${student.name} aprobó. Si existe la tutoría de la asignatura siguiente, quedó inscrito en ella.`
-        : result === 'failed' ? `${student.name} reprobó.` : 'Resultado final quitado.',
-      list.reload,
-    )
-  }
   const [open, setOpen] = useState(false)
   const [deactivating, setDeactivating] = useState<Enrollment | null>(null)
   const [reenrolling, setReenrolling] = useState<Enrollment | null>(null)
   const [gradingStudent, setGradingStudent] = useState<Enrollment | null>(null)
   const [abandoning, setAbandoning] = useState<Enrollment | null>(null)
-  const [gradesForm, setGradesForm] = useState(EMPTY_GRADES)
-  const [initialGrades, setInitialGrades] = useState(EMPTY_GRADES)
   const [form, setForm] = useState(EMPTY_FORM)
   // Matrícula elegida al inscribir y la que se edita en el registro del estudiante.
   const [enrollmentNumber, setEnrollmentNumber] = useState(String(DEFAULT_ENROLLMENT_NUMBER))
@@ -100,8 +62,6 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const search = useDegreeSearch()
   const searching = open && mode === 'existing'
   const available = useDegreeResource(() => searching ? teacherApi.availableStudents(tutoring.id, search.search) : Promise.resolve([]), `${searching}:${tutoring.id}:${search.search}`)
-  const settingsResource = useDegreeResource(() => teacherApi.gradeSettings(), 'grade-settings')
-  const settings = settingsResource.data ?? { minimum: 0, maximum: 10, groups: [] }
 
   function openForm() {
     setForm(EMPTY_FORM); setEnrollmentNumber(String(DEFAULT_ENROLLMENT_NUMBER)); setMode('existing'); setSelected(null); setIdentificationTouched(false); setNamesTouched(NO_NAMES_TOUCHED); search.setInput(''); operation.clearError(); setOpen(true)
@@ -135,45 +95,25 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
   const canReenroll = (student: Enrollment) => tutoring.can_manage && !student.is_active && student.student_is_active && !operation.pending
 
   function openStudent(student: Enrollment) {
-    if (canGrade(student)) openGrades(student)
+    if (canGrade(student)) openEnrollment(student)
     else if (canSeeAbandonment(student)) { operation.clearError(); setAbandoning(student) }
     else if (canReenroll(student)) { operation.clearError(); setReenrolling(student) }
   }
 
-  function openGrades(student: Enrollment) {
-    const current = {
-      diagnostic: student.diagnostic_grade ?? '',
-      partial: student.partial_grade ?? '',
-      partial_two: student.second_partial_grade ?? '',
-    }
+  function openEnrollment(student: Enrollment) {
     setGradingStudent(student)
     setGradingNumber(String(student.enrollment_number))
-    setGradesForm(current)
-    setInitialGrades(current)
     operation.clearError()
   }
 
-  function submitGrades(event: FormEvent<HTMLFormElement>) {
+  function submitEnrollment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!gradingStudent || operation.pending) return
     const student = gradingStudent
-    const gradesChanged = JSON.stringify(gradesForm) !== JSON.stringify(initialGrades)
-    const numberChanged = gradingNumber !== String(student.enrollment_number)
-
-    const payload: GradeEntry = {
-      enrollment_id: student.id,
-      diagnostic: gradesForm.diagnostic ? normalizeGrade(gradesForm.diagnostic) : undefined,
-      partial: gradesForm.partial ? normalizeGrade(gradesForm.partial) : undefined,
-      partial_two: gradesForm.partial_two ? normalizeGrade(gradesForm.partial_two) : undefined,
-    }
-
     void operation.run(
-      async () => {
-        // La matrícula solo se envía si cambió; el teléfono registrado se reenvía para conservarlo.
-        if (numberChanged) await teacherApi.updateStudent(tutoring.id, student.id, { phone: student.phone, enrollment_number: parseEnrollmentNumber(gradingNumber) })
-        if (gradesChanged) await teacherApi.saveGrades(tutoring.id, [payload])
-      },
-      numberChanged && gradesChanged ? 'Cambios guardados.' : numberChanged ? 'Matrícula actualizada.' : 'Calificaciones guardadas.',
+      // El teléfono registrado se reenvía para conservarlo.
+      () => teacherApi.updateStudent(tutoring.id, student.id, { phone: student.phone, enrollment_number: parseEnrollmentNumber(gradingNumber) }),
+      'Matrícula actualizada.',
       async () => {
         setGradingStudent(null)
         await list.reload()
@@ -201,13 +141,6 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       ?? (!form.identification ? 'Escribe la cédula o pasaporte.' : identificationError)
       ?? (!form.email ? 'Escribe el correo institucional.' : emailError)
 
-  const isDiagnosticValid = !gradesForm.diagnostic || isValidGrade(gradesForm.diagnostic, settings.maximum)
-  const isPartialValid = !gradesForm.partial || isValidGrade(gradesForm.partial, settings.maximum)
-  const isPartialTwoValid = !gradesForm.partial_two || isValidGrade(gradesForm.partial_two, settings.maximum)
-  const isGradesValid = isDiagnosticValid && isPartialValid && isPartialTwoValid
-  const gradePlaceholder = `0.00 – ${settings.maximum.toFixed(2)}`
-  const gradesBlockReason = isGradesValid ? null : `Las calificaciones deben estar entre ${settings.minimum} y ${settings.maximum}.`
-
   // Primera carga: filtros, botón y tabla son un solo esqueleto; al filtrar o paginar solo cargan las filas.
   if (list.isInitialLoading) return <StudentsTabSkeleton />
 
@@ -222,34 +155,19 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
     </div>
     <ErrorNotice message={list.error} retry={list.reload} />
     <RecordTable
-      rows={gradeRows}
+      rows={list.data}
       numberFrom={list.meta?.from}
       loading={list.isFetching}
-      onRowClick={({ student }) => openStudent(student)}
-      rowTitle={({ student }) => (canGrade(student) ? `Añadir notas de ${student.name}` : canSeeAbandonment(student) ? `Ver el abandono de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
+      onRowClick={(student) => openStudent(student)}
+      rowTitle={(student) => (canGrade(student) ? `Abrir la inscripción de ${student.name}` : canSeeAbandonment(student) ? `Ver el abandono de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
       empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />}
       columns={[
-        { label: 'Apellidos y nombres', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span><EnrollmentNumberTag enrollmentNumber={student.enrollment_number} attendanceRequired={student.attendance_required} /></div> },
-        { label: 'Contacto', span: groupSpan, render: ({ student }) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
-        { label: 'Grupo de Conocimiento', span: groupSpan, render: ({ student }) => student.knowledge_group
+        { label: 'Apellidos y nombres', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span><EnrollmentNumberTag enrollmentNumber={student.enrollment_number} attendanceRequired={student.attendance_required} /></div> },
+        { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
+        { label: 'Grupo de Conocimiento', render: (student) => student.knowledge_group
           ? <span>{student.knowledge_group}</span>
           : <span className="text-xs text-muted-foreground">Sin diagnóstico</span> },
-        // Una fila por etapa, en vez de todas las notas en una sola celda.
-        { label: 'Etapa', render: ({ stage }) => GRADE_STAGE_LABELS[stage] },
-        { label: 'Nota', render: ({ grade }) => <span className="tabular-nums">{grade ?? '—'}</span> },
-        // El desplegable vive dentro de una fila que abre las notas: sus clics no deben llegar a la fila.
-        { label: 'Resultado final', span: groupSpan, render: ({ student }) => <div className="flex min-w-36 flex-col gap-1" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-          <SelectInput
-            ariaLabel={`Resultado final de ${student.name}`}
-            value={student.final_result ?? ''}
-            onValueChange={(value) => recordFinalResult(student, (value || null) as FinalResult | null)}
-            emptyLabel="Sin registrar"
-            options={FINAL_RESULT_OPTIONS}
-            disabled={!tutoring.can_manage || !student.is_active || Boolean(student.is_abandoned) || operation.pending}
-          />
-          {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
-        </div> },
-        { label: 'Inscripción', span: groupSpan, render: ({ student }) => <div className="flex flex-col items-start gap-1">
+        { label: 'Inscripción', render: (student) => <div className="flex flex-col items-start gap-1">
           <StatusBadge active={student.is_active} activeLabel="Inscrito" inactiveLabel="Deshabilitado" />
           {student.is_abandoned && <Badge variant="warning">Abandonó</Badge>}
         </div> },
@@ -334,19 +252,18 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       <SelectField id="teacher-student-enrollment-number" label="Matrícula" required tip={ENROLLMENT_NUMBER_TIP} value={enrollmentNumber} onValueChange={setEnrollmentNumber} options={ENROLLMENT_NUMBER_OPTIONS} error={serverFieldError(operation, 'enrollment_number')} />
     </FormDialog>
 
-    {/* Modal para añadir o corregir notas del estudiante */}
+    {/* Inscripción del estudiante: matrícula, abandono y deshabilitar. Las notas van en «Calificaciones». */}
     <FormDialog
       open={Boolean(gradingStudent)}
-      title="Calificaciones del estudiante"
+      title="Inscripción del estudiante"
       description={gradingStudent ? `${gradingStudent.name} (${gradingStudent.identification}) · ${tutoring.subject_name}` : undefined}
       pending={operation.pending}
       error={operation.error}
-      dirty={JSON.stringify(gradesForm) !== JSON.stringify(initialGrades) || (gradingStudent !== null && gradingNumber !== String(gradingStudent.enrollment_number))}
+      dirty={gradingStudent !== null && gradingNumber !== String(gradingStudent.enrollment_number)}
       errorModal={operation.errorModal}
       onClose={() => { setGradingStudent(null); operation.clearError() }}
-      onSubmit={submitGrades}
-      submitLabel="Guardar calificaciones"
-      blockReason={gradesBlockReason}
+      onSubmit={submitEnrollment}
+      submitLabel="Guardar cambios"
       headerActions={gradingStudent ? <>
         <IconAction label="Registrar abandono" icon={UserXIcon} disabled={operation.pending} onClick={() => { operation.clearError(); setAbandoning(gradingStudent) }} />
         <IconAction label="Deshabilitar inscripción" icon={PowerOffIcon} tone="destructive" disabled={operation.pending} onClick={() => { operation.clearError(); setDeactivating(gradingStudent) }} />
@@ -354,53 +271,7 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
     >
       <div className="flex flex-col gap-4">
         <SelectField id="teacher-grade-enrollment-number" label="Matrícula" tip={ENROLLMENT_NUMBER_TIP} value={gradingNumber} onValueChange={setGradingNumber} options={ENROLLMENT_NUMBER_OPTIONS} error={serverFieldError(operation, 'enrollment_number')} />
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormField id="teacher-grade-diagnostic" label="Diagnóstico">
-            <Input
-              id="teacher-grade-diagnostic"
-              className="text-center tabular-nums"
-              inputMode="decimal"
-              maxLength={5}
-              placeholder={gradePlaceholder}
-              aria-label={`Diagnóstico de ${gradingStudent?.name ?? ''}`}
-              aria-invalid={gradesForm.diagnostic !== '' && !isDiagnosticValid}
-              value={gradesForm.diagnostic}
-              onChange={(e) => setGradesForm({ ...gradesForm, diagnostic: sanitizeGradeInput(e.target.value, gradesForm.diagnostic, settings.maximum) })}
-              onBlur={() => { if (gradesForm.diagnostic !== '') setGradesForm((prev) => ({ ...prev, diagnostic: normalizeGrade(prev.diagnostic) })) }}
-            />
-            {groupFor(gradesForm.diagnostic, settings) && <FieldDescription>{`Grupo: ${groupFor(gradesForm.diagnostic, settings)}`}</FieldDescription>}
-          </FormField>
-
-          <FormField id="teacher-grade-partial" label="Parcial 1">
-            <Input
-              id="teacher-grade-partial"
-              className="text-center tabular-nums"
-              inputMode="decimal"
-              maxLength={5}
-              placeholder={gradePlaceholder}
-              aria-label={`Parcial 1 de ${gradingStudent?.name ?? ''}`}
-              aria-invalid={gradesForm.partial !== '' && !isPartialValid}
-              value={gradesForm.partial}
-              onChange={(e) => setGradesForm({ ...gradesForm, partial: sanitizeGradeInput(e.target.value, gradesForm.partial, settings.maximum) })}
-              onBlur={() => { if (gradesForm.partial !== '') setGradesForm((prev) => ({ ...prev, partial: normalizeGrade(prev.partial) })) }}
-            />
-          </FormField>
-
-          <FormField id="teacher-grade-partial-two" label="Parcial 2">
-            <Input
-              id="teacher-grade-partial-two"
-              className="text-center tabular-nums"
-              inputMode="decimal"
-              maxLength={5}
-              placeholder={gradePlaceholder}
-              aria-label={`Parcial 2 de ${gradingStudent?.name ?? ''}`}
-              aria-invalid={gradesForm.partial_two !== '' && !isPartialTwoValid}
-              value={gradesForm.partial_two}
-              onChange={(e) => setGradesForm({ ...gradesForm, partial_two: sanitizeGradeInput(e.target.value, gradesForm.partial_two, settings.maximum) })}
-              onBlur={() => { if (gradesForm.partial_two !== '') setGradesForm((prev) => ({ ...prev, partial_two: normalizeGrade(prev.partial_two) })) }}
-            />
-          </FormField>
-        </div>
+        <p className="text-sm text-muted-foreground">Las notas y el resultado final se registran en la pestaña «Calificaciones».</p>
       </div>
     </FormDialog>
 

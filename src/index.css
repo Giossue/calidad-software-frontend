@@ -2,6 +2,8 @@
 @import 'tw-animate-css';
 /* Inter (variable) empaquetada, la misma fuente del sistema de sílabos. */
 @import '@fontsource-variable/inter';
+/* Guía IBM Carbon (piloto: panel del docente); solo actúa bajo html[data-design='carbon']. */
+@import './styles/carbon.css';
 
 @custom-variant dark (&:is(.dark *));
 

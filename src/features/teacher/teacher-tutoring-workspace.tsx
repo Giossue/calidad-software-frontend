@@ -1,4 +1,5 @@
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ChevronRightIcon } from 'lucide-react'
 
 import { AdminSectionHeader } from '@/components/admin/admin-section-header'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -10,6 +11,7 @@ import { teacherApi, type TeacherTutoring } from '@/lib/teacher-api'
 import { AttendancePanel } from './teacher-attendance-page'
 import { ContentPanel } from './teacher-content-page'
 import { GradesPanel } from './teacher-grades-page'
+import { ReportsPanel } from './teacher-reports-page'
 import { SchedulesPanel } from './teacher-schedules-page'
 import { StudentsPanel } from './teacher-students-page'
 import { WorkspaceSkeleton } from './teacher-skeletons'
@@ -21,6 +23,7 @@ const TABS = [
   { id: 'schedules', label: 'Horarios' },
   { id: 'students', label: 'Estudiantes' },
   { id: 'grades', label: 'Calificaciones' },
+  { id: 'reports', label: 'Informes' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -47,8 +50,10 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
     // El tema o la actividad abiertos en Contenido no se arrastran a otra pestaña.
     next.delete('topic')
     next.delete('activity')
-    // Tampoco la sesión consultada en Asistencia.
+    // Tampoco la sesión consultada en Asistencia, ni el informe o la revisión abiertos.
     next.delete('consult')
+    next.delete('content-session')
+    for (const key of ['reports-tab', 'report', 'review']) next.delete(key)
     setParams(next, { replace: true })
   }
 
@@ -74,18 +79,26 @@ export function TeacherTutoringWorkspace({ tutoringId }: Readonly<{ tutoringId: 
           <TabsContent value="schedules" key={`schedules-${tutoring.id}`}><SchedulesPanel tutoring={tutoring} onReload={resource.reload} /></TabsContent>
           <TabsContent value="students" key={`students-${tutoring.id}`}><StudentsPanel tutoring={tutoring} /></TabsContent>
           <TabsContent value="grades" key={`grades-${tutoring.id}`}><GradesPanel tutoring={tutoring} /></TabsContent>
+          <TabsContent value="reports" key={`reports-${tutoring.id}`}><ReportsPanel tutoring={tutoring} tabParam="reports-tab" /></TabsContent>
         </Tabs>
       </>}
   </section>
 }
 
 function TutoringHeader({ tutoring }: Readonly<{ tutoring: TeacherTutoring }>) {
-  // Título principal (h1) de la pantalla, como en las demás pantallas de detalle.
-  return <AdminSectionHeader
+  // Título principal (h1) de la pantalla, con la ruta para volver a «Mis tutorías».
+  return <div className="flex flex-col gap-2">
+    <nav aria-label="Ruta de la tutoría" className="flex items-center gap-1 text-sm">
+      <Link to="/panel/teacher-tutorings" className="text-primary-readable underline-offset-4 hover:underline">Mis tutorías</Link>
+      <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden="true" />
+      <span aria-current="page" className="text-muted-foreground">{tutoring.subject_name}</span>
+    </nav>
+    <AdminSectionHeader
     title={tutoring.subject_name}
     description={<span className="flex flex-wrap items-center gap-2">
       <span>{[tutoring.career_name, `${tutoring.cycle_name}${tutoring.section_name ? ` · ${tutoring.section_name}` : ''}`, tutoring.modality_name].filter(Boolean).join(' · ')}</span>
       <StatusBadge active={tutoring.can_manage} activeLabel="En curso" inactiveLabel="Solo consulta" />
     </span>}
   />
+  </div>
 }

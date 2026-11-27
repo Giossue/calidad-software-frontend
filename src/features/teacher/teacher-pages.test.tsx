@@ -135,7 +135,7 @@ describe('Módulo Docente', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Calidad de software' })).toBeInTheDocument()
     // Abre en Asistencia; las pestañas van en el orden de trabajo del docente, en un solo nivel.
     const sections = screen.getByRole('tablist', { name: 'Secciones de la tutoría' })
-    expect(within(sections).getAllByRole('tab').map((item) => item.textContent)).toEqual(['Asistencia', 'Contenido', 'Horarios', 'Estudiantes', 'Calificaciones'])
+    expect(within(sections).getAllByRole('tab').map((item) => item.textContent)).toEqual(['Asistencia', 'Contenido', 'Horarios', 'Estudiantes', 'Calificaciones', 'Informes'])
     expect(within(sections).getByRole('tab', { name: 'Asistencia' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getAllByRole('tablist')).toHaveLength(1)
     await user.click(within(sections).getByRole('tab', { name: 'Estudiantes' }))
@@ -161,17 +161,15 @@ describe('Módulo Docente', () => {
     expect(screen.getByRole('tab', { name: 'Calificaciones' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('registra el resultado final de un estudiante con la sugerencia según los parciales', async () => {
+  it('registra el resultado final en Calificaciones, junto a las notas, con la sugerencia según los parciales', async () => {
     const user = userEvent.setup()
-    vi.mocked(teacherApi.students).mockResolvedValue(paginated([{ ...student, final_result: null, suggested_result: 'approved' }]))
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, final_result: null, suggested_result: 'approved' }])
     vi.mocked(teacherApi.setFinalResult).mockResolvedValue({ ...student, final_result: 'approved' })
-    workspace('students')
-    await screen.findByText('Ana Pérez')
-    expect(screen.getByText('Sugerido: Aprobó')).toBeInTheDocument()
+    workspace('grades')
+    expect(await screen.findByText('Sugerido: Aprobó')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Resultado final' })).toBeInTheDocument()
     await choose(user, screen.getByLabelText('Resultado final de Ana Pérez'), 'Aprobó')
     await waitFor(() => expect(teacherApi.setFinalResult).toHaveBeenCalledWith(40, student.id, 'approved'))
-    // Elegir el resultado no abre las notas del estudiante (clic de fila).
-    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
   })
 
   it('cambia de sección dentro de la misma tutoría sin volver a elegirla', async () => {
@@ -432,27 +430,17 @@ describe('Módulo Docente', () => {
     expect(email).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('las notas del estudiante indican la escala en el campo, sin una línea de ayuda por nota', async () => {
+  it('la fila abre la inscripción del estudiante, sin notas: se registran en «Calificaciones»', async () => {
     const user = userEvent.setup()
-    workspace('students')
-    await user.click(await screen.findByText('Ana Pérez'))
-    const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
-    expect(within(form).queryByText(/Hasta 10/)).not.toBeInTheDocument()
-    expect(within(form).getByLabelText('Diagnóstico de Ana Pérez')).toHaveAttribute('placeholder', '0.00 – 10.00')
-  })
-
-  it('no permite editar datos del estudiante y permite añadir sus calificaciones directamente', async () => {
-    const user = userEvent.setup()
-    vi.mocked(teacherApi.saveGrades).mockResolvedValue([student])
     workspace('students')
     expect(screen.queryByRole('button', { name: /Editar datos de/i })).not.toBeInTheDocument()
-    // La fila abre las notas del estudiante: no hay columna de íconos sueltos.
+    // La fila abre la inscripción: no hay columna de íconos sueltos.
     await user.click(await screen.findByText('Ana Pérez'))
-    const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
-    await user.type(within(form).getByLabelText('Diagnóstico de Ana Pérez'), '8.5')
-    await user.click(within(form).getByRole('button', { name: 'Guardar calificaciones' }))
-    await waitFor(() => expect(teacherApi.saveGrades).toHaveBeenCalledWith(40, [{ enrollment_id: 70, diagnostic: '8.50', partial: undefined, partial_two: undefined }]))
-    // Sin cambiar la matrícula no se actualiza la inscripción.
+    const form = screen.getByRole('form', { name: 'Inscripción del estudiante' })
+    expect(within(form).queryByLabelText(/^Diagnóstico de/)).not.toBeInTheDocument()
+    expect(within(form).getByText(/se registran en la pestaña «Calificaciones»/)).toBeInTheDocument()
+    // Sin cambiar la matrícula no se puede guardar.
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
     expect(teacherApi.updateStudent).not.toHaveBeenCalled()
   })
 
@@ -504,12 +492,12 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.updateStudent).mockResolvedValue({ ...student, enrollment_number: 2, attendance_required: true })
     workspace('students')
     await user.click(await screen.findByText('Ana Pérez'))
-    const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
+    const form = screen.getByRole('form', { name: 'Inscripción del estudiante' })
     const select = within(form).getByRole('combobox', { name: /^Matrícula/ })
     expect(select).toHaveTextContent('1.ª matrícula')
-    expect(within(form).getByRole('button', { name: 'Guardar calificaciones' })).toBeDisabled()
+    expect(within(form).getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
     await choose(user, select, '2.ª matrícula')
-    await user.click(within(form).getByRole('button', { name: 'Guardar calificaciones' }))
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
     // El teléfono registrado se reenvía para no borrarlo.
     await waitFor(() => expect(teacherApi.updateStudent).toHaveBeenCalledWith(40, 70, { phone: '0991234567', enrollment_number: 2 }))
     expect(teacherApi.saveGrades).not.toHaveBeenCalled()
@@ -521,8 +509,8 @@ describe('Módulo Docente', () => {
     workspace('students')
     await user.click(await screen.findByText('Ana Pérez'))
     expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
-    const form = screen.getByRole('form', { name: 'Calificaciones del estudiante' })
-    await user.click(within(screen.getByRole('dialog', { name: 'Calificaciones del estudiante' })).getByRole('button', { name: 'Deshabilitar inscripción' }))
+    const form = screen.getByRole('form', { name: 'Inscripción del estudiante' })
+    await user.click(within(screen.getByRole('dialog', { name: 'Inscripción del estudiante' })).getByRole('button', { name: 'Deshabilitar inscripción' }))
     expect(teacherApi.deactivateStudent).not.toHaveBeenCalled()
     const confirm = await screen.findByRole('dialog', { name: '¿Deshabilitar inscripción?' })
     await user.click(within(confirm).getByRole('button', { name: 'Deshabilitar inscripción' }))
@@ -535,7 +523,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.setAbandonment).mockResolvedValue({ ...student, is_abandoned: true, abandonment_reason: 'Consiguió trabajo' })
     workspace('students')
     await user.click(await screen.findByText('Ana Pérez'))
-    await user.click(within(screen.getByRole('dialog', { name: 'Calificaciones del estudiante' })).getByRole('button', { name: 'Registrar abandono' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Inscripción del estudiante' })).getByRole('button', { name: 'Registrar abandono' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Registrar abandono' })
     const submit = within(dialog).getByRole('button', { name: 'Registrar abandono' })
@@ -546,7 +534,7 @@ describe('Módulo Docente', () => {
 
     await waitFor(() => expect(teacherApi.setAbandonment).toHaveBeenCalledWith(40, 70, { abandoned: true, reason: 'Consiguió trabajo' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrar abandono' })).not.toBeInTheDocument())
-    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Inscripción del estudiante' })).not.toBeInTheDocument()
   })
 
   it('un estudiante que abandonó se marca, no admite notas ni resultado final y su fila muestra el motivo para quitarlo', async () => {
@@ -556,10 +544,11 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.setAbandonment).mockResolvedValue({ ...student, is_abandoned: false })
     workspace('students')
     expect(await screen.findByText('Abandonó')).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Resultado final de Ana Pérez' })).toBeDisabled()
+    // El resultado final no está en Estudiantes: se registra en Calificaciones.
+    expect(screen.queryByRole('combobox', { name: 'Resultado final de Ana Pérez' })).not.toBeInTheDocument()
 
     await user.click(screen.getByText('Ana Pérez'))
-    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Inscripción del estudiante' })).not.toBeInTheDocument()
     const dialog = await screen.findByRole('dialog', { name: 'Abandono de la tutoría' })
     expect(within(dialog).getByLabelText(/^Motivo/)).toHaveValue('Se mudó de ciudad')
     expect(within(dialog).getByRole('button', { name: 'Guardar motivo' })).toBeDisabled()
@@ -577,7 +566,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.enrollStudent).mockResolvedValue(student)
     workspace('students')
     await user.click(await screen.findByText('Ana Pérez'))
-    expect(screen.queryByRole('form', { name: 'Calificaciones del estudiante' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Inscripción del estudiante' })).not.toBeInTheDocument()
     const confirm = await screen.findByRole('dialog', { name: '¿Reinscribir a Ana Pérez?' })
     expect(teacherApi.enrollStudent).not.toHaveBeenCalled()
     await user.click(within(confirm).getByRole('button', { name: 'Reinscribir estudiante' }))
@@ -635,27 +624,18 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('muestra las notas de cada estudiante en una fila por etapa, con sus datos agrupados', async () => {
+  it('lista una fila por estudiante, sin notas ni resultado final (van en Calificaciones)', async () => {
     vi.mocked(teacherApi.students).mockResolvedValue(paginated([
       { ...student, diagnostic_grade: '7.40', partial_grade: '9.30', second_partial_grade: null },
       { ...student, id: 2, name: 'Luis Mora', identification: '0201111111', diagnostic_grade: null, partial_grade: null, second_partial_grade: null },
     ]))
     workspace('students')
     await screen.findByText('Luis Mora')
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(expect.arrayContaining(['Etapa', 'Nota']))
-    expect(screen.queryByText(/Diag:/)).not.toBeInTheDocument()
-
-    // Tres filas por estudiante; la celda del estudiante y su número abarcan las tres.
-    const anaCell = screen.getByText(student.name).closest('td') as HTMLElement
-    expect(anaCell).toHaveAttribute('rowspan', '3')
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['#', 'Apellidos y nombres', 'Contacto', 'Grupo de Conocimiento', 'Inscripción'])
+    expect(screen.queryByText('7.40')).not.toBeInTheDocument()
     const rows = screen.getAllByRole('row').slice(1)
-    expect(rows).toHaveLength(6)
-    expect(within(rows[0]).getByText('Diagnóstico')).toBeInTheDocument()
-    expect(within(rows[0]).getByText('7.40')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('Parcial 1')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('9.30')).toBeInTheDocument()
-    expect(within(rows[2]).getByText('Parcial 2')).toBeInTheDocument()
-    expect(within(rows[3]).getAllByRole('cell')[0]).toHaveTextContent('2')
+    expect(rows).toHaveLength(2)
+    expect(within(rows[1]).getAllByRole('cell')[0]).toHaveTextContent('2')
   })
 
   it('muestra el grupo de conocimiento en la lista de estudiantes y la evolución entre parciales en calificaciones', async () => {

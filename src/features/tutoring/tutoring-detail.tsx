@@ -63,14 +63,17 @@ export function TutoringDetail({
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge active={tutoring.is_active} activeLabel="Tutoría activa" inactiveLabel="Tutoría inactiva" />
+            {/* Acciones con su nombre a la vista: un ícono suelto no dice qué edita o borra. */}
             {onEdit && !readOnly && (
-              <Button type="button" variant="tertiary" size="icon" aria-label="Editar tutoría" onClick={onEdit}>
-                <PencilIcon />
+              <Button type="button" variant="secondary" onClick={onEdit}>
+                <PencilIcon data-icon="inline-start" />
+                Editar tutoría
               </Button>
             )}
             {onDelete && !readOnly && (
-              <Button type="button" variant="tertiary" size="icon" tone="destructive" aria-label="Eliminar tutoría" onClick={onDelete}>
-                <Trash2Icon />
+              <Button type="button" variant="tertiary" tone="destructive" aria-label="Eliminar tutoría" onClick={onDelete}>
+                <Trash2Icon data-icon="inline-start" />
+                Eliminar
               </Button>
             )}
           </div>
