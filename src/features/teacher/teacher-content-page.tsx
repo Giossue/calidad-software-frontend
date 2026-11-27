@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon, Trash2Icon } from 'lucide-react'
+import { CheckCircle2Icon, PaperclipIcon, PencilIcon, PlusIcon, PowerOffIcon, Trash2Icon, Undo2Icon, XIcon } from 'lucide-react'
 
 import { TopicFileList } from '@/components/topic-file-list'
 import { Button } from '@/components/ui/button'
@@ -71,6 +71,35 @@ function formatTimer(hours: number, minutes: number): string {
   return `${hours} ${hours === 1 ? 'hora' : 'horas'} y ${minutes} minutos`
 }
 
+/**
+ * El formulario del tema registra también sus actividades y las metodologías de cada una, para
+ * no tener que entrar tema por tema y actividad por actividad. Lo que ya existía y se quita se
+ * deshabilita al guardar (conserva su historial); lo nuevo que se quita solo sale del formulario.
+ */
+type MethodologyDraft = { key: string; id?: number; description: string; removed?: boolean }
+type ActivityDraft = { key: string; id?: number; name: string; hours: number; minutes: number; removed?: boolean; methodologies: MethodologyDraft[] }
+let draftSeq = 0
+const draftKey = () => `draft-${++draftSeq}`
+const emptyMethodology = (): MethodologyDraft => ({ key: draftKey(), description: '' })
+const emptyActivity = (): ActivityDraft => ({ key: draftKey(), name: '', hours: 0, minutes: 30, methodologies: [emptyMethodology()] })
+function draftsOf(topic: TutoringTopic | null): ActivityDraft[] {
+  if (!topic) return [emptyActivity()]
+  return topic.activities.filter((item) => item.is_active).map((item) => {
+    const { hours, minutes } = parseDurationToTimer(item.duration)
+    return {
+      key: `activity-${item.id}`,
+      id: item.id,
+      name: item.name,
+      hours,
+      minutes,
+      methodologies: item.methodologies.filter((method) => method.is_active).map((method) => ({ key: `methodology-${method.id}`, id: method.id, description: method.description })),
+    }
+  })
+}
+/** Una fila nueva sin nombre ni metodologías escritas no cuenta: se ignora al guardar. */
+const isBlankNew = (item: ActivityDraft) => !item.id && !item.name.trim() && item.methodologies.every((method) => !method.description.trim())
+const durationOf = (item: ActivityDraft) => formatTimer(item.hours, item.minutes) || '30 minutos'
+
 /** Fila de la lista de Contenido: una sesión, o los temas que aún no se trataron en ninguna. */
 type SessionRow = { readonly id: string; readonly session: TutoringSession | null; readonly topics: readonly TutoringTopic[] }
 const NO_SESSION = 'none'
@@ -125,6 +154,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const [removedFileIds, setRemovedFileIds] = useState<number[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  // Actividades y metodologías del tema en su formulario.
+  const [activityDrafts, setActivityDrafts] = useState<ActivityDraft[]>([])
+  const [initialDrafts, setInitialDrafts] = useState<ActivityDraft[]>([])
   const topic = allTopics.find((item) => item.id === topicId)
   const activity = topic?.activities.find((item) => item.id === activityId)
   const kind: Kind = activity ? 'methodology' : topic ? 'activity' : 'topic'
@@ -172,6 +204,11 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     }
     setForm(next); setInitial(next); operation.clearError(); setEditing({ kind: nextKind, record })
     setPendingFiles([]); setRemovedFileIds([]); setFileError(null)
+    if (nextKind === 'topic') {
+      const drafts = draftsOf(record as TutoringTopic | null)
+      setActivityDrafts(drafts)
+      setInitialDrafts(drafts)
+    }
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -207,7 +244,67 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     if (!id && openSession && !topic) {
       await teacherApi.updateSessionTopics(tutoring.id, openSession.id, [...openSession.topics.map((item) => item.id), saved.id])
     }
+    await saveActivities(saved.id)
     return saved
+  }
+  /**
+   * Guarda en orden las actividades y metodologías del formulario. Cada paso que se completa queda
+   * reflejado en el formulario (lo creado guarda su id; lo quitado sale), así que si algo falla a la
+   * mitad, reintentar no crea nada dos veces.
+   */
+  async function saveActivities(topicId: number) {
+    const before = new Map(initialDrafts.map((item) => [item.id, item]))
+    const work = activityDrafts.map((item) => ({ ...item, methodologies: item.methodologies.map((method) => ({ ...method })) }))
+    const sync = () => setActivityDrafts(work.map((item) => ({ ...item, methodologies: [...item.methodologies] })))
+    for (let index = 0; index < work.length; index++) {
+      const item = work[index]
+      if (item.removed || isBlankNew(item)) {
+        if (item.id) await teacherApi.deactivateActivity(tutoring.id, topicId, item.id)
+        work.splice(index--, 1); sync()
+        continue
+      }
+      const old = item.id ? before.get(item.id) : undefined
+      if (!item.id) {
+        const created = await teacherApi.createActivity(tutoring.id, topicId, { name: item.name.trim(), duration: durationOf(item) })
+        item.id = created.id; sync()
+      } else if (old && (old.name !== item.name || durationOf(old) !== durationOf(item))) {
+        await teacherApi.updateActivity(tutoring.id, topicId, item.id, { name: item.name.trim(), duration: durationOf(item) })
+      }
+      const oldMethods = new Map((old?.methodologies ?? []).map((method) => [method.id, method]))
+      for (let m = 0; m < item.methodologies.length; m++) {
+        const method = item.methodologies[m]
+        if (method.removed || (!method.id && !method.description.trim())) {
+          if (method.id) await teacherApi.deactivateMethodology(tutoring.id, topicId, item.id, method.id)
+          item.methodologies.splice(m--, 1); sync()
+          continue
+        }
+        if (!method.id) {
+          const created = await teacherApi.createMethodology(tutoring.id, topicId, item.id, { description: method.description.trim() })
+          method.id = created.id; sync()
+        } else if (oldMethods.get(method.id)?.description !== method.description) {
+          await teacherApi.updateMethodology(tutoring.id, topicId, item.id, method.id, { description: method.description.trim() })
+        }
+      }
+    }
+    setInitialDrafts(work)
+  }
+  function updateActivity(key: string, change: Partial<ActivityDraft>) {
+    setActivityDrafts((current) => current.map((item) => (item.key === key ? { ...item, ...change } : item)))
+  }
+  function updateMethodology(activityKey: string, methodKey: string, change: Partial<MethodologyDraft>) {
+    setActivityDrafts((current) => current.map((item) => (item.key !== activityKey ? item : {
+      ...item,
+      methodologies: item.methodologies.map((method) => (method.key === methodKey ? { ...method, ...change } : method)),
+    })))
+  }
+  // Quitar algo nuevo lo saca del formulario; quitar algo guardado lo marca para deshabilitarlo al guardar.
+  function removeActivity(item: ActivityDraft) {
+    if (item.id) updateActivity(item.key, { removed: true })
+    else setActivityDrafts((current) => current.filter((other) => other.key !== item.key))
+  }
+  function removeMethodology(activity: ActivityDraft, method: MethodologyDraft) {
+    if (method.id) updateMethodology(activity.key, method.key, { removed: true })
+    else updateActivity(activity.key, { methodologies: activity.methodologies.filter((other) => other.key !== method.key) })
   }
   const storedFiles = editing?.kind === 'topic' && editing.record && 'files' in editing.record ? editing.record.files ?? [] : []
   const formFiles: FormFile[] = [
@@ -281,9 +378,18 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     : topic
       ? `Actividades de ${topic.name}`
       : openSession ? `${sessionLabel(openSession)} · ${formatDate(openSession.date)}` : 'Temas sin sesión'
+  const visibleDrafts = activityDrafts.filter((item) => !item.removed)
+  const activityProblem = (() => {
+    for (const [index, item] of visibleDrafts.entries()) {
+      if (isBlankNew(item)) continue
+      if (!item.name.trim()) return `Escribe el nombre de la actividad ${index + 1}.`
+      if (item.methodologies.some((method) => method.id && !method.removed && !method.description.trim())) return `Escribe la metodología de la actividad ${index + 1} o quítala.`
+    }
+    return null
+  })()
   const contentBlockReason = editing?.kind === 'methodology'
     ? (form.description.trim() ? null : 'Escribe la descripción de la metodología.')
-    : (form.name.trim() ? null : `Escribe el nombre del ${LABELS[editing?.kind ?? 'topic']}.`)
+    : (form.name.trim() ? (editing?.kind === 'topic' ? activityProblem : null) : `Escribe el nombre del ${LABELS[editing?.kind ?? 'topic']}.`)
   const assignedIds = assigningSession?.topics.map((t) => t.id) ?? []
   const assignDirty = selectedTopicIds.length !== assignedIds.length || selectedTopicIds.some((id) => !assignedIds.includes(id))
   const dialogTitle = editing ? `${editing.record ? 'Editar' : 'Registrar'} ${LABELS[editing.kind]}` : ''
@@ -452,7 +558,8 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       pending={operation.pending}
       error={operation.error}
       errorModal={operation.errorModal}
-      dirty={JSON.stringify(form) !== JSON.stringify(initial) || pendingFiles.length > 0 || removedFileIds.length > 0}
+      dirty={JSON.stringify(form) !== JSON.stringify(initial) || pendingFiles.length > 0 || removedFileIds.length > 0 || (editing?.kind === 'topic' && JSON.stringify(activityDrafts) !== JSON.stringify(initialDrafts))}
+      maxWidth={editing?.kind === 'topic' ? 'max-w-3xl' : undefined}
       blockReason={contentBlockReason}
       onClose={closeEditor}
       onSubmit={submit}
@@ -490,6 +597,83 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             <p className="text-xs text-muted-foreground">PDF, Word, PowerPoint, Excel o texto. Hasta 20 MB por archivo y {TOPIC_FILES_PER_TOPIC} por tema.</p>
           </div>
         </FormField>
+      )}
+      {editing?.kind === 'topic' && (
+        <fieldset className="flex flex-col gap-3 border-t border-border pt-4">
+          <legend className="sr-only">Actividades</legend>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-semibold">Actividades</span>
+            <span className="text-xs text-muted-foreground">Opcional. Cada actividad puede tener una o más metodologías.</span>
+          </div>
+          {activityDrafts.map((item) => {
+            const number = visibleDrafts.indexOf(item) + 1
+            if (item.removed) {
+              return <div key={item.key} className="flex flex-wrap items-center justify-between gap-2 border-l-2 border-destructive bg-muted px-3 py-2 text-sm">
+                <span><span className="line-through">{item.name || 'Actividad'}</span> <span className="text-muted-foreground">· se deshabilitará al guardar</span></span>
+                <Button type="button" variant="tertiary" size="sm" disabled={operation.pending} onClick={() => updateActivity(item.key, { removed: false })}><Undo2Icon data-icon="inline-start" />Deshacer</Button>
+              </div>
+            }
+            return <section key={item.key} aria-label={`Actividad ${number}`} className="flex flex-col gap-3 border border-border bg-card p-3">
+              <div className="flex items-start gap-2">
+                <span className="mt-2 w-5 shrink-0 text-sm tabular-nums text-muted-foreground">{number}</span>
+                <div className="grid flex-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
+                  <FormField id={`activity-name-${item.key}`} label="Actividad">
+                    <Input
+                      id={`activity-name-${item.key}`}
+                      value={item.name}
+                      maxLength={150}
+                      placeholder={NAME_PLACEHOLDERS.activity}
+                      disabled={operation.pending}
+                      onChange={(event) => updateActivity(item.key, { name: event.target.value })}
+                    />
+                  </FormField>
+                  <FormField id={`activity-hours-${item.key}`} label="Horas">
+                    <SelectInput id={`activity-hours-${item.key}`} ariaLabel={`Horas de la actividad ${number}`} value={String(item.hours)} onValueChange={(value) => updateActivity(item.key, { hours: Number(value) })} options={HOUR_OPTIONS} disabled={operation.pending} className="w-28" />
+                  </FormField>
+                  <FormField id={`activity-minutes-${item.key}`} label="Minutos">
+                    <SelectInput id={`activity-minutes-${item.key}`} ariaLabel={`Minutos de la actividad ${number}`} value={String(item.minutes)} onValueChange={(value) => updateActivity(item.key, { minutes: Number(value) })} options={MINUTE_OPTIONS} disabled={operation.pending} className="w-28" />
+                  </FormField>
+                </div>
+                <Button type="button" variant="tertiary" tone="destructive" size="icon" className="mt-6 shrink-0" aria-label={`Quitar la actividad ${number}`} disabled={operation.pending} onClick={() => removeActivity(item)}>
+                  <Trash2Icon />
+                </Button>
+              </div>
+              <div className="flex flex-col gap-2 pl-7">
+                <span className="text-xs text-muted-foreground">Metodologías</span>
+                {item.methodologies.map((method, methodIndex) => method.removed ? (
+                  <div key={method.key} className="flex flex-wrap items-center justify-between gap-2 border-l-2 border-destructive bg-muted px-3 py-1.5 text-sm">
+                    <span><span className="line-through">{shorten(method.description)}</span> <span className="text-muted-foreground">· se deshabilitará al guardar</span></span>
+                    <Button type="button" variant="tertiary" size="sm" disabled={operation.pending} onClick={() => updateMethodology(item.key, method.key, { removed: false })}><Undo2Icon data-icon="inline-start" />Deshacer</Button>
+                  </div>
+                ) : (
+                  <div key={method.key} className="flex items-start gap-2">
+                    <Textarea
+                      aria-label={`Metodología ${methodIndex + 1} de la actividad ${number}`}
+                      className="min-h-10 flex-1"
+                      rows={1}
+                      value={method.description}
+                      maxLength={255}
+                      placeholder={DESCRIPTION_PLACEHOLDERS.methodology}
+                      disabled={operation.pending}
+                      onChange={(event) => updateMethodology(item.key, method.key, { description: event.target.value })}
+                    />
+                    <Button type="button" variant="tertiary" size="icon" className="shrink-0" aria-label={`Quitar la metodología ${methodIndex + 1} de la actividad ${number}`} disabled={operation.pending} onClick={() => removeMethodology(item, method)}>
+                      <XIcon />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="tertiary" size="sm" className="w-fit" disabled={operation.pending} onClick={() => updateActivity(item.key, { methodologies: [...item.methodologies, emptyMethodology()] })}>
+                  <PlusIcon data-icon="inline-start" />
+                  Agregar metodología
+                </Button>
+              </div>
+            </section>
+          })}
+          <Button type="button" variant="secondary" className="w-fit" disabled={operation.pending} onClick={() => setActivityDrafts((current) => [...current, emptyActivity()])}>
+            <PlusIcon data-icon="inline-start" />
+            Agregar actividad
+          </Button>
+        </fieldset>
       )}
       {editing?.kind === 'activity' && (
         <FormField id="activity-timer-hours" label="Duración de la actividad" error={serverFieldError(operation, 'duration')}>
