@@ -11,7 +11,6 @@ import { FormField } from '@/components/ui/form-field'
 import { IconAction } from '@/components/ui/icon-action'
 import { Input } from '@/components/ui/input'
 import { SelectInput } from '@/components/ui/select-field'
-import { StatusBadge } from '@/components/ui/status-badge'
 import { Textarea } from '@/components/ui/textarea'
 import { useDegreeResource } from '@/features/degree-coordination/degree-hooks'
 import { useOperation } from '@/features/tutoring/tutoring-hooks'
@@ -74,7 +73,7 @@ function formatTimer(hours: number, minutes: number): string {
 /**
  * El formulario del tema registra también sus actividades y las metodologías de cada una, para
  * no tener que entrar tema por tema y actividad por actividad. Lo que ya existía y se quita se
- * deshabilita al guardar (conserva su historial); lo nuevo que se quita solo sale del formulario.
+ * elimina al guardar; lo nuevo que se quita solo sale del formulario.
  */
 type MethodologyDraft = { key: string; id?: number; description: string; removed?: boolean }
 type ActivityDraft = { key: string; id?: number; name: string; hours: number; minutes: number; removed?: boolean; methodologies: MethodologyDraft[] }
@@ -145,6 +144,10 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
   const [editing, setEditing] = useState<Editing | null>(null)
   const [deactivating, setDeactivating] = useState<Editing | null>(null)
   const [deletingTopic, setDeletingTopic] = useState<TutoringTopic | null>(null)
+  // Eliminar algo registrado por error: una sesión (con su asistencia), una actividad o una metodología.
+  const [deletingSession, setDeletingSession] = useState<TutoringSession | null>(null)
+  const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null)
+  const [deletingMethodology, setDeletingMethodology] = useState<Methodology | null>(null)
   const [form, setForm] = useState(EMPTY)
   const [initial, setInitial] = useState(EMPTY)
   const [timerHours, setTimerHours] = useState(0)
@@ -259,7 +262,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     for (let index = 0; index < work.length; index++) {
       const item = work[index]
       if (item.removed || isBlankNew(item)) {
-        if (item.id) await teacherApi.deactivateActivity(tutoring.id, topicId, item.id)
+        if (item.id) await teacherApi.deleteActivity(tutoring.id, topicId, item.id)
         work.splice(index--, 1); sync()
         continue
       }
@@ -274,7 +277,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       for (let m = 0; m < item.methodologies.length; m++) {
         const method = item.methodologies[m]
         if (method.removed || (!method.id && !method.description.trim())) {
-          if (method.id) await teacherApi.deactivateMethodology(tutoring.id, topicId, item.id, method.id)
+          if (method.id) await teacherApi.deleteMethodology(tutoring.id, topicId, item.id, method.id)
           item.methodologies.splice(m--, 1); sync()
           continue
         }
@@ -297,7 +300,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
       methodologies: item.methodologies.map((method) => (method.key === methodKey ? { ...method, ...change } : method)),
     })))
   }
-  // Quitar algo nuevo lo saca del formulario; quitar algo guardado lo marca para deshabilitarlo al guardar.
+  // Quitar algo nuevo lo saca del formulario; quitar algo guardado lo marca para eliminarlo al guardar.
   function removeActivity(item: ActivityDraft) {
     if (item.id) updateActivity(item.key, { removed: true })
     else setActivityDrafts((current) => current.filter((other) => other.key !== item.key))
@@ -351,19 +354,43 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
     const leaveTopic = deactivating.kind === 'topic'
     void operation.run(command, DISABLED[deactivating.kind], async () => { setDeactivating(null); setEditing(null); if (leaveTopic) openLevel(sessionParam); await reloadAll() })
   }
-  function toggleTopicCoverage(topicItem: TutoringTopic) {
-    if (!canManage || !topicItem.is_active || operation.pending) return
-    const nextCovered = !topicItem.is_covered
-    void operation.run(
-      () => teacherApi.toggleTopicCovered(tutoring.id, topicItem.id, nextCovered),
-      nextCovered ? 'Tema marcado como completado.' : 'Tema marcado como pendiente.',
-      reloadAll,
-    )
+  function deleteSession() {
+    if (!deletingSession) return
+    const removed = deletingSession
+    void operation.run(() => teacherApi.deleteSession(tutoring.id, removed.id), 'Sesión eliminada', async () => { setDeletingSession(null); await reloadAll() })
+  }
+  function deleteActivity() {
+    if (!deletingActivity || !topic) return
+    const removed = deletingActivity
+    const topicId = topic.id
+    void operation.run(() => teacherApi.deleteActivity(tutoring.id, topicId, removed.id), 'Actividad eliminada', async () => { setDeletingActivity(null); await reloadAll() })
+  }
+  function deleteMethodology() {
+    if (!deletingMethodology || !topic || !activity) return
+    const removed = deletingMethodology
+    const [topicId, activityId] = [topic.id, activity.id]
+    void operation.run(() => teacherApi.deleteMethodology(tutoring.id, topicId, activityId, removed.id), 'Metodología eliminada', async () => { setDeletingMethodology(null); await reloadAll() })
+  }
+  // «Editar» una sesión abre su asistencia (presentes y ausentes) en la pestaña Asistencia.
+  function editSession(session: TutoringSession) {
+    const next = new URLSearchParams(params)
+    for (const key of ['content-session', 'topic', 'activity']) next.delete(key)
+    next.set('tab', 'attendance')
+    next.set('session', session.date)
+    setParams(next)
   }
 
   // Los botones de la fila no deben abrir además el modal de edición (clic de fila).
   function stopRow(content: ReactNode) {
     return <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>{content}</div>
+  }
+  /** Editar y Eliminar de una fila: botones con su nombre accesible, sin abrir la fila. */
+  function rowActions(name: string, onEdit: () => void, onDelete: () => void) {
+    if (!canManage) return <span className="text-muted-foreground">—</span>
+    return stopRow(<>
+      <Button type="button" variant="tertiary" size="icon" aria-label={`Editar ${name}`} disabled={operation.pending} onClick={onEdit}><PencilIcon /></Button>
+      <Button type="button" variant="tertiary" tone="destructive" size="icon" aria-label={`Eliminar ${name}`} disabled={operation.pending} onClick={() => { operation.clearError(); onDelete() }}><Trash2Icon /></Button>
+    </>)
   }
   function editRecord(record: ContentRecord, nextKind: Kind) {
     if (!canManage || !record.is_active || operation.pending) return
@@ -469,19 +496,19 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
 
     {activity ? (
       <RecordTable
-        rows={activity.methodologies}
+        rows={activity.methodologies.filter((item) => item.is_active)}
         loading={topicsRes.loading}
         empty={<TeacherEmpty title="Esta actividad aún no tiene metodologías" />}
         onRowClick={(item) => editRecord(item, 'methodology')}
         rowTitle={methodologyTitle}
         columns={[
           { label: 'Metodología', render: (item) => <p className="whitespace-pre-wrap break-words">{item.description}</p> },
-          { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
+          { label: 'Acciones', render: (item) => rowActions(`la metodología «${shorten(item.description, 40)}»`, () => editRecord(item, 'methodology'), () => setDeletingMethodology(item)) },
         ]}
       />
     ) : topic ? (
       <RecordTable
-        rows={topic.activities}
+        rows={topic.activities.filter((item) => item.is_active)}
         loading={topicsRes.loading}
         onRowClick={(item) => { if (!operation.pending) openLevel(sessionParam, topic.id, item.id) }}
         rowTitle={openTitle}
@@ -489,8 +516,8 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         columns={[
           { label: 'Actividad', render: (item) => item.name },
           { label: 'Duración', render: (item) => item.duration },
-          { label: 'Metodologías', render: (item) => <span className="text-muted-foreground">{item.methodologies.length === 1 ? '1 metodología' : `${item.methodologies.length} metodologías`}</span> },
-          { label: 'Estado', render: (item) => <StatusBadge active={item.is_active} /> },
+          { label: 'Metodologías', render: (item) => { const count = item.methodologies.filter((method) => method.is_active).length; return <span className="text-muted-foreground">{count === 1 ? '1 metodología' : `${count} metodologías`}</span> } },
+          { label: 'Acciones', render: (item) => rowActions(`la actividad ${item.name}`, () => editRecord(item, 'activity'), () => setDeletingActivity(item)) },
         ]}
       />
     ) : openRow ? (
@@ -517,18 +544,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               ? <span className="text-sm text-muted-foreground">{item.files?.length === 1 ? '1 archivo' : `${item.files?.length} archivos`}</span>
               : <span className="text-sm text-muted-foreground">—</span>,
           },
-          {
-            label: 'Completado',
-            render: (item) => stopRow(
-              <Checkbox
-                className="size-5"
-                aria-label={`Completado: ${item.name}`}
-                checked={item.is_covered}
-                disabled={!canManage || !item.is_active || operation.pending}
-                onCheckedChange={() => toggleTopicCoverage(item)}
-              />,
-            ),
-          },
+          { label: 'Acciones', render: (item) => rowActions(`el tema ${item.name}`, () => editRecord(item, 'topic'), () => setDeletingTopic(item)) },
         ]}
       />
     ) : (
@@ -542,12 +558,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
           { label: 'Sesión', render: (row) => row.session ? sessionLabel(row.session) : <span className="text-muted-foreground">Temas sin sesión</span> },
           { label: 'Fecha', render: (row) => row.session ? formatDate(row.session.date) : <span className="text-muted-foreground">—</span> },
           { label: 'Temas', render: (row) => row.topics.length === 0 ? <span className="text-muted-foreground">Sin temas</span> : row.topics.length },
-          {
-            label: 'Completados',
-            render: (row) => row.topics.length === 0
-              ? <span className="text-muted-foreground">—</span>
-              : `${row.topics.filter((item) => item.is_covered).length} de ${row.topics.length}`,
-          },
+          { label: 'Acciones', render: (row) => (row.session ? rowActions(`la ${sessionLabel(row.session)}`, () => editSession(row.session as TutoringSession), () => setDeletingSession(row.session)) : null) },
         ]}
       />
     )}
@@ -609,7 +620,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
             const number = visibleDrafts.indexOf(item) + 1
             if (item.removed) {
               return <div key={item.key} className="flex flex-wrap items-center justify-between gap-2 border-l-2 border-destructive bg-muted px-3 py-2 text-sm">
-                <span><span className="line-through">{item.name || 'Actividad'}</span> <span className="text-muted-foreground">· se deshabilitará al guardar</span></span>
+                <span><span className="line-through">{item.name || 'Actividad'}</span> <span className="text-muted-foreground">· se eliminará al guardar</span></span>
                 <Button type="button" variant="tertiary" size="sm" disabled={operation.pending} onClick={() => updateActivity(item.key, { removed: false })}><Undo2Icon data-icon="inline-start" />Deshacer</Button>
               </div>
             }
@@ -642,7 +653,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                 <span className="text-xs text-muted-foreground">Metodologías</span>
                 {item.methodologies.map((method, methodIndex) => method.removed ? (
                   <div key={method.key} className="flex flex-wrap items-center justify-between gap-2 border-l-2 border-destructive bg-muted px-3 py-1.5 text-sm">
-                    <span><span className="line-through">{shorten(method.description)}</span> <span className="text-muted-foreground">· se deshabilitará al guardar</span></span>
+                    <span><span className="line-through">{shorten(method.description)}</span> <span className="text-muted-foreground">· se eliminará al guardar</span></span>
                     <Button type="button" variant="tertiary" size="sm" disabled={operation.pending} onClick={() => updateMethodology(item.key, method.key, { removed: false })}><Undo2Icon data-icon="inline-start" />Deshacer</Button>
                   </div>
                 ) : (
@@ -752,6 +763,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
         )}
       </div>
     </FormDialog>
+    <ConfirmModal open={Boolean(deletingSession)} title={deletingSession ? `¿Eliminar la ${sessionLabel(deletingSession)}?` : '¿Eliminar la sesión?'} description={deletingSession ? `Se borrará la sesión del ${formatDate(deletingSession.date)} con su asistencia${deletingSession.attendance.length > 0 ? ` (${deletingSession.attendance.length} ${deletingSession.attendance.length === 1 ? 'registro' : 'registros'})` : ''}. Sus temas se conservan y quedan sin sesión. No se puede deshacer.` : ''} pending={operation.pending} confirmLabel="Eliminar sesión" onClose={() => { if (!operation.pending) setDeletingSession(null) }} onConfirm={deleteSession} />
+    <ConfirmModal open={Boolean(deletingActivity)} title="¿Eliminar la actividad?" description={deletingActivity ? `Se eliminará «${deletingActivity.name}»${deletingActivity.methodologies.some((method) => method.is_active) ? ' con sus metodologías' : ''}. No se puede deshacer.` : ''} pending={operation.pending} confirmLabel="Eliminar actividad" onClose={() => { if (!operation.pending) setDeletingActivity(null) }} onConfirm={deleteActivity} />
+    <ConfirmModal open={Boolean(deletingMethodology)} title="¿Eliminar la metodología?" description={deletingMethodology ? `Se eliminará «${shorten(deletingMethodology.description)}». No se puede deshacer.` : ''} pending={operation.pending} confirmLabel="Eliminar metodología" onClose={() => { if (!operation.pending) setDeletingMethodology(null) }} onConfirm={deleteMethodology} />
     <ConfirmModal open={Boolean(deletingTopic)} title="¿Eliminar el tema?" description={`Se eliminará «${deletingTopic?.name ?? ''}» con sus actividades, metodologías y archivos, y se quitará de las sesiones. No se puede deshacer.`} pending={operation.pending} confirmLabel="Eliminar tema" onClose={() => { if (!operation.pending) setDeletingTopic(null) }} onConfirm={deleteTopic} />
     <ConfirmModal open={Boolean(deactivating)} title={`¿Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}?`} description={`${deactivating ? SUBJECTS[deactivating.kind] : 'El contenido'} dejará de estar disponible para nuevas sesiones. Su historial se conservará.`} pending={operation.pending} confirmLabel={`Deshabilitar ${deactivating ? LABELS[deactivating.kind] : 'contenido'}`} onClose={() => { if (!operation.pending) setDeactivating(null) }} onConfirm={deactivate} />
   </div>
@@ -768,6 +782,6 @@ function ContentLevelSkeleton({ activity }: Readonly<{ activity: boolean }>) {
       <Skeleton className="h-7 w-80 max-w-full" />
       <div className="flex gap-2"><Skeleton className="size-9" /><Skeleton className="h-9 w-44" /></div>
     </div>
-    <HeadedTableSkeleton headers={activity ? ['Metodología', 'Estado'] : ['Actividad', 'Duración', 'Metodologías', 'Estado']} />
+    <HeadedTableSkeleton headers={activity ? ['Metodología', 'Acciones'] : ['Actividad', 'Duración', 'Metodologías', 'Acciones']} />
   </div>
 }

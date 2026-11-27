@@ -1109,21 +1109,24 @@ describe('Módulo Docente', () => {
     workspace('content')
 
     const first = await screen.findByRole('row', { name: /Sesión 1/ }, { timeout: 5000 })
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Sesión', 'Fecha', 'Temas', 'Completados'])
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Sesión', 'Fecha', 'Temas', 'Acciones'])
     expect(within(first).getByText(formatDate('2026-09-21'))).toBeInTheDocument()
-    expect(within(first).getByText('1 de 2')).toBeInTheDocument()
-    // Los temas sin sesión son una fila más; los deshabilitados no se cuentan.
+    expect(within(first).getByText('2')).toBeInTheDocument()
+    expect(within(first).getByRole('button', { name: 'Editar la Sesión 1' })).toBeInTheDocument()
+    expect(within(first).getByRole('button', { name: 'Eliminar la Sesión 1' })).toBeInTheDocument()
+    // Los temas sin sesión son una fila más (sin acciones); los deshabilitados no se cuentan.
     const pending = screen.getByRole('row', { name: /Temas sin sesión/ })
-    expect(within(pending).getByText('0 de 1')).toBeInTheDocument()
+    expect(within(pending).getByText('1')).toBeInTheDocument()
+    expect(within(pending).queryByRole('button')).not.toBeInTheDocument()
     // Sin filtros de sesión ni de estado.
     expect(screen.queryByRole('combobox', { name: 'Filtrar por Sesión' })).not.toBeInTheDocument()
 
     await user.click(within(screen.getByRole('row', { name: /Sesión 2/ })).getByText('Sesión 2'))
     expect(await screen.findByRole('heading', { name: `Sesión 2 · ${formatDate('2026-09-28')}` })).toBeInTheDocument()
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Tema', 'Recursos', 'Completado'])
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Tema', 'Recursos', 'Acciones'])
     const row = screen.getByRole('row', { name: /Integración/ })
     expect(within(row).getByText('1 archivo')).toBeInTheDocument()
-    expect(within(row).getByRole('checkbox', { name: 'Completado: Integración' })).toBeChecked()
+    expect(within(row).queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('row', { name: /Pruebas/ })).not.toBeInTheDocument()
     expect(screen.queryByText('Habilitado')).not.toBeInTheDocument()
 
@@ -1244,26 +1247,76 @@ describe('Módulo Docente', () => {
     expect(teacherApi.uploadTopicFile).not.toHaveBeenCalled()
   })
 
-  it('permite al docente marcar un tema como completado o pendiente directamente desde la tabla', async () => {
+  it('cada tema de la sesión tiene Editar (abre su formulario) y Eliminar (con confirmación), sin abrir la fila', async () => {
     const user = userEvent.setup()
-    let currentTopic = { ...topic, is_covered: false }
-    vi.mocked(teacherApi.allTopics).mockImplementation(async () => [currentTopic])
-    vi.mocked(teacherApi.toggleTopicCovered).mockImplementation(async (_tutoringId, _topicId, isCovered) => {
-      currentTopic = { ...currentTopic, is_covered: Boolean(isCovered) }
-      return currentTopic
-    })
+    vi.mocked(teacherApi.deleteTopic).mockResolvedValue(undefined)
     contentWithoutSession()
-    await screen.findByText('Pruebas')
-    // Una sola casilla por tema, sin un ícono repetido en "Acciones".
-    const done = screen.getByRole('checkbox', { name: 'Completado: Pruebas' })
-    expect(done).not.toBeChecked()
-    expect(screen.queryByRole('button', { name: /Marcar completado/i })).not.toBeInTheDocument()
+    const row = await screen.findByRole('row', { name: /Pruebas/ }, { timeout: 5000 })
+    await user.click(within(row).getByRole('button', { name: 'Editar el tema Pruebas' }))
+    expect(await screen.findByRole('form', { name: 'Editar tema' })).toBeInTheDocument()
+    // La acción no abre además la pantalla del tema (clic de fila).
+    expect(screen.queryByRole('heading', { name: 'Actividades de Pruebas' })).not.toBeInTheDocument()
+    await user.click(within(screen.getByRole('form', { name: 'Editar tema' })).getByRole('button', { name: 'Cancelar' }))
 
-    await user.click(done)
-    await waitFor(() => expect(teacherApi.toggleTopicCovered).toHaveBeenCalledWith(40, 90, true))
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Completado: Pruebas' })).toBeChecked())
-    // Marcar la casilla no abre el modal de edición del tema.
-    expect(screen.queryByRole('form', { name: 'Editar tema' })).not.toBeInTheDocument()
+    await user.click(within(screen.getByRole('row', { name: /Pruebas/ })).getByRole('button', { name: 'Eliminar el tema Pruebas' }))
+    const confirm = await screen.findByRole('dialog', { name: '¿Eliminar el tema?' })
+    expect(teacherApi.deleteTopic).not.toHaveBeenCalled()
+    await user.click(within(confirm).getByRole('button', { name: 'Eliminar tema' }))
+    await waitFor(() => expect(teacherApi.deleteTopic).toHaveBeenCalledWith(40, 90))
+  })
+
+  it('una sesión se edita en su asistencia y se elimina con su asistencia, tras confirmar', async () => {
+    const user = userEvent.setup()
+    const session = { id: 2, tutoring_id: 40, number: 1, date: '2026-09-21', topics_covered: true, topics: [{ id: 90, name: 'Pruebas', is_active: true }], attendance: [{ id: 1, enrollment_id: 70, student_id: 80, student_name: 'Ana Pérez', present: true, attendance_required: false }] }
+    vi.mocked(teacherApi.allSessions).mockResolvedValue([session])
+    vi.mocked(teacherApi.deleteSession).mockResolvedValue(undefined)
+    const view = workspace('content')
+    await user.click(within(await screen.findByRole('row', { name: /Sesión 1/ }, { timeout: 5000 })).getByRole('button', { name: 'Eliminar la Sesión 1' }))
+    const confirm = await screen.findByRole('dialog', { name: '¿Eliminar la Sesión 1?' })
+    expect(confirm).toHaveTextContent('con su asistencia (1 registro)')
+    expect(confirm).toHaveTextContent('Sus temas se conservan y quedan sin sesión')
+    await user.click(within(confirm).getByRole('button', { name: 'Eliminar sesión' }))
+    await waitFor(() => expect(teacherApi.deleteSession).toHaveBeenCalledWith(40, 2))
+
+    view.unmount()
+    workspace('content')
+    await user.click(within(await screen.findByRole('row', { name: /Sesión 1/ }, { timeout: 5000 })).getByRole('button', { name: 'Editar la Sesión 1' }))
+    // Editar abre la asistencia de ese día.
+    expect(await screen.findByRole('tab', { name: 'Asistencia', selected: true })).toBeInTheDocument()
+  })
+
+  it('en el tema, cada actividad y cada metodología tienen Editar y Eliminar; eliminar las borra', async () => {
+    const user = userEvent.setup()
+    const method = { id: 92, activity_id: 91, description: 'Trabajo colaborativo', is_active: true }
+    const withActivity = { ...topic, activities: [
+      { id: 91, topic_id: 90, name: 'Diseñar casos', duration: '30 minutos', is_active: true, methodologies: [method, { id: 93, activity_id: 91, description: 'Vieja', is_active: false }] },
+      { id: 94, topic_id: 90, name: 'Deshabilitada', duration: '30 minutos', is_active: false, methodologies: [] },
+    ] }
+    vi.mocked(teacherApi.allTopics).mockResolvedValue([withActivity])
+    vi.mocked(teacherApi.deleteActivity).mockResolvedValue(undefined)
+    vi.mocked(teacherApi.deleteMethodology).mockResolvedValue(undefined)
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
+    const row = await screen.findByRole('row', { name: /Diseñar casos/ })
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Actividad', 'Duración', 'Metodologías', 'Acciones'])
+    // Solo las habilitadas, y la cuenta de metodologías tampoco incluye las deshabilitadas.
+    expect(screen.queryByRole('row', { name: /Deshabilitada/ })).not.toBeInTheDocument()
+    expect(within(row).getByText('1 metodología')).toBeInTheDocument()
+    await user.click(within(row).getByRole('button', { name: 'Editar la actividad Diseñar casos' }))
+    expect(await screen.findByRole('form', { name: 'Editar actividad' })).toBeInTheDocument()
+    await user.click(within(screen.getByRole('form', { name: 'Editar actividad' })).getByRole('button', { name: 'Cancelar' }))
+
+    await user.click(within(screen.getByRole('row', { name: /Diseñar casos/ })).getByRole('button', { name: 'Eliminar la actividad Diseñar casos' }))
+    const confirm = await screen.findByRole('dialog', { name: '¿Eliminar la actividad?' })
+    expect(confirm).toHaveTextContent('con sus metodologías')
+    await user.click(within(confirm).getByRole('button', { name: 'Eliminar actividad' }))
+    await waitFor(() => expect(teacherApi.deleteActivity).toHaveBeenCalledWith(40, 90, 91))
+
+    await user.click(await screen.findByText('Diseñar casos'))
+    const methodRow = await screen.findByRole('row', { name: /Trabajo colaborativo/ })
+    expect(screen.queryByRole('row', { name: /Vieja/ })).not.toBeInTheDocument()
+    await user.click(within(methodRow).getByRole('button', { name: /^Eliminar la metodología/ }))
+    await user.click(within(await screen.findByRole('dialog', { name: '¿Eliminar la metodología?' })).getByRole('button', { name: 'Eliminar metodología' }))
+    await waitFor(() => expect(teacherApi.deleteMethodology).toHaveBeenCalledWith(40, 90, 91, 92))
   })
 
   it('abre el tema con clic en la fila, lo edita desde su pantalla y lo deshabilita desde la cabecera del modal', async () => {
@@ -1272,9 +1325,7 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.deactivateTopic).mockResolvedValue({ ...topic, is_active: false })
     contentWithoutSession()
     await screen.findByText('Pruebas')
-    expect(screen.queryByRole('button', { name: /^Editar/ })).not.toBeInTheDocument()
-    // Sin columna de acciones: la fila abre la pantalla del tema.
-    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
+    // La fila abre la pantalla del tema; sus botones de Acciones no.
     await user.click(screen.getByText('Pruebas'))
     expect(await screen.findByRole('heading', { name: 'Actividades de Pruebas' })).toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Editar tema' })).not.toBeInTheDocument()
@@ -1323,7 +1374,7 @@ describe('Módulo Docente', () => {
     expect(teacherApi.createMethodology).toHaveBeenNthCalledWith(2, 40, 95, 200, { description: 'Revisión del docente' })
   })
 
-  it('al editar el tema corrige, quita y deshace actividades y metodologías; lo quitado se deshabilita al guardar', async () => {
+  it('al editar el tema corrige, quita y deshace actividades y metodologías; lo quitado se elimina al guardar', async () => {
     const user = userEvent.setup()
     const methods = [{ id: 92, activity_id: 91, description: 'Trabajo colaborativo', is_active: true }, { id: 93, activity_id: 91, description: 'Exposición', is_active: true }]
     const withActivities = { ...topic, activities: [
@@ -1334,8 +1385,8 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.allTopics).mockResolvedValue([withActivities])
     vi.mocked(teacherApi.updateTopic).mockResolvedValue(withActivities)
     vi.mocked(teacherApi.updateActivity).mockResolvedValue(withActivities.activities[0])
-    vi.mocked(teacherApi.deactivateActivity).mockResolvedValue({ ...withActivities.activities[1], is_active: false })
-    vi.mocked(teacherApi.deactivateMethodology).mockResolvedValue({ ...methods[1], is_active: false })
+    vi.mocked(teacherApi.deleteActivity).mockResolvedValue(undefined)
+    vi.mocked(teacherApi.deleteMethodology).mockResolvedValue(undefined)
     show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
     await user.click(await screen.findByRole('button', { name: 'Editar tema' }))
     const form = await screen.findByRole('form', { name: 'Editar tema' })
@@ -1356,9 +1407,10 @@ describe('Módulo Docente', () => {
     await user.click(within(form).getByRole('button', { name: 'Quitar la actividad 2' }))
     await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
 
-    await waitFor(() => expect(teacherApi.deactivateActivity).toHaveBeenCalledWith(40, 90, 94))
+    await waitFor(() => expect(teacherApi.deleteActivity).toHaveBeenCalledWith(40, 90, 94))
     expect(teacherApi.updateActivity).toHaveBeenCalledWith(40, 90, 91, { name: 'Diseñar casos de prueba', duration: '30 minutos' })
-    expect(teacherApi.deactivateMethodology).toHaveBeenCalledWith(40, 90, 91, 93)
+    expect(teacherApi.deleteMethodology).toHaveBeenCalledWith(40, 90, 91, 93)
+    expect(teacherApi.deactivateActivity).not.toHaveBeenCalled()
     expect(teacherApi.updateMethodology).not.toHaveBeenCalled()
     expect(teacherApi.createActivity).not.toHaveBeenCalled()
   })
@@ -1384,7 +1436,7 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('button', { name: '30m' })).not.toBeInTheDocument()
     await user.click(within(screen.getByRole('form', { name: 'Registrar actividad' })).getByRole('button', { name: 'Registrar actividad' }))
     await waitFor(() => expect(teacherApi.createActivity).toHaveBeenCalledWith(40, 90, { name: 'Diseñar casos', duration: '30 minutos' }))
-    expect(screen.queryByRole('columnheader', { name: 'Acciones' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Acciones' })).toBeInTheDocument()
     await user.click(await screen.findByText('Diseñar casos'))
     expect(await screen.findByRole('heading', { name: 'Metodologías de Diseñar casos' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Editar actividad' })).toBeInTheDocument()
