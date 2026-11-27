@@ -131,6 +131,8 @@ export interface TeacherAttendance extends Attendance { readonly topics_covered:
 export interface GradeSettings {
   readonly minimum: number
   readonly maximum: number
+  /** Promedio de los dos parciales con el que se aprueba. */
+  readonly passing_grade?: number
   readonly groups: readonly { key: string; label: string; min: number; max: number }[]
 }
 export interface ReportSummary {

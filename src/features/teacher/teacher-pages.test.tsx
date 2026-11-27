@@ -38,11 +38,6 @@ async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLEle
   await user.click(trigger)
   await user.click(await screen.findByRole('option', { name: option }))
 }
-// Etapa de calificación: un desplegable que indica si cada etapa está completa o pendiente.
-async function pickStage(user: ReturnType<typeof userEvent.setup>, stage: RegExp | string) {
-  await user.click(await screen.findByRole('combobox', { name: 'Etapa' }))
-  await user.click(await screen.findByRole('option', { name: stage }))
-}
 // Botón «atrás» del navegador: vuelve a la entrada anterior del historial.
 function BrowserBack() {
   const navigate = useNavigate()
@@ -151,7 +146,7 @@ describe('Módulo Docente', () => {
     expect(screen.getAllByRole('tablist')).toHaveLength(1)
     await user.click(within(sections).getByRole('tab', { name: 'Calificaciones' }))
     expect(await screen.findByRole('tab', { name: 'Calificaciones', selected: true })).toBeInTheDocument()
-    expect(await screen.findByRole('combobox', { name: 'Etapa' })).toBeInTheDocument()
+    expect(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toBeInTheDocument()
   })
 
   it('mientras carga la tutoría y luego sus notas, muestra esqueletos con la forma de cada pantalla', async () => {
@@ -168,20 +163,21 @@ describe('Módulo Docente', () => {
     expect(screen.getByRole('tab', { name: 'Calificaciones' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('registra el resultado final en Calificaciones y avisa lo que indican los parciales cuando el elegido no coincide', async () => {
-    const user = userEvent.setup()
+  it('el Estado se calcula con los parciales y no se elige a mano', async () => {
     vi.mocked(teacherApi.allStudents).mockResolvedValue([
-      { ...student, final_result: 'failed', suggested_result: 'approved' },
-      { ...student, id: 71, student_id: 81, name: 'Luis Mora', final_result: 'approved', suggested_result: 'approved' },
+      { ...student, partial_grade: '8.00', second_partial_grade: '8.00', final_result: 'failed', suggested_result: 'approved' },
+      { ...student, id: 71, student_id: 81, name: 'Luis Mora', partial_grade: '5.00', second_partial_grade: '6.00', final_result: null, suggested_result: 'failed' },
+      { ...student, id: 72, student_id: 82, name: 'Mía Ríos', partial_grade: '9.00', final_result: null, suggested_result: null },
     ])
-    vi.mocked(teacherApi.setFinalResult).mockResolvedValue({ ...student, final_result: 'approved' })
     workspace('grades')
-    // Solo se avisa donde el resultado elegido difiere del que corresponde a las notas.
-    expect(await screen.findByText('Según las notas: Aprobó', undefined, { timeout: 5000 })).toBeInTheDocument()
-    expect(screen.getAllByText(/^Según las notas/)).toHaveLength(1)
-    expect(screen.getByRole('columnheader', { name: 'Resultado final' })).toBeInTheDocument()
-    await choose(user, screen.getByLabelText('Resultado final de Ana Pérez'), 'Aprobó')
-    await waitFor(() => expect(teacherApi.setFinalResult).toHaveBeenCalledWith(40, student.id, 'approved'))
+    expect(await screen.findByRole('columnheader', { name: 'Estado' }, { timeout: 5000 })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Resultado final' })).not.toBeInTheDocument()
+    const rowOf = (name: string) => screen.getByText(name).closest('tr') as HTMLElement
+    // Manda lo que dicen las notas, aunque antes se hubiera registrado otra cosa.
+    expect(within(rowOf('Ana Pérez')).getByText('Aprobó')).toBeInTheDocument()
+    expect(within(rowOf('Luis Mora')).getByText('Reprobó')).toBeInTheDocument()
+    expect(within(rowOf('Mía Ríos')).getByText('Pendiente')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   })
 
   it('cambia de sección dentro de la misma tutoría sin volver a elegirla', async () => {
@@ -191,7 +187,7 @@ describe('Módulo Docente', () => {
     expect(screen.getAllByRole('columnheader')[0]).toHaveTextContent('#')
     await user.click(screen.getByRole('tab', { name: 'Calificaciones' }))
     expect(await screen.findByRole('columnheader', { name: '#' })).toBeInTheDocument()
-    expect(await screen.findByRole('combobox', { name: 'Etapa' })).toBeInTheDocument()
+    expect(await screen.findByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toBeInTheDocument()
     expect(teacherApi.allStudents).toHaveBeenLastCalledWith(40)
     await user.click(screen.getByRole('tab', { name: 'Horarios' }))
     expect(await screen.findByText('Sin horarios registrados')).toBeInTheDocument()
@@ -585,55 +581,46 @@ describe('Módulo Docente', () => {
     await waitFor(() => expect(teacherApi.enrollStudent).toHaveBeenCalledWith(40, { student_id: 80, enrollment_number: 1 }))
   })
 
-  it('carga las notas por etapa: todos los estudiantes de una etapa y recién ahí guarda', async () => {
+  it('deja abiertas las tres notas y guarda solo lo que cambió, sin exigir a todos los estudiantes', async () => {
     const user = userEvent.setup()
-    const second = { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222' }
+    const second = { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222', partial_grade: '6.00' }
     vi.mocked(teacherApi.allStudents).mockResolvedValue([student, second])
     vi.mocked(teacherApi.saveGrades).mockResolvedValue([student, second])
     workspace('grades')
-    await pickStage(user, /^Diagnóstico/)
-    const first = await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })
-    const other = screen.getByRole('textbox', { name: 'Diagnóstico de Luis Mora' })
-    const save = screen.getByRole('button', { name: 'Guardar Diagnóstico' })
-    expect(screen.queryByRole('textbox', { name: /Parcial/ })).not.toBeInTheDocument()
-    expect(save).toBeDisabled()
-    expect(screen.getByText('Faltan 2 notas de Diagnóstico.')).toBeInTheDocument()
+    const first = await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }, { timeout: 5000 })
+    // Sin elegir etapa: todas las casillas están abiertas y no hay nada que guardar aún.
+    expect(screen.queryByRole('combobox', { name: 'Etapa' })).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Parcial 1 de Luis Mora' })).toHaveValue('6.00')
+    expect(screen.getByRole('textbox', { name: 'Parcial 2 de Luis Mora' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Guardar notas' })).not.toBeInTheDocument()
 
     await user.type(first, '9.4267')
     expect(first).toHaveValue('9.42')
-    await user.type(other, '11')
-    expect(other).toHaveValue('1')
-    await user.clear(other)
+    const other = screen.getByRole('textbox', { name: 'Parcial 2 de Luis Mora' })
     await user.type(other, 'a8,5x')
     expect(other).toHaveValue('8.5')
-    expect(screen.getAllByText('Alto')).toHaveLength(2)
+    expect(screen.getAllByText('Alto')).toHaveLength(1)
     await user.tab()
     expect(other).toHaveValue('8.50')
-    await waitFor(() => expect(save).toBeEnabled())
+    expect(screen.getByText('2 notas cambiadas')).toBeInTheDocument()
 
-    await user.click(save)
-    await waitFor(() => expect(teacherApi.saveGrades).toHaveBeenCalledWith(40, [{ enrollment_id: 70, diagnostic: '9.42' }, { enrollment_id: 71, diagnostic: '8.50' }]))
-    expect(JSON.parse(sessionStorage.getItem('grades-draft:40') ?? '{}')[70]?.diagnostic).toBeUndefined()
+    await user.click(screen.getByRole('button', { name: 'Guardar notas' }))
+    await waitFor(() => expect(teacherApi.saveGrades).toHaveBeenCalledWith(40, [{ enrollment_id: 70, diagnostic: '9.42' }, { enrollment_id: 71, partial_two: '8.50' }]))
+    expect(sessionStorage.getItem('grades-draft:40')).toBeNull()
   })
 
-  it('abre en "Todas las etapas", indica el estado de cada etapa en el desplegable y deja volver a la consulta', async () => {
+  it('no deja guardar una nota guardada que se vació ni una fuera de la escala', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '8.00' }])
     workspace('grades')
-    expect(await screen.findByText('8.00')).toBeInTheDocument()
-    expect(screen.queryByText(/modo consulta/)).not.toBeInTheDocument()
-    expect(screen.queryByText('Cargar notas de:')).not.toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Etapa' })).toHaveTextContent('Todas las etapas')
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Guardar/ })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('combobox', { name: 'Etapa' }))
-    expect(await screen.findByRole('option', { name: 'Diagnóstico · Completo' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Parcial 1 · Pendiente' })).toBeInTheDocument()
-    await user.click(screen.getByRole('option', { name: /^Parcial 1/ }))
-    expect(screen.getByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Etapa' })).toHaveTextContent(/^Parcial 1/)
-    await pickStage(user, 'Todas las etapas')
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    const diagnostic = await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }, { timeout: 5000 })
+    await user.clear(diagnostic)
+    expect(diagnostic).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Hay 1 nota por corregir.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar notas' })).toBeDisabled()
+    await user.type(diagnostic, '7')
+    expect(diagnostic).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getByRole('button', { name: 'Guardar notas' })).toBeEnabled()
   })
 
   it('lista una fila por estudiante, sin notas ni resultado final (van en Calificaciones)', async () => {
@@ -673,87 +660,56 @@ describe('Módulo Docente', () => {
   it('no calcula evolución sin la nota del Parcial 1, aunque haya diagnóstico', async () => {
     vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00', partial_grade: null, second_partial_grade: '9.50' }])
     workspace('grades')
-    expect(await screen.findByText('9.50')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('9.50', undefined, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.queryByText('+2.50')).not.toBeInTheDocument()
     expect(screen.queryByText('Pendiente P2')).not.toBeInTheDocument()
   })
 
-  it('cancela la carga de una etapa y vuelve a modo consulta, descartando lo no guardado tras confirmar', async () => {
+  it('descarta lo no guardado tras confirmar', async () => {
     const user = userEvent.setup()
     workspace('grades')
-    await pickStage(user, /^Diagnóstico/)
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-
-    await pickStage(user, /^Diagnóstico/)
-    await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '7.5')
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    const diagnostic = await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }, { timeout: 5000 })
+    await user.type(diagnostic, '7.5')
+    await user.click(screen.getByRole('button', { name: 'Descartar' }))
     await user.click(await screen.findByRole('button', { name: 'Seguir editando' }))
-    expect(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('7.50')
+    expect(diagnostic).toHaveValue('7.50')
     expect(teacherApi.saveGrades).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.click(screen.getByRole('button', { name: 'Descartar' }))
     await user.click(await screen.findByRole('button', { name: 'Sí, descartar' }))
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    await pickStage(user, /^Diagnóstico/)
     expect(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('')
+    expect(screen.queryByRole('button', { name: 'Guardar notas' })).not.toBeInTheDocument()
+    expect(sessionStorage.getItem('grades-draft:40')).toBeNull()
   })
 
   it('conserva las notas escritas como borrador si el docente sale de la página', async () => {
     const user = userEvent.setup()
     const view = workspace('grades')
-    await pickStage(user, /^Diagnóstico/)
-    await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '7.5')
+    await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }, { timeout: 5000 }), '7.5')
     view.unmount()
     workspace('grades')
-    await pickStage(user, /^Diagnóstico/)
     expect(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('7.5')
+    expect(screen.getByText('Sin guardar')).toBeInTheDocument()
   })
 
   it('mantiene las notas escritas ante un error del servidor', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.saveGrades).mockRejectedValue(new ApiError(422, { message: 'La nota supera la escala.' }))
     workspace('grades')
-    await pickStage(user, /^Diagnóstico/)
-    await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '8.5')
-    await user.click(screen.getByRole('button', { name: 'Guardar Diagnóstico' }))
+    await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }, { timeout: 5000 }), '8.5')
+    await user.tab()
+    await user.click(screen.getByRole('button', { name: 'Guardar notas' }))
     expect(await screen.findByText('La nota supera la escala.')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toHaveValue('8.50')
   })
 
-  it('al cambiar de etapa con notas sin guardar pide confirmar el descarte, y la consulta muestra solo lo guardado', async () => {
+  it('la evolución usa solo lo guardado: una nota escrita y no guardada no la cambia', async () => {
     const user = userEvent.setup()
     vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, diagnostic_grade: '7.00', partial_grade: '7.00' }])
-    const view = workspace('grades')
-    await pickStage(user, /^Parcial 2/)
-    await user.type(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' }), '8')
+    workspace('grades')
+    await user.type(await screen.findByRole('textbox', { name: 'Parcial 2 de Ana Pérez' }, { timeout: 5000 }), '8')
     expect(screen.getByText('Sin guardar')).toBeInTheDocument()
-    await pickStage(user, /^Parcial 1/)
-    const confirm = await screen.findByRole('dialog', { name: '¿Descartar las notas de Parcial 2?' })
-    expect(within(confirm).getByText(/pasarás a Parcial 1/)).toBeInTheDocument()
-    await user.click(within(confirm).getByRole('button', { name: 'Seguir editando' }))
-    expect(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' })).toHaveValue('8.00')
-    expect(screen.queryByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).not.toBeInTheDocument()
-
-    // Al volver a la pantalla, el borrador no se muestra como nota guardada ni cuenta en la evolución.
-    view.unmount()
-    workspace('grades')
-    expect(await screen.findByText(/Tienes notas sin guardar de Parcial 2/)).toBeInTheDocument()
-    expect(screen.queryByText('8.00')).not.toBeInTheDocument()
     expect(screen.getByText('Pendiente P2').closest('[data-slot="badge"]')).not.toBeNull()
-
-    await pickStage(user, /^Parcial 2/)
-    expect(screen.getByRole('textbox', { name: 'Parcial 2 de Ana Pérez' })).toHaveValue('8.00')
-    await pickStage(user, /^Parcial 1/)
-    await user.click(within(await screen.findByRole('dialog', { name: '¿Descartar las notas de Parcial 2?' })).getByRole('button', { name: 'Sí, descartar' }))
-    expect(await screen.findByRole('textbox', { name: 'Parcial 1 de Ana Pérez' })).toHaveValue('7.00')
-    expect(JSON.parse(sessionStorage.getItem('grades-draft:40') ?? '{}')[70]?.partial_two).toBeUndefined()
-  })
-
-  it('elige la etapa con un desplegable sin etiqueta visible ni línea de ayuda', async () => {
-    workspace('grades')
-    expect(await screen.findByRole('combobox', { name: 'Etapa' })).toBeInTheDocument()
-    expect(screen.queryByText('Etapa')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Elige una etapa/)).not.toBeInTheDocument()
+    expect(screen.queryByText('+1.00')).not.toBeInTheDocument()
   })
 
   it('registra la asistencia en un solo paso, da por ausente a quien no se marca y guarda directamente', async () => {
@@ -790,8 +746,7 @@ describe('Módulo Docente', () => {
     expect(within(consulted).getByText('Asistencia obligatoria')).toBeInTheDocument()
   })
 
-  it('la asistencia y la carga de notas por etapa no incluyen a quien abandonó la tutoría', async () => {
-    const user = userEvent.setup()
+  it('la asistencia y la carga de notas no incluyen a quien abandonó la tutoría', async () => {
     const abandoned = { ...student, id: 71, student_id: 81, name: 'Luis Mora', identification: '0202222222', is_abandoned: true, abandonment_reason: 'Se mudó de ciudad' }
     vi.mocked(teacherApi.allStudents).mockResolvedValue([student, abandoned])
     attendance()
@@ -799,8 +754,7 @@ describe('Módulo Docente', () => {
     expect(screen.queryByRole('checkbox', { name: 'Presente: Luis Mora' })).not.toBeInTheDocument()
     cleanup()
     workspace('grades')
-    await pickStage(user, /^Diagnóstico/)
-    expect(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' })).toBeInTheDocument()
+    expect(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Diagnóstico de Luis Mora' })).not.toBeInTheDocument()
   })
 
@@ -864,10 +818,10 @@ describe('Módulo Docente', () => {
     vi.mocked(teacherApi.saveGrades).mockResolvedValue([])
     workspace('grades')
 
-    await pickStage(user, /^Diagnóstico/)
-    await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }), '9')
+    await user.type(await screen.findByRole('textbox', { name: 'Diagnóstico de Ana Pérez' }, { timeout: 5000 }), '9')
     await user.type(screen.getByRole('textbox', { name: 'Diagnóstico de Bruno Vera' }), '7')
-    await user.click(screen.getByRole('button', { name: 'Guardar Diagnóstico' }))
+    await user.tab()
+    await user.click(screen.getByRole('button', { name: 'Guardar notas' }))
 
     await waitFor(() => expect(teacherApi.saveGrades).toHaveBeenCalledTimes(2))
     expect(teacherApi.saveGrades).toHaveBeenCalledWith(40, [{ enrollment_id: 70, diagnostic: '9.00' }])

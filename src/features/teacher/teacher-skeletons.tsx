@@ -19,7 +19,7 @@ const STUDENT_HEADERS = ['#', 'Apellidos y nombres', 'Correo', 'Grupo de Conocim
 const SESSION_HEADERS = ['Sesión', 'Día', 'Fecha', 'Asistencia'] as const
 const CONTENT_SESSION_HEADERS = ['Sesión', 'Fecha', 'Acciones'] as const
 const SCHEDULE_HEADERS = ['Día', 'Horario', 'Estado'] as const
-const GRADE_HEADERS = ['#', 'Apellidos y nombres', 'Diagnóstico', 'Parcial 1', 'Parcial 2', 'Evolución (P1 → P2)'] as const
+const GRADE_HEADERS = ['#', 'Apellidos y nombres', 'Diagnóstico', 'Parcial 1', 'Parcial 2', 'Evolución (P1 → P2)', 'Estado'] as const
 const REPORT_HEADERS = ['Informe', 'Autor', 'Enviado'] as const
 const REVIEW_HEADERS = ['Día', 'Fecha', 'Asistencia', 'Actividades'] as const
 
