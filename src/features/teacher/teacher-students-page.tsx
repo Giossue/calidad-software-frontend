@@ -162,8 +162,8 @@ export function StudentsPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring
       rowTitle={(student) => (canGrade(student) ? `Abrir la inscripción de ${student.name}` : canSeeAbandonment(student) ? `Ver el abandono de ${student.name}` : canReenroll(student) ? `Reinscribir a ${student.name}` : '')}
       empty={<TeacherEmpty title="No hay estudiantes para mostrar" description="Registra un estudiante o revisa los filtros de búsqueda." />}
       columns={[
-        { label: 'Apellidos y nombres', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><span className="text-xs text-muted-foreground">{student.identification}</span><EnrollmentNumberTag enrollmentNumber={student.enrollment_number} attendanceRequired={student.attendance_required} /></div> },
-        { label: 'Contacto', render: (student) => <div className="flex flex-col gap-1"><span className="break-all">{student.email}</span><span className="text-xs text-muted-foreground">{student.phone || 'Sin teléfono'}</span></div> },
+        { label: 'Apellidos y nombres', render: (student) => <div className="flex flex-col gap-1"><span>{student.name}</span><EnrollmentNumberTag enrollmentNumber={student.enrollment_number} attendanceRequired={student.attendance_required} /></div> },
+        { label: 'Correo', render: (student) => <span className="break-all">{student.email}</span> },
         { label: 'Grupo de Conocimiento', render: (student) => student.knowledge_group
           ? <span>{student.knowledge_group}</span>
           : <span className="text-xs text-muted-foreground">Sin diagnóstico</span> },
