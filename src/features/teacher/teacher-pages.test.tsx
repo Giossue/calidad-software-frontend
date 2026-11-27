@@ -1294,6 +1294,75 @@ describe('Módulo Docente', () => {
     expect(await screen.findByRole('heading', { name: 'Temas sin sesión' })).toBeInTheDocument()
   })
 
+  it('registra el tema con sus actividades y metodologías en un solo formulario', async () => {
+    const user = userEvent.setup()
+    vi.mocked(teacherApi.createTopic).mockResolvedValue({ ...topic, id: 95, name: 'Pruebas unitarias' })
+    vi.mocked(teacherApi.createActivity).mockResolvedValue({ id: 200, topic_id: 95, name: 'Diseñar casos', duration: '1 hora y 30 minutos', is_active: true, methodologies: [] })
+    vi.mocked(teacherApi.createMethodology).mockImplementation(async (_id, _topic, activity, input) => ({ id: 300, activity_id: activity, description: input.description, is_active: true }))
+    contentWithoutSession()
+    await user.click(await screen.findByRole('button', { name: 'Registrar tema' }))
+    const form = screen.getByRole('form', { name: 'Registrar tema' })
+    await user.type(within(form).getByLabelText(/^Nombre/), 'Pruebas unitarias')
+    // La primera actividad ya viene lista para escribir, con su primera metodología.
+    const first = within(form).getByRole('region', { name: 'Actividad 1' })
+    await user.type(within(first).getByRole('textbox', { name: /^Actividad/ }), 'Diseñar casos')
+    await choose(user, within(first).getByRole('combobox', { name: 'Horas de la actividad 1' }), '1 hora')
+    await user.type(within(first).getByRole('textbox', { name: 'Metodología 1 de la actividad 1' }), 'Trabajo en parejas')
+    await user.click(within(first).getByRole('button', { name: 'Agregar metodología' }))
+    await user.type(within(first).getByRole('textbox', { name: 'Metodología 2 de la actividad 1' }), 'Revisión del docente')
+    // Una actividad agregada y dejada en blanco no se registra.
+    await user.click(within(form).getByRole('button', { name: 'Agregar actividad' }))
+    expect(within(form).getByRole('region', { name: 'Actividad 2' })).toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Registrar tema' }))
+
+    await waitFor(() => expect(teacherApi.createMethodology).toHaveBeenCalledTimes(2))
+    expect(teacherApi.createTopic).toHaveBeenCalledWith(40, { name: 'Pruebas unitarias', description: '' })
+    expect(teacherApi.createActivity).toHaveBeenCalledTimes(1)
+    expect(teacherApi.createActivity).toHaveBeenCalledWith(40, 95, { name: 'Diseñar casos', duration: '1 hora y 30 minutos' })
+    expect(teacherApi.createMethodology).toHaveBeenNthCalledWith(1, 40, 95, 200, { description: 'Trabajo en parejas' })
+    expect(teacherApi.createMethodology).toHaveBeenNthCalledWith(2, 40, 95, 200, { description: 'Revisión del docente' })
+  })
+
+  it('al editar el tema corrige, quita y deshace actividades y metodologías; lo quitado se deshabilita al guardar', async () => {
+    const user = userEvent.setup()
+    const methods = [{ id: 92, activity_id: 91, description: 'Trabajo colaborativo', is_active: true }, { id: 93, activity_id: 91, description: 'Exposición', is_active: true }]
+    const withActivities = { ...topic, activities: [
+      { id: 91, topic_id: 90, name: 'Diseñar casos', duration: '30 minutos', is_active: true, methodologies: methods },
+      { id: 94, topic_id: 90, name: 'Ejecutar pruebas', duration: '1 hora', is_active: true, methodologies: [] },
+      { id: 95, topic_id: 90, name: 'Actividad vieja', duration: '30 minutos', is_active: false, methodologies: [] },
+    ] }
+    vi.mocked(teacherApi.allTopics).mockResolvedValue([withActivities])
+    vi.mocked(teacherApi.updateTopic).mockResolvedValue(withActivities)
+    vi.mocked(teacherApi.updateActivity).mockResolvedValue(withActivities.activities[0])
+    vi.mocked(teacherApi.deactivateActivity).mockResolvedValue({ ...withActivities.activities[1], is_active: false })
+    vi.mocked(teacherApi.deactivateMethodology).mockResolvedValue({ ...methods[1], is_active: false })
+    show(<TeacherTutoringsPage />, '/panel/teacher-tutorings?tutoring=40&tab=content&topic=90')
+    await user.click(await screen.findByRole('button', { name: 'Editar tema' }))
+    const form = await screen.findByRole('form', { name: 'Editar tema' })
+    // Solo las actividades habilitadas, cada una con sus metodologías.
+    expect(within(form).getAllByRole('region').map((item) => item.getAttribute('aria-label'))).toEqual(['Actividad 1', 'Actividad 2'])
+    const first = within(form).getByRole('region', { name: 'Actividad 1' })
+    expect(within(first).getByRole('textbox', { name: 'Metodología 2 de la actividad 1' })).toHaveValue('Exposición')
+
+    const name = within(first).getByRole('textbox', { name: /^Actividad/ })
+    await user.clear(name)
+    await user.type(name, 'Diseñar casos de prueba')
+    await user.click(within(first).getByRole('button', { name: 'Quitar la metodología 2 de la actividad 1' }))
+    expect(within(form).getByText(/Exposición/)).toHaveClass('line-through')
+    // Quitar y deshacer: la actividad vuelve sin cambios.
+    await user.click(within(form).getByRole('button', { name: 'Quitar la actividad 2' }))
+    await user.click(within(form).getAllByRole('button', { name: 'Deshacer' }).at(-1) as HTMLElement)
+    expect(within(form).getByRole('region', { name: 'Actividad 2' })).toBeInTheDocument()
+    await user.click(within(form).getByRole('button', { name: 'Quitar la actividad 2' }))
+    await user.click(within(form).getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(teacherApi.deactivateActivity).toHaveBeenCalledWith(40, 90, 94))
+    expect(teacherApi.updateActivity).toHaveBeenCalledWith(40, 90, 91, { name: 'Diseñar casos de prueba', duration: '30 minutos' })
+    expect(teacherApi.deactivateMethodology).toHaveBeenCalledWith(40, 90, 91, 93)
+    expect(teacherApi.updateMethodology).not.toHaveBeenCalled()
+    expect(teacherApi.createActivity).not.toHaveBeenCalled()
+  })
+
   it('recorre temas, actividades y metodologías con formularios integrados', async () => {
     const user = userEvent.setup()
     let topics = [topic]
