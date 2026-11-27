@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 
 import logoHorizontal from '@/assets/logo-ueb-horizontal.webp'
+import logoHorizontalLight from '@/assets/logo-ueb-horizontal-claro.webp'
 import logoSidebar from '@/assets/logo-ueb-sidebar.png'
 import { HelpButton } from '@/components/help-button'
 import { NotificationBell } from '@/components/notification-bell'
@@ -116,7 +117,7 @@ const STUDENT_DEGREE_NAV_ITEMS: readonly NavItem[] = [
 
 const TEACHER_TUTORING_NAV_ITEMS: readonly NavItem[] = [
   { id: 'teacher-tutorings', label: 'Mis tutorías', icon: GraduationCapIcon },
-  { id: 'teacher-reports', label: 'Informes', icon: FileTextIcon },
+  // Los informes de cada tutoría están en su pestaña «Informes»; la ruta antigua sigue funcionando.
 ]
 
 const TEACHER_DEGREE_NAV_ITEMS: readonly NavItem[] = [
@@ -278,6 +279,14 @@ export function DashboardPage() {
   const moduleIds = navGroups.flatMap((group) => group.items.map((item) => item.id))
 
   // Los estudiantes sin ciclo y los docentes esperan a saber si tienen titulación para tener el menú completo.
+  // Piloto de la guía IBM Carbon: por ahora solo en el panel del docente (ver src/styles/carbon.css).
+  const carbonDesign = user?.role === 'docente'
+  useEffect(() => {
+    const root = document.documentElement
+    if (carbonDesign) root.dataset.design = 'carbon'
+    else delete root.dataset.design
+    return () => { delete root.dataset.design }
+  }, [carbonDesign])
   const menuReady = user?.role === 'docente'
     ? teacherHasDegree !== null
     : user?.role !== 'estudiante' || studentStage !== null || studentDegreeEnrolled !== null
@@ -329,7 +338,8 @@ export function DashboardPage() {
     <SidebarProvider>
       <Sidebar collapsible="icon" variant="sidebar" className="border-sidebar">
         <SidebarHeader className="flex min-h-16 items-center justify-center p-2 group-data-[collapsible=icon]:h-12 group-data-[collapsible=icon]:min-h-12 group-data-[collapsible=icon]:p-0">
-          <img src={logoHorizontal} alt="Universidad Estatal de Bolívar" className="h-auto w-full group-data-[collapsible=icon]:hidden" width="600" height="164" />
+          <img src={logoHorizontal} data-logo="dark-bg" alt="Universidad Estatal de Bolívar" className="h-auto w-full group-data-[collapsible=icon]:hidden" width="600" height="164" />
+          <img src={logoHorizontalLight} data-logo="light-bg" alt="Universidad Estatal de Bolívar" className="h-auto w-full group-data-[collapsible=icon]:hidden" width="600" height="164" />
           <img src={logoSidebar} alt="Universidad Estatal de Bolívar" className="hidden size-7 object-contain group-data-[collapsible=icon]:block" />
         </SidebarHeader>
 

@@ -16,7 +16,7 @@ import { useOperation } from '@/features/tutoring/tutoring-hooks'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { compareNames } from '@/lib/format'
 import { isValidGrade, sanitizeGradeInput } from '@/lib/grade-input'
-import { teacherApi, type Enrollment, type GradeSettings, type GradeType, type TeacherTutoring } from '@/lib/teacher-api'
+import { teacherApi, type Enrollment, type FinalResult, type GradeSettings, type GradeType, type TeacherTutoring } from '@/lib/teacher-api'
 import { jointGroup, ownGroup, type ClassGroup } from './joint-groups'
 import { JointNotice } from './joint-notice'
 import { TeacherEmpty } from './teacher-shared'
@@ -138,7 +138,20 @@ export function GradesPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring }
   </div>
 }
 
-type GradesTableMeta = { grid: Grid; saved: Grid; stage: GradeType | null; settings: GradeSettings; disabled: boolean; onChange: (studentId: number, type: GradeType, value: string) => void }
+type GradesTableMeta = {
+  grid: Grid
+  saved: Grid
+  stage: GradeType | null
+  settings: GradeSettings
+  disabled: boolean
+  onChange: (studentId: number, type: GradeType, value: string) => void
+  /** Resultado final (aprobó o reprobó): se registra aquí, junto a las notas. */
+  finalResultDisabled: (student: Enrollment) => boolean
+  onFinalResult: (student: Enrollment, result: FinalResult | null) => void
+}
+
+const FINAL_RESULT_LABELS: Record<FinalResult, string> = { approved: 'Aprobó', failed: 'Reprobó' }
+const FINAL_RESULT_OPTIONS = [{ value: 'approved', label: 'Aprobó' }, { value: 'failed', label: 'Reprobó' }]
 
 // Columnas estables: el estado llega por `meta` para que las casillas no se remonten (y pierdan el foco) al escribir.
 const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
@@ -202,6 +215,25 @@ const GRADE_COLUMNS: ColumnDef<Enrollment>[] = [
           </Tooltip>
         </div>
       )
+    },
+  },
+  {
+    id: 'final-result',
+    header: 'Resultado final',
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as GradesTableMeta
+      const student = row.original
+      return <div className="flex min-w-36 flex-col gap-1">
+        <SelectInput
+          ariaLabel={`Resultado final de ${student.name}`}
+          value={student.final_result ?? ''}
+          onValueChange={(value) => meta.onFinalResult(student, (value || null) as FinalResult | null)}
+          emptyLabel="Sin registrar"
+          options={FINAL_RESULT_OPTIONS}
+          disabled={meta.finalResultDisabled(student)}
+        />
+        {!student.final_result && student.suggested_result && <span className="text-xs text-muted-foreground">Sugerido: {FINAL_RESULT_LABELS[student.suggested_result]}</span>}
+      </div>
     },
   },
 ]
@@ -299,7 +331,22 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
   // Notas escritas y no guardadas de otra visita (borrador): se avisan, nunca se muestran como guardadas.
   const draftStages = stage ? [] : GRADE_FIELDS.filter(({ type }) => active.some((student) => valueOf(student.id, type) !== (saved[student.id]?.[type] ?? '')))
 
-  const tableMeta: GradesTableMeta = { grid, saved, stage, settings, disabled: readOnly || operation.pending, onChange: setValue }
+  // Cada estudiante se registra en su tutoría (en una clase conjunta, la de su grupo).
+  const tutoringOf = new Map(groups.flatMap(({ group, active: groupStudents }) => groupStudents.map((student) => [student.id, group.id] as const)))
+  function recordFinalResult(student: Enrollment, result: FinalResult | null) {
+    void operation.run(
+      () => teacherApi.setFinalResult(tutoringOf.get(student.id) ?? tutoring.id, student.id, result),
+      result === 'approved'
+        ? `${student.name} aprobó. Si existe la tutoría de la asignatura siguiente, quedó inscrito en ella.`
+        : result === 'failed' ? `${student.name} reprobó.` : 'Resultado final quitado.',
+      onSaved,
+    )
+  }
+  const tableMeta: GradesTableMeta = {
+    grid, saved, stage, settings, disabled: readOnly || operation.pending, onChange: setValue,
+    finalResultDisabled: (student) => readOnly || stage !== null || !student.is_active || Boolean(student.is_abandoned) || operation.pending,
+    onFinalResult: recordFinalResult,
+  }
   const saveBlocked = readOnly || !complete || hasInvalid || !changed
   const missing = total - filled
   const hint = readOnly ? '' : hasInvalid ? 'Hay notas incompletas o fuera de la escala.' : missing > 0 ? `${missing === 1 ? 'Falta 1 nota' : `Faltan ${missing} notas`} de ${label}.` : !changed ? 'No hay cambios por guardar.' : 'Todo listo para guardar.'
@@ -310,6 +357,7 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
   <form onSubmit={submit} aria-label="Calificaciones" className="flex flex-col gap-4">
     {readOnly && <Alert><AlertDescription>Esta tutoría está en modo consulta: no se pueden modificar calificaciones.</AlertDescription></Alert>}
     {!readOnly && <div role="group" aria-label="Etapa de calificación" className="flex flex-wrap items-center gap-2">
+      <label htmlFor={`grades-stage-${tutoring.id}`} className="text-sm text-muted-foreground">{stage ? 'Ingresando notas de:' : 'Para ingresar o corregir notas, elige la etapa:'}</label>
       <SelectInput
         id={`grades-stage-${tutoring.id}`}
         ariaLabel="Etapa"
@@ -330,7 +378,7 @@ function GradesForm({ tutoring, students, settings, joint, onSaved }: Readonly<{
       </section>
     ))}
     <ErrorNotice message={operation.error} />
-    {stage && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background py-3">
+    {stage && <div data-carbon-actions className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t bg-background py-3">
       <div className="flex flex-col">
         <p className="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">{filled} de {total} notas de {label} ingresadas{changed && <Badge variant="warning">Sin guardar</Badge>}</p>
         <p className="text-xs text-muted-foreground"><span>{hint}</span> <span>Escala de 0 a {settings.maximum}, hasta dos decimales (ej. 9.42).</span></p>

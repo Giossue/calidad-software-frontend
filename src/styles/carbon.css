@@ -1,0 +1,328 @@
+/*
+  IBM Carbon Design System (tema Gray 10 en claro, Gray 100 en oscuro) con el azul
+  institucional UEB #122c41 como color interactivo. Es la misma guía de los sistemas
+  de Contratos y Asistencia, adaptada a los componentes shadcn de este proyecto.
+
+  Se aplica solo bajo `html[data-design='carbon']` (hoy, el panel del docente). Las
+  reglas van fuera de @layer a propósito: así ganan a las utilidades de Tailwind de
+  cada componente sin tener que tocar sus clases.
+*/
+@import '@fontsource/ibm-plex-sans/300.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+
+/* ---------- Tokens ---------- */
+html[data-design='carbon'] {
+  --font-sans: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', Menlo, monospace;
+
+  --cds-interactive: #122c41;
+  --cds-interactive-hover: #1c3f5c;
+  --cds-interactive-active: #0a1a27;
+  --cds-focus: #0f62fe;
+  --cds-support-error: #da1e28;
+  --cds-support-success: #24a148;
+  --cds-support-warning: #f1c21b;
+  --cds-support-info: #0043ce;
+
+  --background: #f4f4f4;
+  --foreground: #161616;
+  --card: #ffffff;
+  --card-foreground: #161616;
+  --popover: #ffffff;
+  --popover-foreground: #161616;
+  --primary: var(--cds-interactive);
+  --primary-foreground: #ffffff;
+  --primary-readable: var(--cds-interactive);
+  --button-primary: var(--cds-interactive);
+  --button-primary-foreground: #ffffff;
+  --secondary: #e0e0e0;
+  --secondary-foreground: #161616;
+  --muted: #f4f4f4;
+  --muted-foreground: #525252;
+  --accent: #e8e8e8;
+  --accent-foreground: #161616;
+  --destructive: var(--cds-support-error);
+  --destructive-foreground: #ffffff;
+  --success: #198038;
+  --warning: #8e6a00;
+  --notice: #fcf4d6;
+  --notice-border: var(--cds-support-warning);
+  --notice-foreground: #161616;
+  --field: #f4f4f4;
+  --table-header: #e0e0e0;
+  --border: #e0e0e0;
+  --input: #8d8d8d;
+  --ring: var(--cds-focus);
+  --radius: 0.25rem;
+  /* Carbon separa capas con color y bordes, no con sombras. */
+  --surface-ring: #e0e0e0;
+  --shadow-control-value: 0 0 #0000;
+  --shadow-surface-value: 0 0 #0000;
+  --shadow-menu-value: 0 2px 6px rgb(0 0 0 / 0.3);
+  --shadow-modal-value: 0 2px 6px rgb(0 0 0 / 0.3);
+  /* UI Shell: menú lateral blanco con indicador azul en el elemento activo. */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #525252;
+  --sidebar-primary: var(--cds-interactive);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8e8e8;
+  --sidebar-accent-foreground: #161616;
+  --sidebar-border: #e0e0e0;
+  --sidebar-ring: var(--cds-focus);
+}
+
+html.dark[data-design='carbon'] {
+  --cds-interactive: #4589ff;
+  --cds-interactive-hover: #6ea6ff;
+  --cds-interactive-active: #a6c8ff;
+  --cds-focus: #ffffff;
+  --background: #161616;
+  --foreground: #f4f4f4;
+  --card: #262626;
+  --card-foreground: #f4f4f4;
+  --popover: #393939;
+  --popover-foreground: #f4f4f4;
+  --primary: #0f62fe;
+  --primary-readable: #78a9ff;
+  --button-primary: #0f62fe;
+  --secondary: #393939;
+  --secondary-foreground: #f4f4f4;
+  --muted: #262626;
+  --muted-foreground: #c6c6c6;
+  --accent: #333333;
+  --accent-foreground: #f4f4f4;
+  --destructive: #fa4d56;
+  --success: #42be65;
+  --warning: #f1c21b;
+  --notice: #393939;
+  --notice-foreground: #f4f4f4;
+  --field: #393939;
+  --table-header: #393939;
+  --border: #393939;
+  --input: #8d8d8d;
+  --surface-ring: #393939;
+  --sidebar: #161616;
+  --sidebar-foreground: #c6c6c6;
+  --sidebar-accent: #292929;
+  --sidebar-accent-foreground: #f4f4f4;
+  --sidebar-border: #393939;
+}
+
+html[data-design='carbon'] body {
+  font-family: var(--font-sans);
+  letter-spacing: 0.16px;
+}
+
+/* Foco accesible de Carbon: contorno de 2 px, solo con teclado. */
+html[data-design='carbon'] :is(a, button, input, select, textarea, [role='tab'], [role='checkbox'], [tabindex]):focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+/* ---------- Menú lateral (UI Shell) ---------- */
+html[data-design='carbon'] [data-slot='sidebar-menu-button'] {
+  position: relative;
+  min-height: 2.5rem;
+  border-radius: 0;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+html[data-design='carbon'] [data-slot='sidebar-menu-button'][data-active='true'] {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+html[data-design='carbon'] [data-slot='sidebar-menu-button'][data-active='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--cds-interactive);
+}
+html[data-design='carbon'] [data-slot='sidebar-group-label'] {
+  font-size: 0.75rem;
+  letter-spacing: 0.32px;
+  color: #6f6f6f;
+}
+/* Logo: versión para fondo claro en el menú blanco; la blanca en oscuro. */
+html:not([data-design='carbon']) [data-logo='light-bg'],
+html.dark [data-logo='light-bg'],
+html[data-design='carbon']:not(.dark) [data-logo='dark-bg'] {
+  display: none;
+}
+
+/* ---------- Botones ---------- */
+html[data-design='carbon'] [data-slot='button'] {
+  border-radius: 0;
+  font-weight: 400;
+  letter-spacing: 0.16px;
+  transition: background-color 70ms cubic-bezier(0, 0, 0.38, 0.9), border-color 70ms, color 70ms;
+}
+html[data-design='carbon'] [data-slot='button'][data-size='default'] { height: 2.5rem; padding-inline: 1rem; }
+html[data-design='carbon'] [data-slot='button'][data-size='lg'] { height: 3rem; padding-inline: 1rem; }
+html[data-design='carbon'] [data-slot='button'][data-size='sm'] { height: 2rem; padding-inline: 0.75rem; }
+html[data-design='carbon'] [data-slot='button'][data-size='icon'] { width: 2.5rem; height: 2.5rem; }
+html[data-design='carbon'] [data-slot='button'][data-size='icon-lg'] { width: 3rem; height: 3rem; }
+/* Primario: azul UEB. */
+html[data-design='carbon'] [data-slot='button'][data-variant='primary']:not([data-tone='destructive']) { background: var(--cds-interactive); color: #fff; }
+html[data-design='carbon'] [data-slot='button'][data-variant='primary']:not([data-tone='destructive']):hover:not(:disabled) { background: var(--cds-interactive-hover); }
+html[data-design='carbon'] [data-slot='button'][data-variant='primary']:not([data-tone='destructive']):active:not(:disabled) { background: var(--cds-interactive-active); }
+/* Secundario de la página = terciario de Carbon (contorno azul). */
+html[data-design='carbon'] [data-slot='button'][data-variant='secondary'] {
+  background: transparent;
+  border: 1px solid var(--cds-interactive);
+  color: var(--cds-interactive);
+  box-shadow: none;
+}
+html[data-design='carbon'] [data-slot='button'][data-variant='secondary']:hover:not(:disabled) { background: var(--cds-interactive); color: #fff; }
+/* En ventanas y en la barra de guardar, el secundario es el gris oscuro de Carbon (Cancelar). */
+html[data-design='carbon'] :is([role='dialog'], [role='alertdialog'], [data-carbon-actions]) [data-slot='button'][data-variant='secondary']:not([data-tone='destructive']) {
+  background: #393939;
+  border-color: #393939;
+  color: #fff;
+}
+html[data-design='carbon'] :is([role='dialog'], [role='alertdialog'], [data-carbon-actions]) [data-slot='button'][data-variant='secondary']:not([data-tone='destructive']):hover:not(:disabled) { background: #474747; }
+/* Terciario de la página = ghost de Carbon. */
+html[data-design='carbon'] [data-slot='button'][data-variant='tertiary']:hover:not(:disabled) { background: var(--accent); }
+/* Peligro. */
+html[data-design='carbon'] [data-slot='button'][data-variant='primary'][data-tone='destructive'] { background: var(--cds-support-error); color: #fff; }
+html[data-design='carbon'] [data-slot='button'][data-variant='primary'][data-tone='destructive']:hover:not(:disabled) { background: #b81921; }
+html[data-design='carbon'] [data-slot='button']:disabled:not([data-variant='tertiary']) {
+  background: #c6c6c6;
+  border-color: #c6c6c6;
+  color: #8d8d8d;
+  opacity: 1;
+}
+
+/* ---------- Campos: fondo gris y línea inferior ---------- */
+html[data-design='carbon'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='textarea'], [data-slot='search-input']) {
+  border: 0;
+  border-bottom: 1px solid var(--input);
+  border-radius: 0;
+  background-color: var(--field);
+  box-shadow: none;
+  font-size: 0.875rem;
+  letter-spacing: 0.16px;
+}
+html[data-design='carbon'] :is([data-slot='input'], [data-slot='select-trigger']) { min-height: 2.5rem; }
+/* Sobre el fondo gris de la página, los campos van en blanco (field-01). */
+html[data-design='carbon'] [data-slot='sidebar-inset'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='textarea']):not(:is([role='dialog'], [data-slot='card']) *) {
+  background-color: var(--card);
+}
+html[data-design='carbon'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='textarea']):focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+html[data-design='carbon'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='textarea'])[aria-invalid='true'] {
+  outline: 2px solid var(--cds-support-error);
+  outline-offset: -2px;
+}
+html[data-design='carbon'] [data-slot='select-content'] { border-radius: 0; border: 0; }
+html[data-design='carbon'] [data-slot='select-item'] { border-radius: 0; min-height: 2.5rem; }
+html[data-design='carbon'] :is([data-slot='label'], [data-slot='field-label']) {
+  font-size: 0.75rem;
+  letter-spacing: 0.32px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+/* Casilla: borde marcado (el gris claro casi no se veía) y relleno oscuro al marcar. */
+html[data-design='carbon'] [data-slot='checkbox'] {
+  border: 1px solid var(--foreground);
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-design='carbon'] [data-slot='checkbox'][data-state='checked'] {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+html[data-design='carbon'] [data-slot='checkbox']:disabled { border-color: #c6c6c6; }
+
+/* ---------- Pestañas (line tabs) ---------- */
+html[data-design='carbon'] [data-slot='tabs-list'] {
+  height: auto;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+html[data-design='carbon'] [data-slot='tabs-trigger'] {
+  min-height: 3rem;
+  flex: 0 0 auto;
+  padding: 0 1rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+html[data-design='carbon'] [data-slot='tabs-trigger']:hover:not([data-state='active']) {
+  color: var(--foreground);
+  border-bottom-color: var(--input);
+}
+html[data-design='carbon'] [data-slot='tabs-trigger'][data-state='active'] {
+  border-bottom-color: var(--cds-interactive);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+/* ---------- Tablas ---------- */
+html[data-design='carbon'] [data-slot='table-container'] { border-radius: 0; }
+html[data-design='carbon'] [data-slot='table'] { font-size: 0.875rem; letter-spacing: 0.16px; }
+html[data-design='carbon'] [data-slot='table-head'] {
+  background: var(--table-header);
+  color: var(--foreground);
+  font-weight: 600;
+}
+/* Filas de 48 px solo cuando la tabla se ve como tabla; en celular se apila en tarjetas. */
+@media (min-width: 48rem) {
+  html[data-design='carbon'] :is([data-slot='table-head'], [data-slot='table-cell']) { height: 3rem; }
+}
+html[data-design='carbon'] [data-slot='table-row'] { border-color: var(--border); }
+html[data-design='carbon'] [data-slot='table-body'] [data-slot='table-row']:hover { background: var(--accent); }
+/* Las filas que abren algo muestran un cheurón al final: se ve que se pueden abrir. */
+html[data-design='carbon'] [data-slot='table-body'] [data-slot='table-row'][title^='Abrir'] > [data-slot='table-cell']:last-child { padding-right: 2.5rem; position: relative; }
+html[data-design='carbon'] [data-slot='table-body'] [data-slot='table-row'][title^='Abrir'] > [data-slot='table-cell']:last-child::after {
+  content: '';
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-top: 1.5px solid var(--muted-foreground);
+  border-right: 1.5px solid var(--muted-foreground);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* ---------- Tarjetas y ventanas ---------- */
+html[data-design='carbon'] [data-slot='card'] { border-radius: var(--radius); box-shadow: none; border: 1px solid var(--border); }
+html[data-design='carbon'] :is([role='dialog'], [role='alertdialog']) { border-radius: 0; }
+
+/* ---------- Etiquetas (tags) ---------- */
+html[data-design='carbon'] [data-slot='badge'] {
+  min-height: 1.5rem;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.32px;
+}
+html[data-design='carbon']:not(.dark) [data-slot='badge'][data-variant='success'] { background: #a7f0ba; color: #0e6027; }
+html[data-design='carbon']:not(.dark) [data-slot='badge'][data-variant='warning'] { background: #fcf4d6; color: #483700; }
+html[data-design='carbon']:not(.dark) [data-slot='badge'][data-variant='danger'] { background: #ffd7d9; color: #a2191f; }
+html[data-design='carbon']:not(.dark) [data-slot='badge']:is([data-variant='neutral'], [data-variant='inactive'], [data-variant='outline']) { background: #e0e0e0; color: #161616; }
+html[data-design='carbon']:not(.dark) [data-slot='badge'][data-variant='secondary'] { background: #d0e2ff; color: #0043ce; }
+
+/* ---------- Encabezado de página ---------- */
+html[data-design='carbon'] [data-tour='page-header'] h1 {
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+html[data-design='carbon'] [data-tour='page-header'] h1 + * { font-size: 0.875rem; letter-spacing: 0.16px; }

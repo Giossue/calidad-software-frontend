@@ -89,7 +89,15 @@ function GradesShape() {
   </div>
 }
 
-export type WorkspaceTab = 'attendance' | 'content' | 'schedules' | 'students' | 'grades'
+export type WorkspaceTab = 'attendance' | 'content' | 'schedules' | 'students' | 'grades' | 'reports'
+
+/** Informes dentro de la tutoría: sus subpestañas y la tabla de informes enviados. */
+function ReportsShape() {
+  return <div className="flex flex-col gap-5">
+    <TabsSkeleton tabs={2} />
+    <HeadedTableSkeleton headers={['Informe', 'Autor', 'Enviado', 'Acciones']} rows={3} />
+  </div>
+}
 
 const TAB_SHAPES: Record<WorkspaceTab, () => ReactNode> = {
   attendance: AttendanceShape,
@@ -97,6 +105,7 @@ const TAB_SHAPES: Record<WorkspaceTab, () => ReactNode> = {
   schedules: SchedulesShape,
   students: StudentsShape,
   grades: GradesShape,
+  reports: ReportsShape,
 }
 
 /** Encabezado de la tutoría, sus pestañas y la forma de la pestaña que se va a abrir. */
