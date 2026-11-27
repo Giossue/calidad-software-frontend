@@ -5,14 +5,15 @@ Objetivo: pantallas sobrias, fáciles de entender a la primera, y que siempre di
 está pasando. Si una pantalla nueva no encaja en estas reglas, se cambia la regla aquí,
 no se improvisa en la pantalla.
 
-## Piloto IBM Carbon (panel del docente)
+## Guía IBM Carbon (docente y coordinador de carrera)
 
-Los usuarios reportaron que la interfaz es poco intuitiva. Como piloto, el panel del
-docente usa la guía IBM Carbon de los sistemas de Contratos y Asistencia (tema Gray 10,
+Los usuarios reportaron que la interfaz es poco intuitiva. Rol por rol (primero el docente,
+luego el coordinador de carrera), los paneles pasan a la guía IBM Carbon de los sistemas de Contratos y Asistencia (tema Gray 10,
 IBM Plex Sans, azul UEB `#122c41` como color interactivo y foco azul `#0f62fe`).
 
 - Se activa con `html[data-design='carbon']`, que el panel pone cuando el usuario es
-  docente (`src/pages/dashboard-page.tsx`). Los demás roles siguen con el sistema de sílabos.
+  docente o coordinador de carrera (`src/pages/dashboard-page.tsx`). Los demás roles siguen
+  con el sistema de sílabos.
 - Todo el estilo está en `src/styles/carbon.css`: tokens y formas de Carbon aplicados sobre
   los `data-slot` de `src/components/ui`. Las pantallas no llevan clases propias de Carbon.
 - Equivalencias de botones: `primary` = primario de Carbon; `secondary` = terciario de Carbon
@@ -20,9 +21,11 @@ IBM Plex Sans, azul UEB `#122c41` como color interactivo y foco azul `#0f62fe`).
   (`data-carbon-actions`); `tertiary` = ghost.
 - Reglas de uso que trae el piloto: ruta de vuelta en las pantallas de detalle, la acción
   de guardar fija al pie en listas largas, una fila por registro, y cada dato se registra
-  en un solo lugar (las notas y el resultado final, solo en «Calificaciones»).
+  en un solo lugar (las notas y el resultado final, solo en «Calificaciones»), acciones con
+  su nombre a la vista (no íconos sueltos) y listas que no abren vacías (el filtro de ciclo
+  muestra cuántos estudiantes tiene cada uno y abre en el primero con estudiantes).
 
-Si el piloto se aprueba, se extiende rol por rol y esta sección reemplaza a la de abajo.
+Cuando todos los roles usen Carbon, esta sección reemplaza a la de abajo.
 
 ## Sistema visual
 

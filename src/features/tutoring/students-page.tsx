@@ -105,7 +105,30 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
   // Una pestaña por ciclo de la carrera (los paralelos de un mismo ciclo comparten pestaña).
   const cycleLevels = Array.from(new Map(careerCycles.map((cycle) => [cycle.number, cycle])).values()).sort((a, b) => a.number - b.number)
   const [cycleTab, setCycleTab] = useState('')
-  const activeTab = cycleTab || (cycleLevels[0] ? String(cycleLevels[0].number) : WITHOUT_CYCLE)
+  // Estudiantes de cada ciclo (y sin ciclo) de la malla elegida: se ven en el filtro y la lista
+  // abre en el primer ciclo que tiene estudiantes, no en uno vacío.
+  const levelsKey = cycleLevels.map((level) => level.number).join(',')
+  const [cycleCounts, setCycleCounts] = useState<{ key: string; counts: Record<string, number> } | null>(null)
+  const [countsRevision, setCountsRevision] = useState(0)
+  const countsKey = `${careerId}|${mallaId ?? ''}|${levelsKey}|${countsRevision}`
+  useEffect(() => {
+    let cancelled = false
+    const numbers = levelsKey ? levelsKey.split(',').map(Number) : []
+    const total = (params: { cycle_number?: number; without_cycle?: boolean }) =>
+      tutoringApi.allStudents({ career_id: careerId, malla_id: mallaId, per_page: 1, ...params }).then((response) => response.meta?.total ?? response.data.length)
+    Promise.all([...numbers.map((number) => total({ cycle_number: number })), total({ without_cycle: true })])
+      .then((totals) => {
+        if (cancelled) return
+        const counts: Record<string, number> = { [WITHOUT_CYCLE]: totals[numbers.length] }
+        numbers.forEach((number, index) => { counts[String(number)] = totals[index] })
+        setCycleCounts({ key: countsKey, counts })
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [careerId, mallaId, levelsKey, countsKey])
+  const counts = cycleCounts?.key === countsKey ? cycleCounts.counts : cycleCounts?.counts
+  const firstWithStudents = counts ? [...cycleLevels.map((level) => String(level.number)), WITHOUT_CYCLE].find((value) => (counts[value] ?? 0) > 0) : undefined
+  const activeTab = cycleTab || firstWithStudents || (cycleLevels[0] ? String(cycleLevels[0].number) : WITHOUT_CYCLE)
   const tabCycleNumber = activeTab === WITHOUT_CYCLE ? undefined : Number(activeTab)
   // Desde el 6.º ciclo los estudiantes están en titulación: se gestiona su matrícula en lugar de tutorías.
   const isDegreeTab = isDegreeCycleNumber(tabCycleNumber)
@@ -221,6 +244,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
       `Ciclo de ${cycleTarget.name} actualizado`,
       async () => {
         setCycleTarget(null)
+        setCountsRevision((value) => value + 1)
         await Promise.all([list.reload(), degreeList.reload()])
       },
     )
@@ -244,6 +268,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
         setMallaTarget(null)
         setOpenedStudent(null)
         detail.close()
+        setCountsRevision((value) => value + 1)
         await list.reload()
       },
     )
@@ -269,6 +294,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
       'Estudiante registrado',
       async () => {
         setCreateOpen(false)
+        setCountsRevision((value) => value + 1)
         await Promise.all([list.reload(), degreeList.reload()])
       },
     )
@@ -397,6 +423,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
       value={activeTab}
       onChange={setCycleTab}
       extraOptions={[{ value: WITHOUT_CYCLE, label: 'Sin ciclo' }]}
+      counts={counts}
     />
   )
 
@@ -550,7 +577,7 @@ function StudentsWorkspace({ catalogs, career, onBack, screen }: Readonly<{ cata
             description={`Registra a los estudiantes de ${careerName}, ubícalos en su ciclo y matricula en titulación a los del último. Haz clic en uno para abrirlo.`}
             createLabel="Registrar estudiante"
             onCreate={openCreateModal}
-            extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={list.reload} />}
+            extraActions={<BulkImportButton type="students" title="Carga masiva de estudiantes" description="Cada estudiante recibirá su contraseña provisional por correo y completará sus datos al ingresar. En «asignaturas_pendientes» escribe, separadas por «|», las asignaturas de ciclos anteriores que arrastra (código o nombre): no se le inscribirá en las que las continúan hasta que las apruebe. Si el estudiante ya está registrado, solo se actualizan sus pendientes." onFinished={() => { setCountsRevision((value) => value + 1); list.reload() }} />}
           />
           {screen?.tabs}
           <MallaPicker selection={malla} onlyWhenChoice />

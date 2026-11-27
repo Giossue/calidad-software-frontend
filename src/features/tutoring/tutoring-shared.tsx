@@ -99,16 +99,22 @@ export function RecordActions({ name, onEdit, onDeactivate, disabled }: Readonly
  * cabe cuando la carrera tiene muchos ciclos). Desde el 6.º ciclo se marcan como titulación.
  * `extraOptions` agrega opciones al final (p. ej. "Sin ciclo").
  */
-export function CycleSelect({ id, levels, value, onChange, extraOptions = [] }: Readonly<{
+export function CycleSelect({ id, levels, value, onChange, extraOptions = [], counts }: Readonly<{
   id: string
   levels: readonly { readonly number: number }[]
   value: string
   onChange: (value: string) => void
   extraOptions?: readonly { value: string; label: string }[]
+  /** Cantidad de registros por opción (clave = valor de la opción): se muestra junto al ciclo. */
+  counts?: Readonly<Record<string, number>>
 }>) {
+  const withCount = (optionValue: string, label: string) => {
+    const count = counts?.[optionValue]
+    return count === undefined ? label : `${label} · ${count === 1 ? '1 estudiante' : `${count} estudiantes`}`
+  }
   const options = [
-    ...levels.map((level) => ({ value: String(level.number), label: `${level.number}° ciclo${isDegreeCycleNumber(level.number) ? ' · Titulación' : ''}` })),
-    ...extraOptions,
+    ...levels.map((level) => ({ value: String(level.number), label: withCount(String(level.number), `${level.number}° ciclo${isDegreeCycleNumber(level.number) ? ' · Titulación' : ''}`) })),
+    ...extraOptions.map((option) => ({ ...option, label: withCount(option.value, option.label) })),
   ]
   return (
     <div role="group" aria-label="Ciclos de la carrera" className="shrink-0">
