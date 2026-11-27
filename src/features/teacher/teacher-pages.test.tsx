@@ -168,12 +168,17 @@ describe('Módulo Docente', () => {
     expect(screen.getByRole('tab', { name: 'Calificaciones' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('registra el resultado final en Calificaciones, junto a las notas, con la sugerencia según los parciales', async () => {
+  it('registra el resultado final en Calificaciones y avisa lo que indican los parciales cuando el elegido no coincide', async () => {
     const user = userEvent.setup()
-    vi.mocked(teacherApi.allStudents).mockResolvedValue([{ ...student, final_result: null, suggested_result: 'approved' }])
+    vi.mocked(teacherApi.allStudents).mockResolvedValue([
+      { ...student, final_result: 'failed', suggested_result: 'approved' },
+      { ...student, id: 71, student_id: 81, name: 'Luis Mora', final_result: 'approved', suggested_result: 'approved' },
+    ])
     vi.mocked(teacherApi.setFinalResult).mockResolvedValue({ ...student, final_result: 'approved' })
     workspace('grades')
-    expect(await screen.findByText('Sugerido: Aprobó')).toBeInTheDocument()
+    // Solo se avisa donde el resultado elegido difiere del que corresponde a las notas.
+    expect(await screen.findByText('Según las notas: Aprobó', undefined, { timeout: 5000 })).toBeInTheDocument()
+    expect(screen.getAllByText(/^Según las notas/)).toHaveLength(1)
     expect(screen.getByRole('columnheader', { name: 'Resultado final' })).toBeInTheDocument()
     await choose(user, screen.getByLabelText('Resultado final de Ana Pérez'), 'Aprobó')
     await waitFor(() => expect(teacherApi.setFinalResult).toHaveBeenCalledWith(40, student.id, 'approved'))
@@ -1309,7 +1314,9 @@ describe('Módulo Docente', () => {
     // Solo lo habilitado; la ruta no suma niveles.
     const activityGroup = within(section).getByRole('group', { name: 'Actividad Diseñar casos' })
     expect(within(section).queryByRole('group', { name: 'Actividad Deshabilitada' })).not.toBeInTheDocument()
-    // Las actividades van numeradas.
+    // Etiquetas que separan actividades y metodologías; las actividades van numeradas.
+    expect(within(section).getByText('Actividades')).toBeInTheDocument()
+    expect(within(activityGroup).getByText('Metodologías')).toBeInTheDocument()
     expect(within(activityGroup).getByText('1. Diseñar casos')).toBeInTheDocument()
     expect(within(activityGroup).getByText('Trabajo colaborativo')).toBeInTheDocument()
     expect(within(activityGroup).queryByText('Vieja')).not.toBeInTheDocument()

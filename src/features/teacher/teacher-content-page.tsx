@@ -498,6 +498,8 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
               </div>
               {open && (
                 <div id={`topic-content-${item.id}`} className="flex flex-col gap-4 border-t border-border px-3 py-3 sm:pl-10">
+                  {/* Etiquetas que separan la lista de actividades y, en cada una, la de metodologías. */}
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Actividades</span>
                   {activities.length === 0 && <p className="text-sm text-muted-foreground">Este tema aún no tiene actividades.</p>}
                   {activities.map((each, index) => {
                     const methods = each.methodologies.filter((method) => method.is_active)
@@ -506,7 +508,9 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                         <span className="min-w-0 flex-1 text-sm"><span className="font-medium">{index + 1}. {each.name}</span> <span className="text-muted-foreground">· {each.duration}</span></span>
                         {rowActions(`la actividad ${each.name}`, () => editRecord(each, 'activity', { topicId: item.id }), () => setDeletingActivity({ topicId: item.id, activity: each }))}
                       </div>
-                      <ul className="flex flex-col gap-1 border-l-2 border-border pl-3">
+                      <div className="flex flex-col gap-1 border-l-2 border-border pl-3">
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Metodologías</span>
+                      <ul className="flex flex-col gap-1">
                         {methods.length === 0 && <li className="text-sm text-muted-foreground">Sin metodologías.</li>}
                         {methods.map((method) => (
                           <li key={method.id} className="flex items-start gap-2 text-sm">
@@ -515,6 +519,7 @@ export function ContentPanel({ tutoring }: Readonly<{ tutoring: TeacherTutoring 
                           </li>
                         ))}
                       </ul>
+                      </div>
                       {canManage && (
                         <Button type="button" variant="tertiary" size="sm" className="w-fit" disabled={operation.pending} onClick={() => openForm('methodology', null, { topicId: item.id, activityId: each.id })}>
                           <PlusIcon data-icon="inline-start" />
