@@ -59,13 +59,15 @@ async function choose(user: ReturnType<typeof userEvent.setup>, trigger: HTMLEle
 /** Opciones del desplegable de ciclo (lo abre y lo vuelve a cerrar). */
 async function readCycleOptions(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('combobox', { name: 'Ciclo' }))
-  const names = (await screen.findAllByRole('option')).map((option) => option.textContent)
+  // Cada opción lleva la cantidad de estudiantes («2° ciclo · 1 estudiante»); aquí se compara solo el ciclo.
+  const names = (await screen.findAllByRole('option')).map((option) => option.textContent?.replace(/ · \d+ estudiantes?$/, ''))
   await user.keyboard('{Escape}')
   return names
 }
 
 async function chooseCycle(user: ReturnType<typeof userEvent.setup>, option: string | RegExp) {
-  await choose(user, await screen.findByRole('combobox', { name: 'Ciclo' }), option)
+  const escaped = typeof option === 'string' ? new RegExp(`^${option.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( · \\d+ estudiantes?)?$`) : option
+  await choose(user, await screen.findByRole('combobox', { name: 'Ciclo' }), escaped)
 }
 
 /** La malla guarda la asignatura abierta en la URL: se monta dentro de un router. */
@@ -1774,6 +1776,17 @@ describe('Coordinación de tutorías', () => {
 
     expect(await screen.findByRole('combobox', { name: 'Ciclo' })).toHaveTextContent('2° ciclo')
     expect(await readCycleOptions(userEvent.setup())).toEqual(['2° ciclo', '6° ciclo · Titulación', '8° ciclo · Titulación', 'Sin ciclo'])
+  })
+
+  it('muestra cuántos estudiantes hay en cada ciclo y abre en el primero que tiene estudiantes', async () => {
+    vi.mocked(tutoringApi.cycles).mockResolvedValue([cycle, { ...cycle, id: 21, name: 'Sexto', number: 6 }])
+    vi.mocked(tutoringApi.allStudents).mockImplementation(async (params) => params?.cycle_number === 6 ? { ...paginated([]), meta: { ...paginated([]).meta, total: 4 } } : { ...paginated([]), meta: { ...paginated([]).meta, total: 0 } })
+    vi.mocked(tutoringApi.tutorings).mockResolvedValue(paginated([tutoring]))
+    render(<MemoryRouter><TutoringStudentsPage /></MemoryRouter>)
+    // El 2.º ciclo está vacío: se abre el 6.º, que tiene estudiantes.
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Ciclo' })).toHaveTextContent('6° ciclo · Titulación · 4 estudiantes'))
+    await userEvent.setup().click(screen.getByRole('combobox', { name: 'Ciclo' }))
+    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual(['2° ciclo · 0 estudiantes', '6° ciclo · Titulación · 4 estudiantes', 'Sin ciclo · 0 estudiantes'])
   })
 
   it('exige el ciclo al registrar un estudiante y no ofrece tutorías en el ciclo de titulación', async () => {

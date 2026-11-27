@@ -363,7 +363,7 @@ export const tutoringApi = {
   setAbandonment: (id: number, enrollmentId: number, input: { abandoned: true; reason: string } | { abandoned: false }) =>
     mutate<CoordinatorEnrollment>(`tutorings/${id}/students/${enrollmentId}/abandonment`, 'PUT', input),
 
-  allStudents: (params?: { page?: number; search?: string; career_id?: number; malla_id?: number; cycle_number?: number; without_cycle?: boolean; tutoring_status?: 'with' | 'without' }) => {
+  allStudents: (params?: { page?: number; per_page?: number; search?: string; career_id?: number; malla_id?: number; cycle_number?: number; without_cycle?: boolean; tutoring_status?: 'with' | 'without' }) => {
     const { without_cycle: withoutCycle, ...rest } = params ?? {}
     return request<PaginatedResourceCollection<CoordinatorStudent>>(`${ROOT}/students${buildQuery({ ...rest, without_cycle: withoutCycle ? 1 : undefined })}`)
   },
