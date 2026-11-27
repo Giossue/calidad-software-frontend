@@ -231,9 +231,13 @@ export const teacherApi = {
   createActivity: (id: number, topicId: number, input: { name: string; duration: string }) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities`, 'POST', input),
   updateActivity: (id: number, topicId: number, activityId: number, input: { name: string; duration: string }) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities/${activityId}`, 'PATCH', input),
   deactivateActivity: (id: number, topicId: number, activityId: number) => mutate<Activity>(`tutorings/${id}/topics/${topicId}/activities/${activityId}/deactivate`, 'PATCH'),
+  /** Elimina una actividad registrada por error, con sus metodologías. */
+  deleteActivity: (id: number, topicId: number, activityId: number) => request<void>(`${ROOT}/tutorings/${id}/topics/${topicId}/activities/${activityId}`, { method: 'DELETE' }),
   createMethodology: (id: number, topicId: number, activityId: number, input: { description: string }) => mutate<Methodology>(`tutorings/${id}/topics/${topicId}/activities/${activityId}/methodologies`, 'POST', input),
   updateMethodology: (id: number, topicId: number, activityId: number, methodologyId: number, input: { description: string }) => mutate<Methodology>(`tutorings/${id}/topics/${topicId}/activities/${activityId}/methodologies/${methodologyId}`, 'PATCH', input),
   deactivateMethodology: (id: number, topicId: number, activityId: number, methodologyId: number) => mutate<Methodology>(`tutorings/${id}/topics/${topicId}/activities/${activityId}/methodologies/${methodologyId}/deactivate`, 'PATCH'),
+  /** Elimina una metodología registrada por error. */
+  deleteMethodology: (id: number, topicId: number, activityId: number, methodologyId: number) => request<void>(`${ROOT}/tutorings/${id}/topics/${topicId}/activities/${activityId}/methodologies/${methodologyId}`, { method: 'DELETE' }),
   sessions: (id: number, params?: TeacherListParams) => list<TutoringSession>(`tutorings/${id}/sessions`, params),
   allSessions: (id: number) => collectPages((page) => list<TutoringSession>(`tutorings/${id}/sessions`, { page, per_page: 100 })),
   attendance: (id: number, params?: TeacherListParams) => list<TeacherAttendance>(`tutorings/${id}/attendance`, params),
@@ -241,6 +245,8 @@ export const teacherApi = {
   absenceNotices: async (id: number, date: string) => (await request<{ data: TeacherAbsenceNotice[] }>(`${ROOT}/tutorings/${id}/absence-notices${buildQuery({ date })}`)).data,
   saveSession: (id: number, input: SessionInput) => mutate<TutoringSession>(`tutorings/${id}/sessions`, 'PUT', input),
   updateSessionTopics: (id: number, sessionId: number, topic_ids: readonly number[]) => mutate<TutoringSession>(`tutorings/${id}/sessions/${sessionId}/topics`, 'PATCH', { topic_ids }),
+  /** Elimina una sesión registrada por error con su asistencia; sus temas quedan sin sesión. */
+  deleteSession: (id: number, sessionId: number) => request<void>(`${ROOT}/tutorings/${id}/sessions/${sessionId}`, { method: 'DELETE' }),
   reports: (id: number, params?: TeacherListParams) => list<TeacherReport>(`tutorings/${id}/reports`, params),
   sendReport: (id: number, input: { title: string; observations: string }) => mutate<TeacherReport>(`tutorings/${id}/reports`, 'POST', input),
   diagnosticReportPreview: async (id: number, date: string) =>
