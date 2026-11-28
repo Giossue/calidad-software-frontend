@@ -3,7 +3,7 @@
   institucional UEB #122c41 como color interactivo. Es la misma guía de los sistemas
   de Contratos y Asistencia, adaptada a los componentes shadcn de este proyecto.
 
-  Se aplica solo bajo `html[data-design='carbon']` (hoy, el panel del docente). Las
+  Se aplica bajo `html[data-design='carbon']`, que index.html activa para todo el sistema. Las
   reglas van fuera de @layer a propósito: así ganan a las utilidades de Tailwind de
   cada componente sin tener que tocar sus clases.
 */

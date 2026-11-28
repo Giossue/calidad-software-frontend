@@ -279,14 +279,6 @@ export function DashboardPage() {
   const moduleIds = navGroups.flatMap((group) => group.items.map((item) => item.id))
 
   // Los estudiantes sin ciclo y los docentes esperan a saber si tienen titulación para tener el menú completo.
-  // Guía IBM Carbon, rol por rol: docente y coordinador de carrera (ver src/styles/carbon.css).
-  const carbonDesign = user?.role === 'docente' || user?.role === 'coordinador_carrera'
-  useEffect(() => {
-    const root = document.documentElement
-    if (carbonDesign) root.dataset.design = 'carbon'
-    else delete root.dataset.design
-    return () => { delete root.dataset.design }
-  }, [carbonDesign])
   const menuReady = user?.role === 'docente'
     ? teacherHasDegree !== null
     : user?.role !== 'estudiante' || studentStage !== null || studentDegreeEnrolled !== null
